@@ -1,0 +1,155 @@
+@font-face {
+  font-family: FuentePrincipal;
+  src: url(./MuseoSansCyrl-500.woff);
+}
+
+/* Estilos para el componente de inicio de sesión */
+* {
+  font-family: FuentePrincipal;
+}
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--primary);
+  /* background: rgb(237, 50, 55); */
+  /* background: linear-gradient(
+    90deg,
+    rgba(237, 50, 55, 0.8491771708683473) 0%,
+    rgba(253, 71, 3, 0.8463760504201681) 100%
+  ); */
+}
+
+.logo-container {
+  text-align: center;
+}
+
+.logo-container h1 {
+  font-size: 32px;
+  color: #4285f4; /* Color del logo */
+}
+
+.form-container {
+  background: linear-gradient(
+    135deg,
+    var(--primary) 14%,
+    var(--primary) 18%
+  );
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 4px 10px 2px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(9.3px);
+  /* -webkit-backdrop-filter: blur(9.3px); */
+  padding: 20px;
+  border-radius: 20px;
+  min-width: 400px;
+  
+}
+
+.form-container h2 {
+  font-size: 30px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 600;
+  color: #000;
+}
+
+.form-container form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-container img {
+  width: 100%;
+  height: 5em;
+  object-fit: contain;
+  margin-bottom: 20px;
+}
+
+.form-container input {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-weight: 100;
+}
+.contrasena-container {
+  width: 100%;
+}
+.contrasena-container .contrasena {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 15px;
+  width: 100%;
+}
+
+.form-container input[type="submit"] {
+  padding: 10px 20px;
+  background-color: #040508; /* Color del botón */
+  color: #fff;
+  margin: 0 25%;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.alerta {
+  margin-left: 5px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ff003c;
+}
+
+.form-container a {
+  color: #4285f4; /* Color del enlace de registro */
+  text-decoration: none;
+}
+
+.mostrar-contrasena {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.mostrar-contrasena input {
+  margin-top: 12px;
+  margin-right: 5px;
+  margin-left: 7px; /* Margen en el lado derecho del checkbox */
+}
+
+.mostrar-contrasena span {
+  margin-left: 5px; /* Margen en el lado izquierdo del texto */
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/*------------- ventana de error --------------*/
+.ventana-emergente {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  top: 5%;
+  right: 5%;
+  background-color: white;
+  height: auto;
+  width: 200px;
+  border-radius: 20px 0 20px 0;
+  transition: all 1s ease;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.136);
+}
+.ventana-emergente span {
+  padding: 20px 20px 10px 20px;
+  text-align: center;
+  color: red;
+}
+
+.barra-tiempo {
+  height: 7px;
+  background-color: #00000064;
+  width: 90%;
+  transition: width 3s linear;
+}

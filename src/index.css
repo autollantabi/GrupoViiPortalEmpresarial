@@ -1,0 +1,128 @@
+/* :root {
+  --primary: #3c3c3b;
+  --secondary: #fd4703;
+  --color-contraste: #cfcfcf4f;
+  --color-contraste-2: #cfcfcf28;
+  --color-contraste-1: #7a7a7a4f;
+  --color-fondo-ventana: #00000070;
+  --color-3: hsl(60, 2%, 12%);
+  --color-error: #ff0000;
+  --primary-bajo: #fd4603b4;
+  --primary-medio: #fd460365;
+  --color-fila-amarilla: rgba(255, 230, 1, 0.227);
+  --color-fila-roja: rgba(255, 1, 1, 0.199);
+  --color-fila-verde: rgba(0, 191, 0, 0.113);
+  --color-fila-purpura: rgba(222, 193, 255, 0.552);
+  --color-fila-azul: rgba(1, 234, 255, 0.199);
+  --color-fila-default: rgba(255, 255, 255, 0.5);
+  --color-perla: #fcfcf7;
+  --heigth-header: 45px;
+  --heigth-header1: 28px;
+  --color-pacifico: #e9eae4;
+  --bg-site: rgba(180, 180, 180, 0.573);
+  --color-hover-menu-sidebar: rgba(180, 180, 180, 0.15);
+  --color-medio-transparente-negro: rgba(0, 0, 0, 0.05);
+  --color-alto-transparente-negro: rgba(0, 0, 0, 0.2);
+  --color-letra-shortcut: rgba(255, 255, 255, 0.5);
+  --box-shadow: rgba(0, 0, 0, 0.1);
+  --separador: rgba(88, 88, 88, 0.329);
+  --color-bg-card: rgba(0, 0, 0, 0.75);
+} */
+
+:root {
+  /* 🎨 Colores principales */
+  --primary: #3c3c3b;
+  --secondary: #fd4703;
+  --error: #ff0000;
+  --success: #00bf00;
+  --warning: #ffe601;
+  --info: #3498db;
+
+  /* 🌗 Colores neutros */
+  --white: #ffffff;
+  --black: #000000;
+  --gray: #7a7a7a;
+
+  /* 🖼️ Fondo y sombras */
+  --background: rgba(180, 180, 180, 0.573);
+  --box-shadow: rgba(0, 0, 0, 0.2);
+
+  /* ✍️ Texto y placeholder */
+  --text-primary: #333333;
+  --text-secondary: #777777;
+  --placeholder: rgba(0, 0, 0, 0.3);
+}
+
+/* weight: Use a value from 200 to 1000 */
+* {
+  font-family: "Nunito Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+  font-variation-settings: "wdth" 100, "YTLC" 500;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  cursor: pointer;
+}
+
+a{
+  text-decoration: none;
+  color: var(--secondary);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 14px;
+  border-radius: 10px;
+}
+tr,
+th,
+td {
+  padding: 3px;
+}
+
+td {
+  min-width: 40px;
+  max-width: 275px;
+  word-break: break-word;
+}
+
+/* Sobrescribir el estilo del toast */
+.Toastify__toast {
+  border-radius: 10px; /* Bordes redondeados */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); /* Sombra */
+}
+
+.Toastify__toast--success {
+  background-color: green; /* Cambia el fondo de los toasts de éxito */
+  color: white;
+}
+
+.Toastify__toast--error {
+  background-color: red; /* Cambia el fondo de los toasts de error */
+  color: white;
+}
+
+/* Cambiar el estilo de la barra de progreso */
+.Toastify__progress-bar {
+  background-color: yellow; /* Cambia el color de la barra de progreso */
+}

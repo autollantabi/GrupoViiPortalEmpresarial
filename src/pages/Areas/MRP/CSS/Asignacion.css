@@ -1,0 +1,131 @@
+.casillero-correcto {
+  border: 2px solid rgb(0, 210, 0);
+  background-color: rgba(0, 255, 0, 0.23);
+}
+.contenedor-global-asignacion {
+  width: 100%;
+}
+.contenedor-filtros-asignacion {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 20px;
+  gap: 20px;
+}
+.contenedor-select-asignacion {
+  display: flex;
+  justify-content: center;
+  align-items: start;
+  flex-direction: column;
+  gap: 5px;
+}
+.select-asignacion {
+  padding: 10px;
+  border-radius: 15px;
+  /* width: fit-content; */
+}
+.productos {
+  min-width: 510px;
+  max-width: 550px;
+  width: 500px;
+}
+
+/**/
+
+.lista-productos {
+  list-style: none;
+  padding: 5px;
+  margin: 0;
+  position: absolute;
+  width: 510px;
+  background-color: #fff; /* Color de fondo de la lista */
+  border: 1px solid #ccc; /* Borde de la lista */
+  box-shadow: 0 2px 4px rgba(138, 128, 128, 0.5); /* Sombra de la lista */
+  max-height: 400px; /* Altura máxima de la lista */
+  overflow-y: auto; /* Permite desplazarse en la lista si hay demasiados elementos */
+  z-index: 50;
+  border-radius: 15px;
+}
+.li-lista-productos {
+  padding: 8px 5px;
+  cursor: pointer;
+  border-radius: 10px;
+  word-wrap: break-word;
+}
+
+.li-lista-productos:hover {
+  background-color: #f0f0f0;
+}
+
+.esconder-ul {
+  display: none;
+}
+
+/**/
+.contenedor-busqueda-asignacion {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  gap: 10px;
+  /* display: inline-block; */
+}
+.contenedor-pequeno-busqueda-asignacion {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+.contenedor-input-busqueda-asignacion {
+  display: inline-block;
+  width: 510px;
+}
+.input-busqueda-asignacion {
+  padding: 5px;
+  border-radius: 10px;
+  width: 30%;
+  border: 1px solid gray;
+}
+.contenedor-boton-asignacion {
+  display: flex;
+}
+.boton-asignacion {
+  padding: 6px 15px;
+  background-color: var(--primary);
+  border-radius: 15px;
+  height: 50px;
+  border: none;
+  color: white;
+}
+
+/* ----------------------------------------------------------------------------------*/
+/* Promociones */
+
+.nombre-promocion {
+  width: 500px;
+  margin-bottom: 15px;
+  border: none;
+  border-bottom: 1px solid gray;
+  border-radius: 0;
+  outline: none;
+}
+
+.contenedor-tabla-promociones {
+  padding: 0 50px;
+
+  width: fit-content;
+  min-width: 550px;
+}
+
+.tabla-promociones {
+
+}
+
+.boton-borrar-producto-de-lista{
+  background-color: transparent;
+  border: none;
+  color: red;
+}
+.boton-borrar-producto-de-lista i{
+  width: 20px;
+}

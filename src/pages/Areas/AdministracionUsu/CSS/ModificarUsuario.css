@@ -1,0 +1,248 @@
+/* Sección contenedor de usuarios */
+.section-contenedor-usuarios {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Contenedor modificar usuarios */
+.su-contedor-modificar-usuarios {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(1, 1fr);
+  grid-column-gap: 50px;
+  padding: 0 50px;
+  grid-row-gap: 15px;
+}
+
+/* Contenedor buscar usuario */
+.contenedor-buscar-usuario {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* Contenedor input */
+.contenedor-input {
+  min-width: 300px;
+  max-width: 400px;
+  margin-left: 10px;
+}
+
+/* Input buscar usuario */
+.input-buscar-usuario {
+  width: 100%;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  outline: none;
+}
+
+/* Contenedor modificar usuario */
+.contenedor-modificar-usuario {
+  width: 100%;
+}
+
+/* Contenedor usuario */
+.contenedor-usuario {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Tabla de usuarios */
+.tabla-usuarios {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Cabecera de la tabla */
+.tabla-usuarios-header {
+  background-color: #ccc;
+  font-weight: bold;
+}
+
+/* Filas de la tabla */
+.tabla-usuarios-filas {
+  border-bottom: 1px solid #ccc;
+  cursor: default !important;
+  background-color: rgb(219, 219, 219);
+}
+
+/* Correo electrónico del usuario */
+.tabla-usuarios-correo {
+  text-align: left;
+  padding: 8px 25px;
+}
+
+/* Botón de editar usuario */
+.tabla-usuarios-editar {
+  text-align: center;
+  padding: 8px 25px;
+}
+
+/* Botón de bloquear/activar usuario */
+.tabla-usuarios-estado {
+  text-align: center;
+  padding: 8px 25px;
+}
+
+/* Enlace de bloquear/activar usuario */
+.tabla-usuarios-estado span {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Botón de editar usuario */
+.tabla-usuarios-editar button {
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+/* Icono de editar usuario */
+.tabla-usuarios-editar .bi-pencil {
+  color: #000;
+  font-size: 20px;
+}
+
+/* -----------DatosUsuario.js-----------*/
+
+/* Contenedor de los datos del usuario */
+.contenedor-datos-usuario {
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Tabla de datos del usuario */
+.tabla-datos-usuario {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Cabecera de la tabla de datos del usuario */
+.tabla-datos-usuario-cabecera {
+  background-color: #ccc;
+  font-weight: bold;
+}
+
+/* Filas de la tabla de datos del usuario */
+.tabla-datos-usuario-filas {
+  border-bottom: 1px solid #ccc;
+  cursor: default !important;
+}
+
+/* Módulo del usuario */
+.tabla-datos-usuario-modulo {
+  text-align: center;
+  padding: 8px 25px;
+}
+
+/* Empresa del usuario */
+.tabla-datos-usuario-empresa {
+  text-align: center;
+  padding: 8px 25px;
+}
+
+/* Permisos del usuario */
+.tabla-datos-usuario-permisos {
+  text-align: center;
+  padding: 8px 25px;
+}
+
+.separador{
+  border: 1px solid #ccc;
+  margin: 20px 0;
+}
+
+/* -------------Modulo.js---------------*/
+
+.contenedor-modulos{
+    grid-column: 1;
+  grid-row: 2;
+}
+
+/* Contenedor buscar módulo */
+.contenedor-buscar-modulo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* Input buscar módulo */
+.input-buscar-modulo {
+  width: 40%;
+  padding: 2px 6px;
+  margin-left: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  outline: none;
+  color: #000;
+  background-color: #fff;
+}
+
+/* Contenedor modificar módulo */
+.contenedor-modificar-modulo {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* Contenedor módulo */
+.contenedor-modulo {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Tabla de módulos */
+.tabla-modulos {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Cabecera de la tabla */
+.tabla-modulos-header {
+  background-color: #ccc;
+  font-weight: bold;
+}
+
+/* Filas de la tabla */
+.tabla-modulos-filas {
+  border-bottom: 1px solid #ccc;
+  cursor: default !important;
+}
+
+/* Área del módulo */
+.tabla-modulos-modulo {
+  text-align: center;
+  padding: 8px 25px;
+}
+
+/* Botón de editar módulo */
+.tabla-modulos-editar {
+  text-align: center;
+  padding: 8px 25px;
+}
+
+/* Botón de editar modulo */
+.tabla-modulos-editar button {
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+/* Icono de editar módulo */
+.tabla-modulos-editar .bi-pencil {
+  color: #000;
+  font-size: 20px;
+}

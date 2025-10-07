@@ -1,0 +1,90 @@
+.contenedor-global-ventana {
+  position: fixed;
+  width: 100%;
+  height: 100vh;
+  top: 50%;
+  left: 50%;
+  z-index: 1000;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.128);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.contenedor-ventana {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  flex-direction: column;
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 50px 80px;
+  gap: 10px;
+  border-radius: 30px;
+}
+.contenedor-ventana-tablas {
+  display: flex;
+  flex-direction: row;
+  gap: 35px;
+  height: auto;
+  padding: 15px 0;
+}
+.contenedor-tabla-ventana {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.tabla-ventana {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+.tabla-ventana-header {
+  background-color: #ccc;
+  font-weight: bold;
+}
+.tabla-ventana-fila {
+  cursor: pointer !important;
+}
+.tabla-ventana-fila.selected {
+  background-color: var(--primary);
+  color: white;
+}
+.tabla-ventana > .tabla-ventana-fila.selected:hover {
+    background-color: var(--primary);
+}
+.contenedor-botones-ventana {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+.contenedor-botones-ventana > button {
+  width: 35px;
+  height: 35px;
+  border: 1px solid #ccc;
+  background-color: transparent;
+  border-radius: 8px;
+  text-align: center;
+}
+.contenedor-ventana-botones-gc {
+  display: flex;
+  gap: 20px;
+}
+.ventana-boton-guardar {
+  padding: 8px 15px;
+  border: none;
+  background-color: var(--primary);
+  color: white;
+  border-radius: 8px;
+}
+.ventana-boton-calcelar {
+  padding: 8px 15px;
+  border: none;
+  background-color: #ccc;
+  color: rgb(0, 0, 0);
+  border-radius: 8px;
+}
