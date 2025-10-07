@@ -69,32 +69,23 @@ const RegistrosBancariosComponent = ({
   const [transaccionSeleccionada, setTransaccionSeleccionada] = useState(null);
 
   // Callback para manejar cambios en los filtros
-  const handleFiltersChange = useCallback(
-    (filtros) => {
-      // Actualizar datos filtrados y aplicar filtro de tipo de transacción
-      if (filtros.datosFiltrados) {
-        let datosFiltradosPorTipo = filtros.datosFiltrados;
+  const handleFiltersChange = useCallback((filtros) => {
+    // Actualizar datos filtrados y aplicar filtro de tipo de transacción
+    if (filtros.datosFiltrados) {
+      let datosFiltradosPorTipo = filtros.datosFiltrados;
 
-        // Aplicar filtro de tipo de transacción según los módulos
-        if (tiposTransaccionPermitidos.length > 0) {
-          datosFiltradosPorTipo = filtros.datosFiltrados.filter((transaccion) =>
-            tiposTransaccionPermitidos.includes(transaccion.TIPO_TRANSACCION)
-          );
-        }
-
-        setDatosFiltrados(datosFiltradosPorTipo);
-      }
-      // Actualizar filas por página
-      if (filtros.rowsPerPage) {
-        setFilasPorPagina(filtros.rowsPerPage);
-      }
-      // Actualizar estado de carga
-      if (filtros.cargando !== undefined) {
-        setCargando(filtros.cargando);
-      }
-    },
-    [tiposTransaccionPermitidos]
-  );
+      // Los datos ya vienen filtrados por tipo de transacción desde FiltrosUnificadosCartera
+      setDatosFiltrados(datosFiltradosPorTipo);
+    }
+    // Actualizar filas por página
+    if (filtros.rowsPerPage) {
+      setFilasPorPagina(filtros.rowsPerPage);
+    }
+    // Actualizar estado de carga
+    if (filtros.cargando !== undefined) {
+      setCargando(filtros.cargando);
+    }
+  }, []);
 
   // Abrir modal de edición
   const handleEdit = useCallback((transaccion) => {
@@ -267,6 +258,7 @@ const RegistrosBancariosComponent = ({
         permissionsLoading={permissionsLoading}
         onFiltersChange={handleFiltersChange}
         refrescar={refrescarDatos}
+        tiposTransaccionPermitidos={tiposTransaccionPermitidos}
       />
 
       {/* Tabla de Transacciones Completa */}

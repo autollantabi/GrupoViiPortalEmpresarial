@@ -30,6 +30,8 @@ export const FiltrosUnificadosCartera = ({
   onFiltersChange,
   // Trigger para refrescar datos
   refrescar = 0,
+  // Tipos de transacción permitidos (C = Créditos, D = Débitos)
+  tiposTransaccionPermitidos = [],
 }) => {
   // Estados de datos
   const [data, setData] = useState([]);
@@ -135,6 +137,14 @@ export const FiltrosUnificadosCartera = ({
     if (!data || data.length === 0) return [];
 
     let datosFiltrados = [...data];
+
+    // PRIMERO: Aplicar filtro por tipos de transacción permitidos
+    if (tiposTransaccionPermitidos && tiposTransaccionPermitidos.length > 0) {
+      datosFiltrados = datosFiltrados.filter((item) => {
+        // Verificar si el tipo de transacción está permitido
+        return tiposTransaccionPermitidos.includes(item.TIPO_TRANSACCION);
+      });
+    }
 
     // Aplicar filtro de fechas
     if (fechaInicial) {
@@ -359,7 +369,6 @@ export const FiltrosUnificadosCartera = ({
     { value: "COMENTARIO", label: "Comentario" },
     { value: "INGRESO", label: "Ingreso" },
     { value: "VENDEDOR", label: "Vendedor" },
-
   ];
 
   if (permissionsLoading) {
@@ -422,6 +431,7 @@ export const FiltrosUnificadosCartera = ({
       selectedEmpresa,
       filtroGlobalDebounced,
       columnaFiltro,
+      tiposTransaccionPermitidos, // ✅ Incluir tipos de transacción permitidos
     ]
   );
 
