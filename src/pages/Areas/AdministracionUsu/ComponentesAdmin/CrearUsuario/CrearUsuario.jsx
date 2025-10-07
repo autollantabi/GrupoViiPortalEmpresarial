@@ -3,13 +3,7 @@ import {
   CrearUsuarios,
   EnviarCorreoRegistro,
 } from "services/administracionService";
-import { BotonConEstadoTexto } from "components/UI/ComponentesGenericos/Botones";
-import { GenericInputStyled } from "components/UI/ComponentesGenericos/Inputs";
 
-import {
-  ContenedorFlex,
-  ContenedorFlexColumn,
-} from "../../CSS/ComponentesAdminSC";
 import { toast } from "react-toastify";
 import { CustomInput } from "components/UI/CustomComponents/CustomInputs";
 import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
@@ -132,7 +126,6 @@ export const CrearUsuario = () => {
             placeholder="Nombre Completo"
             value={nombre}
             onChange={handleNombre}
-            containerStyle={{ widht: "100%" }}
           />
           <CustomInput
             placeholder="Correo"
@@ -145,7 +138,11 @@ export const CrearUsuario = () => {
             onChange={handleContrasena}
           />
           {nombre !== "" && correo !== "" && contrasena !== "" && (
-            <CustomButton onClick={handleCrearUsuario} text="Crear Usuario" pcolor={theme.colors.secondary} />
+            <CustomButton
+              onClick={handleCrearUsuario}
+              text="Crear Usuario"
+              pcolor={theme.colors.secondary}
+            />
           )}
         </CustomContainer>
       </CustomContainer>

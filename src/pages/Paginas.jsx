@@ -3,7 +3,6 @@ import { MODULES_FLAT, MODULES_TREE } from "config/constantsModulePermissions";
 
 import TemplatePaginas from "components/layout/TemplatePaginas";
 import Portal from "./home/Portal";
-import InicioSesion from "./auth/InicioSesion";
 import PasswordRecovery from "./auth/PasswordRecovery";
 import { ComponenteAdministracionUsuario } from "./Areas/AdministracionUsu/ComponentesAdmin/EleccionAccion";
 import { RegistrosBancarios } from "./Areas/Cartera/RegistrosBancarios/RegistrosBancarios";

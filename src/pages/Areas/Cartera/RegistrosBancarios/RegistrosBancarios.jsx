@@ -1,19 +1,63 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import TablaTransaccionesCompleto from "../ComponentesCartera/RegistrosBancarios/TablaTransaccionesCompleto";
 import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
 import { withPermissions } from "../../../../hoc/withPermissions";
+import { usePermissions } from "../../../../hooks/usePermissions";
 import { FiltrosUnificadosCartera } from "../ComponentesCartera/RegistrosBancarios/ComponentesUnificadosCartera";
 import { ModalEdicionTransaccion } from "../ComponentesCartera/RegistrosBancarios/ModalEdicionTransaccion";
 import {
   ActualizarTransaccion,
   ActualizarEstadoTransaccion,
+  ConsultarTransaccionPorID,
 } from "../../../../services/carteraService";
 import { toast } from "react-toastify";
 
 const RegistrosBancariosComponent = ({
   empresasAcceso,
   permissionsLoading,
+  routeConfig,
 }) => {
+  // Obtener permisos por módulo para saber desde dónde viene el usuario
+  const { permissionsByModule } = usePermissions("REGISTROS BANCARIOS", null);
+
+  // Determinar los tipos de transacción permitidos según los módulos padre
+  const tiposTransaccionPermitidos = useMemo(() => {
+    const modulosPermisos = JSON.parse(localStorage.getItem("modulos")) || [];
+    const tiposPermitidos = [];
+
+    // Función para buscar todos los módulos padre de REGISTROS BANCARIOS
+    const findAllParentModules = (modules) => {
+      for (const module of modules) {
+        // Verificar si REGISTROS BANCARIOS está dentro de CARTERA
+        if (module.modulo === "CARTERA" && module.children) {
+          const hasRegistros = module.children.some(
+            (child) => child.modulo === "REGISTROS BANCARIOS"
+          );
+          if (hasRegistros && !tiposPermitidos.includes("C")) {
+            tiposPermitidos.push("C"); // CARTERA -> tipo C
+          }
+        }
+
+        // Verificar si REGISTROS BANCARIOS está dentro de CONTABILIDAD
+        if (module.modulo === "CONTABILIDAD" && module.children) {
+          const hasRegistros = module.children.some(
+            (child) => child.modulo === "REGISTROS BANCARIOS"
+          );
+          if (hasRegistros && !tiposPermitidos.includes("D")) {
+            tiposPermitidos.push("D"); // CONTABILIDAD -> tipo D
+          }
+        }
+
+        // Buscar recursivamente en children
+        if (module.children && module.children.length > 0) {
+          findAllParentModules(module.children);
+        }
+      }
+    };
+
+    findAllParentModules(modulosPermisos);
+    return tiposPermitidos;
+  }, [permissionsByModule]);
   // Estados para datos filtrados y configuración
   const [datosFiltrados, setDatosFiltrados] = useState([]);
   const [filasPorPagina, setFilasPorPagina] = useState(15);
@@ -25,20 +69,32 @@ const RegistrosBancariosComponent = ({
   const [transaccionSeleccionada, setTransaccionSeleccionada] = useState(null);
 
   // Callback para manejar cambios en los filtros
-  const handleFiltersChange = useCallback((filtros) => {
-    // Actualizar datos filtrados
-    if (filtros.datosFiltrados) {
-      setDatosFiltrados(filtros.datosFiltrados);
-    }
-    // Actualizar filas por página
-    if (filtros.rowsPerPage) {
-      setFilasPorPagina(filtros.rowsPerPage);
-    }
-    // Actualizar estado de carga
-    if (filtros.cargando !== undefined) {
-      setCargando(filtros.cargando);
-    }
-  }, []);
+  const handleFiltersChange = useCallback(
+    (filtros) => {
+      // Actualizar datos filtrados y aplicar filtro de tipo de transacción
+      if (filtros.datosFiltrados) {
+        let datosFiltradosPorTipo = filtros.datosFiltrados;
+
+        // Aplicar filtro de tipo de transacción según los módulos
+        if (tiposTransaccionPermitidos.length > 0) {
+          datosFiltradosPorTipo = filtros.datosFiltrados.filter((transaccion) =>
+            tiposTransaccionPermitidos.includes(transaccion.TIPO_TRANSACCION)
+          );
+        }
+
+        setDatosFiltrados(datosFiltradosPorTipo);
+      }
+      // Actualizar filas por página
+      if (filtros.rowsPerPage) {
+        setFilasPorPagina(filtros.rowsPerPage);
+      }
+      // Actualizar estado de carga
+      if (filtros.cargando !== undefined) {
+        setCargando(filtros.cargando);
+      }
+    },
+    [tiposTransaccionPermitidos]
+  );
 
   // Abrir modal de edición
   const handleEdit = useCallback((transaccion) => {
@@ -72,14 +128,21 @@ const RegistrosBancariosComponent = ({
             ingreso: formData.ingreso || "",
           });
         } else {
+          // Convertir fecha de dd-mm-yyyy a yyyy-mm-dd
+          const convertirFecha = (fechaStr) => {
+            const [dia, mes, anio] = fechaStr.split(/[-/]/);
+            return `${anio}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+          };
           // Si NO cambió el estado, usar ActualizarTransaccion
           const datosParaGuardar = {
             id: formData.identificador,
-            fechatransaccion: transaccionSeleccionada.FECHA_TRANSACCION,
+            fechatransaccion: convertirFecha(
+              transaccionSeleccionada.FECHA_TRANSACCION
+            ),
             agencia: transaccionSeleccionada.AGENCIA,
             cliente: formData.cliente.toUpperCase(),
             codigosocio: formData.cedula,
-            comentario: formData.comentario.toUpperCase(),
+            comentario: transaccionSeleccionada.REFERENCIA_BANCO,
             tipotransaccion: transaccionSeleccionada.TIPO_TRANSACCION,
             ordenante: transaccionSeleccionada.ORDENANTE,
             moneda: transaccionSeleccionada.MONEDA,
@@ -101,9 +164,25 @@ const RegistrosBancariosComponent = ({
 
         if (resultado) {
           toast.success("Transacción actualizada correctamente");
+
+          const transaccionActualizada = await ConsultarTransaccionPorID(
+            formData.identificador
+          );
+
+          // Actualizar solo el registro específico en el array local con los datos reales del backend
+          if (transaccionActualizada) {
+            setDatosFiltrados((prevDatos) => {
+              return prevDatos.map((item) => {
+                if (item.IDENTIFICADOR === formData.identificador) {
+                  // Reemplazar con la transacción actualizada del backend
+                  return transaccionActualizada;
+                }
+                return item;
+              });
+            });
+          }
+
           handleCloseModal();
-          // Refrescar datos para mostrar cambios
-          setRefrescarDatos((prev) => prev + 1);
         } else {
           toast.error("Error al actualizar la transacción");
         }

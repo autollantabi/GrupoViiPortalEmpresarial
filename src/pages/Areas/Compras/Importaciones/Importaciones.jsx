@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { CampoFiltro, CampoFiltroporFecha } from "./Filtros/Filtros";
 import { FiltroGlobalDesplegable } from "./Filtros/FiltroGlobalDesplegable";
 import { TablaImportaciones } from "./Filtros/TablaImportaciones";
-// ExportToExcel removido - usar componente unificado
+import { ExportToExcel } from "components/UI/Componentes/ExportarAExcel";
 import { CreacionRegistro } from "./Filtros/CreacionRegistro";
 import { VentanaEdicionImportacion } from "./Filtros/VentanaEdicionImportacion";
 import {
@@ -12,8 +12,9 @@ import {
 } from "services/importacionesService";
 import { withPermissions } from "../../../../hoc/withPermissions";
 import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
-// Este componente maneja múltiples submódulos: BODEGA, COMPRAS-GERENCIA, e IMPORTACIONES
+// Este componente maneja múltiples submódulos: IMPORTACIONES, BODEGA, COMPRAS-GERENCIA
 
 const EXCEL_CONFIG = {
   datosOcultos: [
@@ -79,7 +80,16 @@ const EXCEL_CONFIG = {
 };
 
 // Componente principal de Importaciones
-const ImportacionesComponent = ({ empresasAcceso, permissionsLoading }) => {
+const ImportacionesComponent = ({
+  empresasAcceso,
+  permissionsLoading,
+  routeConfig,
+}) => {
+  // Obtener permisos agrupados por submódulo
+  const { permissionsByModule } = usePermissions(
+    routeConfig?.modulo,
+    routeConfig?.subModules
+  );
   // Estados para datos y filtros
   const [importacionesData, setImportacionesData] = useState([]);
   const [datosFiltradosExcel, setDatosFiltradosExcel] = useState([]);
@@ -284,15 +294,19 @@ const ImportacionesComponent = ({ empresasAcceso, permissionsLoading }) => {
     };
   }, [importacionesData, extractUniqueValues]);
 
-  // Verificar si el usuario tiene acceso (simplificado con el nuevo sistema)
-  const tienePermiso = useMemo(
-    () => ({
-      compras: empresasAcceso && empresasAcceso.length > 0,
-      comprasGerencia: empresasAcceso && empresasAcceso.length > 0,
+  // Verificar permisos específicos por submódulo
+  const tienePermiso = useMemo(() => {
+    return {
+      // Permiso para IMPORTACIONES (crear, editar, exportar)
+      importaciones: permissionsByModule?.["IMPORTACIONES"]?.length > 0,
+      // Permiso para BODEGA (solo visualización)
+      bodega: permissionsByModule?.["BODEGA"]?.length > 0,
+      // Permiso para COMPRAS-GERENCIA (visualización avanzada)
+      comprasGerencia: permissionsByModule?.["COMPRAS-GERENCIA"]?.length > 0,
+      // Si tiene cualquier permiso
       cualquierPermiso: empresasAcceso && empresasAcceso.length > 0,
-    }),
-    [empresasAcceso]
-  );
+    };
+  }, [permissionsByModule, empresasAcceso]);
 
   // Efectos
   useEffect(() => {
@@ -346,57 +360,61 @@ const ImportacionesComponent = ({ empresasAcceso, permissionsLoading }) => {
       <ContenedorFiltrosP>
         <ContenedorFiltros>
           {/* Renderizar filtros estándar desde configuración */}
-          {[
-            {
-              key: "empresa",
-              nombre: "Empresa",
-              numFiltro: 0,
-              requiresPermission: false,
-            },
-            {
-              key: "proveedor",
-              nombre: "Proveedor",
-              numFiltro: 1,
-              requiresPermission: true,
-              permissionType: "cualquierPermiso",
-            },
-            {
-              key: "marca",
-              nombre: "Marca",
-              numFiltro: 2,
-              requiresPermission: false,
-            },
-            {
-              key: "estadoCarga",
-              nombre: "Estado de Carga",
-              numFiltro: 3,
-              requiresPermission: false,
-            },
-            {
-              key: "estadoPago",
-              nombre: "Estado de Pago",
-              numFiltro: 4,
-              requiresPermission: false,
-            },
-            {
-              key: "estadoImportacion",
-              nombre: "Estado Importación",
-              numFiltro: 5,
-              requiresPermission: false,
-            },
-          ].map(
-            (filtroConfig) =>
-              (!filtroConfig.requiresPermission ||
-                tienePermiso[filtroConfig.permissionType]) && (
-                <CampoFiltro
-                  key={filtroConfig.key}
-                  options={opcionesFiltro[filtroConfig.key] || []}
-                  onChange={handleChange}
-                  numFiltro={filtroConfig.numFiltro}
-                  nombre={filtroConfig.nombre}
-                />
-              )
+          {/* Filtro Empresa - visible para todos */}
+          <CampoFiltro
+            key="empresa"
+            options={opcionesFiltro.empresa || []}
+            onChange={handleChange}
+            numFiltro={0}
+            nombre="Empresa"
+          />
+
+          {/* Filtro Proveedor - solo para IMPORTACIONES y COMPRAS-GERENCIA */}
+          {(tienePermiso.importaciones || tienePermiso.comprasGerencia) && (
+            <CampoFiltro
+              key="proveedor"
+              options={opcionesFiltro.proveedor || []}
+              onChange={handleChange}
+              numFiltro={1}
+              nombre="Proveedor"
+            />
           )}
+
+          {/* Filtro Marca - visible para todos */}
+          <CampoFiltro
+            key="marca"
+            options={opcionesFiltro.marca || []}
+            onChange={handleChange}
+            numFiltro={2}
+            nombre="Marca"
+          />
+
+          {/* Filtro Estado de Carga - visible para todos */}
+          <CampoFiltro
+            key="estadoCarga"
+            options={opcionesFiltro.estadoCarga || []}
+            onChange={handleChange}
+            numFiltro={3}
+            nombre="Estado de Carga"
+          />
+
+          {/* Filtro Estado de Pago - visible para todos */}
+          <CampoFiltro
+            key="estadoPago"
+            options={opcionesFiltro.estadoPago || []}
+            onChange={handleChange}
+            numFiltro={4}
+            nombre="Estado de Pago"
+          />
+
+          {/* Filtro Estado Importación - visible para todos */}
+          <CampoFiltro
+            key="estadoImportacion"
+            options={opcionesFiltro.estadoImportacion || []}
+            onChange={handleChange}
+            numFiltro={5}
+            nombre="Estado Importación"
+          />
           {/* Filtro por fecha - este es único */}
           <CampoFiltroporFecha
             onChange={handleChangeFecha}
@@ -411,8 +429,8 @@ const ImportacionesComponent = ({ empresasAcceso, permissionsLoading }) => {
             onChangeCampo={handleChangeGlobalCampo}
           />
 
-          {/* Botón de exportar a Excel */}
-          {tienePermiso.compras && (
+          {/* Botón de exportar a Excel - requiere permiso de IMPORTACIONES o COMPRAS-GERENCIA */}
+          {(tienePermiso.importaciones || tienePermiso.comprasGerencia) && (
             <ExportToExcel
               columnasOcultas={EXCEL_CONFIG.datosOcultos}
               nombresPersonalizados={EXCEL_CONFIG.nombresPersonalizados}
@@ -430,7 +448,8 @@ const ImportacionesComponent = ({ empresasAcceso, permissionsLoading }) => {
             onClick={ejecutarBatImportaciones}
           />
 
-          {tienePermiso.compras && (
+          {/* Botón Nuevo Registro - solo para IMPORTACIONES */}
+          {tienePermiso.importaciones && (
             <BotonCrearNuevo onClick={abrirModalCrear}>
               <span style={{ color: "white" }}>Nuevo Registro +</span>
             </BotonCrearNuevo>

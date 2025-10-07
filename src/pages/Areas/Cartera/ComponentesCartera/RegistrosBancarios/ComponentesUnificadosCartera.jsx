@@ -356,6 +356,10 @@ export const FiltrosUnificadosCartera = ({
     { value: "VALOR", label: "Valor" },
     { value: "CLIENTE", label: "Cliente" },
     { value: "TIPO_TRANSACCION", label: "Tipo" },
+    { value: "COMENTARIO", label: "Comentario" },
+    { value: "INGRESO", label: "Ingreso" },
+    { value: "VENDEDOR", label: "Vendedor" },
+
   ];
 
   if (permissionsLoading) {
@@ -496,8 +500,8 @@ export const FiltrosUnificadosCartera = ({
             }
             onChange={(option) => setColumnaFiltro(option?.value || "0")}
             placeholder="Columna"
-            minWidth="80px"
-            maxWidth="140px"
+            minWidth="140px"
+            maxWidth="150px"
             isSearchable={false}
           />
         </div>
@@ -585,6 +589,8 @@ export const PaginacionUnificada = ({
           placeholder="Seleccionar página"
           minWidth="150px"
           maxWidth="180px"
+          menuMaxHeight="200px"
+          menuMaxWidth="300px"
           isSearchable={false}
         />
         <CustomButton

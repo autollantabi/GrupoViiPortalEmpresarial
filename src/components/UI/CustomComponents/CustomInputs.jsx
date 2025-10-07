@@ -298,9 +298,16 @@ export const CustomInput = ({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        ...containerStyle,
+      }}
+    >
       {label && <Label>{label}</Label>}
-      <InputWrapper style={containerStyle}>
+      <InputWrapper>
         {iconLeft && (
           <Icon
             className={`${iconLeft}`}

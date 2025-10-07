@@ -10,16 +10,25 @@ import { ROUTES_FLAT } from "config/constantsRoutes";
 import { useAuthContext } from "context/authContext";
 import { useTheme } from "context/ThemeContext";
 import React, { useState } from "react";
-import { useNavigate, useNavigation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   getPermisosDeUsuarioArbol,
   verificarInicioSesion,
 } from "services/loginService";
 import { hexToRGBA } from "utils/colors";
+import styled from "styled-components";
 import AWImage from "/src/assets/images/webp_png_jpeg/AW Color1.png";
 import MImage from "/src/assets/images/webp_png_jpeg/M Color2.png";
 import SImage from "/src/assets/images/webp_png_jpeg/S Color1.png";
 import IImage from "/src/assets/images/webp_png_jpeg/I Color1.png";
+
+const StyledForm = styled.form`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+`;
 
 const ContenedorImagenes = () => {
   const { theme } = useTheme();
@@ -51,16 +60,17 @@ const NewInicioSesion = () => {
   const [toggleTypeInputPassword, setToggleTypeInputPassword] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const [userData, setUserData] = useState(null);
+  const handleIniciarSesion = async (e) => {
+    if (e) {
+      e.preventDefault();
+    }
 
-  const handleIniciarSesion = async () => {
     const response = await verificarInicioSesion({
       correo: email,
       contrasena: password,
     });
 
     if (response.success) {
-      setUserData(response.data);
       const res_permisos = await getPermisosDeUsuarioArbol({
         usuarioID: response.data.id,
       });
@@ -90,57 +100,62 @@ const NewInicioSesion = () => {
         }}
       >
         <ContenedorImagenes />
-        <CustomContainer
-          flexDirection="column"
-          width="80%"
-          style={{ gap: "10px" }}
-        >
-          <CustomText weight={600} size={"25px"}>
-            Portal Empresarial
-          </CustomText>
-          <CustomInput
-            type="email"
-            placeholder="Correo electrónico"
-            value={email}
-            onChange={setEmail}
-            iconLeft="bi bi-envelope"
-          />
-
-          <CustomInput
-            type={toggleTypeInputPassword ? "password" : "text"}
-            placeholder="Contraseña"
-            value={password}
-            onChange={setPassword}
-            iconLeft="bi bi-lock"
-            iconRight={
-              toggleTypeInputPassword
-                ? "bi bi-eye-slash-fill"
-                : "bi bi-eye-fill"
-            }
-            onClickIconRight={() =>
-              setToggleTypeInputPassword(!toggleTypeInputPassword)
-            }
-          />
-          <CustomText
-            size="12px"
-            align="right"
-            style={{ width: "100%" }}
-            onClick={() => {
-              navigate(ROUTES_FLAT[MODULES_TREE.RECOVERY]);
-            }}
+        <StyledForm onSubmit={handleIniciarSesion}>
+          <CustomContainer
+            flexDirection="column"
+            width="80%"
+            style={{ gap: "10px" }}
           >
-            Olvide mi contraseña
-          </CustomText>
-          <CustomButton
-            text="Ingresar"
-            style={{ width: "100%" }}
-            iconRight={"FaChevronRight"}
-            onClick={handleIniciarSesion}
-          />
-          <CustomText size={"13px"} color={theme.colors.error}>
-            {errorMessage}
-          </CustomText>
-        </CustomContainer>
+            <CustomText weight={600} size={"25px"}>
+              Portal Empresarial
+            </CustomText>
+            <CustomInput
+              type="email"
+              placeholder="Correo electrónico"
+              value={email}
+              onChange={setEmail}
+              iconLeft="bi bi-envelope"
+              required
+            />
+
+            <CustomInput
+              type={toggleTypeInputPassword ? "password" : "text"}
+              placeholder="Contraseña"
+              value={password}
+              onChange={setPassword}
+              iconLeft="bi bi-lock"
+              iconRight={
+                toggleTypeInputPassword
+                  ? "bi bi-eye-slash-fill"
+                  : "bi bi-eye-fill"
+              }
+              onClickIconRight={() =>
+                setToggleTypeInputPassword(!toggleTypeInputPassword)
+              }
+              required
+            />
+            <CustomText
+              size="12px"
+              align="right"
+              style={{ width: "100%" }}
+              onClick={() => {
+                navigate(ROUTES_FLAT[MODULES_TREE.RECOVERY]);
+              }}
+            >
+              Olvide mi contraseña
+            </CustomText>
+            <CustomButton
+              text="Ingresar"
+              style={{ width: "100%" }}
+              iconRight={"FaChevronRight"}
+              onClick={handleIniciarSesion}
+              type="submit"
+            />
+            <CustomText size={"13px"} color={theme.colors.error}>
+              {errorMessage}
+            </CustomText>
+          </CustomContainer>
+        </StyledForm>
       </CustomContainer>
     </CustomContainer>
   );

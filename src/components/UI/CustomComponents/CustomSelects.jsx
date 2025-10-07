@@ -48,7 +48,6 @@ export const CustomSelect = ({
     }),
     control: (provided) => ({
       ...provided,
-      width: "100%",
       minWidth: minWidth,
       maxWidth: maxWidth,
       fontSize: "14px",
@@ -82,7 +81,15 @@ export const CustomSelect = ({
   const SelectComponent = isCreatable ? Creatable : Select;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "fit-content",
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+      }}
+    >
       {label && <Label>{label}</Label>}
 
       <SelectComponent
@@ -96,7 +103,6 @@ export const CustomSelect = ({
         placeholder={placeholder}
         menuPlacement={menuPlacement}
         isMulti={isMulti}
-        filterOption={null}
       />
     </div>
   );

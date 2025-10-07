@@ -7,10 +7,7 @@ import {
   ConsultarClientesPorEmpresa,
   ConsultarVendedoresPorEmpresa,
 } from "services/carteraService";
-import {
-  getNombreEstado,
-  getColorEstado
-} from "./configTablaTransacciones";
+import { getNombreEstado, getColorEstado } from "./configTablaTransacciones";
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -349,7 +346,7 @@ export const ModalEdicionTransaccion = ({
               <InfoItem>
                 <InfoLabel>Valor</InfoLabel>
                 <InfoValue>
-                  ${parseFloat(transaccion.VALOR || 0).toLocaleString()}
+                  ${parseFloat(transaccion.VALOR || 0).toFixed(2)}
                 </InfoValue>
               </InfoItem>
               <InfoItem>

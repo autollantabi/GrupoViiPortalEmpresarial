@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
 import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
@@ -58,10 +58,21 @@ const LoadingText = styled.span`
 // Contenedor de la tabla con scroll
 const TablaContainer = styled.div`
   width: 100%;
-  max-height: 100vh;
+  height: 100px; /* Altura fija para la tabla */
   overflow-y: auto;
   overflow-x: auto;
   border-radius: 5px;
+  flex-shrink: 0;
+  flex-grow: 1;
+`;
+
+// Contenedor para la paginación con overflow visible
+const PaginacionWrapper = styled.div`
+  width: 100%;
+  position: relative;
+  overflow: visible;
+  z-index: 10;
+  flex-shrink: 0; /* No permitir que se encoja */
 `;
 
 // Styled component para la tabla
@@ -182,31 +193,50 @@ const TablaTransaccionesCompleto = ({
   // Función para convertir fecha DD/MM/YYYY o DD-MM-YYYY a objeto Date
   const parseFecha = (fechaStr) => {
     if (!fechaStr) return new Date(0);
-    const [dia, mes, anio] = fechaStr.split(/[-/]/);
+    const partes = fechaStr.split(/[-/]/);
+    const dia = parseInt(partes[0], 10);
+    const mes = parseInt(partes[1], 10);
+    const anio = parseInt(partes[2], 10);
     return new Date(anio, mes - 1, dia);
   };
 
-  // Ordenar datos: primero por fecha DESC, luego por ID ASC
-  const datosOrdenados = [...datosFiltrados].sort((a, b) => {
-    // 1. Ordenar por fecha descendente (más reciente primero)
-    const fechaA = parseFecha(a.FECHA_TRANSACCION);
-    const fechaB = parseFecha(b.FECHA_TRANSACCION);
+  // Ordenar datos: primero por fecha DESC, luego por ID ASC (estable)
+  const datosOrdenados = useMemo(() => {
+    // Agregar índice original para mantener orden estable
+    const datosConIndice = datosFiltrados.map((item, index) => ({
+      ...item,
+      _indiceOriginal: index,
+    }));
 
-    if (fechaB.getTime() !== fechaA.getTime()) {
-      return fechaB.getTime() - fechaA.getTime(); // DESC
-    }
+    return datosConIndice.sort((a, b) => {
+      // 1. Ordenar por fecha descendente (más reciente primero)
+      const fechaA = parseFecha(a.FECHA_TRANSACCION);
+      const fechaB = parseFecha(b.FECHA_TRANSACCION);
 
-    // 2. Si las fechas son iguales, ordenar por ID ascendente
-    const idA = parseInt(a.IDENTIFICADOR || a.IDENTIFICADOR_VERSION || 0);
-    const idB = parseInt(b.IDENTIFICADOR || b.IDENTIFICADOR_VERSION || 0);
-    return idA - idB; // ASC
-  });
+      if (fechaB.getTime() !== fechaA.getTime()) {
+        return fechaB.getTime() - fechaA.getTime(); // DESC
+      }
+
+      // 2. Si las fechas son iguales, ordenar por ID descendente
+      const idA = parseInt(a.IDENTIFICADOR || 0);
+      const idB = parseInt(b.IDENTIFICADOR || 0);
+
+      if (idA !== idB) {
+        return idB - idA; // DESC
+      }
+
+      // 3. Si todo es igual, mantener orden original (estable)
+      return a._indiceOriginal - b._indiceOriginal;
+    });
+  }, [datosFiltrados]);
 
   // Calcular paginación con datos ordenados
   const totalPaginas = Math.ceil(datosOrdenados.length / filasPorPagina);
   const inicio = (paginaActual - 1) * filasPorPagina;
   const fin = inicio + filasPorPagina;
-  const datosPagina = datosOrdenados.slice(inicio, fin);
+  const datosPagina = datosOrdenados
+    .slice(inicio, fin)
+    .map(({ _indiceOriginal, ...item }) => item);
 
   // Resetear página cuando cambian los datos filtrados
   useEffect(() => {
@@ -242,7 +272,14 @@ const TablaTransaccionesCompleto = ({
     <CustomContainer
       flexDirection="column"
       width="100%"
-      style={{ flexShrink: 1, gap: "10px", overflow: "hidden" }}
+      style={{
+        flexShrink: 1,
+        gap: "10px",
+        overflow: "visible",
+        height: "100%",
+        display: "flex",
+        flexGrow: 1,
+      }}
     >
       {/* Tabla con scroll */}
       <TablaContainer>
@@ -352,14 +389,16 @@ const TablaTransaccionesCompleto = ({
         </TablaCustom>
       </TablaContainer>
 
-      {/* Paginación */}
-      <PaginacionUnificada
-        currentPage={paginaActual}
-        pageCount={totalPaginas}
-        handlePageChange={cambiarPagina}
-        numberData={datosPagina.length}
-        totalData={datosOrdenados.length}
-      />
+      {/* Paginación con overflow visible */}
+      <PaginacionWrapper>
+        <PaginacionUnificada
+          currentPage={paginaActual}
+          pageCount={totalPaginas}
+          handlePageChange={cambiarPagina}
+          numberData={datosPagina.length}
+          totalData={datosOrdenados.length}
+        />
+      </PaginacionWrapper>
     </CustomContainer>
   );
 };

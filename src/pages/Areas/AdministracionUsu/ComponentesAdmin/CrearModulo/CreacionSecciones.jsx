@@ -194,6 +194,7 @@ export const ListaModulos = () => {
           }))}
           onChange={setSelectedModuleId}
           value={selectedModuleId}
+          isSearchable={true}
           maxWidth="500px"
           minWidth="350px"
         />

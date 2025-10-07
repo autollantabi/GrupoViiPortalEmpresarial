@@ -107,6 +107,10 @@ export const APP_CONFIG = [
     component: RegistrosBancarios,
     seccion: "CARTERA",
     modulo: "REGISTROS BANCARIOS",
+    // Módulos alternativos para acceder a esta misma ruta
+    alternativeModules: [
+      { seccion: "CONTABILIDAD", modulo: "REGISTROS BANCARIOS" },
+    ],
   },
   {
     path: "/cartera/registros-historicos",
@@ -146,7 +150,8 @@ export const APP_CONFIG = [
     icon: "",
     component: Importaciones,
     seccion: "COMPRAS",
-    modulo: "IMPORTACIONES",
+    modulo: "COMPRAS",
+    subModules: ["IMPORTACIONES", "BODEGA", "COMPRAS-GERENCIA"],
   },
   {
     path: "/compras/creditos",
@@ -205,9 +210,7 @@ export const APP_CONFIG = [
     component: ComisionesTecnicentroCategoriasContainer,
     seccion: "CONTABILIDAD",
     modulo: "TECNICENTRO_PRODUCTOS",
-    hierarchy: [
-      { title: "Comisiones", value: "COMISIONES" }
-    ],
+    hierarchy: [{ title: "Comisiones", value: "COMISIONES" }],
   },
   {
     path: "/contabilidad/comisiones/lubricantes",
@@ -605,7 +608,7 @@ function AuthWrapper({ children }) {
 }
 
 // Función para verificar permisos de módulo (búsqueda recursiva)
-function hasModulePermission(requiredModule) {
+function hasModulePermission(requiredModule, alternativeModules = []) {
   if (!requiredModule) return true; // Si no requiere módulo específico, permitir acceso
 
   const modulosPermisos = JSON.parse(localStorage.getItem("modulos")) || [];
@@ -625,11 +628,25 @@ function hasModulePermission(requiredModule) {
     return false;
   };
 
-  return findModuleRecursively(modulosPermisos, requiredModule);
+  // Intentar con el módulo principal
+  if (findModuleRecursively(modulosPermisos, requiredModule)) {
+    return true;
+  }
+
+  // Si no se encuentra, intentar con los módulos alternativos
+  if (alternativeModules && alternativeModules.length > 0) {
+    for (const altModule of alternativeModules) {
+      if (findModuleRecursively(modulosPermisos, altModule.modulo)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 // Función para verificar si el usuario tiene al menos una empresa con permisos en el módulo
-function hasAnyCompanyPermission(requiredModule) {
+function hasAnyCompanyPermission(requiredModule, alternativeModules = []) {
   if (!requiredModule) return true; // Si no requiere módulo específico, permitir acceso
 
   const modulosPermisos = JSON.parse(localStorage.getItem("modulos")) || [];
@@ -648,7 +665,16 @@ function hasAnyCompanyPermission(requiredModule) {
     return null;
   };
 
-  const moduloData = findModuleRecursively(modulosPermisos, requiredModule);
+  // Intentar con el módulo principal
+  let moduloData = findModuleRecursively(modulosPermisos, requiredModule);
+
+  // Si no se encuentra, intentar con los módulos alternativos
+  if (!moduloData && alternativeModules && alternativeModules.length > 0) {
+    for (const altModule of alternativeModules) {
+      moduloData = findModuleRecursively(modulosPermisos, altModule.modulo);
+      if (moduloData) break; // Si encuentra uno, salir del loop
+    }
+  }
 
   if (!moduloData) return false;
 
@@ -701,6 +727,7 @@ function ProtectedWrapper({
   seccion = null,
   modulo = null,
   subModules = null,
+  alternativeModules = null,
 }) {
   const [authState, setAuthState] = useState(null);
   const [permissionState, setPermissionState] = useState(null);
@@ -715,21 +742,24 @@ function ProtectedWrapper({
       if (subModules && subModules.length > 0) {
         // Para rutas con submódulos, verificar permisos en submódulos específicos
         const hasAnySubModule = subModules.some((subModule) => {
-          const hasModule = hasModulePermission(subModule);
-          const hasCompany = hasAnyCompanyPermission(subModule);
+          const hasModule = hasModulePermission(subModule, alternativeModules);
+          const hasCompany = hasAnyCompanyPermission(
+            subModule,
+            alternativeModules
+          );
           return hasModule && hasCompany;
         });
         setPermissionState(hasAnySubModule);
       } else {
-        // Para rutas normales, verificar permisos del módulo
-        const hasModule = hasModulePermission(modulo);
-        const hasCompany = hasAnyCompanyPermission(modulo);
+        // Para rutas normales, verificar permisos del módulo o módulos alternativos
+        const hasModule = hasModulePermission(modulo, alternativeModules);
+        const hasCompany = hasAnyCompanyPermission(modulo, alternativeModules);
         setPermissionState(hasModule && hasCompany);
       }
     }
 
     setLoading(false);
-  }, [modulo, subModules]);
+  }, [modulo, subModules, alternativeModules]);
 
   if (loading) {
     return (
@@ -800,6 +830,7 @@ const generateRoutes = () => {
           seccion={item.seccion}
           modulo={item.subModules ? item.seccion : item.modulo}
           subModules={item.subModules}
+          alternativeModules={item.alternativeModules}
         >
           <item.component routeConfig={item} />
         </ProtectedWrapper>
