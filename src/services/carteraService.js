@@ -246,7 +246,6 @@ export async function ConsultarTransaccionesConFiltros({
         "correo"
       )}/${bancoParam}/${empresa}/${fechaInicioParam}/${fechaFinParam}`
     );
-    console.log(res);
 
     if (res.status === 200) {
       return res.data;
@@ -360,7 +359,6 @@ export async function ActualizarTransaccion(formData) {
       `/transaccion/${formData.id}`,
       formData
     );
-    console.log(res);
 
     return res.status === 200;
   } catch (error) {

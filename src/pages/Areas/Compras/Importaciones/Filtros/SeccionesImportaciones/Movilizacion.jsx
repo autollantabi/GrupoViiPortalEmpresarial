@@ -58,7 +58,7 @@ const esFormatoHoraValido = (hora) => {
   return regexHora.test(hora);
 };
 
-export const Movilizacion = ({ datos, setDatos, actualizar }) => {
+export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     FECHA_FECHA_SALIDA_BODEGA: {
@@ -210,11 +210,23 @@ export const Movilizacion = ({ datos, setDatos, actualizar }) => {
   };
 
   // Verificar si se deben mostrar los controles de edición
-  const mostrarBotonEdicion =
+  // Para COMPRAS: pueden editar si no son gerencia, todos los campos están llenos y la importación está EN PROCESO
+  const mostrarBotonEdicionCompras =
     permisosComprasGerencias.length === 0 &&
     permisosCompras.length > 0 &&
+    permisosBodega.length === 0 && // No debe tener permisos de BODEGA
     todosLlenos &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
+
+  // Para BODEGA: pueden editar si tienen permisos de bodega (sin necesidad de todos los campos llenos para AUTOMAX)
+  const mostrarBotonEdicionBodega =
+    permisosBodega.length > 0 &&
+    permisosCompras.length === 0 &&
+    permisosComprasGerencias.length === 0 &&
+    datos.ESTADO_IMPORTACION === "EN PROCESO";
+
+  const mostrarBotonEdicion =
+    mostrarBotonEdicionCompras || mostrarBotonEdicionBodega;
 
   // Cerrar confirmación y actualizar
   const handleConfirmationSuccess = () => {
@@ -353,20 +365,10 @@ export const Movilizacion = ({ datos, setDatos, actualizar }) => {
         await consultarTransportistas();
       }
 
-      // Consultar permisos
-      const permisosdeusuarioBOD = await consultarPermisosPorModuloRuta({
-        rutaModulos: BODEGA,
-      });
-      const permisosdeusuarioCOMP = await consultarPermisosPorModuloRuta({
-        rutaModulos: IMPORTACIONES,
-      });
-      const permisosdeusuarioCOMPG = await consultarPermisosPorModuloRuta({
-        rutaModulos: COMPRASGERENCIA,
-      });
-
-      setPermisosBodega(permisosdeusuarioBOD);
-      setPermisosCompras(permisosdeusuarioCOMP);
-      setPermisosComprasGerencias(permisosdeusuarioCOMPG);
+      // Usar permisos recibidos desde props
+      setPermisosBodega(permisosProp?.bodega || []);
+      setPermisosCompras(permisosProp?.compras || []);
+      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
 
       // Preparar correos
       const correosAEnviar = obtenerCorreosAEnviar(
@@ -381,8 +383,7 @@ export const Movilizacion = ({ datos, setDatos, actualizar }) => {
     };
 
     inicializarComponente();
-    // Dependencias vacías: solo se ejecuta al montar
-  }, []);
+  }, [permisosProp]);
 
   // 2. EFECTO PARA EVALUAR BLOQUEOS - SE EJECUTA CUANDO CAMBIAN LOS DATOS O EL FORMULARIO
   useEffect(() => {
@@ -407,7 +408,8 @@ export const Movilizacion = ({ datos, setDatos, actualizar }) => {
           valor,
           estadoImportacion,
           tieneID,
-          datosIniciales
+          datosIniciales,
+          { permisosCompras, permisosBodega, permisosComprasGerencias }
         );
       });
 
@@ -415,15 +417,25 @@ export const Movilizacion = ({ datos, setDatos, actualizar }) => {
     };
 
     evaluarCamposBloqueados();
-  }, [datos, datosForm, campos, datosIniciales]);
+  }, [
+    datos,
+    datosForm,
+    campos,
+    datosIniciales,
+    permisosCompras,
+    permisosBodega,
+    permisosComprasGerencias,
+  ]);
 
   // Definir reglas específicas para este componente
   const reglasVisibilidad = {
     soloCompras: [],
     soloBodega: [],
     siempreVisibles: [
-      "FECHA_SALIDA_BODEGA",
-      "LLEGADA_ESTIMADA_BODEGA",
+      "FECHA_FECHA_SALIDA_BODEGA",
+      "HORA_FECHA_SALIDA_BODEGA",
+      "FECHA_LLEGADA_ESTIMADA_BODEGA",
+      "HORA_LLEGADA_ESTIMADA_BODEGA",
       "TRANSPORTE_ASIGNADO",
     ], // Campos visibles para todos los usuarios
     // Nueva función para determinar visibilidad condicional basada en la empresa

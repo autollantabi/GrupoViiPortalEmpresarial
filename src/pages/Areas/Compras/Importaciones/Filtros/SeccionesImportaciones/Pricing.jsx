@@ -13,6 +13,7 @@ import { FormRow, ConfirmationDialog } from "components/common/FormComponents";
 import {
   debeEstarBloqueado,
   renderField,
+  renderizarCampoConPermisos,
   actualizarDatosTrasGuardado,
   formatoJSONArchivo,
 } from "../../UtilsImportaciones";
@@ -30,7 +31,7 @@ const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 
 const correosDestinatarios = listCorreosEnvioPricing();
 
-export const Pricing = ({ datos, setDatos, actualizar }) => {
+export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     CARGA: {
@@ -278,18 +279,11 @@ export const Pricing = ({ datos, setDatos, actualizar }) => {
         }));
       }
 
-      // Consultar permisos en paralelo
-      const [permisosBodega, permisosCompras, permisosComprasGerencias] =
-        await Promise.all([
-          consultarPermisosPorModuloRuta({ rutaModulos: BODEGA }),
-          consultarPermisosPorModuloRuta({ rutaModulos: IMPORTACIONES }),
-          consultarPermisosPorModuloRuta({ rutaModulos: COMPRASGERENCIA }),
-        ]);
-
+      // Usar permisos recibidos desde props
       setPermisos({
-        bodega: permisosBodega || [],
-        compras: permisosCompras || [],
-        comprasGerencias: permisosComprasGerencias || [],
+        bodega: permisosProp?.bodega || [],
+        compras: permisosProp?.compras || [],
+        comprasGerencias: permisosProp?.comprasGerencias || [],
       });
 
       // Preparar correos
@@ -305,7 +299,7 @@ export const Pricing = ({ datos, setDatos, actualizar }) => {
     };
 
     inicializarComponente();
-  }, []);
+  }, [permisosProp]);
 
   // 2. EFECTO PARA EVALUAR BLOQUEOS - SE EJECUTA CUANDO CAMBIAN LOS DATOS O EL FORMULARIO
   useEffect(() => {
@@ -336,7 +330,12 @@ export const Pricing = ({ datos, setDatos, actualizar }) => {
           valor,
           estadoImportacion,
           tieneID,
-          datosIniciales
+          datosIniciales,
+          {
+            permisosCompras: permisos.compras,
+            permisosBodega: permisos.bodega,
+            permisosComprasGerencias: permisos.comprasGerencias,
+          }
         );
       });
 
@@ -347,8 +346,10 @@ export const Pricing = ({ datos, setDatos, actualizar }) => {
   }, [datos, datosForm, campos, datosIniciales, permisos]);
 
   // Determinar si mostrar botón de edición
+  // Solo COMPRAS (IMPORTACIONES) puede editar Pricing, no BODEGA ni GERENCIA
   const mostrarBotonEdicion =
     permisos.comprasGerencias.length === 0 &&
+    permisos.compras.length > 0 &&
     todosLlenos &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
@@ -376,12 +377,17 @@ export const Pricing = ({ datos, setDatos, actualizar }) => {
       ) : (
         <FormImportacionesGrid>
           {Object.values(campos).map((campo) =>
-            renderField(campo, {
-              datos,
-              datosForm,
-              setDatosForm,
-              camposBloqueados,
-            })
+            renderizarCampoConPermisos(
+              campo,
+              { datos, datosForm, setDatosForm, camposBloqueados },
+              {
+                permisosCompras: permisos.compras,
+                permisosBodega: permisos.bodega,
+              },
+              { siempreVisibles: [] },
+              {},
+              {}
+            )
           )}
         </FormImportacionesGrid>
       )}

@@ -186,19 +186,21 @@ export const renderField = (campo, options) => {
 };
 
 /**
- * Determina si un campo debe estar bloqueado según su configuración
+ * Determina si un campo debe estar bloqueado según su configuración y permisos
  * @param {Object} campo - Definición del campo
  * @param {any} valor - Valor actual del campo
  * @param {string} estadoImportacion - Estado actual de la importación
  * @param {boolean} tieneID - Si el registro tiene ID (siempre true en tu caso)
  * @param {Object} datosIniciales - Valores iniciales cargados al principio
+ * @param {Object} permisos - Permisos del usuario (opcional)
  */
 export const debeEstarBloqueado = (
   campo,
   valor,
   estadoImportacion,
   tieneID,
-  datosIniciales = null
+  datosIniciales = null,
+  permisos = null
 ) => {
   // Si está configurado como "siempre", bloqueado independientemente del valor
   if (campo.bloqueo === "siempre") {

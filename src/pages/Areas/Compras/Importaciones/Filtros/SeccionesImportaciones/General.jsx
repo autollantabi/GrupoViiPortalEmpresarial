@@ -6,7 +6,12 @@ import {
   ConfirmationDialog,
   ItemList,
 } from "components/common/FormComponents";
-import { actualizarDatosTrasGuardado, debeEstarBloqueado, renderField } from "../../UtilsImportaciones";
+import {
+  actualizarDatosTrasGuardado,
+  debeEstarBloqueado,
+  renderField,
+  renderizarCampoConPermisos,
+} from "../../UtilsImportaciones";
 import {
   FormImportacionesGrid,
   SectionImportacionesContainer,
@@ -36,7 +41,7 @@ const ClientItem = styled.span`
   font-size: 14px;
 `;
 
-export const General = ({ datos, setDatos, actualizar }) => {
+export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     PLAZO_PROVEEDOR: {
@@ -96,6 +101,8 @@ export const General = ({ datos, setDatos, actualizar }) => {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [actualizacionExitosa, setActualizacionExitosa] = useState(0);
   const [permisosComprasGerencias, setPermisosComprasGerencias] = useState([]);
+  const [permisosBodega, setPermisosBodega] = useState([]);
+  const [permisosCompras, setPermisosCompras] = useState([]);
 
   // 1. EFECTO DE INICIALIZACIÓN - SE EJECUTA SOLO UNA VEZ AL MONTAR
   useEffect(() => {
@@ -104,7 +111,6 @@ export const General = ({ datos, setDatos, actualizar }) => {
 
       // Establecer campos
       setCampos(CAMPOS_INICIALES);
-      
 
       // Guardar datos iniciales
       setDatosIniciales({ ...datos });
@@ -119,15 +125,14 @@ export const General = ({ datos, setDatos, actualizar }) => {
       );
       setDatosForm(initialData);
 
-      // Consultar permisos
-      const permisosGerencias = await consultarPermisosPorModuloRuta({
-        rutaModulos: COMPRASGERENCIA,
-      });
-      setPermisosComprasGerencias(permisosGerencias || []);
+      // Usar permisos recibidos desde props
+      setPermisosBodega(permisosProp?.bodega || []);
+      setPermisosCompras(permisosProp?.compras || []);
+      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
     };
 
     inicializarComponente();
-  }, []);
+  }, [permisosProp]);
 
   // 2. EFECTO PARA EVALUAR BLOQUEOS - SE EJECUTA CUANDO CAMBIAN LOS DATOS O EL FORMULARIO
   useEffect(() => {
@@ -152,7 +157,8 @@ export const General = ({ datos, setDatos, actualizar }) => {
           valor,
           estadoImportacion,
           tieneID,
-          datosIniciales
+          datosIniciales,
+          { permisosCompras, permisosBodega, permisosComprasGerencias }
         );
       });
 
@@ -160,18 +166,28 @@ export const General = ({ datos, setDatos, actualizar }) => {
     };
 
     evaluarCamposBloqueados();
-  }, [datos, datosForm, campos, datosIniciales]);
+  }, [
+    datos,
+    datosForm,
+    campos,
+    datosIniciales,
+    permisosCompras,
+    permisosBodega,
+    permisosComprasGerencias,
+  ]);
 
   // Actualizar datos generales
   const updateGeneral = async () => {
     if (!campos) return false;
-    
+
     try {
       const codigo = datos.ID_CARGA === "" ? null : parseInt(datos.ID_CARGA);
       const estado = datosForm.ESTADO_CARGA;
       const observacion = datosForm.OBSERVACION;
       const usuario_asignado =
-        datosForm.USUARIO_ASIGNADO === "" ? null : parseInt(datosForm.USUARIO_ASIGNADO);
+        datosForm.USUARIO_ASIGNADO === ""
+          ? null
+          : parseInt(datosForm.USUARIO_ASIGNADO);
       const PI = datosForm.NUMERO_PIP;
 
       const res = await UpdateGeneralImportacion({
@@ -208,8 +224,11 @@ export const General = ({ datos, setDatos, actualizar }) => {
   };
 
   // Verificar si se deben mostrar los controles de edición
+  // Solo COMPRAS (IMPORTACIONES) puede editar General, no BODEGA ni GERENCIA
   const mostrarBotonEdicion =
     permisosComprasGerencias.length === 0 &&
+    permisosCompras.length > 0 &&
+    permisosBodega.length === 0 && // BODEGA no puede editar General
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   return (
@@ -254,12 +273,14 @@ export const General = ({ datos, setDatos, actualizar }) => {
       ) : (
         <FormImportacionesGrid>
           {Object.values(campos).map((campo) => {
-            return renderField(campo, {
-              datos,
-              datosForm,
-              setDatosForm,
-              camposBloqueados,
-            });
+            return renderizarCampoConPermisos(
+              campo,
+              { datos, datosForm, setDatosForm, camposBloqueados },
+              { permisosCompras, permisosBodega },
+              { siempreVisibles: [] },
+              {},
+              {}
+            );
           })}
 
           {datos.CLIENTES && datos.CLIENTES.length > 0 && (
@@ -293,20 +314,22 @@ export const General = ({ datos, setDatos, actualizar }) => {
         {campos &&
           Object.values(campos).map((campo) => {
             if (!datosForm) return null;
-            
+
             const valor = datosForm[campo.id];
             if (valor === undefined || valor === null) return null;
-            
+
             // Para campos tipo select (mostrar nombre en lugar de valor)
             if (campo.tipo === "select" && campo.props?.options) {
-              const opcion = campo.props.options.find(opt => opt.value == parseInt(valor));
+              const opcion = campo.props.options.find(
+                (opt) => opt.value == parseInt(valor)
+              );
               return (
                 <div key={campo.id}>
                   <b>{campo.label}</b> {opcion ? opcion.name : valor}
                 </div>
               );
             }
-            
+
             // Caso por defecto para otros tipos de campos
             return (
               <div key={campo.id}>

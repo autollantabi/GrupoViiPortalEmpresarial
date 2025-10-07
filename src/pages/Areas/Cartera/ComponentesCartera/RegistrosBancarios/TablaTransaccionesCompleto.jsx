@@ -58,12 +58,11 @@ const LoadingText = styled.span`
 // Contenedor de la tabla con scroll
 const TablaContainer = styled.div`
   width: 100%;
-  height: 100px; /* Altura fija para la tabla */
+  height: 100%; /* Altura fija para la tabla */
   overflow-y: auto;
   overflow-x: auto;
+  overflow: visible;
   border-radius: 5px;
-  flex-shrink: 0;
-  flex-grow: 1;
 `;
 
 // Contenedor para la paginación con overflow visible
@@ -165,6 +164,8 @@ const TablaCustom = styled.table`
       border-right: 1px solid rgba(101, 101, 101, 0.45);
       border-bottom: 1px solid rgba(101, 101, 101, 0.45);
       padding: 4px 8px;
+      line-height: 1.2;
+      font-size: 12px;
 
       &:first-child {
         border-left: 1px solid rgba(101, 101, 101, 0.45);
@@ -273,12 +274,10 @@ const TablaTransaccionesCompleto = ({
       flexDirection="column"
       width="100%"
       style={{
-        flexShrink: 1,
         gap: "10px",
         overflow: "visible",
         height: "100%",
         display: "flex",
-        flexGrow: 1,
       }}
     >
       {/* Tabla con scroll */}
@@ -295,8 +294,8 @@ const TablaTransaccionesCompleto = ({
                   {columna.header}
                 </th>
               ))}
-              <th className="uns" style={{ width: "40px" }}>
-                ACCIONES
+              <th className="uns" style={{ width: "20px" }}>
+                ...
               </th>
             </tr>
           </thead>
@@ -339,7 +338,9 @@ const TablaTransaccionesCompleto = ({
                               $bgColor={colorEstado.bg}
                               $textColor={colorEstado.text}
                             >
-                              <span>{getNombreEstado(estadoNum)}</span>
+                              <span>
+                                {getNombreEstado(estadoNum)?.substring(0, 5)}
+                              </span>
                             </ChipEstado>
                           </td>
                         );
@@ -375,7 +376,7 @@ const TablaTransaccionesCompleto = ({
                     })}
 
                     {/* Columna de acciones */}
-                    <td style={{ width: "40px" }}>
+                    <td style={{ width: "20px" }}>
                       <CustomButton
                         iconLeft="FaEdit"
                         onClick={() => onEdit(transaccion)}

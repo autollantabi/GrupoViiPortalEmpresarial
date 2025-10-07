@@ -291,8 +291,6 @@ export const ModalEdicionTransaccion = ({
   };
 
   const handleSave = () => {
-    console.log("FormData completo:", formData);
-
     // Preparar datos para guardar
     const datosParaGuardar = {
       cliente: formData.clienteSeleccionado?.value || "",
@@ -310,8 +308,6 @@ export const ModalEdicionTransaccion = ({
     ) {
       datosParaGuardar.estado = formData.estadoSeleccionado.value;
     }
-
-    console.log("Datos para guardar:", datosParaGuardar);
 
     onSave(datosParaGuardar);
   };

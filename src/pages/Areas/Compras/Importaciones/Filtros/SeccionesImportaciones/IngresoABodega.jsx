@@ -9,6 +9,7 @@ import { FormRow, ConfirmationDialog } from "components/common/FormComponents";
 import {
   debeEstarBloqueado,
   renderField,
+  renderizarCampoConPermisos,
   actualizarDatosTrasGuardado,
   formatoJSONArchivo,
 } from "../../UtilsImportaciones";
@@ -54,7 +55,12 @@ const esFormatoHoraValido = (hora) => {
   return regexHora.test(hora);
 };
 
-export const IngresoABodega = ({ datos, setDatos, actualizar }) => {
+export const IngresoABodega = ({
+  datos,
+  setDatos,
+  actualizar,
+  permisosProp,
+}) => {
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     FECHA_LLEGADA_REAL: {
@@ -155,7 +161,6 @@ export const IngresoABodega = ({ datos, setDatos, actualizar }) => {
   // Verificar si todos los campos requeridos están llenos
   useEffect(() => {
     if (!datosForm) return;
-
 
     // Validar formato de horas
     const horaLlegadaValida =
@@ -322,23 +327,16 @@ export const IngresoABodega = ({ datos, setDatos, actualizar }) => {
         }));
       }
 
-      // Consultar permisos en paralelo
-      const [permisosBodega, permisosCompras, permisosComprasGerencias] =
-        await Promise.all([
-          consultarPermisosPorModuloRuta({ rutaModulos: BODEGA }),
-          consultarPermisosPorModuloRuta({ rutaModulos: IMPORTACIONES }),
-          consultarPermisosPorModuloRuta({ rutaModulos: COMPRASGERENCIA }),
-        ]);
-
+      // Usar permisos recibidos desde props
       setPermisos({
-        bodega: permisosBodega || [],
-        compras: permisosCompras || [],
-        comprasGerencias: permisosComprasGerencias || [],
+        bodega: permisosProp?.bodega || [],
+        compras: permisosProp?.compras || [],
+        comprasGerencias: permisosProp?.comprasGerencias || [],
       });
     };
 
     inicializarComponente();
-  }, []);
+  }, [permisosProp]);
 
   // Evaluar bloqueos de campos
   useEffect(() => {
@@ -356,18 +354,37 @@ export const IngresoABodega = ({ datos, setDatos, actualizar }) => {
         valor,
         datos.ESTADO_IMPORTACION,
         !!datos.ID_CARGA,
-        datosIniciales
+        datosIniciales,
+        {
+          permisosCompras: permisos.compras,
+          permisosBodega: permisos.bodega,
+          permisosComprasGerencias: permisos.comprasGerencias,
+        }
       );
     });
 
     setCamposBloqueados(nuevoEstado);
-  }, [datos, datosForm, campos, datosIniciales]);
+  }, [datos, datosForm, campos, datosIniciales, permisos]);
 
   // Determinar si mostrar botón de edición
-  const mostrarBotonEdicion =
+  // Para BODEGA: pueden editar si tienen permisos de bodega y todos los campos están llenos
+  const mostrarBotonEdicionBodega =
+    permisos.bodega.length > 0 &&
+    permisos.compras.length === 0 &&
     permisos.comprasGerencias.length === 0 &&
     todosLlenos &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
+
+  // Para COMPRAS: pueden editar si no son gerencia, todos los campos están llenos y la importación está EN PROCESO
+  const mostrarBotonEdicionCompras =
+    permisos.comprasGerencias.length === 0 &&
+    permisos.compras.length > 0 &&
+    permisos.bodega.length === 0 && // No debe tener permisos de BODEGA
+    todosLlenos &&
+    datos.ESTADO_IMPORTACION === "EN PROCESO";
+
+  const mostrarBotonEdicion =
+    mostrarBotonEdicionBodega || mostrarBotonEdicionCompras;
 
   // Renderizado del componente
   return (
@@ -395,12 +412,27 @@ export const IngresoABodega = ({ datos, setDatos, actualizar }) => {
         <FormImportacionesGrid>
           {/* Usamos Object.values para mapear los campos de forma más limpia */}
           {Object.values(campos).map((campo) => {
-            return renderField(campo, {
-              datos,
-              datosForm,
-              setDatosForm,
-              camposBloqueados,
-            });
+            return renderizarCampoConPermisos(
+              campo,
+              { datos, datosForm, setDatosForm, camposBloqueados },
+              {
+                permisosCompras: permisos.compras,
+                permisosBodega: permisos.bodega,
+              },
+              {
+                siempreVisibles: [
+                  "FECHA_LLEGADA_REAL",
+                  "HORA_LLEGADA_REAL",
+                  "FECHA_FECHA_DESCARGA",
+                  "HORA_FECHA_DESCARGA",
+                  "CONFIRME_IMPORTACION",
+                  "ARCHIVOS_BODEGA",
+                  "VALIDACION_INGRESO_BODEGA",
+                ],
+              },
+              {},
+              {}
+            );
           })}
         </FormImportacionesGrid>
       )}

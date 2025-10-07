@@ -9,6 +9,7 @@ import { ConfirmationDialog } from "components/common/FormComponents";
 import {
   debeEstarBloqueado,
   renderField,
+  renderizarCampoConPermisos,
   fromDDMMYYYYToDate,
   actualizarDatosTrasGuardado,
   stringToFloat,
@@ -25,7 +26,12 @@ const BODEGA = ["COMPRAS", "BODEGA"];
 const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
 const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 
-export const Nacionalizacion = ({ datos, setDatos, actualizar }) => {
+export const Nacionalizacion = ({
+  datos,
+  setDatos,
+  actualizar,
+  permisosProp,
+}) => {
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     ESTADO_MRN: {
@@ -64,7 +70,7 @@ export const Nacionalizacion = ({ datos, setDatos, actualizar }) => {
       defaultValue: "",
       component: "SelectBasico",
       // Directamente obtener las opciones basadas en la empresa
-      getDynamicProps: (datosForm, datos) => {        
+      getDynamicProps: (datosForm, datos) => {
         // Opciones para AUTOMAX
         if (datos && datos.EMPRESA === "AUTOMAX") {
           return {
@@ -211,8 +217,10 @@ export const Nacionalizacion = ({ datos, setDatos, actualizar }) => {
   };
 
   // Verificar si se deben mostrar los controles de edición
+  // Solo COMPRAS (IMPORTACIONES) puede editar Nacionalización, no GERENCIA
   const mostrarBotonEdicion =
     permisosComprasGerencias.length === 0 &&
+    permisosCompras.length > 0 &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   // Cerrar confirmación y actualizar
@@ -316,28 +324,17 @@ export const Nacionalizacion = ({ datos, setDatos, actualizar }) => {
       await consultarAgentesA();
       await handleConsultarTTRD();
 
-      // Consultar permisos
-      const permisosdeusuarioBOD = await consultarPermisosPorModuloRuta({
-        rutaModulos: BODEGA,
-      });
-      const permisosdeusuarioCOMP = await consultarPermisosPorModuloRuta({
-        rutaModulos: IMPORTACIONES,
-      });
-      const permisosdeusuarioCOMPG = await consultarPermisosPorModuloRuta({
-        rutaModulos: COMPRASGERENCIA,
-      });
-
-      setPermisosBodega(permisosdeusuarioBOD);
-      setPermisosCompras(permisosdeusuarioCOMP);
-      setPermisosComprasGerencias(permisosdeusuarioCOMPG);
+      // Usar permisos recibidos desde props
+      setPermisosBodega(permisosProp?.bodega || []);
+      setPermisosCompras(permisosProp?.compras || []);
+      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
 
       // Marcar como ya inicializado
       setCargaInicial(false);
     };
 
     inicializarComponente();
-    // Dependencias vacías: solo se ejecuta al montar
-  }, []);
+  }, [permisosProp]);
 
   // 2. EFECTO PARA EVALUAR BLOQUEOS - SE EJECUTA CUANDO CAMBIAN LOS DATOS O EL FORMULARIO
   useEffect(() => {
@@ -362,7 +359,8 @@ export const Nacionalizacion = ({ datos, setDatos, actualizar }) => {
           valor,
           estadoImportacion,
           tieneID,
-          datosIniciales
+          datosIniciales,
+          { permisosCompras, permisosBodega, permisosComprasGerencias }
         );
       });
 
@@ -370,7 +368,15 @@ export const Nacionalizacion = ({ datos, setDatos, actualizar }) => {
     };
 
     evaluarCamposBloqueados();
-  }, [datos, datosForm, campos, datosIniciales]);
+  }, [
+    datos,
+    datosForm,
+    campos,
+    datosIniciales,
+    permisosCompras,
+    permisosBodega,
+    permisosComprasGerencias,
+  ]);
 
   return (
     <SectionImportacionesContainer>
@@ -398,21 +404,27 @@ export const Nacionalizacion = ({ datos, setDatos, actualizar }) => {
           {Object.values(campos).map((campo) => {
             // Manejo especial para el campo AGENTE_ADUANERO que necesita los agentes cargados
             if (campo.id === "AGENTE_ADUANERO") {
-              return renderField(
+              return renderizarCampoConPermisos(
                 {
                   ...campo,
                   options: agentesAduana,
                 },
-                { datos, datosForm, setDatosForm, camposBloqueados }
+                { datos, datosForm, setDatosForm, camposBloqueados },
+                { permisosCompras, permisosBodega },
+                { siempreVisibles: [] },
+                {},
+                {}
               );
             }
 
-            return renderField(campo, {
-              datos,
-              datosForm,
-              setDatosForm,
-              camposBloqueados,
-            });
+            return renderizarCampoConPermisos(
+              campo,
+              { datos, datosForm, setDatosForm, camposBloqueados },
+              { permisosCompras, permisosBodega },
+              { siempreVisibles: [] },
+              {},
+              {}
+            );
           })}
         </FormImportacionesGrid>
       )}

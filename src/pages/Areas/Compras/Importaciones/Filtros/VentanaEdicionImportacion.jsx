@@ -462,10 +462,10 @@ const BarraLateralImportacion = ({
     const datosSegunIDP = await BuscarDatosPorIDCarga(id);
     const datosSegunID = datosSegunIDP.importaciones;
     const datosID = datosSegunID[0];
-    const esAutomax = datosID.EMPRESA === "AUTOMAX";    
+    const esAutomax = datosID.EMPRESA === "AUTOMAX";
 
     // Definir campos a validar según la empresa
-    const camposAValidar = !esAutomax 
+    const camposAValidar = !esAutomax
       ? {
           "ESTADO DE LA CARGA": "ESTADO_CARGA",
           "ESTADO MOVILIZACION": "ESTADO_FORWARDER",
@@ -478,9 +478,10 @@ const BarraLateralImportacion = ({
           "TIPO AFORO": "TIPO_AFORO",
           "ESTADO SALIDA AUTORIZADA": "ESTADO_SALIDA_AUTORIZADA",
           "RECIBI CONFIRME DE IMPORTACIÓN": "CONFIRME_IMPORTACION",
-          "VALIDACIÓN DE INGRESO A BODEGA DE VENTAS": "VALIDACION_INGRESO_BODEGA",
+          "VALIDACIÓN DE INGRESO A BODEGA DE VENTAS":
+            "VALIDACION_INGRESO_BODEGA",
         }
-        : {
+      : {
           "ESTADO DE LA CARGA": "ESTADO_CARGA",
           "ESTADO MOVILIZACION": "ESTADO_FORWARDER",
           "ESTADO LIBERACION DOCUMENTOS": "ESTADO_DOCUMENTOS",
@@ -493,7 +494,8 @@ const BarraLateralImportacion = ({
           "TIPO AFORO": "TIPO_AFORO",
           "ESTADO SALIDA AUTORIZADA": "ESTADO_SALIDA_AUTORIZADA",
           "RECIBI CONFIRME DE IMPORTACIÓN": "CONFIRME_IMPORTACION",
-          "VALIDACIÓN DE INGRESO A BODEGA DE VENTAS": "VALIDACION_INGRESO_BODEGA",
+          "VALIDACIÓN DE INGRESO A BODEGA DE VENTAS":
+            "VALIDACION_INGRESO_BODEGA",
         };
 
     const replaceFields = (data, replacements) => {
@@ -521,16 +523,16 @@ const BarraLateralImportacion = ({
     };
     const updatedData = replaceFields(estadosF, camposAValidar);
     const transformedUpdatedData = transformUpdatedData(updatedData);
-    
+
     // Filtrar transformedUpdatedData para mantener solo los campos que están en camposAValidar
     const camposAValidarValues = Object.values(camposAValidar);
     const filteredTransformedData = {};
-    camposAValidarValues.forEach(campo => {
+    camposAValidarValues.forEach((campo) => {
       if (transformedUpdatedData[campo]) {
         filteredTransformedData[campo] = transformedUpdatedData[campo];
       }
     });
-    
+
     const dataToValidate = camposAValidarValues.map((campo) => {
       return {
         campo,
@@ -565,7 +567,6 @@ const BarraLateralImportacion = ({
         .filter((result) => !result.isEqual)
         .map((result) => result.seccion);
 
-
       // Usar la prop en lugar de setImportData
       actualizarSeccionesConErrores(seccionesErroneas);
     } else {
@@ -580,7 +581,7 @@ const BarraLateralImportacion = ({
     const val = await ValidarEstadosFin();
 
     console.log(val);
-    
+
     if (!val) {
       setConfirmarFin(false);
 
@@ -989,6 +990,7 @@ export const VentanaEdicionImportacion = ({
         datos1={datosSeguros}
         setDatos={actualizarCampo}
         actualizar={actualizarDatos}
+        permisosProp={permisos}
       />
     );
   };

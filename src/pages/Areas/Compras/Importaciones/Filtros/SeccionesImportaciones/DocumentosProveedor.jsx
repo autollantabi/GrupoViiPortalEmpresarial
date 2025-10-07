@@ -41,7 +41,12 @@ const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 const rutaBase = "importaciones/documentosBD/";
 const rutaCarpeta = "importaciones/documentosC/";
 
-export const DocumentosProveedor = ({ datos, setDatos, actualizar }) => {
+export const DocumentosProveedor = ({
+  datos,
+  setDatos,
+  actualizar,
+  permisosProp,
+}) => {
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     NUMERO_PI: {
@@ -225,10 +230,24 @@ export const DocumentosProveedor = ({ datos, setDatos, actualizar }) => {
   };
 
   // Verificar si se deben mostrar los controles de edición
-  const mostrarBotonEdicion =
+  // Para COMPRAS: pueden editar si no son gerencia y la importación está EN PROCESO
+  const mostrarBotonEdicionCompras =
     permisosComprasGerencias.length === 0 &&
     permisosCompras.length > 0 &&
+    permisosBodega.length === 0 && // No debe tener permisos de BODEGA
     datos.ESTADO_IMPORTACION === "EN PROCESO";
+
+  // Para BODEGA: pueden guardar si suben archivos en DOCUMENTOS_PARA_BODEGA
+  const mostrarBotonEdicionBodega =
+    permisosBodega.length > 0 &&
+    permisosCompras.length === 0 &&
+    permisosComprasGerencias.length === 0 &&
+    datos.ESTADO_IMPORTACION === "EN PROCESO" &&
+    Array.isArray(datosForm.DOCUMENTOS_PARA_BODEGA) &&
+    datosForm.DOCUMENTOS_PARA_BODEGA.length > 0;
+
+  const mostrarBotonEdicion =
+    mostrarBotonEdicionCompras || mostrarBotonEdicionBodega;
 
   const ConsultarArchivosDocuementosProveedor = async () => {
     try {
@@ -469,20 +488,11 @@ export const DocumentosProveedor = ({ datos, setDatos, actualizar }) => {
           DOCUMENTOS: respDocumentos.restantes || [],
         }));
       }
-      // Consultar permisos
-      const permisosdeusuarioBOD = await consultarPermisosPorModuloRuta({
-        rutaModulos: BODEGA,
-      });
-      const permisosdeusuarioCOMP = await consultarPermisosPorModuloRuta({
-        rutaModulos: IMPORTACIONES,
-      });
-      const permisosdeusuarioCOMPG = await consultarPermisosPorModuloRuta({
-        rutaModulos: COMPRASGERENCIA,
-      });
 
-      setPermisosBodega(permisosdeusuarioBOD);
-      setPermisosCompras(permisosdeusuarioCOMP);
-      setPermisosComprasGerencias(permisosdeusuarioCOMPG);
+      // Usar permisos recibidos desde props
+      setPermisosBodega(permisosProp?.bodega || []);
+      setPermisosCompras(permisosProp?.compras || []);
+      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
 
       // Preparar correos
       const correosAEnviar = obtenerCorreosAEnviar(
@@ -497,8 +507,7 @@ export const DocumentosProveedor = ({ datos, setDatos, actualizar }) => {
     };
 
     inicializarComponente();
-    // Dependencias vacías: solo se ejecuta al montar
-  }, []);
+  }, [permisosProp]);
 
   // 2. EFECTO PARA EVALUAR BLOQUEOS - SE EJECUTA CUANDO CAMBIAN LOS DATOS O EL FORMULARIO
   useEffect(() => {
@@ -523,7 +532,8 @@ export const DocumentosProveedor = ({ datos, setDatos, actualizar }) => {
           valor,
           estadoImportacion,
           tieneID,
-          datosIniciales
+          datosIniciales,
+          { permisosCompras, permisosBodega, permisosComprasGerencias }
         );
       });
 
@@ -531,7 +541,15 @@ export const DocumentosProveedor = ({ datos, setDatos, actualizar }) => {
     };
 
     evaluarCamposBloqueados();
-  }, [datos, datosForm, campos, datosIniciales]);
+  }, [
+    datos,
+    datosForm,
+    campos,
+    datosIniciales,
+    permisosCompras,
+    permisosBodega,
+    permisosComprasGerencias,
+  ]);
 
   // 3. EFECTO PARA RESPONDER A CAMBIOS EN EL PI
   useEffect(() => {
@@ -543,7 +561,6 @@ export const DocumentosProveedor = ({ datos, setDatos, actualizar }) => {
           datosForm["NUMERO_PI"]
         );
         console.log(res);
-        
 
         if (res && res.length > 0) {
           // Actualizar datosForm
@@ -649,7 +666,10 @@ export const DocumentosProveedor = ({ datos, setDatos, actualizar }) => {
         {campos &&
           Object.values(campos).map((campo) => {
             // Aplicar la misma lógica de filtrado que en renderField
-            if (campo.shouldRenderByDatos && !campo.shouldRenderByDatos(datos)) {
+            if (
+              campo.shouldRenderByDatos &&
+              !campo.shouldRenderByDatos(datos)
+            ) {
               return null;
             }
 

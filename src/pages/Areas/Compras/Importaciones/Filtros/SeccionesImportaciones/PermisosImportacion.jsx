@@ -6,6 +6,7 @@ import {
   actualizarDatosTrasGuardado,
   debeEstarBloqueado,
   renderField,
+  renderizarCampoConPermisos,
   stringToFloat,
 } from "../../UtilsImportaciones";
 import {
@@ -20,7 +21,12 @@ const BODEGA = ["COMPRAS", "BODEGA"];
 const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
 const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 
-export const PermisosImportacion = ({ datos, setDatos, actualizar }) => {
+export const PermisosImportacion = ({
+  datos,
+  setDatos,
+  actualizar,
+  permisosProp,
+}) => {
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     POLIZA: {
@@ -131,8 +137,10 @@ export const PermisosImportacion = ({ datos, setDatos, actualizar }) => {
   };
 
   // Verificar si se deben mostrar los controles de edición
+  // Solo COMPRAS (IMPORTACIONES) puede editar Permisos Importación, no GERENCIA
   const mostrarBotonEdicion =
     permisosComprasGerencias.length === 0 &&
+    permisosCompras.length > 0 &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   // Guardar datos
@@ -213,28 +221,17 @@ export const PermisosImportacion = ({ datos, setDatos, actualizar }) => {
       );
       setDatosForm(initialData);
 
-      // Consultar permisos
-      const permisosdeusuarioBOD = await consultarPermisosPorModuloRuta({
-        rutaModulos: BODEGA,
-      });
-      const permisosdeusuarioCOMP = await consultarPermisosPorModuloRuta({
-        rutaModulos: IMPORTACIONES,
-      });
-      const permisosdeusuarioCOMPG = await consultarPermisosPorModuloRuta({
-        rutaModulos: COMPRASGERENCIA,
-      });
-
-      setPermisosBodega(permisosdeusuarioBOD);
-      setPermisosCompras(permisosdeusuarioCOMP);
-      setPermisosComprasGerencias(permisosdeusuarioCOMPG);
+      // Usar permisos recibidos desde props
+      setPermisosBodega(permisosProp?.bodega || []);
+      setPermisosCompras(permisosProp?.compras || []);
+      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
 
       // Marcar como ya inicializado
       setCargaInicial(false);
     };
 
     inicializarComponente();
-    // Dependencias vacías: solo se ejecuta al montar
-  }, []);
+  }, [permisosProp]);
 
   // 2. EFECTO PARA EVALUAR BLOQUEOS - SE EJECUTA CUANDO CAMBIAN LOS DATOS O EL FORMULARIO
   useEffect(() => {
@@ -259,7 +256,8 @@ export const PermisosImportacion = ({ datos, setDatos, actualizar }) => {
           valor,
           estadoImportacion,
           tieneID,
-          datosIniciales
+          datosIniciales,
+          { permisosCompras, permisosBodega, permisosComprasGerencias }
         );
       });
 
@@ -267,7 +265,15 @@ export const PermisosImportacion = ({ datos, setDatos, actualizar }) => {
     };
 
     evaluarCamposBloqueados();
-  }, [datos, datosForm, campos, datosIniciales]);
+  }, [
+    datos,
+    datosForm,
+    campos,
+    datosIniciales,
+    permisosCompras,
+    permisosBodega,
+    permisosComprasGerencias,
+  ]);
 
   return (
     <SectionImportacionesContainer>
@@ -293,12 +299,14 @@ export const PermisosImportacion = ({ datos, setDatos, actualizar }) => {
       ) : (
         <FormImportacionesGrid>
           {Object.values(campos).map((campo) => {
-            return renderField(campo, {
-              datos,
-              datosForm,
-              setDatosForm,
-              camposBloqueados,
-            });
+            return renderizarCampoConPermisos(
+              campo,
+              { datos, datosForm, setDatosForm, camposBloqueados },
+              { permisosCompras, permisosBodega },
+              { siempreVisibles: [] },
+              {},
+              {}
+            );
           })}
         </FormImportacionesGrid>
       )}
