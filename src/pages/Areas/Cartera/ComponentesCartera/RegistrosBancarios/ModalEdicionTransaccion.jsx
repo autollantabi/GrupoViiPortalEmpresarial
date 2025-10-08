@@ -7,7 +7,11 @@ import {
   ConsultarClientesPorEmpresa,
   ConsultarVendedoresPorEmpresa,
 } from "services/carteraService";
-import { getNombreEstado, getColorEstado } from "./configTablaTransacciones";
+import {
+  getNombreEstado,
+  getColorEstado,
+  formatFecha,
+} from "./configTablaTransacciones";
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -337,7 +341,7 @@ export const ModalEdicionTransaccion = ({
               </InfoItem>
               <InfoItem>
                 <InfoLabel>Fecha</InfoLabel>
-                <InfoValue>{transaccion.FECHA_TRANSACCION}</InfoValue>
+                <InfoValue>{formatFecha(transaccion.FECHA)}</InfoValue>
               </InfoItem>
               <InfoItem>
                 <InfoLabel>Valor</InfoLabel>
@@ -489,6 +493,7 @@ export const ModalEdicionTransaccion = ({
             text="Guardar Cambios"
             iconLeft="FaSave"
             onClick={handleSave}
+            isAsync
           />
         </ModalFooter>
       </ModalContainer>

@@ -4,6 +4,14 @@ const formatearValor = (valor) => {
   return numero.toFixed(2);
 };
 
+export const formatFecha = (valor) => {
+  const partes = valor.toString().split("-");
+  if (partes.length === 3) {
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+  return valor;
+};
+
 // Configuración de columnas para la tabla de transacciones bancarias
 export const columnasTablaTransacciones = [
   {
@@ -19,10 +27,13 @@ export const columnasTablaTransacciones = [
     width: "80px",
   },
   {
-    key: "FECHA_TRANSACCION",
+    key: "FECHA",
     header: "FECHA",
     className: "uns",
     width: "70px",
+    format: (valor) => {
+      return formatFecha(valor);
+    },
   },
   {
     key: "VALOR",

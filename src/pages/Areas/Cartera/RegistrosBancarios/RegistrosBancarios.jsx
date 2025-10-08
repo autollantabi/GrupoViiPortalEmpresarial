@@ -6,9 +6,8 @@ import { usePermissions } from "../../../../hooks/usePermissions";
 import { FiltrosUnificadosCartera } from "../ComponentesCartera/RegistrosBancarios/ComponentesUnificadosCartera";
 import { ModalEdicionTransaccion } from "../ComponentesCartera/RegistrosBancarios/ModalEdicionTransaccion";
 import {
-  ActualizarTransaccion,
-  ActualizarEstadoTransaccion,
-  ConsultarTransaccionPorID,
+  actualizarTransaccionBancariaPorID,
+  actualizarEstadoTransaccionBancariaPorID,
 } from "../../../../services/carteraService";
 import { toast } from "react-toastify";
 
@@ -59,6 +58,7 @@ const RegistrosBancariosComponent = ({
     return tiposPermitidos;
   }, [permissionsByModule]);
   // Estados para datos filtrados y configuración
+  const [todosLosDatos, setTodosLosDatos] = useState([]); // Todos los datos sin filtrar
   const [datosFiltrados, setDatosFiltrados] = useState([]);
   const [filasPorPagina, setFilasPorPagina] = useState(15);
   const [refrescarDatos, setRefrescarDatos] = useState(0);
@@ -70,6 +70,11 @@ const RegistrosBancariosComponent = ({
 
   // Callback para manejar cambios en los filtros
   const handleFiltersChange = useCallback((filtros) => {
+    // Actualizar todos los datos sin filtrar (para los contadores)
+    if (filtros.todosLosDatos) {
+      setTodosLosDatos(filtros.todosLosDatos);
+    }
+
     // Actualizar datos filtrados y aplicar filtro de tipo de transacción
     if (filtros.datosFiltrados) {
       let datosFiltradosPorTipo = filtros.datosFiltrados;
@@ -104,82 +109,63 @@ const RegistrosBancariosComponent = ({
     async (formData) => {
       try {
         let resultado;
+        const idTransaccion = transaccionSeleccionada.IDENTIFICADOR;
 
-        // Si se cambió el estado, usar ActualizarEstadoTransaccion
         if (
           formData.estado &&
           formData.estado !== undefined &&
           formData.estado !== null
         ) {
-          resultado = await ActualizarEstadoTransaccion({
-            id: formData.identificador,
-            estado: formData.estado,
-            identificadorUsuario: localStorage.getItem("identificador"),
-            comentario: formData.comentario || "",
-            ingreso: formData.ingreso || "",
-          });
+          resultado = await actualizarEstadoTransaccionBancariaPorID(
+            idTransaccion,
+            formData.estado,
+            localStorage.getItem("identificador"),
+            formData.comentario || "",
+            formData.ingreso || ""
+          );
         } else {
-          // Convertir fecha de dd-mm-yyyy a yyyy-mm-dd
-          const convertirFecha = (fechaStr) => {
-            const [dia, mes, anio] = fechaStr.split(/[-/]/);
-            return `${anio}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
-          };
-          // Si NO cambió el estado, usar ActualizarTransaccion
           const datosParaGuardar = {
-            id: formData.identificador,
-            fechatransaccion: convertirFecha(
-              transaccionSeleccionada.FECHA_TRANSACCION
-            ),
-            agencia: transaccionSeleccionada.AGENCIA,
             cliente: formData.cliente.toUpperCase(),
             codigosocio: formData.cedula,
-            comentario: transaccionSeleccionada.REFERENCIA_BANCO,
-            tipotransaccion: transaccionSeleccionada.TIPO_TRANSACCION,
-            ordenante: transaccionSeleccionada.ORDENANTE,
-            moneda: transaccionSeleccionada.MONEDA,
-            bancoordenante: transaccionSeleccionada.BANCO_ORDENANTE,
-            cuentaordenante: transaccionSeleccionada.CUENTA_ORDENANTE,
-            conceptotransaccion:
-              transaccionSeleccionada.CONCEPTO_TRANSACCION.toUpperCase(),
-            cuentadestino: transaccionSeleccionada.CUENTA_DESTINO,
-            informacionadicional: transaccionSeleccionada.INFORMACION_ADICIONAL,
-            canal: transaccionSeleccionada.CANAL,
             usuario: parseInt(localStorage.getItem("identificador")),
             comentariousuario: formData.comentario.toUpperCase(),
-            codigovendedor: null,
             vendedor: formData.vendedor.toUpperCase(),
             ingreso: formData.ingreso.toUpperCase(),
           };
-          resultado = await ActualizarTransaccion(datosParaGuardar);
+          resultado = await actualizarTransaccionBancariaPorID(
+            idTransaccion,
+            datosParaGuardar
+          );
         }
 
-        if (resultado) {
-          toast.success("Transacción actualizada correctamente");
+        if (resultado.success) {
+          // Actualizar solo el registro específico en ambos arrays
+          const actualizarRegistro = (prevDatos) => {
+            const index = prevDatos.findIndex(
+              (item) => item.IDENTIFICADOR === idTransaccion
+            );
+            if (index === -1) return prevDatos;
 
-          const transaccionActualizada = await ConsultarTransaccionPorID(
-            formData.identificador
-          );
+            const nuevosDatos = [...prevDatos];
+            nuevosDatos[index] = resultado.data;
+            return nuevosDatos;
+          };
 
-          // Actualizar solo el registro específico en el array local con los datos reales del backend
-          if (transaccionActualizada) {
-            setDatosFiltrados((prevDatos) => {
-              return prevDatos.map((item) => {
-                if (item.IDENTIFICADOR === formData.identificador) {
-                  // Reemplazar con la transacción actualizada del backend
-                  return transaccionActualizada;
-                }
-                return item;
-              });
-            });
-          }
+          // Actualizar datos filtrados
+          setDatosFiltrados(actualizarRegistro);
+
+          // Actualizar todos los datos (para los contadores)
+          setTodosLosDatos(actualizarRegistro);
+
+          toast.success(resultado.message);
 
           handleCloseModal();
         } else {
-          toast.error("Error al actualizar la transacción");
+          toast.error(resultado.message);
         }
       } catch (error) {
         console.error("Error al guardar:", error);
-        toast.error("Error al actualizar la transacción");
+        toast.error(error.message);
       }
     },
     [transaccionSeleccionada, handleCloseModal]
@@ -259,6 +245,7 @@ const RegistrosBancariosComponent = ({
         onFiltersChange={handleFiltersChange}
         refrescar={refrescarDatos}
         tiposTransaccionPermitidos={tiposTransaccionPermitidos}
+        datosExternos={todosLosDatos.length > 0 ? todosLosDatos : null}
       />
 
       {/* Tabla de Transacciones Completa */}

@@ -32,10 +32,18 @@ export const FiltrosUnificadosCartera = ({
   refrescar = 0,
   // Tipos de transacción permitidos (C = Créditos, D = Débitos)
   tiposTransaccionPermitidos = [],
+  // Datos externos (opcional) - si se pasan, no se consultan
+  datosExternos = null,
 }) => {
   // Estados de datos
   const [data, setData] = useState([]);
   const [cargando, setCargando] = useState(false);
+
+  // Rango de fechas disponibles en la data actual
+  const [rangoFechasDisponibles, setRangoFechasDisponibles] = useState({
+    fechaMinima: null,
+    fechaMaxima: null,
+  });
 
   // Estados internos para filtros de fechas, banco y empresa
   const [fechaInicial, setFechaInicial] = useState(null);
@@ -75,15 +83,83 @@ export const FiltrosUnificadosCartera = ({
     }
   };
 
+  // Calcular el rango de fechas disponibles en la data
+  const calcularRangoFechas = (datos) => {
+    if (!datos || datos.length === 0) {
+      return { fechaMinima: null, fechaMaxima: null };
+    }
+
+    let fechaMin = null;
+    let fechaMax = null;
+
+    datos.forEach((item) => {
+      if (item.FECHA) {
+        const [anio, mes, dia] = item.FECHA.split("-");
+        const fecha = new Date(anio, mes - 1, dia);
+
+        if (!fechaMin || fecha < fechaMin) {
+          fechaMin = fecha;
+        }
+        if (!fechaMax || fecha > fechaMax) {
+          fechaMax = fecha;
+        }
+      }
+    });
+
+    return { fechaMinima: fechaMin, fechaMaxima: fechaMax };
+  };
+
+  // Determinar si necesitamos consultar la API basándose en las fechas
+  const necesitaConsultarAPI = (fechaInicioFiltro, fechaFinFiltro) => {
+    // Si no hay datos, siempre consultar
+    if (!data || data.length === 0) return true;
+
+    // Si no hay rango de fechas disponibles, consultar
+    if (
+      !rangoFechasDisponibles.fechaMinima ||
+      !rangoFechasDisponibles.fechaMaxima
+    ) {
+      return true;
+    }
+
+    // Si no hay filtros de fecha, no consultar (usar datos actuales)
+    if (!fechaInicioFiltro && !fechaFinFiltro) return false;
+
+    const fechaMinDisponible = rangoFechasDisponibles.fechaMinima;
+    const fechaMaxDisponible = rangoFechasDisponibles.fechaMaxima;
+
+    // Verificar si la fecha inicial del filtro está fuera del rango
+    if (fechaInicioFiltro && fechaInicioFiltro < fechaMinDisponible) {
+      return true;
+    }
+
+    // Verificar si la fecha final del filtro está fuera del rango
+    if (fechaFinFiltro && fechaFinFiltro > fechaMaxDisponible) {
+      return true;
+    }
+
+    return false;
+  };
+
   // Cargar transacciones bancarias
-  const fetchTransacciones = async () => {
+  const fetchTransacciones = async (fechaInicio = null, fechaFin = null) => {
     setCargando(true);
     try {
-      const transacciones = await consultarTodasTransaccionesBancarias();
-      setData(transacciones || []);
+      const responseTransacciones = await consultarTodasTransaccionesBancarias({
+        fechaInicio,
+        fechaFin,
+      });
+
+      const nuevosDatos = responseTransacciones.data || [];
+      setData(nuevosDatos);
+
+      // Calcular y guardar el rango de fechas disponibles
+      const nuevoRango = calcularRangoFechas(nuevosDatos);
+      setRangoFechasDisponibles(nuevoRango);
     } catch (error) {
       console.error("Error al obtener transacciones:", error);
       setData([]);
+      setRangoFechasDisponibles({ fechaMinima: null, fechaMaxima: null });
     } finally {
       setCargando(false);
     }
@@ -104,12 +180,17 @@ export const FiltrosUnificadosCartera = ({
     }
   }, [empresaList]);
 
-  // Effect para refrescar datos cuando se actualiza una transacción
+  // Effect para usar datos externos o refrescar desde la base de datos
   useEffect(() => {
-    if (refrescar > 0) {
+    if (datosExternos) {
+      // Si vienen datos externos, usarlos directamente sin consultar
+      setData(datosExternos);
+      setCargando(false);
+    } else if (refrescar > 0) {
+      // Si no hay datos externos y refrescar > 0, consultar desde la BD
       fetchTransacciones();
     }
-  }, [refrescar]);
+  }, [refrescar, datosExternos]);
 
   // Debounce para el filtro global (evita re-renders mientras escribe)
   useEffect(() => {
@@ -150,7 +231,8 @@ export const FiltrosUnificadosCartera = ({
     if (fechaInicial) {
       const fechaInicialNormalizada = normalizarFecha(fechaInicial);
       datosFiltrados = datosFiltrados.filter((item) => {
-        const [dia, mes, anio] = item.FECHA_TRANSACCION.split("-");
+        // FECHA viene en formato yyyy-mm-dd
+        const [anio, mes, dia] = item.FECHA.split("-");
         const fechaTransaccion = new Date(anio, mes - 1, dia);
         const fechaTransaccionNormalizada = normalizarFecha(fechaTransaccion);
         return fechaTransaccionNormalizada >= fechaInicialNormalizada;
@@ -160,7 +242,8 @@ export const FiltrosUnificadosCartera = ({
     if (fechaFinal) {
       const fechaFinalNormalizada = normalizarFecha(fechaFinal);
       datosFiltrados = datosFiltrados.filter((item) => {
-        const [dia, mes, anio] = item.FECHA_TRANSACCION.split("-");
+        // FECHA viene en formato yyyy-mm-dd
+        const [anio, mes, dia] = item.FECHA.split("-");
         const fechaTransaccion = new Date(anio, mes - 1, dia);
         const fechaTransaccionNormalizada = normalizarFecha(fechaTransaccion);
         return fechaTransaccionNormalizada <= fechaFinalNormalizada;
@@ -243,6 +326,7 @@ export const FiltrosUnificadosCartera = ({
         columnaFiltro,
         rowsPerPage,
         datosFiltrados: getCurrentData(),
+        todosLosDatos: data, // Pasar todos los datos sin filtrar
         cargando,
       };
       onFiltersChange(filtros);
@@ -259,6 +343,51 @@ export const FiltrosUnificadosCartera = ({
     data,
     cargando,
   ]);
+
+  // Effect para verificar si necesitamos consultar la API cuando cambian las fechas
+  useEffect(() => {
+    // Solo verificar si ya se cargaron los datos iniciales
+    if (data.length > 0 && (fechaInicial || fechaFinal)) {
+      const necesitaConsultar = necesitaConsultarAPI(fechaInicial, fechaFinal);
+
+      if (necesitaConsultar) {
+        // Determinar las fechas a enviar a la API
+        let fechaInicioAPI = null;
+        let fechaFinAPI = null;
+
+        // Si la fecha inicial del filtro es anterior a la disponible
+        if (
+          fechaInicial &&
+          (!rangoFechasDisponibles.fechaMinima ||
+            fechaInicial < rangoFechasDisponibles.fechaMinima)
+        ) {
+          // Formato yyyy-mm-dd
+          const anio = fechaInicial.getFullYear();
+          const mes = String(fechaInicial.getMonth() + 1).padStart(2, "0");
+          const dia = String(fechaInicial.getDate()).padStart(2, "0");
+          fechaInicioAPI = `${anio}-${mes}-${dia}`;
+        }
+
+        // Si la fecha final del filtro es posterior a la disponible
+        if (
+          fechaFinal &&
+          (!rangoFechasDisponibles.fechaMaxima ||
+            fechaFinal > rangoFechasDisponibles.fechaMaxima)
+        ) {
+          // Formato yyyy-mm-dd
+          const anio = fechaFinal.getFullYear();
+          const mes = String(fechaFinal.getMonth() + 1).padStart(2, "0");
+          const dia = String(fechaFinal.getDate()).padStart(2, "0");
+          fechaFinAPI = `${anio}-${mes}-${dia}`;
+        }
+
+        // Solo consultar si hay al menos una fecha fuera del rango
+        if (fechaInicioAPI || fechaFinAPI) {
+          fetchTransacciones(fechaInicioAPI, fechaFinAPI);
+        }
+      }
+    }
+  }, [fechaInicial, fechaFinal]);
 
   // Funciones internas para manejar cambios de filtros
   const handleFechaInicialChange = (fecha) => {
@@ -323,7 +452,6 @@ export const FiltrosUnificadosCartera = ({
 
   // Opciones del menú de acciones
   const accionesOptions = [
-    { value: "actualizar", label: "🔄 Actualizar datos" },
     { value: "exportar", label: "📊 Exportar a Excel" },
     { value: "limpiar", label: "🗑️ Limpiar filtros" },
   ];
@@ -333,9 +461,6 @@ export const FiltrosUnificadosCartera = ({
     if (!option) return;
 
     switch (option.value) {
-      case "actualizar":
-        handleRefresh();
-        break;
       case "exportar":
         handleExportarExcel();
         break;
@@ -540,6 +665,21 @@ export const FiltrosUnificadosCartera = ({
           minWidth="180px"
           maxWidth="220px"
           isSearchable={false}
+        />
+
+        {/* Botón para actualizar datos */}
+        <CustomButton
+          iconLeft="FaSync"
+          style={{
+            borderRadius: "50%",
+            padding: "10px",
+            height: "100%",
+            minHeight: "100%",
+          }}
+          isAsync={true}
+          onClick={handleRefresh}
+          minWidth="50px"
+          maxWidth="50px"
         />
       </FiltrosContainer>
     </CustomContainer>

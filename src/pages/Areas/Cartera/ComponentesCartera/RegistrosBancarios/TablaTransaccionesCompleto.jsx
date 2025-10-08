@@ -211,8 +211,8 @@ const TablaTransaccionesCompleto = ({
 
     return datosConIndice.sort((a, b) => {
       // 1. Ordenar por fecha descendente (más reciente primero)
-      const fechaA = parseFecha(a.FECHA_TRANSACCION);
-      const fechaB = parseFecha(b.FECHA_TRANSACCION);
+      const fechaA = parseFecha(a.FECHA);
+      const fechaB = parseFecha(b.FECHA);
 
       if (fechaB.getTime() !== fechaA.getTime()) {
         return fechaB.getTime() - fechaA.getTime(); // DESC
@@ -300,54 +300,84 @@ const TablaTransaccionesCompleto = ({
             </tr>
           </thead>
           <tbody>
-            {datosPagina
-              .filter((transaccion) => transaccion != null)
-              .map((transaccion, index) => {
-                const estadoNum = parseInt(transaccion.ESTADO);
-                const claseEstado = clasesEstado[estadoNum] || "fila-default";
-                const idFila =
-                  transaccion?.IDENTIFICADOR_VERSION ||
-                  transaccion?.IDENTIFICADOR;
-                const estaSeleccionada = filaSeleccionada === idFila;
+            {datosPagina.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columnasTablaTransacciones.length + 1}
+                  style={{
+                    textAlign: "center",
+                    padding: "40px 20px",
+                    fontSize: "14px",
+                    color: "#6c757d",
+                    fontStyle: "italic",
+                  }}
+                >
+                  No existen datos con los filtros aplicados
+                </td>
+              </tr>
+            ) : (
+              datosPagina
+                .filter((transaccion) => transaccion != null)
+                .map((transaccion, index) => {
+                  const estadoNum = parseInt(transaccion.ESTADO);
+                  const claseEstado = clasesEstado[estadoNum] || "fila-default";
+                  const idFila =
+                    transaccion?.IDENTIFICADOR_VERSION ||
+                    transaccion?.IDENTIFICADOR;
+                  const estaSeleccionada = filaSeleccionada === idFila;
 
-                return (
-                  <tr
-                    key={`${
-                      transaccion?.IDENTIFICADOR_VERSION || index
-                    }-${index}`}
-                    className={`filasTabla ${claseEstado} ${
-                      estaSeleccionada ? "fila-seleccionada" : ""
-                    }`}
-                    onClick={() => manejarClickFila(transaccion)}
-                  >
-                    {columnasTablaTransacciones.map((columna) => {
-                      const valor = transaccion[columna.key];
+                  return (
+                    <tr
+                      key={`${
+                        transaccion?.IDENTIFICADOR_VERSION || index
+                      }-${index}`}
+                      className={`filasTabla ${claseEstado} ${
+                        estaSeleccionada ? "fila-seleccionada" : ""
+                      }`}
+                      onClick={() => manejarClickFila(transaccion)}
+                    >
+                      {columnasTablaTransacciones.map((columna) => {
+                        const valor = transaccion[columna.key];
 
-                      // Si es la columna de estado
-                      if (columna.isEstado) {
-                        const colorEstado = getColorEstado(estadoNum);
-                        return (
-                          <td
-                            key={columna.key}
-                            style={{
-                              width: columna.width,
-                              minWidth: columna.width,
-                            }}
-                          >
-                            <ChipEstado
-                              $bgColor={colorEstado.bg}
-                              $textColor={colorEstado.text}
+                        // Si es la columna de estado
+                        if (columna.isEstado) {
+                          const colorEstado = getColorEstado(estadoNum);
+                          return (
+                            <td
+                              key={columna.key}
+                              style={{
+                                width: columna.width,
+                                minWidth: columna.width,
+                              }}
                             >
-                              <span>
-                                {getNombreEstado(estadoNum)?.substring(0, 5)}
-                              </span>
-                            </ChipEstado>
-                          </td>
-                        );
-                      }
+                              <ChipEstado
+                                $bgColor={colorEstado.bg}
+                                $textColor={colorEstado.text}
+                              >
+                                <span>
+                                  {getNombreEstado(estadoNum)?.substring(0, 5)}
+                                </span>
+                              </ChipEstado>
+                            </td>
+                          );
+                        }
 
-                      // Si tiene función de formato
-                      if (columna.format) {
+                        // Si tiene función de formato
+                        if (columna.format) {
+                          return (
+                            <td
+                              key={columna.key}
+                              style={{
+                                width: columna.width,
+                                minWidth: columna.width,
+                              }}
+                            >
+                              {columna.format(valor, transaccion)}
+                            </td>
+                          );
+                        }
+
+                        // Valor normal
                         return (
                           <td
                             key={columna.key}
@@ -356,36 +386,23 @@ const TablaTransaccionesCompleto = ({
                               minWidth: columna.width,
                             }}
                           >
-                            {columna.format(valor, transaccion)}
+                            {valor || ""}
                           </td>
                         );
-                      }
+                      })}
 
-                      // Valor normal
-                      return (
-                        <td
-                          key={columna.key}
-                          style={{
-                            width: columna.width,
-                            minWidth: columna.width,
-                          }}
-                        >
-                          {valor || ""}
-                        </td>
-                      );
-                    })}
-
-                    {/* Columna de acciones */}
-                    <td style={{ width: "20px" }}>
-                      <CustomButton
-                        iconLeft="FaEdit"
-                        onClick={() => onEdit(transaccion)}
-                        variant="text"
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
+                      {/* Columna de acciones */}
+                      <td style={{ width: "20px" }}>
+                        <CustomButton
+                          iconLeft="FaEdit"
+                          onClick={() => onEdit(transaccion)}
+                          variant="text"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
+            )}
           </tbody>
         </TablaCustom>
       </TablaContainer>
