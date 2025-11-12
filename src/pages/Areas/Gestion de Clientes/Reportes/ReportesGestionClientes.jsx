@@ -128,7 +128,7 @@ const ReportesGestionClientesComponent = ({
             id: 0,
             tituloBtn: "Comercial V2",
             titulo: "Comercial V2 Lubricantes - Maxximundo",
-            url: "https://app.powerbi.com/view?r=eyJrIjoiZWU3NGE4MmMtNTBiMi00YjBmLWIxMjktYTQ0MTYzM2RlYWZhIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
+            url: "https://app.powerbi.com/view?r=eyJrIjoiZWI2ZjM2ZTMtZmI4YS00MDI0LTg0NzctYzU5ODY5MmViMDhhIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
           },
         ],
       },

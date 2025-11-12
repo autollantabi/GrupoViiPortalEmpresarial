@@ -3,7 +3,7 @@ import styled from "styled-components";
 import Select from "react-select";
 
 import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
-// ExportToExcel removido - usar componente unificado
+import { ExportToExcel } from "../Componentes/ExportarAExcel"
 // Estilos de la tabla y celdas
 const ContenedorPrincipal = styled.div`
   display: flex;
@@ -515,7 +515,7 @@ export const TablaInfo = ({
         />
         {excel && filteredData?.length > 0 && (
           <ExportToExcel
-            filename={"Reporte_" + filenameExcel}
+            filename={`Reporte_${filenameExcel}`}
             habilitarBoton={false}
             data={filteredData}
             columnasOcultas={columnasOcultasExcel}

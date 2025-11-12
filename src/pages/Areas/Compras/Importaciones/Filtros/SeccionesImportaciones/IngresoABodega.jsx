@@ -428,6 +428,7 @@ export const IngresoABodega = ({
                   "CONFIRME_IMPORTACION",
                   "ARCHIVOS_BODEGA",
                   "VALIDACION_INGRESO_BODEGA",
+                  "OBSERVACION_BODEGA",
                 ],
               },
               {},

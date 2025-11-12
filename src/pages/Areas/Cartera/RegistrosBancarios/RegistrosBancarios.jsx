@@ -72,6 +72,7 @@ const RegistrosBancariosComponent = ({
   const handleFiltersChange = useCallback((filtros) => {
     // Actualizar todos los datos sin filtrar (para los contadores)
     if (filtros.todosLosDatos) {
+      console.log("filtros.todosLosDatos", filtros.todosLosDatos);
       setTodosLosDatos(filtros.todosLosDatos);
     }
 

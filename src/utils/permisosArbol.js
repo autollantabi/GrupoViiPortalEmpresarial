@@ -1,60 +1,7 @@
-import { ObtenerIDUsuario } from "./usuariosService";
-import { ListarModulos, ListarPermisosUsuario } from "./administracionService";
-import { axiosInstance } from "config/axiosConfig";
-
-export async function obtenerUsuario(correo, contrasena) {
-  try {
-    const response = await axiosInstance.get(
-      `/usuario/validarUsuario/${correo}/${contrasena}`
-    );
-
-    if (response.status === 200) {
-      return { success: true, correcto: response.data.mensaje };
-    }
-
-    return { success: false };
-  } catch (error) {
-    return { success: false };
-  }
-}
-
-export const verificarInicioSesion = async ({ correo, contrasena }) => {
-  try {
-    const req_usuario = await obtenerUsuario(correo, contrasena);
-    const req_session = await ObtenerIDUsuario(correo);
-    // console.log(req_session);
-
-    if (req_usuario.success) {
-      if (req_usuario.correcto) {
-        const dataUsuario = req_session.map(
-          ({ CORREO, IDENTIFICADOR, NOMBRE, PRIMERASESION }) => ({
-            correo: CORREO,
-            id: IDENTIFICADOR,
-            nombre: NOMBRE,
-            psesion: PRIMERASESION,
-          })
-        );
-
-        return {
-          success: true,
-          data: dataUsuario[0],
-        };
-      } else {
-        return {
-          success: false,
-          message: "Credenciales incorrectas para el usuario.",
-        };
-      }
-    }
-    return {
-      success: false,
-      message: "Usuario no existe ",
-    };
-  } catch (error) {
-    console.log("Error al verificar sesión");
-    return { success: false, message: "Error en el servidor" };
-  }
-};
+import {
+  ListarModulos,
+  ListarPermisosUsuario,
+} from "../services/administracionService";
 
 export const getPermisosDeUsuarioArbol = async ({ usuarioID }) => {
   const modulos = await ListarModulos();

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Select from "react-select";
 import * as XLSX from "xlsx";
 import {
@@ -24,6 +24,7 @@ import {
 
 import { TablaInfo } from "components/UI/ComponentesGenericos/TablaInfo";
 import { withPermissions } from "../../../../../hoc/withPermissions";
+import { usePermissions } from "../../../../../hooks/usePermissions";
 import { GenericTableStyled } from "components/UI/ComponentesGenericos/Tablas";
 import { TablaGeneralizada } from "components/UI/ComponentesGenericos/TablaInputs";
 import { GenericInputStyled } from "components/UI/ComponentesGenericos/Inputs";
@@ -58,7 +59,13 @@ const customStyles = {
 const ComisionesTecnicentroComponent = ({
   empresasAcceso,
   permissionsLoading,
+  routeConfig,
 }) => {
+  // Obtener permisos agrupados por submódulo
+  const { permissionsByModule } = usePermissions(
+    routeConfig?.modulo,
+    routeConfig?.subModules
+  );
   const nombresPersonalizadosExcel = {
     VENDEDOR: "VENDEDOR",
     VTAS: "VTAS ($)",
@@ -443,10 +450,25 @@ const ComisionesTecnicentroComponent = ({
     return acc;
   }, {});
 
+  // Verificar permisos específicos por submódulo
+  const tienePermiso = useMemo(() => {
+    // Como TECNICENTRO no tiene submódulos definidos, verificamos acceso general
+    return {
+      // Permiso general para ver y usar el módulo
+      general: empresasAcceso && empresasAcceso.length > 0,
+      // Permiso para consultar reportes
+      consultar: empresasAcceso && empresasAcceso.length > 0,
+      // Permiso para exportar a Excel
+      exportar: empresasAcceso && empresasAcceso.length > 0,
+    };
+  }, [empresasAcceso]);
+
   // Todos los useEffect deben estar antes de cualquier return condicional
   useEffect(() => {
-    datosIniciales();
-  }, [empresasAcceso]);
+    if (tienePermiso.general) {
+      datosIniciales();
+    }
+  }, [empresasAcceso, tienePermiso.general]);
 
   useEffect(() => {
     const fetchdatosbonificacion = async () => {
@@ -484,7 +506,7 @@ const ComisionesTecnicentroComponent = ({
     }
   }, [anioSl, mes, verificaciondeCategorias]);
 
-  // Mostrar mensaje si no hay permisos
+  // Mostrar loading mientras se cargan los permisos
   if (permissionsLoading) {
     return (
       <CustomContainer
@@ -494,12 +516,13 @@ const ComisionesTecnicentroComponent = ({
         width="100%"
         height="100%"
       >
-        <div>Cargando permisos...</div>
+        <p>Cargando permisos, por favor espera...</p>
       </CustomContainer>
     );
   }
 
-  if (!empresasAcceso || empresasAcceso.length === 0) {
+  // Si no hay empresas con acceso, mostrar mensaje
+  if (!tienePermiso.general) {
     return (
       <CustomContainer
         flexDirection="column"
@@ -508,7 +531,7 @@ const ComisionesTecnicentroComponent = ({
         width="100%"
         height="100%"
       >
-        <div>No tienes permisos para acceder a esta funcionalidad.</div>
+        <p>No tienes permisos para acceder a Comisiones Tecnicentro.</p>
       </CustomContainer>
     );
   }
@@ -581,7 +604,8 @@ const ComisionesTecnicentroComponent = ({
           placeholder="Año"
           styles={customStyles}
         />
-        {anioSl &&
+        {tienePermiso.exportar &&
+          anioSl &&
           mes &&
           verificaciondeCategorias &&
           data11.length > 0 &&
@@ -681,16 +705,19 @@ const ComisionesTecnicentroComponent = ({
                 </ContenedorFlex>
               )
             )}
-          {anioSl && mes && verificaciondeCategorias && (
-            <BotonConEstadoTexto
-              textoInicial={"Consultar"}
-              onClickAction={generarJSON}
-              textoActualizando={"Consultando..."}
-              textoError={"Error"}
-              textoExito={"Consulta Exitosa"}
-              time={3000}
-            />
-          )}
+          {tienePermiso.consultar &&
+            anioSl &&
+            mes &&
+            verificaciondeCategorias && (
+              <BotonConEstadoTexto
+                textoInicial={"Consultar"}
+                onClickAction={generarJSON}
+                textoActualizando={"Consultando..."}
+                textoError={"Error"}
+                textoExito={"Consulta Exitosa"}
+                time={3000}
+              />
+            )}
         </ContenedorFlex>
 
         <ContenedorFlex style={{ flexDirection: "column", width: "100%" }}>

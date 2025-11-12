@@ -8,7 +8,7 @@ import {
   VerticalDivider,
 } from "assets/styles/StyledComponents/Divisor";
 import { FiltroGlobal } from "../FiltroGlobal";
-// ExportToExcel removido - usar componente unificado
+import {ExportToExcel} from "components/UI/Componentes/ExportarAExcel";
 import {
   ListarEmpresas,
   ListarMarcas,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Select from "react-select";
 
 import { ObtenerReporteComisionesMayoristas } from "services/contabilidadService";
@@ -10,6 +10,7 @@ import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdm
 import { BotonConEstadoIconos } from "components/UI/ComponentesGenericos/Botones";
 import { TablaInfo } from "components/UI/ComponentesGenericos/TablaInfo";
 import { withPermissions } from "../../../../../hoc/withPermissions";
+import { usePermissions } from "../../../../../hooks/usePermissions";
 import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
 import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
 
@@ -42,7 +43,13 @@ const customStyles = {
 const ComisionesMayoristasComponent = ({
   empresasAcceso,
   permissionsLoading,
+  routeConfig,
 }) => {
+  // Obtener permisos agrupados por submódulo
+  const { permissionsByModule } = usePermissions(
+    routeConfig?.modulo,
+    routeConfig?.subModules
+  );
   const nombresPersonalizados = {
     VENDEDOR: "VENDEDOR",
     VTAS: "VTAS ($)",
@@ -147,11 +154,22 @@ const ComisionesMayoristasComponent = ({
     return fileN;
   };
 
-  useEffect(() => {
-    datosIniciales();
+  // Verificar permisos específicos
+  const tienePermiso = useMemo(() => {
+    return {
+      general: empresasAcceso && empresasAcceso.length > 0,
+      consultar: empresasAcceso && empresasAcceso.length > 0,
+      exportar: empresasAcceso && empresasAcceso.length > 0,
+    };
   }, [empresasAcceso]);
 
-  // Mostrar mensaje si no hay permisos
+  useEffect(() => {
+    if (tienePermiso.general) {
+      datosIniciales();
+    }
+  }, [empresasAcceso, tienePermiso.general]);
+
+  // Mostrar loading mientras se cargan los permisos
   if (permissionsLoading) {
     return (
       <CustomContainer
@@ -161,12 +179,13 @@ const ComisionesMayoristasComponent = ({
         width="100%"
         height="100%"
       >
-        <div>Cargando permisos...</div>
+        <p>Cargando permisos, por favor espera...</p>
       </CustomContainer>
     );
   }
 
-  if (!empresasAcceso || empresasAcceso.length === 0) {
+  // Si no hay empresas con acceso, mostrar mensaje
+  if (!tienePermiso.general) {
     return (
       <CustomContainer
         flexDirection="column"
@@ -175,7 +194,7 @@ const ComisionesMayoristasComponent = ({
         width="100%"
         height="100%"
       >
-        <div>No tienes permisos para acceder a esta funcionalidad.</div>
+        <p>No tienes permisos para acceder a Comisiones Mayoristas.</p>
       </CustomContainer>
     );
   }
@@ -242,12 +261,14 @@ const ComisionesMayoristasComponent = ({
           placeholder="Año"
           styles={customStyles}
         />
-        <CustomButton
-          iconLeft={"FaSearch"}
-          onClick={consultarReporte}
-          style={{ padding: "5px 10px" }}
-          isAsync={true}
-        />
+        {tienePermiso.consultar && (
+          <CustomButton
+            iconLeft={"FaSearch"}
+            onClick={consultarReporte}
+            style={{ padding: "5px 10px" }}
+            isAsync={true}
+          />
+        )}
       </CustomContainer>
       <TablaInfo
         data={data}
@@ -256,8 +277,8 @@ const ComisionesMayoristasComponent = ({
         defaultFilters={["VENDEDOR"]}
         sortedInitial={{ column: "CODIGO", direction: "asc" }}
         onFilterChange={handleSort}
-        excel={true}
-        filenameExcel={fileName}
+        excel={tienePermiso.exportar}
+        filenameExcel={fileName()}
         nombresColumnasPersonalizadosExcel={nombresPersonalizados}
       />
     </CustomContainer>

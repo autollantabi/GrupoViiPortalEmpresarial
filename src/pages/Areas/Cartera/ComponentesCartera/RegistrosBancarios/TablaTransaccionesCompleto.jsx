@@ -70,7 +70,6 @@ const PaginacionWrapper = styled.div`
   width: 100%;
   position: relative;
   overflow: visible;
-  z-index: 10;
   flex-shrink: 0; /* No permitir que se encoja */
 `;
 
@@ -191,13 +190,14 @@ const TablaTransaccionesCompleto = ({
   const [paginaActual, setPaginaActual] = useState(1);
   const [filaSeleccionada, setFilaSeleccionada] = useState(null);
 
-  // Función para convertir fecha DD/MM/YYYY o DD-MM-YYYY a objeto Date
+  // Función para convertir fecha yyyy-mm-dd a objeto Date
   const parseFecha = (fechaStr) => {
     if (!fechaStr) return new Date(0);
     const partes = fechaStr.split(/[-/]/);
-    const dia = parseInt(partes[0], 10);
+    // Formato yyyy-mm-dd (como llega desde el backend)
+    const anio = parseInt(partes[0], 10);
     const mes = parseInt(partes[1], 10);
-    const anio = parseInt(partes[2], 10);
+    const dia = parseInt(partes[2], 10);
     return new Date(anio, mes - 1, dia);
   };
 

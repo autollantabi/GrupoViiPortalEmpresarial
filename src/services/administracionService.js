@@ -1,33 +1,28 @@
-import { axiosInstance } from "config/axiosConfig";
+import { axiosInstance, axiosInstanceNew } from "config/axiosConfig";
+
 // -------------------------- Registro usuario ----------------------------
 
-export async function EnviarCorreoRegistro({ correoDestino, contrasena }) {
+export const adminstracionService_crearUsuario = async ({
+  correo,
+  contrasena,
+  nombre,
+}) => {
   try {
-    const res = await axiosInstance.get(
-      `/correo/enviarcorreoRegistro/${correoDestino}/${contrasena}`
-    );
-    if (res.status === 200) {
-      return true;
-    }
-    return false;
-  } catch (err) {
-    return false;
-  }
-}
-
-export const CrearUsuarios = async ({ correo, contrasena, nombre }) => {
-  try {
-    const resp = await axiosInstance.post(
-      `/usuario/insert/${correo}/${contrasena}/${nombre}`
-    );
-
-    if (resp.status === 200) {
-      return true;
-    }
-
-    return false;
-  } catch (err) {
-    return false;
+    const resp = await axiosInstanceNew.post(`/usuarios/`, {
+      correo,
+      contrasena,
+      nombre,
+    });
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Usuario creado exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response.data.message || "Error al crear el usuario",
+    };
   }
 };
 

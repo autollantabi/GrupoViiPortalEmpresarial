@@ -8,7 +8,7 @@ import { CustomContainer } from "components/UI/CustomComponents/CustomComponents
 import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
 import { MODULES_TREE } from "config/constantsModulePermissions";
 
-function ComisionesTecnicentroContainer() {
+function ComisionesTecnicentroContainer(props) {
   const navigate = useNavigate();
   return (
     <CustomContainer
@@ -16,7 +16,9 @@ function ComisionesTecnicentroContainer() {
       height="100%"
       style={{ position: "relative" }}
     >
-      <div style={{ position: "absolute", top: "5px", right: "5px" }}>
+      <div
+        style={{ position: "absolute", top: "5px", right: "5px", zIndex: 10 }}
+      >
         <CustomButton
           text={"Categorías"}
           onClick={() =>
@@ -29,7 +31,7 @@ function ComisionesTecnicentroContainer() {
           isAsync
         />
       </div>
-      <ComisionesTecnicentro />
+      <ComisionesTecnicentro {...props} />
     </CustomContainer>
   );
 }

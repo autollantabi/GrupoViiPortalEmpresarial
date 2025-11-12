@@ -11,16 +11,11 @@ import { Pricing } from "./SeccionesImportaciones/Pricing";
 import { General } from "./SeccionesImportaciones/General";
 import {
   BuscarDatosPorIDCarga,
-  ConsultarFechaSalgoPagar,
-  ConsultarIMPSegunProveedor,
   FinalizarImportacion,
   ObtenerEstadosdeFinalizacion,
 } from "services/importacionesService";
 import { CamionLoader } from "assets/styles/Loaders/CamionLoader";
-import {
-  consultarPermisosPorModuloID,
-  consultarPermisosPorModuloRuta,
-} from "utils/functionsPermissions";
+import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { hexToRGBA } from "utils/colors";
 import { separarFechaHora } from "../UtilsImportaciones";
 

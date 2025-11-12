@@ -1,27 +1,21 @@
 import React, { useState } from "react";
-import { CrearUsuario } from "./CrearUsuario/CrearUsuario";
-import ModificarUsuario from "./ModificarUsuario/ModificarUsuario";
-import { ListaPermisos } from "./MantenimientoPermisos/MantenimientoPermisos";
-import { CrearModulo } from "./CrearModulo/CrearModulo";
-import { CorreosDestinatarios } from "./Correos/CorreosDestinatarios";
 import { Admin_ActualizarTransferencias } from "./Bancos/Admin_ActualizarTransferencias";
 import { ListaModulos } from "./CrearModulo/CreacionSecciones";
 import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
 import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
 import { useTheme } from "context/ThemeContext";
+import { TiposUsuario } from "./TiposUsuario/TiposUsuario";
+import { GestionUsuarios } from "./GestionUsuarios/GestionUsuarios";
 
 const EleccionAccion = (props) => {
   const [activo, setActivo] = useState(1);
   const { theme } = useTheme();
 
   const acciones = [
-    { id: 1, label: "Crear Usuario" },
-    { id: 2, label: "Modificar Usuario" },
+    { id: 1, label: "Gestion Usuarios" },
+    { id: 2, label: "Tipos de Usuario" },
     { id: 3, label: "Creacion Secciones" },
-    // { id: 4, label: "Crear Modulo" },
-    // { id: 5, label: "Correos Destinatarios" },
-    // { id: 6, label: "Mantenimiento Permisos" },
-    { id: 7, label: "Bancos" },
+    { id: 4, label: "Bancos" },
   ];
 
   const handleAccion = (id) => {
@@ -30,7 +24,7 @@ const EleccionAccion = (props) => {
   };
 
   return (
-    <CustomContainer flexDirection="row" style={{ gap: "10px" }}>
+    <CustomContainer flexDirection="row" width="100%" style={{ gap: "10px" }}>
       {acciones.map((accion) => (
         <CustomButton
           key={accion.id}
@@ -50,13 +44,10 @@ export const ComponenteAdministracionUsuario = () => {
   const [accion, setAccion] = useState(1);
 
   const componentes = {
-    1: CrearUsuario,
-    2: ModificarUsuario,
+    1: GestionUsuarios,
+    2: TiposUsuario,
     3: ListaModulos,
-    4: CorreosDestinatarios,
-    5: ListaPermisos,
-    6: CrearModulo,
-    7: Admin_ActualizarTransferencias,
+    4: Admin_ActualizarTransferencias,
   };
 
   const ComponenteSeleccionado = componentes[accion];

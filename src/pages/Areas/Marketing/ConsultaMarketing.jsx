@@ -18,7 +18,7 @@ export const ConsultaMarketing = () => {
       id: 0,
       tituloBtn: "Inventario Artículos Publicitarios",
       titulo: "Inventario Artículos Publicitarios - Grupo Automax",
-      url: "https://app.powerbi.com/view?r=eyJrIjoiMzRjNjUwMTMtYTJlZC00NjkzLWFiMDUtMjU2ZWJlYTY4YWNjIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=ReportSection8f13389f02a8388215d9",
+      url: "https://app.powerbi.com/view?r=eyJrIjoiMzRjNjUwMTMtYTJlZC00NjkzLWFiMDUtMjU2ZWJlYTY4YWNjIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=02b2d542b27f008f1716",
     },
   ];
 

@@ -433,12 +433,16 @@ export const ModalEdicionTransaccion = ({
           <FormField>
             <Label>Vendedor</Label>
             <CustomSelect
-              options={vendedoresOptions}
+              options={[
+                { value: "GARANTIA", label: "GARANTIA" },
+                { value: "CAJA", label: "CAJA" },
+                ...vendedoresOptions,
+              ]}
               value={formData.vendedorSeleccionado}
               onChange={handleVendedorChange}
               onInputChange={handleVendedorInputChange}
               placeholder={
-                cargandoDatos ? "Cargando vendedores..." : "Buscar vendedor..."
+                cargandoDatos ? "Cargando vendedores..." : "Buscar vendedor o tipo..."
               }
               label=""
               isSearchable={true}

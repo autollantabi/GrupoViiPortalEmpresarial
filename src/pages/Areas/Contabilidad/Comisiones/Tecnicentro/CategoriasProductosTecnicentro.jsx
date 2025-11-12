@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Select from "react-select";
 
 import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
 import { withPermissions } from "../../../../../hoc/withPermissions";
+import { usePermissions } from "../../../../../hooks/usePermissions";
 import { TablaGeneralizada } from "components/UI/ComponentesGenericos/TablaInputs";
 
 import {
@@ -45,7 +46,13 @@ const customStyles = {
 const CategoriasProductosTecnicentroComponent = ({
   empresasAcceso,
   permissionsLoading,
+  routeConfig,
 }) => {
+  // Obtener permisos agrupados por submódulo
+  const { permissionsByModule } = usePermissions(
+    routeConfig?.modulo,
+    routeConfig?.subModules
+  );
   const [permisosSeccion, setPermisosSeccion] = useState([]);
   const [isConfigLoaded, setIsConfigLoaded] = useState(false); // Indica si la configuración está cargada
   const [anio, setAnio] = useState("");
@@ -110,18 +117,36 @@ const CategoriasProductosTecnicentroComponent = ({
   };
 
   const datosCategorias = async ({ mes, anio }) => {
-    const datosProductosTecnicentro = await ObtenerProductosTecnicentro({
-      mes,
-      anio,
-    });
-    console.log(datosProductosTecnicentro);
+    try {
+      const datosProductosTecnicentro = await ObtenerProductosTecnicentro({
+        mes,
+        anio,
+      });
+      console.log(datosProductosTecnicentro);
 
-    const datosPTecFin = datosProductosTecnicentro.map((item) => ({
-      ...item,
-      EMPRESA: "AUTOLLANTA",
-    }));
+      // Validar que la respuesta sea un array
+      if (
+        !datosProductosTecnicentro ||
+        !Array.isArray(datosProductosTecnicentro)
+      ) {
+        console.error(
+          "La respuesta no es un array válido:",
+          datosProductosTecnicentro
+        );
+        setData([]);
+        return;
+      }
 
-    setData(datosPTecFin);
+      const datosPTecFin = datosProductosTecnicentro.map((item) => ({
+        ...item,
+        EMPRESA: "AUTOLLANTA",
+      }));
+
+      setData(datosPTecFin);
+    } catch (error) {
+      console.error("Error al obtener productos de Tecnicentro:", error);
+      setData([]);
+    }
   };
   useEffect(() => {
     if (anioSl && mes) {
@@ -181,23 +206,37 @@ const CategoriasProductosTecnicentroComponent = ({
   //   return fileN;
   // };
 
+  // Verificar permisos específicos
+  const tienePermiso = useMemo(() => {
+    return {
+      general: empresasAcceso && empresasAcceso.length > 0,
+      editar: empresasAcceso && empresasAcceso.length > 0,
+      consultar: empresasAcceso && empresasAcceso.length > 0,
+    };
+  }, [empresasAcceso]);
+
   useEffect(() => {
     const cargarDatosIniciales = async () => {
       // Los permisos se obtienen automáticamente del HOC
       setPermisosSeccion(empresasAcceso || []);
     };
 
-    cargarDatosIniciales();
-  }, [empresasAcceso]);
+    if (tienePermiso.general) {
+      cargarDatosIniciales();
+    }
+  }, [empresasAcceso, tienePermiso.general]);
 
   useEffect(() => {
-    datosIniciales();
-  }, []);
+    if (tienePermiso.general) {
+      datosIniciales();
+    }
+  }, [tienePermiso.general]);
 
   // Manejar la ordenación de columnas
   const handleSort = (column, direction) => {
     console.log("Sorted:", column, direction);
   };
+
   // Manejar el guardado de datos
   const handleSave = async (item) => {
     let updateConf = false;
@@ -219,6 +258,38 @@ const CategoriasProductosTecnicentroComponent = ({
     }
     return updateConf;
   };
+
+  // Mostrar loading mientras se cargan los permisos
+  if (permissionsLoading) {
+    return (
+      <CustomContainer
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        width="100%"
+        height="100%"
+      >
+        <p>Cargando permisos, por favor espera...</p>
+      </CustomContainer>
+    );
+  }
+
+  // Si no hay empresas con acceso, mostrar mensaje
+  if (!tienePermiso.general) {
+    return (
+      <CustomContainer
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        width="100%"
+        height="100%"
+      >
+        <p>
+          No tienes permisos para acceder a Categorías de Productos Tecnicentro.
+        </p>
+      </CustomContainer>
+    );
+  }
 
   return (
     <CustomContainer

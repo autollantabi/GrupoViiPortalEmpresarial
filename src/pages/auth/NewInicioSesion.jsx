@@ -11,16 +11,14 @@ import { useAuthContext } from "context/authContext";
 import { useTheme } from "context/ThemeContext";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  getPermisosDeUsuarioArbol,
-  verificarInicioSesion,
-} from "services/loginService";
+import { getPermisosDeUsuarioArbol } from "utils/permisosArbol";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
 import AWImage from "/src/assets/images/webp_png_jpeg/AW Color1.png";
 import MImage from "/src/assets/images/webp_png_jpeg/M Color2.png";
 import SImage from "/src/assets/images/webp_png_jpeg/S Color1.png";
 import IImage from "/src/assets/images/webp_png_jpeg/I Color1.png";
+import { authService_login } from "services/authService";
 
 const StyledForm = styled.form`
   width: 100%;
@@ -65,20 +63,20 @@ const NewInicioSesion = () => {
       e.preventDefault();
     }
 
-    const response = await verificarInicioSesion({
+    const response = await authService_login({
       correo: email,
       contrasena: password,
     });
 
     if (response.success) {
       const res_permisos = await getPermisosDeUsuarioArbol({
-        usuarioID: response.data.id,
+        usuarioID: response.data.USER_ID,
       });
       login({
         correo: email,
-        identificador: response.data.id,
+        identificador: response.data.USER_ID,
         modulos: JSON.stringify(res_permisos),
-        nombreUsuario: response.data.nombre,
+        nombreUsuario: response.data.NOMBRE,
       });
     }
     setErrorMessage(response.message);
@@ -145,9 +143,8 @@ const NewInicioSesion = () => {
               Olvide mi contraseña
             </CustomText>
             <CustomButton
-              text="Ingresar"
+              text="Iniciar sesión"
               style={{ width: "100%" }}
-              iconRight={"FaChevronRight"}
               onClick={handleIniciarSesion}
               type="submit"
             />

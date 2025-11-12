@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from "react";
-import {
-  ContenedorFlex,
-  ContenedorFlexColumn,
-} from "../../CSS/ComponentesAdminSC";
-import { BotonConEstadoIconos } from "components/UI/ComponentesGenericos/Botones";
-import styled from "styled-components";
+import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
+import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { useTheme } from "context/ThemeContext";
+import { hexToRGBA } from "utils/colors";
 
 import {
   DeletePermisoUsuario,
@@ -14,19 +12,6 @@ import {
   UpdatePermisoUsuario,
 } from "services/administracionService";
 
-const SelectStyled = styled.select`
-  padding: 2px 5px;
-  border: solid 1px rgba(0, 0, 0, 0.4);
-  border-radius: 5px;
-`;
-
-const ContenedorPermiso = styled(ContenedorFlex)`
-  justify-content: flex-start;
-  border: solid 1px rgba(0, 0, 0, 0.4);
-  border-radius: 5px;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-  padding: 0;
-`;
 // Empresas disponibles
 const availableCompanies = [
   "AUTOLLANTA",
@@ -81,139 +66,205 @@ const PermisoNode = ({
   onAddCompany,
   onRemoveCompany,
 }) => {
+  const { theme } = useTheme();
+
   if (!node) return null; // No renderiza nada si el nodo es indefinido
 
   const hasChildren = node.children && node.children.length > 0;
   const hasEmpresas = node.EMPRESAS && Object.keys(node.EMPRESAS).length > 0;
 
-  //   console.log(node);
+  // Opciones para agregar empresa
+  const empresasDisponibles = availableCompanies
+    .filter((empresa) => !Object.keys(node.EMPRESAS || {}).includes(empresa))
+    .map((emp) => ({ value: emp, label: emp }));
+
+  const handleAgregarEmpresa = (selectedOption) => {
+    if (selectedOption) {
+      onAddCompany(node.IDENTIFICADOR, selectedOption.value);
+    }
+  };
+
+  const handleCambiarPermiso = (empresa, selectedOption) => {
+    if (selectedOption) {
+      onChangePermission(node.IDENTIFICADOR, empresa, selectedOption.value);
+    }
+  };
 
   return (
-    <li style={{ padding: "2px", listStyleType: "none", position: "relative" }}>
-      <span style={{ marginRight: "5px", position: "absolute", left: "-20px" }}>
+    <li
+      style={{
+        padding: "8px 0",
+        listStyleType: "none",
+        position: "relative",
+        marginBottom: "12px",
+      }}
+    >
+      <span
+        style={{
+          marginRight: "8px",
+          position: "absolute",
+          left: "-24px",
+          top: "8px",
+        }}
+      >
         {node.PADRE === 0 ? (
-          <i className="bi bi-dot"></i>
+          <i
+            className="bi bi-folder-fill"
+            style={{ color: theme.colors.primary }}
+          ></i>
         ) : (
-          <i className="bi bi-arrow-return-right"></i>
+          <i
+            className="bi bi-arrow-return-right"
+            style={{ color: theme.colors.textSecondary }}
+          ></i>
         )}
       </span>
 
-      <ContenedorFlex style={{ justifyContent: "flex-start" }}>
-        <strong>{node.MODULO}</strong>
-        {!hasChildren && (
-          <SelectStyled
-            onChange={(e) => onAddCompany(node.IDENTIFICADOR, e.target.value)}
-            value={""}
-          >
-            <option value="" disabled>
-              Añadir Empresa
-            </option>
-            {availableCompanies
-              .filter(
-                (empresa) => !Object.keys(node.EMPRESAS).includes(empresa)
-              ) // Filtrar empresas que ya están asignadas
-              .map((empresa) => (
-                <option key={empresa} value={empresa}>
-                  {empresa}
-                </option>
-              ))}
-          </SelectStyled>
-        )}
-      </ContenedorFlex>
-
-      {!hasChildren && hasEmpresas && (
-        <ContenedorFlex
+      <div style={{ marginLeft: "8px" }}>
+        <div
           style={{
-            justifyContent: "flex-start",
-            padding: "5px",
-            flexWrap: "wrap",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            marginBottom: hasEmpresas ? "12px" : "0",
           }}
         >
-          {Object.entries(node.EMPRESAS).map(([empresa, permiso]) => (
-            <ContenedorPermiso key={empresa}>
-              <ContenedorFlex
+          <strong style={{ fontSize: "14px", color: theme.colors.text }}>
+            {node.MODULO}
+          </strong>
+          {!hasChildren && empresasDisponibles.length > 0 && (
+            <CustomSelect
+              placeholder="Agregar Empresa"
+              options={empresasDisponibles}
+              onChange={handleAgregarEmpresa}
+              value={null}
+              minWidth="180px"
+              isSearchable
+            />
+          )}
+        </div>
+
+        {!hasChildren && hasEmpresas && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: "12px",
+              marginTop: "12px",
+            }}
+          >
+            {Object.entries(node.EMPRESAS).map(([empresa, permiso]) => (
+              <div
+                key={empresa}
                 style={{
-                  alignItems: "flex-start",
                   padding: "10px",
-                  width: "fit-content",
-                  position: "relative",
+                  borderRadius: "6px",
+                  backgroundColor: hexToRGBA({
+                    hex: theme.colors.primary,
+                    alpha: 0.05,
+                  }),
+                  border: `1px solid ${hexToRGBA({
+                    hex: theme.colors.primary,
+                    alpha: 0.15,
+                  })}`,
+                  display: "flex",
                   flexDirection: "column",
+                  gap: "8px",
                 }}
               >
-                <ContenedorFlex
+                <div
                   style={{
-                    width: "100%",
+                    display: "flex",
                     justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  <strong>{empresa}</strong>
-                  <BotonConEstadoIconos
-                    tipo={"delete"}
-                    onClickAction={() =>
-                      onRemoveCompany(node.IDENTIFICADOR, empresa)
-                    }
-                    invertir
+                  <strong
+                    style={{ fontSize: "12px", color: theme.colors.text }}
+                  >
+                    {empresa}
+                  </strong>
+                  <CustomButton
+                    iconLeft="FaTrash"
+                    onClick={() => onRemoveCompany(node.IDENTIFICADOR, empresa)}
+                    pcolor={theme.colors.error}
+                    style={{ padding: "4px 8px", fontSize: "12px" }}
                   />
-                </ContenedorFlex>
-                <ContenedorFlex>
-                  <label>
-                    <input
-                      type="radio"
-                      name={`permiso-${node.IDENTIFICADOR}-${empresa}`}
-                      value="L"
-                      checked={permiso === "L"}
-                      onChange={(e) =>
-                        onChangePermission(
-                          node.IDENTIFICADOR,
-                          empresa,
-                          e.target.value
-                        )
-                      }
-                    />
-                    <span style={{ paddingLeft: "2px" }}>Lectura</span>
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name={`permiso-${node.IDENTIFICADOR}-${empresa}`}
-                      value="E"
-                      checked={permiso === "E"}
-                      onChange={(e) =>
-                        onChangePermission(
-                          node.IDENTIFICADOR,
-                          empresa,
-                          e.target.value
-                        )
-                      }
-                    />
-                    <span style={{ paddingLeft: "2px" }}>Escritura</span>
-                  </label>
-                </ContenedorFlex>
-              </ContenedorFlex>
-            </ContenedorPermiso>
-          ))}
-        </ContenedorFlex>
-      )}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    width: "100%",
+                  }}
+                >
+                  <CustomButton
+                    text="Lectura"
+                    onClick={() =>
+                      handleCambiarPermiso(empresa, {
+                        value: "L",
+                        label: "Lectura",
+                      })
+                    }
+                    pcolor={
+                      permiso === "L"
+                        ? "#2196F3"
+                        : theme.colors.textSecondary || "#6c757d"
+                    }
+                    style={{
+                      flex: 1,
+                      padding: "5px 8px",
+                      fontSize: "11px",
+                      opacity: permiso === "L" ? 1 : 0.7,
+                    }}
+                  />
+                  <CustomButton
+                    text="Escritura"
+                    onClick={() =>
+                      handleCambiarPermiso(empresa, {
+                        value: "E",
+                        label: "Escritura",
+                      })
+                    }
+                    pcolor={
+                      permiso === "E"
+                        ? "#FF9800"
+                        : theme.colors.textSecondary || "#6c757d"
+                    }
+                    style={{
+                      flex: 1,
+                      padding: "5px 8px",
+                      fontSize: "11px",
+                      opacity: permiso === "E" ? 1 : 0.7,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-      {/* Renderizar los hijos si existen */}
-      {hasChildren && (
-        <ul>
-          {node.children.map((child) => (
-            <PermisoNode
-              key={child.IDENTIFICADOR}
-              node={child}
-              onChangePermission={onChangePermission}
-              onAddCompany={onAddCompany}
-              onRemoveCompany={onRemoveCompany}
-            />
-          ))}
-        </ul>
-      )}
+        {/* Renderizar los hijos si existen */}
+        {hasChildren && (
+          <ul style={{ marginLeft: "24px", marginTop: "8px" }}>
+            {node.children.map((child) => (
+              <PermisoNode
+                key={child.IDENTIFICADOR}
+                node={child}
+                onChangePermission={onChangePermission}
+                onAddCompany={onAddCompany}
+                onRemoveCompany={onRemoveCompany}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </li>
   );
 };
 
 export const ListaPermisos = ({ modulo, idUsuario }) => {
+  const { theme } = useTheme();
   const [permisoState, setPermisoState] = useState([]); // Estado de permisos editables
   const [moduloState, setModuloState] = useState([]); // Estado de los módulos
   const [tree, setTree] = useState([]);
@@ -387,36 +438,46 @@ export const ListaPermisos = ({ modulo, idUsuario }) => {
     const updatedTree = await removeCompanyFromTree(tree, moduloId, empresa);
     setTree(updatedTree); // Actualizar el estado del árbol
   };
+
+  const moduloActual = tree.find((permiso) => permiso.IDENTIFICADOR === modulo);
+
   return (
-    <ContenedorFlex style={{ height: "100%" }}>
-      {tree.length > 0 && (
-        <ContenedorFlexColumn style={{ height: "100%", width: "70%" }}>
-          <h3>
-            Permisos{" "}
-            {tree.map((permiso) => {
-              return permiso.IDENTIFICADOR === modulo ? permiso.MODULO : "";
-            })}
-          </h3>
-          <ContenedorFlex
+    <div style={{ height: "100%", width: "100%" }}>
+      {tree.length > 0 && moduloActual ? (
+        <div
+          style={{ height: "100%", display: "flex", flexDirection: "column" }}
+        >
+          <div
             style={{
               overflow: "auto",
               height: "100%",
               width: "100%",
-              justifyContent: "flex-start",
-              alignItems: "flex-start",
+              paddingRight: "8px",
             }}
           >
-            <ul>
+            <ul style={{ paddingLeft: "20px", margin: 0 }}>
               <PermisoNode
-                node={tree.find((permiso) => permiso.IDENTIFICADOR === modulo)} // Renderizar el primer módulo en el árbol como ejemplo
+                node={moduloActual}
                 onChangePermission={handleChangePermission}
                 onAddCompany={handleAddCompany}
                 onRemoveCompany={handleRemoveCompany}
               />
             </ul>
-          </ContenedorFlex>
-        </ContenedorFlexColumn>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            color: theme.colors.textSecondary,
+          }}
+        >
+          Cargando módulos...
+        </div>
       )}
-    </ContenedorFlex>
+    </div>
   );
 };

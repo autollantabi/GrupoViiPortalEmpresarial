@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Select from "react-select";
 
 import { ObtenerReporteComisionesLubricantes } from "services/contabilidadService";
@@ -8,6 +8,7 @@ import {
 } from "components/UI/ComponentesGenericos/Utils";
 import { TablaInfo } from "components/UI/ComponentesGenericos/TablaInfo";
 import { withPermissions } from "../../../../../hoc/withPermissions";
+import { usePermissions } from "../../../../../hooks/usePermissions";
 import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
 import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
 
@@ -40,7 +41,13 @@ const customStyles = {
 const ComisionesLubricantesComponent = ({
   empresasAcceso,
   permissionsLoading,
+  routeConfig,
 }) => {
+  // Obtener permisos agrupados por submódulo
+  const { permissionsByModule } = usePermissions(
+    routeConfig?.modulo,
+    routeConfig?.subModules
+  );
   const nombresPersonalizados = {
     // Columnas principales
     VENDEDOR: "VENDEDOR",
@@ -307,11 +314,22 @@ const ComisionesLubricantesComponent = ({
     exportToExcel();
   };
 
-  useEffect(() => {
-    datosIniciales();
+  // Verificar permisos específicos
+  const tienePermiso = useMemo(() => {
+    return {
+      general: empresasAcceso && empresasAcceso.length > 0,
+      consultar: empresasAcceso && empresasAcceso.length > 0,
+      exportar: empresasAcceso && empresasAcceso.length > 0,
+    };
   }, [empresasAcceso]);
 
-  // Mostrar mensaje si no hay permisos
+  useEffect(() => {
+    if (tienePermiso.general) {
+      datosIniciales();
+    }
+  }, [empresasAcceso, tienePermiso.general]);
+
+  // Mostrar loading mientras se cargan los permisos
   if (permissionsLoading) {
     return (
       <CustomContainer
@@ -321,12 +339,13 @@ const ComisionesLubricantesComponent = ({
         width="100%"
         height="100%"
       >
-        <div>Cargando permisos...</div>
+        <p>Cargando permisos, por favor espera...</p>
       </CustomContainer>
     );
   }
 
-  if (!empresasAcceso || empresasAcceso.length === 0) {
+  // Si no hay empresas con acceso, mostrar mensaje
+  if (!tienePermiso.general) {
     return (
       <CustomContainer
         flexDirection="column"
@@ -335,7 +354,7 @@ const ComisionesLubricantesComponent = ({
         width="100%"
         height="100%"
       >
-        <div>No tienes permisos para acceder a esta funcionalidad.</div>
+        <p>No tienes permisos para acceder a Comisiones Lubricantes.</p>
       </CustomContainer>
     );
   }
@@ -402,12 +421,14 @@ const ComisionesLubricantesComponent = ({
           placeholder="Año"
           styles={customStyles}
         />
-        <CustomButton
-          iconLeft={"FaSearch"}
-          onClick={consultarReporte}
-          style={{ padding: "5px 10px" }}
-          isAsync={true}
-        />
+        {tienePermiso.consultar && (
+          <CustomButton
+            iconLeft={"FaSearch"}
+            onClick={consultarReporte}
+            style={{ padding: "5px 10px" }}
+            isAsync={true}
+          />
+        )}
       </CustomContainer>
 
       {/* Tabla consolidada única */}
@@ -420,7 +441,7 @@ const ComisionesLubricantesComponent = ({
           sortedInitial={{ column: "ID", direction: "asc" }}
           onFilterChange={handleSort}
           decimales={2}
-          excel={true}
+          excel={tienePermiso.exportar}
           filenameExcel={`Comisiones_Lubricantes_${empresaSl?.label || ""}_${
             mes?.label || ""
           }_${anioSl?.label || ""}`}

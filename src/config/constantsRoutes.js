@@ -25,7 +25,7 @@ const createRoutes = (base, subroutes) => {
  */
 
 export const ROUTES_FLAT = {
-  [MODULES_TREE.LOGIN]: "/Inicio-Sesion",
+  [MODULES_TREE.LOGIN]: "/login",
   [MODULES_TREE.PORTAL]: "/",
 
   [MODULES_TREE.CARTERA.REGISTROS_BANCARIOS]: "/Cartera/RegistrosBancarios",
@@ -78,7 +78,7 @@ export const ROUTES_FLAT = {
   [MODULES_TREE.RECOVERY]: "/Recovery",
 };
 export const ROUTES = {
-  LOGIN: "/Inicio-Sesion",
+  LOGIN: "/login",
   PORTAL: "/",
   CARTERA: createRoutes("/Cartera", {
     REGISTROS_BANCARIOS: "/RegistrosBancarios",

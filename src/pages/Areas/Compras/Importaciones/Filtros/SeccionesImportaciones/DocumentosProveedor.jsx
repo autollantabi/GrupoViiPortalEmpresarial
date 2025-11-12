@@ -197,6 +197,8 @@ export const DocumentosProveedor = ({
   const [enviandoCorreos, setEnviandoCorreos] = useState(0);
   const [listaDeCorreosParaEnviar, setListaDeCorreosParaEnviar] = useState([]);
 
+  console.log(datos);
+
   // Consultar PIs disponibles
   const ConsultarPIs = async () => {
     const pis = await Consultarpis(datos.EMPRESA);
@@ -325,7 +327,7 @@ export const DocumentosProveedor = ({
       if (eta_real || etd_real) {
         const fechaSaldoPagar = await ConsultarFechaSalgoPagar({
           id: datos.ID_CARGA,
-          proveedor: datos.PROVEEDOR,
+          proveedor: datos.CODIGO_PROVEEDOR,
         });
         if (fechaSaldoPagar.length > 0) {
           fecha_saldo_pagar = fechaSaldoPagar[0].fecha_saldo_pagar || null;

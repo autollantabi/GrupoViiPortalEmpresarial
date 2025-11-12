@@ -86,6 +86,7 @@ export const CustomButton = ({
   iconSize = 16,
   width = "auto",
   height = "auto",
+  type = "button",
 }) => {
   const [loading, setLoading] = useState(false);
   const { theme } = useTheme();
@@ -131,6 +132,7 @@ export const CustomButton = ({
       $pcolortext={pcolortext}
       $width={width}
       $height={height}
+      type={type}
     >
       {iconLeft && !loading && renderIcon(iconLeft)}
       {loading ? <Loader /> : text}

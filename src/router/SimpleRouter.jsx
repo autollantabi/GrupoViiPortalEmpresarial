@@ -73,6 +73,10 @@ import { TecnicentroReportes } from "pages/Areas/Tecnicentro/Reportes/Tecnicentr
 
 // CYMC
 import { ReportesCYMC } from "pages/Areas/CYMC/ReportesCYMC";
+import { ReporteriaComercial } from "pages/Areas/Reporteria/Comercial/ReporteriaComercial";
+import { ReporteriaCobranzas } from "pages/Areas/Reporteria/Cobranzas/ReporteriaCobranzas";
+import { ReporteriaTecnicentro } from "pages/Areas/Reporteria/Tecnicentro/ReporteriaTecnicentro";
+import { ReporteriaGestionGerentes } from "pages/Areas/Reporteria/GestionGerentes/ReporteriaGestionGerentes";
 
 // Configuración centralizada - Una sola fuente de verdad
 export const APP_CONFIG = [
@@ -222,15 +226,6 @@ export const APP_CONFIG = [
     hierarchy: [{ title: "Comisiones", value: "COMISIONES" }],
   },
   {
-    path: "/gestion-clientes/reportes",
-    title: "Reportes",
-    icon: "",
-    component: ReportesGestionClientes,
-    seccion: "GESTIONCLIENTES",
-    modulo: "REPORTES SEGM",
-    subModules: ["NEUMATICOS", "NEUMATICOS MOTO", "LUBRICANTES"],
-  },
-  {
     path: "/gobierno-datos/maestros",
     title: "Maestros",
     icon: "",
@@ -246,14 +241,14 @@ export const APP_CONFIG = [
     seccion: "MARKETING",
     modulo: "INVENTARIO",
   },
-  {
-    path: "/marketing/facturacion-mp",
-    title: "Facturación Mat. Pub.",
-    icon: "",
-    component: FacturacionMarketing,
-    seccion: "MARKETING",
-    modulo: "FACTURACIONMP",
-  },
+  // {
+  //   path: "/marketing/facturacion-mp",
+  //   title: "Facturación Mat. Pub.",
+  //   icon: "",
+  //   component: FacturacionMarketing,
+  //   seccion: "MARKETING",
+  //   modulo: "FACTURACIONMP",
+  // },
   {
     path: "/marketing/comercial",
     title: "Comercial",
@@ -330,6 +325,39 @@ export const APP_CONFIG = [
     modulo: "DOCUMENTACION",
   },
   {
+    path: "/reporteria/comercial",
+    title: "Comercial",
+    icon: "",
+    component: ReporteriaComercial,
+    seccion: "REPORTERIA",
+    modulo: "REP_COMERCIAL",
+    subModules: ["REP_COM_NEUMATICOS", "REP_COM_MOTOS", "REP_COM_LUBRICANTES","REP_COM_HERRAMIENTAS"],
+  },
+  {
+    path: "/reporteria/cobranzas",
+    title: "Cobranzas",
+    icon: "",
+    component: ReporteriaCobranzas,
+    seccion: "REPORTERIA",
+    modulo: "REP_COBRANZAS",
+  },
+  {
+    path: "/reporteria/gestion-gerentes",
+    title: "Gestión Gerentes",
+    icon: "",
+    component: ReporteriaGestionGerentes,
+    seccion: "REPORTERIA",
+    modulo: "REP_GESTIONGERENTES",
+  },
+  {
+    path: "/reporteria/tecnicentro",
+    title: "Tecnicentro",
+    icon: "",
+    component: ReporteriaTecnicentro,
+    seccion: "REPORTERIA",
+    modulo: "REP_TECNICENTRO",
+  },
+  {
     path: "/tecnicentro/reportes",
     title: "Reportes",
     icon: "",
@@ -378,6 +406,11 @@ export const MODULE_CONFIG = [
     title: "Gestión de Clientes",
     icon: "bi bi-journals",
     modulo: "GESTIONCLIENTES",
+  },
+  {
+    title: "Reporteria",
+    icon: "bi bi-table",
+    modulo: "REPORTERIA",
   },
   {
     title: "Recursos Humanos",
