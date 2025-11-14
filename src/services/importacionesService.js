@@ -362,7 +362,6 @@ export async function InsertarIngresoFactProveedor({
   comentario1,
   comentario2,
   IMP,
-  fecha_saldo_pagar,
   etapa,
 }) {
   try {
@@ -381,7 +380,6 @@ export async function InsertarIngresoFactProveedor({
       comentario1,
       comentario2,
       IMP,
-      fecha_saldo_pagar,
       etapa,
     });
     // fetch();
@@ -639,11 +637,13 @@ export async function ConsultarDataTransaccionesSegunPI(empresa, PI) {
 }
 export async function ConsultarFechaSalgoPagar({ id, proveedor }) {
   try {
-    const res = await axiosInstance.get(
-      `/importaciones/pagar/fecha/${id}/${proveedor}`
+    console.log(id, proveedor);
+    const res = await axiosInstance.post(
+      `/importaciones/pagar/fecha/`,
+      { id, proveedor }
     );
 
-    // console.log(res.data);
+    console.log(res);
     return res.data;
   } catch (e) {
     return [];

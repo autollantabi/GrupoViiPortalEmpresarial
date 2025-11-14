@@ -323,17 +323,6 @@ export const DocumentosProveedor = ({
         (item) => item.doc
       );
 
-      let fecha_saldo_pagar = null;
-      if (eta_real || etd_real) {
-        const fechaSaldoPagar = await ConsultarFechaSalgoPagar({
-          id: datos.ID_CARGA,
-          proveedor: datos.CODIGO_PROVEEDOR,
-        });
-        if (fechaSaldoPagar.length > 0) {
-          fecha_saldo_pagar = fechaSaldoPagar[0].fecha_saldo_pagar || null;
-        }
-      }
-
       const res = await InsertarIngresoFactProveedor({
         id,
         num_transito,
@@ -349,9 +338,14 @@ export const DocumentosProveedor = ({
         comentario1,
         comentario2,
         IMP,
-        fecha_saldo_pagar,
         etapa: 3,
       });
+
+      const fechaSaldoPagar = await ConsultarFechaSalgoPagar({
+        id: datos.ID_CARGA,
+        proveedor: datos.CODIGO_PROVEEDOR,
+      });
+      console.log(fechaSaldoPagar);
 
       if (documentosDOCS1.length > 0) {
         await RegistrarDocumentosProveedor({
