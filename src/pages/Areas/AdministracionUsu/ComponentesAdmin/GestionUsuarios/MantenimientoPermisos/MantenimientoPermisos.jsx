@@ -19,6 +19,7 @@ const availableCompanies = [
   "STOX",
   "IKONIX",
   "AUTOMAX",
+  "GRUPOVII",
 ];
 
 //combinar módulos con los permisos del usuario

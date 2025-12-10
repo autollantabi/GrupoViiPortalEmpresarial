@@ -133,7 +133,7 @@ const TemplateReporteriaComponent = ({
 
     return Array.from(modulosDisponibles).map((modulo) => ({
       value: modulo,
-      label: modulosMap[modulo] || modulo,
+      label: modulosMap[modulo] === "NEUMATICOS MOTO" ? "MOTO" : modulosMap[modulo] || modulo,
     }));
   }, [
     tipoUsuarioSeleccionado,

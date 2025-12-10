@@ -44,6 +44,10 @@ export const TiposUsuario = () => {
   const [operacionExitosa, setOperacionExitosa] = useState(0);
   const [cargando, setCargando] = useState(false);
 
+  // Estados para filtros de relaciones
+  const [busquedaRelaciones, setBusquedaRelaciones] = useState("");
+  const [tipoFiltroRelacion, setTipoFiltroRelacion] = useState(null);
+
   // Cargar datos iniciales
   useEffect(() => {
     cargarDatos();
@@ -234,6 +238,48 @@ export const TiposUsuario = () => {
     } else {
       toast.error(response.message);
     }
+  };
+
+  // Filtrar relaciones existentes
+  const filtrarRelaciones = () => {
+    // Agrupar relaciones por usuario
+    const relacionesAgrupadas = relacionesUsuarioTipo.reduce(
+      (acc, relacion) => {
+        const usuarioId = relacion.usuario?.usua_id;
+        if (!acc[usuarioId]) {
+          acc[usuarioId] = {
+            usuario: relacion.usuario,
+            tipos: [],
+          };
+        }
+        acc[usuarioId].tipos.push(relacion.tipoUsuario);
+        return acc;
+      },
+      {}
+    );
+
+    let gruposFiltrados = Object.values(relacionesAgrupadas);
+
+    // Filtrar por búsqueda de nombre o correo
+    if (busquedaRelaciones.trim()) {
+      const busqueda = busquedaRelaciones.toLowerCase().trim();
+      gruposFiltrados = gruposFiltrados.filter((grupo) => {
+        const nombre = (grupo.usuario?.usua_nombre || "").toLowerCase();
+        const correo = (grupo.usuario?.usua_correo || "").toLowerCase();
+        return nombre.includes(busqueda) || correo.includes(busqueda);
+      });
+    }
+
+    // Filtrar por tipo de usuario
+    if (tipoFiltroRelacion) {
+      gruposFiltrados = gruposFiltrados.filter((grupo) => {
+        return grupo.tipos.some(
+          (tipo) => tipo.TIPO_USUARIO_ID === tipoFiltroRelacion.TIPO_USUARIO_ID
+        );
+      });
+    }
+
+    return gruposFiltrados;
   };
 
   return (
@@ -518,149 +564,204 @@ export const TiposUsuario = () => {
             title="Relaciones Existentes"
             description="Usuarios con tipos asignados"
             body={
-              cargando ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                    fontSize: "14px",
-                    color: theme.colors.textSecondary,
-                  }}
-                >
-                  Cargando...
-                </div>
-              ) : relacionesUsuarioTipo.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                    color: theme.colors.textSecondary,
-                    fontSize: "14px",
-                  }}
-                >
-                  No hay relaciones asignadas
-                </div>
-              ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                {/* Filtros de búsqueda */}
                 <div
                   style={{
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                    overflowY: "auto",
-                    maxHeight: "300px",
+                    flexDirection: "row",
+                    gap: "12px",
+                    flexWrap: "wrap",
                   }}
                 >
-                  {(() => {
-                    // Agrupar relaciones por usuario
-                    const relacionesAgrupadas = relacionesUsuarioTipo.reduce(
-                      (acc, relacion) => {
-                        const usuarioId = relacion.usuario?.usua_id;
-                        if (!acc[usuarioId]) {
-                          acc[usuarioId] = {
-                            usuario: relacion.usuario,
-                            tipos: [],
-                          };
+                  <div style={{ flex: "1", minWidth: "200px" }}>
+                    <CustomInput
+                      placeholder="Buscar por nombre o correo..."
+                      value={busquedaRelaciones}
+                      onChange={setBusquedaRelaciones}
+                      disabled={cargando}
+                      iconLeft="bi bi-search"
+                    />
+                  </div>
+                  <div style={{ flex: "1", minWidth: "200px" }}>
+                    <CustomSelect
+                      options={[
+                        { value: null, label: "Todos los tipos" },
+                        ...tiposUsuario.map((tipo) => ({
+                          value: tipo.TIPO_USUARIO_ID,
+                          label: tipo.TIPO_USUARIO,
+                        })),
+                      ]}
+                      value={
+                        tipoFiltroRelacion
+                          ? {
+                              value: tipoFiltroRelacion.TIPO_USUARIO_ID,
+                              label: tipoFiltroRelacion.TIPO_USUARIO,
+                            }
+                          : { value: null, label: "Todos los tipos" }
+                      }
+                      onChange={(selectedOption) => {
+                        if (selectedOption && selectedOption.value) {
+                          const tipo = tiposUsuario.find(
+                            (t) => t.TIPO_USUARIO_ID === selectedOption.value
+                          );
+                          setTipoFiltroRelacion(tipo || null);
+                        } else {
+                          setTipoFiltroRelacion(null);
                         }
-                        acc[usuarioId].tipos.push(relacion.tipoUsuario);
-                        return acc;
-                      },
-                      {}
-                    );
+                      }}
+                      placeholder="Filtrar por tipo..."
+                      isDisabled={cargando}
+                      menuMaxWidth="100%"
+                      menuMaxHeight="300px"
+                      maxWidth="100%"
+                      minWidth="100%"
+                    />
+                  </div>
+                </div>
 
-                    return Object.values(relacionesAgrupadas).map(
-                      (grupo, index) => (
+                {/* Lista de relaciones */}
+                {cargando ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "20px",
+                      fontSize: "14px",
+                      color: theme.colors.textSecondary,
+                    }}
+                  >
+                    Cargando...
+                  </div>
+                ) : relacionesUsuarioTipo.length === 0 ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "20px",
+                      color: theme.colors.textSecondary,
+                      fontSize: "14px",
+                    }}
+                  >
+                    No hay relaciones asignadas
+                  </div>
+                ) : filtrarRelaciones().length === 0 ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "20px",
+                      color: theme.colors.textSecondary,
+                      fontSize: "14px",
+                    }}
+                  >
+                    No se encontraron relaciones que coincidan con los filtros
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      overflowY: "auto",
+                      maxHeight: "300px",
+                    }}
+                  >
+                    {filtrarRelaciones().map((grupo, index) => (
+                      <div
+                        key={grupo.usuario?.usua_id || index}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          padding: "12px",
+                          borderRadius: "6px",
+                          backgroundColor: hexToRGBA({
+                            hex: theme.colors.primary,
+                            alpha: 0.05,
+                          }),
+                          border: `1px solid ${hexToRGBA({
+                            hex: theme.colors.primary,
+                            alpha: 0.1,
+                          })}`,
+                          gap: "6px",
+                        }}
+                      >
                         <div
-                          key={grupo.usuario?.usua_id || index}
                           style={{
                             display: "flex",
-                            flexDirection: "column",
-                            padding: "12px",
-                            borderRadius: "6px",
-                            backgroundColor: hexToRGBA({
-                              hex: theme.colors.primary,
-                              alpha: 0.05,
-                            }),
-                            border: `1px solid ${hexToRGBA({
-                              hex: theme.colors.primary,
-                              alpha: 0.1,
-                            })}`,
-                            gap: "6px",
+                            justifyContent: "space-between",
+                            alignItems: "center",
                           }}
                         >
+                          <span
+                            style={{
+                              fontWeight: "600",
+                              color: theme.colors.text,
+                              fontSize: "14px",
+                            }}
+                          >
+                            {grupo.usuario?.usua_nombre || "Sin nombre"}
+                          </span>
                           <div
                             style={{
                               display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
+                              gap: "4px",
+                              flexWrap: "wrap",
                             }}
                           >
-                            <span
-                              style={{
-                                fontWeight: "600",
-                                color: theme.colors.text,
-                                fontSize: "14px",
-                              }}
-                            >
-                              {grupo.usuario?.usua_nombre || "Sin nombre"}
-                            </span>
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: "4px",
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              {grupo.tipos.map((tipo, tipoIndex) => (
-                                <span
-                                  key={tipoIndex}
-                                  style={{
-                                    color: theme.colors.textSecondary,
-                                    backgroundColor: hexToRGBA({
-                                      hex: theme.colors.primary,
-                                      alpha: 0.15,
-                                    }),
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                    padding: "3px 8px",
-                                    borderRadius: "12px",
-                                    border: `1px solid ${hexToRGBA({
-                                      hex: theme.colors.primary,
-                                      alpha: 0.2,
-                                    })}`,
-                                  }}
-                                >
-                                  <CustomIcon
-                                    name="FaTrash"
-                                    size={12}
-                                    style={{ cursor: "pointer" }}
-                                    onClick={async () =>
-                                      await handleEliminarRelacionUsuarioTipoUsuario(
-                                        tipo.TIPO_USUARIO_ID
-                                      )
-                                    }
-                                  />
-                                  <span style={{ fontSize: "11px" }}>
-                                    {tipo?.TIPO_USUARIO || "Sin tipo"}
-                                  </span>
+                            {grupo.tipos.map((tipo, tipoIndex) => (
+                              <span
+                                key={tipoIndex}
+                                style={{
+                                  color: theme.colors.textSecondary,
+                                  backgroundColor: hexToRGBA({
+                                    hex: theme.colors.primary,
+                                    alpha: 0.15,
+                                  }),
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "3px 8px",
+                                  borderRadius: "12px",
+                                  border: `1px solid ${hexToRGBA({
+                                    hex: theme.colors.primary,
+                                    alpha: 0.2,
+                                  })}`,
+                                }}
+                              >
+                                <CustomIcon
+                                  name="FaTrash"
+                                  size={12}
+                                  style={{ cursor: "pointer" }}
+                                  onClick={async () =>
+                                    await handleEliminarRelacionUsuarioTipoUsuario(
+                                      tipo.TIPO_USUARIO_ID
+                                    )
+                                  }
+                                />
+                                <span style={{ fontSize: "11px" }}>
+                                  {tipo?.TIPO_USUARIO || "Sin tipo"}
                                 </span>
-                              ))}
-                            </div>
+                              </span>
+                            ))}
                           </div>
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              color: theme.colors.textSecondary,
-                            }}
-                          >
-                            {grupo.usuario?.usua_correo || "Sin correo"}
-                          </span>
                         </div>
-                      )
-                    );
-                  })()}
-                </div>
-              )
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            color: theme.colors.textSecondary,
+                          }}
+                        >
+                          {grupo.usuario?.usua_correo || "Sin correo"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             }
             footer={
               <div
@@ -673,7 +774,8 @@ export const TiposUsuario = () => {
                     textAlign: "center",
                   }}
                 >
-                  Total: {relacionesUsuarioTipo.length} relaciones
+                  Total: {filtrarRelaciones().length} de{" "}
+                  {relacionesUsuarioTipo.length} relaciones
                 </span>
                 <CustomButton
                   onClick={cargarDatos}

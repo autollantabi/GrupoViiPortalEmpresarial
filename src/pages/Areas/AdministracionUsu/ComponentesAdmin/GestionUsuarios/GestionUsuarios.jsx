@@ -306,6 +306,7 @@ export const GestionUsuarios = () => {
       STOX: "ST",
       IKONIX: "IK",
       AUTOMAX: "AM",
+      GRUPOVII: "GV",
     };
     return abreviaciones[empresa] || empresa;
   };

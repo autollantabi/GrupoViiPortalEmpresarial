@@ -1,10 +1,10 @@
 import axios from "axios";
-import url, { url_new } from "./url";
+import url, { url_new , url_portal_mayorista} from "./url";
 
 // Crear instancias de axios personalizadas
 export const axiosInstance = axios.create({
   baseURL: url,
-  timeout: 60000, // 60 segundos
+  timeout: 300000, // 30 segundos
   headers: {
     "Content-Type": "application/json",
   },
@@ -12,6 +12,14 @@ export const axiosInstance = axios.create({
 
 export const axiosInstanceNew = axios.create({
   baseURL: url_new,
+  timeout: 300000, // 300 segundos
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+export const axiosInstancePortalMayorista = axios.create({
+  baseURL: url_portal_mayorista,
   timeout: 300000, // 300 segundos
   headers: {
     "Content-Type": "application/json",

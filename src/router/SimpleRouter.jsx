@@ -77,6 +77,9 @@ import { ReporteriaComercial } from "pages/Areas/Reporteria/Comercial/Reporteria
 import { ReporteriaCobranzas } from "pages/Areas/Reporteria/Cobranzas/ReporteriaCobranzas";
 import { ReporteriaTecnicentro } from "pages/Areas/Reporteria/Tecnicentro/ReporteriaTecnicentro";
 import { ReporteriaGestionGerentes } from "pages/Areas/Reporteria/GestionGerentes/ReporteriaGestionGerentes";
+import { ReporteriaGarantiasHerramientas } from "pages/Areas/Reporteria/Garantias/Herramientas/ReporteriaGarantiasHerramientas";
+import { ReporteriaCamiones } from "pages/Areas/Reporteria/Camiones/ReporteriaCamiones";
+import { ReporteriaComercialFlashdeVentas } from "pages/Areas/Reporteria/ComercialFlashdeVentas/ReporteriaComercialFlashdeVentas";
 
 // Configuración centralizada - Una sola fuente de verdad
 export const APP_CONFIG = [
@@ -331,7 +334,27 @@ export const APP_CONFIG = [
     component: ReporteriaComercial,
     seccion: "REPORTERIA",
     modulo: "REP_COMERCIAL",
-    subModules: ["REP_COM_NEUMATICOS", "REP_COM_MOTOS", "REP_COM_LUBRICANTES","REP_COM_HERRAMIENTAS"],
+    subModules: [
+      "REP_COM_NEUMATICOS",
+      "REP_COM_MOTOS",
+      "REP_COM_LUBRICANTES",
+      "REP_COM_HERRAMIENTAS",
+    ],
+  },
+  {
+    path: "/reporteria/comercial-flash-de-ventas",
+    title: "Flash de Ventas",
+    icon: "",
+    component: ReporteriaComercialFlashdeVentas,
+    seccion: "REPORTERIA",
+    modulo: "REP_FLASH_VENTAS",
+    subModules: [
+      "REP_FLV_TODOS",
+      "REP_FLV_NEUMATICOS",
+      "REP_FLV_MOTOS",
+      "REP_FLV_LUBRICANTES",
+      "REP_FLV_HERRAMIENTAS",
+    ],
   },
   {
     path: "/reporteria/cobranzas",
@@ -356,6 +379,23 @@ export const APP_CONFIG = [
     component: ReporteriaTecnicentro,
     seccion: "REPORTERIA",
     modulo: "REP_TECNICENTRO",
+  },
+  {
+    path: "/reporteria/camiones",
+    title: "Camiones",
+    icon: "",
+    component: ReporteriaCamiones,
+    seccion: "REPORTERIA",
+    modulo: "REP_CAMIONES",
+  },
+  {
+    path: "/reporteria/garantias/herramientas",
+    title: "Herramientas",
+    icon: "",
+    component: ReporteriaGarantiasHerramientas,
+    seccion: "REPORTERIA",
+    modulo: "REP_GAR_HERRAMIENTAS",
+    hierarchy: [{ title: "Garantias", value: "GARANTIAS" }],
   },
   {
     path: "/tecnicentro/reportes",

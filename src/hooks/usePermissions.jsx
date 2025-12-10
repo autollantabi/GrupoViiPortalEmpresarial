@@ -7,6 +7,7 @@ const EMPRESAS_IDS = {
   STOX: 3,
   IKONIX: 4,
   AUTOMAX: 5,
+  GRUPOVII: 6,
 };
 
 // Mapeo de submódulos alternativos para casos especiales
