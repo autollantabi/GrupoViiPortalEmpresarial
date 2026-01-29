@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
 import styled from "styled-components";
+import { useTheme } from "context/ThemeContext";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import {
   ConsultarListaBancos,
   consultarTodasTransaccionesBancarias,
 } from "services/carteraService";
-import { CustomDateSelector } from "components/UI/CustomComponents/CustomDateSelector";
-import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
-import { CustomInput } from "components/UI/CustomComponents/CustomInputs";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { DateSelectorUI } from "components/UI/Components/DateSelectorUI";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { InputUI } from "components/UI/Components/InputUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 
 // Styled components unificados
 const FiltrosContainer = styled.div`
@@ -201,7 +202,7 @@ export const FiltrosUnificadosCartera = ({
     return () => clearTimeout(timeout);
   }, [filtroGlobal]);
 
-  // Función para manejar filtros de estado (para CustomSelect multiselección)
+  // Función para manejar filtros de estado (para SelectUI multiselección)
   const manejarFiltroEstado = (selectedOptions) => {
     setFiltrosEstado(selectedOptions || []);
   };
@@ -496,9 +497,11 @@ export const FiltrosUnificadosCartera = ({
     { value: "VENDEDOR", label: "Vendedor" },
   ];
 
+  const { theme } = useTheme();
+
   if (permissionsLoading) {
     return (
-      <CustomContainer
+      <ContainerUI
         flexDirection="column"
         justifyContent="center"
         alignItems="center"
@@ -506,19 +509,19 @@ export const FiltrosUnificadosCartera = ({
         height="100px"
         style={{
           padding: "20px",
-          backgroundColor: "rgba(248, 249, 250, 0.8)",
+          backgroundColor: theme.colors.backgroundLight || theme.colors.background,
         }}
       >
         <div
           style={{
             fontSize: "16px",
-            color: "#6c757d",
+            color: theme.colors.textSecondary,
             textAlign: "center",
           }}
         >
           Cargando filtros...
         </div>
-      </CustomContainer>
+      </ContainerUI>
     );
   }
 
@@ -561,7 +564,7 @@ export const FiltrosUnificadosCartera = ({
   );
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="row"
       justifyContent="flex-start"
       width="100%"
@@ -570,13 +573,13 @@ export const FiltrosUnificadosCartera = ({
       {/* Todos los filtros en una sola fila */}
       <FiltrosContainer>
         {/* Fechas */}
-        <CustomDateSelector
+        <DateSelectorUI
           fecha={fechaInicial}
           onChange={handleFechaInicialChange}
           label="Desde"
           max={fechaFinal}
         />
-        <CustomDateSelector
+        <DateSelectorUI
           fecha={fechaFinal}
           onChange={handleFechaFinalChange}
           label="Hasta"
@@ -584,7 +587,7 @@ export const FiltrosUnificadosCartera = ({
         />
 
         {/* Banco */}
-        <CustomSelect
+        <SelectUI
           options={bancoOptions}
           value={bancoOptions.find((opt) => opt.value === selectedBanco)}
           onChange={(option) => handleBancoChange(option?.value || "")}
@@ -595,7 +598,7 @@ export const FiltrosUnificadosCartera = ({
         />
 
         {/* Empresa */}
-        <CustomSelect
+        <SelectUI
           options={empresaOptions}
           value={empresaOptions.find((opt) => opt.value === selectedEmpresa)}
           onChange={(option) => handleEmpresaChange(option?.value || "")}
@@ -605,7 +608,7 @@ export const FiltrosUnificadosCartera = ({
           label="Empresa"
         />
         {/* Filtro por estados */}
-        <CustomSelect
+        <SelectUI
           options={estadoOptions}
           value={filtrosEstado}
           onChange={manejarFiltroEstado}
@@ -618,16 +621,16 @@ export const FiltrosUnificadosCartera = ({
 
         {/* Filtro global */}
         <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
-          <CustomInput
+          <InputUI
             type="text"
             placeholder="Buscar..."
             value={filtroGlobal}
             onChange={(value) => setFiltroGlobal(value)}
-            iconLeft="fa fa-search"
+            iconLeft="FaSistrix"
             label="Buscar"
             containerStyle={{ minWidth: "200px" }}
           />
-          <CustomSelect
+          <SelectUI
             options={columnasOptions}
             value={
               columnasOptions.find((opt) => opt.value === columnaFiltro) ||
@@ -642,7 +645,7 @@ export const FiltrosUnificadosCartera = ({
         </div>
 
         {/* Selector de filas por página */}
-        <CustomSelect
+        <SelectUI
           label="Filas por página"
           options={opcionesFilasPorPagina}
           value={opcionesFilasPorPagina.find(
@@ -656,7 +659,7 @@ export const FiltrosUnificadosCartera = ({
         />
 
         {/* Menu de acciones a la derecha */}
-        <CustomSelect
+        <SelectUI
           options={accionesOptions}
           value={accionSeleccionada}
           onChange={handleAccionChange}
@@ -668,8 +671,8 @@ export const FiltrosUnificadosCartera = ({
         />
 
         {/* Botón para actualizar datos */}
-        <CustomButton
-          iconLeft="FaSync"
+        <ButtonUI
+          iconLeft="FaArrowsRotate"
           style={{
             borderRadius: "50%",
             padding: "10px",
@@ -682,7 +685,7 @@ export const FiltrosUnificadosCartera = ({
           maxWidth="50px"
         />
       </FiltrosContainer>
-    </CustomContainer>
+    </ContainerUI>
   );
 };
 
@@ -696,6 +699,8 @@ export const PaginacionUnificada = ({
   numberData,
   totalData = 0,
 }) => {
+  const { theme } = useTheme();
+  
   // Crear opciones para el selector de páginas
   const pageOptions = Array.from({ length: pageCount }, (_, i) => ({
     value: i + 1,
@@ -709,30 +714,30 @@ export const PaginacionUnificada = ({
   };
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="row"
       justifyContent="space-between"
       alignItems="center"
       width="100%"
       style={{
         padding: "2px 15px",
-        backgroundColor: "#f8f9fa",
+        backgroundColor: theme.colors.backgroundLight || theme.colors.background,
         borderRadius: "5px",
       }}
     >
       <div>
-        <span style={{ fontSize: "14px", color: "#6c757d" }}>
+        <span style={{ fontSize: "14px", color: theme.colors.textSecondary }}>
           Mostrando {numberData} de {totalData} registros
         </span>
       </div>
 
       <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-        <CustomButton
+        <ButtonUI
           iconLeft="FaArrowLeft"
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
         />
-        <CustomSelect
+        <SelectUI
           options={pageOptions}
           value={pageOptions.find((opt) => opt.value === currentPage)}
           onChange={handlePageSelect}
@@ -743,7 +748,7 @@ export const PaginacionUnificada = ({
           menuMaxWidth="300px"
           isSearchable={false}
         />
-        <CustomButton
+        <ButtonUI
           iconLeft="FaArrowRight"
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === pageCount}
@@ -751,10 +756,10 @@ export const PaginacionUnificada = ({
       </div>
 
       <div>
-        <span style={{ fontSize: "14px", color: "#6c757d" }}>
+        <span style={{ fontSize: "14px", color: theme.colors.textSecondary }}>
           Página {currentPage} de {pageCount}
         </span>
       </div>
-    </CustomContainer>
+    </ContainerUI>
   );
 };

@@ -1,5 +1,5 @@
 import React from "react";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
 
 export const Contabilidad_ReporteFlujoCaja = () => {
   
@@ -18,7 +18,7 @@ export const Contabilidad_ReporteFlujoCaja = () => {
   ];
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="column"
       height="100%"
       width="100%"
@@ -33,6 +33,6 @@ export const Contabilidad_ReporteFlujoCaja = () => {
         allowFullScreen
         sandbox="allow-scripts allow-same-origin allow-popups"
       />
-    </CustomContainer>
+    </ContainerUI>
   );
 };

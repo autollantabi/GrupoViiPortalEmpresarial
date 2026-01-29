@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { TablaGeneralizada } from "../../../../components/UI/ComponentesGenericos/TablaInputs";
+import React, { useEffect, useState, useMemo } from "react";
+import { TablaInputsUI } from "../../../../components/UI/Components/TablaInputsUI";
 
 import {
   ActualizarChequeCartera,
@@ -9,10 +9,9 @@ import {
   ListarEmpresasCartera,
   ListarVendedoresPorEmpresaCartera,
 } from "services/carteraService";
-import { transformarDataAValueLabel } from "components/UI/ComponentesGenericos/Utils";
-import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
-import { withPermissions } from "../../../../hoc/withPermissions";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
+import { transformarDataAValueLabel } from "utils/Utils";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { useAuthContext } from "context/authContext";
 
 const correosAgregar = [
   "cartera@maxximundo.com",
@@ -37,15 +36,32 @@ const formatDateToYYYYMMDD = (dateString) => {
   return `${year}-${month}-${day}`;
 };
 
-const GestionChequesComponent = ({ empresasAcceso, permissionsLoading }) => {
+export const GestionCheques = ({
+  routeConfig,
+  availableCompanies, // Del nuevo sistema de recursos (ProtectedContent)
+  availableLines, // Del nuevo sistema de recursos (ProtectedContent)
+}) => {
+  const { user } = useAuthContext();
   // Estado que mantiene los datos de la tabla
   const [data, setData] = useState(null);
   const [isConfigLoaded, setIsConfigLoaded] = useState(false); // Indica si la configuración está cargada
 
+  // Convertir availableCompanies al formato esperado
+  const empresasDisponibles = useMemo(() => {
+    if (availableCompanies && availableCompanies.length > 0) {
+      // Convertir { id, nombre } a { empresa: nombre, idempresa: id } para compatibilidad
+      return availableCompanies.map(emp => ({
+        empresa: emp.nombre,
+        idempresa: emp.id,
+      }));
+    }
+    return [];
+  }, [availableCompanies]);
+
   const consultarEmpresas = async () => {
-    const consulta = await ListarEmpresasCartera();
+    const consulta = await ListarEmpresasCartera(user.USUARIO.USUA_CORREO);
     const consultaconPermisos = consulta.filter((item) =>
-      empresasAcceso.some((permiso) => item.EMPRESA === permiso.empresa)
+      empresasDisponibles.some((permiso) => item.EMPRESA === permiso.empresa)
     );
 
     const consultaT = transformarDataAValueLabel({
@@ -126,6 +142,7 @@ const GestionChequesComponent = ({ empresasAcceso, permissionsLoading }) => {
 
           // Consulta de clientes
           const clientesData = await ListarClientesPorEmpresaCartera({
+            correo: user.USUARIO.USUA_CORREO,
             empresaId: option.label,
           });
 
@@ -247,6 +264,7 @@ const GestionChequesComponent = ({ empresasAcceso, permissionsLoading }) => {
         { value: "MIRANDA CARLA", label: "MIRANDA CARLA" },
         { value: "RAMON ALEXANDRA", label: "RAMON ALEXANDRA" },
         { value: "PINO VERONICA", label: "PINO VERONICA" },
+        { value: "MONTERO CRISTINA", label: "MONTERO CRISTINA" },
       ],
       required: true,
     },
@@ -326,7 +344,7 @@ const GestionChequesComponent = ({ empresasAcceso, permissionsLoading }) => {
   //   return elemento ? elemento.label : null;
   // };
 
-  // Los permisos se cargan automáticamente con usePermissions
+  // Los permisos vienen de routeConfig inyectado por SimpleRouter
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -409,38 +427,27 @@ const GestionChequesComponent = ({ empresasAcceso, permissionsLoading }) => {
 
   // Manejar la ordenación de columnas
   const handleSort = (column, direction) => {
-    // console.log("Sorted:", column, direction);
   };
 
   // Manejar el doble clic en una fila
   const handleDoubleClickRow = (item) => {
-    // console.log("Row double-clicked:", item);
   };
 
   const estadocondiciones = [{ 1: ["TRANSPORTE", "NRO_GUIA"] }];
 
-  // Mostrar loading mientras se cargan los permisos
-  if (permissionsLoading) {
-    return (
-      <CustomContainer height="100%" width="100%">
-        <p>Cargando permisos, por favor espera...</p>
-      </CustomContainer>
-    );
-  }
-
   // Si no hay empresas con acceso, mostrar mensaje
-  if (!empresasAcceso || empresasAcceso.length === 0) {
+  if (!empresasDisponibles || empresasDisponibles.length === 0) {
     return (
-      <CustomContainer height="100%" width="100%">
+      <ContainerUI height="100%" width="100%">
         <p>No tienes permisos para acceder a la gestión de cheques.</p>
-      </CustomContainer>
+      </ContainerUI>
     );
   }
 
   return (
-    <CustomContainer height="100%" width="100%">
+    <ContainerUI height="100%" width="100%">
       {isConfigLoaded ? (
-        <TablaGeneralizada
+        <TablaInputsUI
           data={data}
           newRow={newRow}
           columnsConfig={columnsConfig}
@@ -450,16 +457,14 @@ const GestionChequesComponent = ({ empresasAcceso, permissionsLoading }) => {
           onEdit={handleEdit}
           onSave={handleSave}
           nombreID={"ID"}
-          permisos={empresasAcceso}
+          permisos={empresasDisponibles}
           estadocondiciones={estadocondiciones}
           // permisoagregar={correosAgregar}
         />
       ) : (
         <p>Cargando configuración, por favor espera...</p>
       )}
-    </CustomContainer>
+    </ContainerUI>
   );
 };
 
-// Exportar el componente envuelto con withPermissions
-export const GestionCheques = withPermissions(GestionChequesComponent);

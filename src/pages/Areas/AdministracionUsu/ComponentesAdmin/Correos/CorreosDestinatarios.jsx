@@ -53,7 +53,6 @@ export const CorreosDestinatarios = () => {
   };
 
   const eliminarCorreo = (id) => {
-    // Filtrar la lista de correos para eliminar el que tiene el id proporcionado
     setCorreosEjemp((prevCorreos) =>
       prevCorreos.filter((item) => item.id !== id)
     );
@@ -62,7 +61,6 @@ export const CorreosDestinatarios = () => {
   const guardarEditarCorreo = () => {
     let edicionCorreo = valueInput;
     if (edicionCorreo !== "" && edicionCorreo.length > 8) {
-      // Actualizar el correo correspondiente al ID
       setCorreosEjemp((prevCorreos) =>
         prevCorreos.map((item) =>
           item.id === correoEditar ? { ...item, correo: edicionCorreo } : item
@@ -81,7 +79,6 @@ export const CorreosDestinatarios = () => {
       );
 
       if (correoExiste) {
-        console.log("El correo ya existe en la lista.");
         return; // Salir de la función si el correo ya existe
       }
       // Genera un nuevo ID basado en el ID más alto existente + 1

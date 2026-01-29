@@ -1,16 +1,16 @@
 import React, { useMemo } from "react";
 import { TemplateReporteria } from "../../TemplateReporteria";
-import { withPermissions } from "../../../../../hoc/withPermissions";
 
-const ReporteriaGarantiasHerramientasComponent = ({
+export const ReporteriaGarantiasHerramientas = ({
   routeConfig,
-  permissionsLoading,
+  availableCompanies = [],
+  availableLines = [],
 }) => {
-  // Organizamos los reportes por tipo de usuario > módulo > empresa
+  // Estructura de reportes: rol (minúscula) > línea (mayúsculas) > empresa (mayúsculas)
   const reportesPorTipoModuloEmpresa = useMemo(
     () => ({
-      USUARIO: {
-        REP_GAR_HERRAMIENTAS: {
+      usuario: {
+        HERRAMIENTAS: {
           IKONIX: [
             {
               id: 0,
@@ -29,12 +29,8 @@ const ReporteriaGarantiasHerramientasComponent = ({
     <TemplateReporteria
       reportesPorTipoModuloEmpresa={reportesPorTipoModuloEmpresa}
       routeConfig={routeConfig}
-      permissionsLoading={permissionsLoading}
+      availableCompanies={availableCompanies}
+      availableLines={availableLines}
     />
   );
 };
-
-// Exportar el componente envuelto con permisos
-export const ReporteriaGarantiasHerramientas = withPermissions(
-  ReporteriaGarantiasHerramientasComponent
-);

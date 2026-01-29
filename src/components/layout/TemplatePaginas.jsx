@@ -1,21 +1,46 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 
-import { globalConst } from "config/constants";
-
-import Header from "../UI/Header/Header";
-import Cabecera from "components/UI/NavBar/NavBar";
-import {
-  ContenedorContenidoPagina,
-  ContenedorCuerpoPaginaHorizontal,
-  ContenedorCuerpoPagina,
-} from "components/UI/ComponentesGenericos/GeneralStyled";
-import Sidebar from "components/UI/Sidebar/Sidebar";
-import {
-  CustomContainer,
-  CustomText,
-} from "components/UI/CustomComponents/CustomComponents";
+import Header from "./Header";
+import Sidebar from "./Sidebar";
 import { useTheme } from "context/ThemeContext";
+
+const ContenedorContenidoPagina = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+`;
+
+const ContenedorCuerpoPagina = styled.div`
+  height: 100%;
+  width: 100%;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  overflow-y: auto;
+  background-color: transparent;
+`;
+
+const ContenedorCuerpoPaginaHorizontal = styled.div`
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const ContenedorDerecha = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: calc(100vw - 40px); /* Resta el ancho del sidebar cerrado */
+  height: 100vh;
+  overflow: hidden;
+  margin-left: 40px; /* Respeta el ancho del sidebar cuando está cerrado */
+`;
 
 // 🔹 Agregar animación de fade-in con `styled-components`
 const AnimatedPage = styled(ContenedorContenidoPagina)`
@@ -34,40 +59,21 @@ export default function TemplatePaginas({ seccion, ...props }) {
 
   return (
     <AnimatedPage $show={fadeIn}>
+      <Sidebar />
       <Header />
-
-      <ContenedorCuerpoPaginaHorizontal
-        style={{
-          height: `calc(100vh - ${globalConst.alturaHeader}})`,
-        }}
-      >
-        <Sidebar />
-        <div
+      <ContenedorDerecha>
+        <ContenedorCuerpoPaginaHorizontal
           style={{
-            height: "100%",
-            width: "100%",
-            top: 0,
-            bottom: 0,
-            display: "flex",
-            flexDirection: "column",
-            overflowY: "auto",
             backgroundColor: theme.colors.background,
           }}
         >
           {props.children ? (
-            <>
-              {seccion && <Cabecera seccion={seccion} />}
-              <ContenedorCuerpoPagina
-                style={{ borderTop: `solid 1px ${theme.colors.secondary}` }}
-              >
-                {props.children}
-              </ContenedorCuerpoPagina>
-            </>
+            <ContenedorCuerpoPagina>{props.children}</ContenedorCuerpoPagina>
           ) : (
             <span> No hay contenido disponible.</span>
           )}
-        </div>
-      </ContenedorCuerpoPaginaHorizontal>
+        </ContenedorCuerpoPaginaHorizontal>
+      </ContenedorDerecha>
     </AnimatedPage>
   );
 }

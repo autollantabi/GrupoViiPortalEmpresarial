@@ -1,129 +1,100 @@
-# 🚀 Proyecto en Vite + React
+# Portal Empresarial GrupoVii
 
-Este proyecto es una aplicación web desarrollada con **Vite + React**. La aplicación está optimizada para un rendimiento rápido en desarrollo y producción.
+SPA (React + Vite) que centraliza acceso a Cartera, Compras, Contabilidad, Marketing, Reportería, RRHH, Gobierno de Datos y Administración. Autenticación y autorización por recurso (y por empresa/línea).
 
-## 📦 Instalación y configuración
+## Requisitos
 
-### 🔹 **1. Clonar el repositorio**
-```bash
-git clone https://github.com/tuusuario/tuprojecto.git
-cd tuprojecto
-```
+- Node.js (recomendado LTS)
+- npm
 
-### 🔹 **2. Instalar dependencias**
-Ejecuta el siguiente comando para instalar todas las dependencias necesarias:
+## Instalación y configuración
+
+### 1. Clonar e instalar
 
 ```bash
+git clone <url-del-repositorio>
+cd PortalEmpresarial
 npm install
 ```
 
-### 🔹 **3. Configurar variables de entorno**
-Crea un archivo **`.env`** en la raíz del proyecto y agrega las siguientes variables:
+### 2. Variables de entorno
 
-```env
-VITE_ENV=development
-VITE_DEVELOPMENT_URL=http://localhost:5000
-VITE_PRODUCTION_URL=https://miapi.com
-VITE_DEVELOPMENT_URL_NEW=http://localhost:5001
-VITE_PRODUCTION_URL_NEW=https://miapi.com/new
-```
+Copia `.env.development` (o crea uno) en la raíz y ajusta los valores. Las variables se consumen desde `src/config/env.js`.
 
----
+| Variable | Uso |
+|--------|-----|
+| `VITE_ENV` | `development` o `production` |
+| `VITE_API_URL` | Base URL API principal |
+| `VITE_API_URL_NEW` | Base URL API nueva (auth, 5W2H, transacciones, permisos) |
+| `VITE_API_URL_PORTAL_MAYORISTA` | Base URL Portal Mayorista |
+| `VITE_API_KEY_PORTAL_MAYORISTA` | API Key para Portal Mayorista (cabecera X-Portal-API-Key) |
+| `VITE_ENCRYPTION_KEY` | Clave para encriptar id-session en localStorage |
+| `VITE_FRONT_DEV` | (Opcional) URL del frontend para iframes/links |
 
-## 📌 **Ejecutar el proyecto**
+Para producción usa `.env.production` con las mismas variables y valores de producción.
 
-### 🚀 **Modo Desarrollo**
+### 3. Ejecutar en desarrollo
+
 ```bash
 npm run dev
 ```
-Luego, abre **http://localhost:3000** en tu navegador.
 
-### 🏗️ **Construcción para producción**
+- **URL:** `http://192.168.0.68:5000` (puerto y host en `vite.config.js`).
+- **Login:** `/login`. El resto de rutas están protegidas por recurso.
+
+### 4. Build para producción
+
 ```bash
 npm run build
 ```
-Esto generará una carpeta **`dist/`** con los archivos listos para desplegar en producción.
 
-### 🌎 **Previsualizar producción**
+Genera la carpeta **`build/`** (no `dist/`). El script `postbuild` puede copiar a `/var/www/html/portalEmpresarial/` y recargar nginx si está configurado.
+
+### 5. Preview de producción
+
 ```bash
 npm run preview
 ```
 
+Sirve el build en el puerto configurado (ej. 7150).
+
 ---
 
-## 🛠 **Estructura del Proyecto**
+## Estructura relevante
+
 ```
-📂 src
- ┣ 📂 assets               # Archivos estáticos (imágenes, estilos, fuentes, etc.)
- ┃ ┣ 📂 images             # Imágenes del proyecto
- ┃ ┣ 📂 fonts              # Fuentes personalizadas
- ┃ ┗ 📜 global.css         # Estilos globales
- ┃
- ┣ 📂 components           # Componentes reutilizables
- ┃ ┣ 📂 UI                 # Botones, tarjetas, inputs, modales, etc.
- ┃ ┣ 📂 layout             # Header, Sidebar, Footer, etc.
- ┃ ┗ 📜 index.js           # Exporta todos los componentes
- ┃
- ┣ 📂 pages                # Páginas principales
- ┃ ┣ 📂 Home               # Página de inicio
- ┃ ┣ 📂 Dashboard          # Dashboard de usuarios
- ┃ ┗ 📂 Auth               # Login, Registro, Recuperación de contraseña
- ┃
- ┣ 📂 hooks                # Hooks personalizados
- ┃ ┣ 📜 useAuth.js         # Hook de autenticación
- ┃ ┣ 📜 useFetch.js        # Hook para peticiones HTTP
- ┃ ┗ 📜 useTheme.js        # Hook para gestionar temas
- ┃
- ┣ 📂 context              # Context API para manejar estado global
- ┃ ┣ 📜 AuthContext.jsx    # Contexto de autenticación
- ┃ ┗ 📜 ThemeContext.jsx   # Contexto para temas
- ┃
- ┣ 📂 config               # Configuración global del proyecto
- ┃ ┣ 📜 routes.js          # Definición de rutas de React Router
- ┃ ┗ 📜 constants.js       # Constantes generales
- ┃
- ┣ 📂 services             # Llamadas a APIs y lógica de negocio
- ┃ ┣ 📜 authService.js     # Autenticación con API
- ┃ ┣ 📜 userService.js     # Manejo de usuarios
- ┃ ┗ 📜 productService.js  # API de productos
- ┃
- ┣ 📂 utils                # Funciones de utilidad
- ┃ ┣ 📜 formatDate.js      # Formateo de fechas
- ┃ ┣ 📜 helpers.js         # Funciones genéricas
- ┃ ┗ 📜 validations.js     # Validaciones de formularios
- ┃
- ┣ 📂 router               # Configuración de React Router
- ┃ ┣ 📜 AppRouter.jsx      # Rutas principales
- ┃ ┗ 📜 ProtectedRoute.jsx # Ruta protegida
- ┃
- ┣ 📜 App.jsx              # Componente principal de la app
- ┣ 📜 main.jsx             # Punto de entrada de React
- ┗ 📜 index.css            # Estilos globales
+src/
+├── config/          # env.js, axiosConfig.js, constants.js
+├── context/         # authContext, ThemeContext, SidebarContext
+├── router/          # SimpleRouter.jsx (APP_CONFIG, rutas protegidas)
+├── pages/           # auth/, home/, Areas/ (Cartera, Compras, Marketing, etc.)
+├── components/      # layout/, common/, UI/
+├── services/        # Llamadas HTTP (3 APIs)
+└── utils/           # encryption, permissionsValidator, theme, etc.
 ```
 
----
-
-## 🔥 **Dependencias principales**
-- ⚛️ **React** - Librería principal
-- ⚡ **Vite** - Empaquetador ultra rápido
-- 🎨 **React Router** - Manejo de rutas en la aplicación
-- 📦 **Axios** - Cliente HTTP para consumo de APIs
+- **Rutas y menú:** `src/router/SimpleRouter.jsx`
+- **Sesión:** `src/context/authContext.jsx` + `src/services/authService.js`
+- **Variables de entorno:** `src/config/env.js` (todas las `VITE_*`)
 
 ---
 
-## 🚀 **Despliegue**
-Para desplegar en **Vercel, Netlify o cualquier hosting**, usa:
-```bash
-npm run build
-```
-Luego, sube la carpeta `dist/` al hosting de tu elección.
+## Las 3 APIs
+
+El proyecto usa **3 instancias de Axios** (`src/config/axiosConfig.js`):
+
+1. **VITE_API_URL** → Cartera, Compras, Contabilidad, Importaciones, Recovery, Créditos, Transacciones.
+2. **VITE_API_URL_NEW** → Login, `/auth/me`, 5W2H, Transacciones cartera, Desbloqueo, Permisos/Roles/Usuarios.
+3. **VITE_API_URL_PORTAL_MAYORISTA** → Usuarios/vendedores portal mayorista (cabecera `X-Portal-API-Key`).
 
 ---
 
-## 👨‍💻 **Colaboradores**
-- 🧑‍💻 **[Diego](https://github.com/BrujoFurioso22)** - Desarrollador FrontEnd
+## Documentación técnica
+
+Para arquitectura, flujos, permisos por recurso y detalle de APIs, ver **[DOCUMENTACION_TECNICA.md](./DOCUMENTACION_TECNICA.md)**.
 
 ---
 
-¡Gracias por visitar el proyecto! ⭐ **Si te gusta, dale una estrella al repositorio en GitHub.** 😊
+## Colaboradores
 
+- **Diego Barbecho** (GitHub: [diegobarpdev](https://github.com/diegobarpdev)) — Desarrollador Frontend

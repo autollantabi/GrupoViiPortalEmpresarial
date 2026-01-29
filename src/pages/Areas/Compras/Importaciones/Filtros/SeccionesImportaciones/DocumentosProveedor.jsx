@@ -14,7 +14,6 @@ import {
 } from "services/importacionesService";
 import { obtenerCorreosAEnviar } from "../../PermisosModulo";
 import { listCorreosEnvioBodega } from "../../CorreosTemporal";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { ConfirmationDialog } from "components/common/FormComponents";
 import {
   debeEstarBloqueado,
@@ -29,13 +28,10 @@ import {
   SectionImportacionesContainer,
   SectionImportacionesTitle,
 } from "../../StylesImportaciones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomLoader } from "components/UI/CustomComponents/CustomLoader";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
 const correosDestinatarios = listCorreosEnvioBodega();
-const BODEGA = ["COMPRAS", "BODEGA"];
-const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
-const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 
 // Ruta para documentos
 const rutaBase = "importaciones/documentosBD/";
@@ -46,7 +42,14 @@ export const DocumentosProveedor = ({
   setDatos,
   actualizar,
   permisosProp,
+  rolesUsuario = [],
 }) => {
+  // Usar el rol que viene como prop (ya calculado en el router)
+  const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
+
+  const tieneRolVentas = roles.includes("usuario");
+  const tieneRolBodega = roles.includes("bodega");
+  const tieneRolJefatura = roles.includes("jefatura");
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     NUMERO_PI: {
@@ -191,13 +194,8 @@ export const DocumentosProveedor = ({
 
   // Estados específicos para este componente
   const [PIs, setPIs] = useState([]);
-  const [permisosBodega, setPermisosBodega] = useState([]);
-  const [permisosCompras, setPermisosCompras] = useState([]);
-  const [permisosComprasGerencias, setPermisosComprasGerencias] = useState([]);
   const [enviandoCorreos, setEnviandoCorreos] = useState(0);
   const [listaDeCorreosParaEnviar, setListaDeCorreosParaEnviar] = useState([]);
-
-  console.log(datos);
 
   // Consultar PIs disponibles
   const ConsultarPIs = async () => {
@@ -232,18 +230,18 @@ export const DocumentosProveedor = ({
   };
 
   // Verificar si se deben mostrar los controles de edición
-  // Para COMPRAS: pueden editar si no son gerencia y la importación está EN PROCESO
+  // Para COMPRAS (ventas): pueden editar si no son gerencia y la importación está EN PROCESO
   const mostrarBotonEdicionCompras =
-    permisosComprasGerencias.length === 0 &&
-    permisosCompras.length > 0 &&
-    permisosBodega.length === 0 && // No debe tener permisos de BODEGA
+    !tieneRolJefatura &&
+    tieneRolVentas &&
+    !tieneRolBodega && // No debe tener rol de BODEGA
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   // Para BODEGA: pueden guardar si suben archivos en DOCUMENTOS_PARA_BODEGA
   const mostrarBotonEdicionBodega =
-    permisosBodega.length > 0 &&
-    permisosCompras.length === 0 &&
-    permisosComprasGerencias.length === 0 &&
+    tieneRolBodega &&
+    !tieneRolVentas &&
+    !tieneRolJefatura &&
     datos.ESTADO_IMPORTACION === "EN PROCESO" &&
     Array.isArray(datosForm.DOCUMENTOS_PARA_BODEGA) &&
     datosForm.DOCUMENTOS_PARA_BODEGA.length > 0;
@@ -345,7 +343,6 @@ export const DocumentosProveedor = ({
         id: datos.ID_CARGA,
         proveedor: datos.CODIGO_PROVEEDOR,
       });
-      console.log(fechaSaldoPagar);
 
       if (documentosDOCS1.length > 0) {
         await RegistrarDocumentosProveedor({
@@ -394,10 +391,10 @@ export const DocumentosProveedor = ({
           transportista_asignado !== "";
 
         if (archivosBodega.length > 0 && validarLleno === true) {
-          if (
-            permisosComprasGerencias.length === 0 &&
-            permisosCompras.length > 0
-          ) {
+        if (
+          !tieneRolJefatura &&
+          tieneRolVentas
+        ) {
             setEnviandoCorreos(1);
             await EnviarCorreoBodega({
               idImportacion: id,
@@ -485,10 +482,7 @@ export const DocumentosProveedor = ({
         }));
       }
 
-      // Usar permisos recibidos desde props
-      setPermisosBodega(permisosProp?.bodega || []);
-      setPermisosCompras(permisosProp?.compras || []);
-      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
+      // Los permisos ahora se basan en roles, no necesitamos setear estados
 
       // Preparar correos
       const correosAEnviar = obtenerCorreosAEnviar(
@@ -529,7 +523,11 @@ export const DocumentosProveedor = ({
           estadoImportacion,
           tieneID,
           datosIniciales,
-          { permisosCompras, permisosBodega, permisosComprasGerencias }
+          { 
+            permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+            permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+            permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : []
+          }
         );
       });
 
@@ -542,9 +540,9 @@ export const DocumentosProveedor = ({
     datosForm,
     campos,
     datosIniciales,
-    permisosCompras,
-    permisosBodega,
-    permisosComprasGerencias,
+    tieneRolVentas,
+    tieneRolBodega,
+    tieneRolJefatura,
   ]);
 
   // 3. EFECTO PARA RESPONDER A CAMBIOS EN EL PI
@@ -556,7 +554,6 @@ export const DocumentosProveedor = ({
           datos.EMPRESA,
           datosForm["NUMERO_PI"]
         );
-        console.log(res);
 
         if (res && res.length > 0) {
           // Actualizar datosForm
@@ -615,10 +612,10 @@ export const DocumentosProveedor = ({
       <SectionImportacionesTitle>
         DOCUMENTOS PROVEEDOR
         {mostrarBotonEdicion && (
-          <CustomButton
+          <ButtonUI
             onClick={() => setMostrarConfirmacion(true)}
             pcolor={({ theme }) => theme.colors.secondary}
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             width="35px"
             height="35px"
           />
@@ -629,7 +626,7 @@ export const DocumentosProveedor = ({
         <div
           style={{ display: "flex", justifyContent: "center", padding: "20px" }}
         >
-          <CustomLoader />
+          <LoaderUI />
         </div>
       ) : (
         <FormImportacionesGrid>
@@ -638,7 +635,10 @@ export const DocumentosProveedor = ({
             return renderizarCampoConPermisos(
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
-              { permisosCompras, permisosBodega },
+              { 
+                permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
+              },
               reglasVisibilidad,
               transformacionesCampos,
               camposEspeciales

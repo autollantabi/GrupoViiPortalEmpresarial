@@ -8,8 +8,7 @@ import {
   ListarImportaciones,
 } from "services/importacionesService";
 import { ListarCreditosProveedores } from "services/creditosService";
-import { BotonConEstadoIconos } from "components/UI/ComponentesGenericos/Botones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 
 const ContenedorPrincipal = styled.div`
   display: flex;
@@ -178,8 +177,8 @@ export const Creditos = () => {
           />
         </ContenedorFiltros>
         <ContenedorFiltros>
-          <CustomButton
-            iconLeft={"FaSyncAlt"}
+          <ButtonUI
+            iconLeft={"FaArrowsRotate"}
             onClick={OnClickEjecutarBat}
           />
         </ContenedorFiltros>

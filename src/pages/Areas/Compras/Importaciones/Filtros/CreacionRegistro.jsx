@@ -1,5 +1,4 @@
 import styled, { keyframes } from "styled-components";
-import { Selects, SelectsFechas, SelectsConInput } from "./Selects";
 import React, { useState, useEffect } from "react";
 import {
   ListarEmpresas,
@@ -13,14 +12,13 @@ import {
 } from "services/importacionesService";
 import { ListarClientesPorEmpresaCartera } from "services/carteraService";
 import { hexToRGBA } from "utils/colors";
-import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
-import {
-  CustomCard,
-  CustomContainer,
-  CustomText,
-} from "components/UI/CustomComponents/CustomComponents";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { TextUI } from "components/UI/Components/TextUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { useTheme } from "context/ThemeContext";
+import IconUI from "components/UI/Components/IconsUI";
+import { useAuthContext } from "context/authContext";
 
 const intro = keyframes`
     from { opacity: 0; scale: 0.6; }
@@ -37,7 +35,7 @@ const ContenedorPrincipal = styled.div`
   width: 100%;
   height: 100%;
   background-color: ${({ theme }) =>
-    hexToRGBA({ hex: theme.colors.black, alpha: 0.6 })};
+    hexToRGBA({ hex: theme.colors.overlay || theme.colors.black, alpha: 0.6 })};
   position: absolute;
   top: 10;
   left: 0;
@@ -50,14 +48,14 @@ const ContenedorVentana = styled.div`
   width: 40%;
   height: fit-content;
   border-radius: 5px;
-  background-color: ${({ theme }) => theme.colors.white};
-  color: var(--color-perla);
+  background-color: ${({ theme }) => theme.colors.modalBackground || theme.colors.backgroundCard};
+  color: ${({ theme }) => theme.colors.text};
   position: absolute;
   top: 20px;
   left: 50%;
   translate: -50%;
   z-index: 101;
-  box-shadow: 0 0 10px var(--box-shadow-intense);
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0 0 10px rgba(0, 0, 0, 0.3)"};
   animation: ${intro} 0.8s ease-in-out;
 `;
 
@@ -69,19 +67,26 @@ const BotonCerrar = styled.div`
   padding: 0 5px;
   margin: 0;
   border-radius: 0 5px 0 5px;
-  background-color: var(--color-3);
+  background-color: ${({ theme }) => theme.colors.error};
+  color: ${({ theme }) => theme.colors.white};
   & > i {
     font-size: 20px;
+  }
+  
+  &:hover {
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.error, alpha: 0.8 })};
   }
 `;
 
 const Titulo = styled.div`
   font-size: 16px;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const SubTitulo = styled.div`
   font-size: 12px;
   font-weight: 100;
+  color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
 const ContenedorContenido = styled.div`
@@ -106,10 +111,10 @@ const ContenedorInput = styled.div`
   flex-direction: column;
   font-size: 13px;
   font-weight: 100;
-  background-color: #f0f0f0;
+  background-color: ${({ theme }) => theme.colors.backgroundLight};
   padding: 5px 10px;
   border-radius: 5px;
-  color: black;
+  color: ${({ theme }) => theme.colors.text};
   gap: 4px;
   & > input {
     border-radius: 5px;
@@ -117,8 +122,8 @@ const ContenedorInput = styled.div`
     font-size: 14px;
     outline: none;
     border: none;
-    background-color: var(--primary);
-    color: var(--color-perla);
+    background-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.white};
     &.texto {
       max-width: 250px;
     }
@@ -140,9 +145,13 @@ const BotonAnadirMas = styled.button`
   height: fit-content;
   border: none;
   border-radius: 5px;
-  box-shadow: var(--box-shadow);
-  background-color: var(--secondary);
-  color: var(--color-perla);
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0 2px 4px rgba(0, 0, 0, 0.1)"};
+  background-color: ${({ theme }) => theme.colors.secondary};
+  color: ${({ theme }) => theme.colors.white};
+  
+  &:hover {
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.secondary, alpha: 0.9 })};
+  }
 `;
 const ContendorBotonCrear = styled.div`
   width: 100%;
@@ -152,9 +161,12 @@ const ContendorBotonCrear = styled.div`
   & > button {
     border: none;
     border-radius: 5px;
-
-    background-color: var(--color-perla);
-    color: var(--primary);
+    background-color: ${({ theme }) => theme.colors.white};
+    color: ${({ theme }) => theme.colors.primary};
+    
+    &:hover {
+      background-color: ${({ theme }) => theme.colors.backgroundLight};
+    }
   }
 `;
 
@@ -170,9 +182,16 @@ const ContendorConfirmacionCreacion = styled.div`
   left: 50%;
   translate: -50%;
   z-index: 110;
-  background-color: ${({ theme }) => theme.colors.white};
+  background-color: ${({ theme }) => theme.colors.modalBackground || theme.colors.backgroundCard};
   padding: 35px;
   border-radius: 5px;
+  color: ${({ theme }) => theme.colors.text};
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0 0 10px rgba(0, 0, 0, 0.3)"};
+  
+  & > h4 {
+    color: ${({ theme }) => theme.colors.text};
+  }
+  
   & > .contenedorBotones {
     display: flex;
     justify-content: center;
@@ -181,18 +200,18 @@ const ContendorConfirmacionCreacion = styled.div`
     & > button {
       border: none;
       border-radius: 5px;
-      box-shadow: var(--box-shadow);
+      box-shadow: ${({ theme }) => theme.colors.boxShadow || "0 2px 4px rgba(0, 0, 0, 0.1)"};
       padding: 5px 15px;
       outline: none;
       &.cancelar {
-        border: solid 1px var(--color-3);
-        background-color: var(--primary);
-        color: #cfcfcf;
+        border: solid 1px ${({ theme }) => theme.colors.error};
+        background-color: ${({ theme }) => theme.colors.primary};
+        color: ${({ theme }) => theme.colors.white};
       }
       &.aceptar {
-        border: solid 1px var(--secondary);
-        background-color: var(--color-perla);
-        color: var(--secondary);
+        border: solid 1px ${({ theme }) => theme.colors.secondary};
+        background-color: ${({ theme }) => theme.colors.white};
+        color: ${({ theme }) => theme.colors.secondary};
       }
     }
   }
@@ -217,6 +236,7 @@ export const CreacionRegistro = ({
   const [listaMarcas, setListaMarcas] = useState([]);
   const [listaClientes, setListaClientes] = useState([]);
   const [idACrear, setIdACrear] = useState(1);
+  const { user } = useAuthContext();
 
   // **Manejo correcto de actualización del estado**
   const handleUpdateCreacion = (nombreCampo, newValue) => {
@@ -310,6 +330,7 @@ export const CreacionRegistro = ({
 
       try {
         const clientesData = await ListarClientesPorEmpresaCartera({
+          correo: user.USUARIO.USUA_CORREO,
           empresaId: emp,
         });
         setListaClientes(
@@ -371,76 +392,76 @@ export const CreacionRegistro = ({
     <ContenedorPrincipal>
       <ContenedorVentana>
         <BotonCerrar onClick={() => mostrarVentana(false)}>
-          <i className="bi bi-x" />
+          <IconUI name="FaXmark" size={14} color={theme.colors.text} />
         </BotonCerrar>
-        <CustomContainer
+        <ContainerUI
           flexDirection="column"
           alignItems="flex-start"
           width="100%"
         >
-          <CustomContainer style={{ gap: "20px" }}>
-            <CustomCard style={{ padding: "10px" }}>{idACrear}</CustomCard>
+          <ContainerUI style={{ gap: "20px" }}>
+            <div style={{ padding: "10px" }}>{idACrear}</div>
             <div>
               <Titulo>Creación de Registro de Importación</Titulo>
               <SubTitulo>Los campos con * son obligatorios</SubTitulo>
             </div>
-          </CustomContainer>
+          </ContainerUI>
 
           <FormularioDeCreacion>
-            <CustomContainer
+            <ContainerUI
               width="100%"
               flexDirection="column"
               alignItems="flex-start"
               style={{ gap: "10px" }}
             >
-              <CustomContainer
+              <ContainerUI
                 justifyContent="flex-start"
                 width="100%"
                 style={{ gap: "10px" }}
               >
-                <CustomText style={{ width: "75px" }}>Empresa</CustomText>
-                <CustomSelect
+                <TextUI style={{ width: "75px" }}>Empresa</TextUI>
+                <SelectUI
                   options={listaEmpresas}
                   onChange={(value) => handleUpdateCreacion("empresa", value)}
                   value={infoCreacion.empresa}
                   placeholder="Empresa *"
                 />
-              </CustomContainer>
-              <CustomContainer
+              </ContainerUI>
+              <ContainerUI
                 justifyContent="flex-start"
                 width="100%"
                 style={{ gap: "10px" }}
               >
-                <CustomText style={{ width: "75px" }}>Proveedor</CustomText>
-                <CustomSelect
+                <TextUI style={{ width: "75px" }}>Proveedor</TextUI>
+                <SelectUI
                   options={listaProveedores}
                   onChange={(value) => handleUpdateCreacion("proveedor", value)}
                   value={infoCreacion.proveedor}
                   placeholder="Proveedor *"
                 />
-              </CustomContainer>
-              <CustomContainer
+              </ContainerUI>
+              <ContainerUI
                 justifyContent="flex-start"
                 width="100%"
                 style={{ gap: "10px" }}
               >
-                <CustomText style={{ width: "75px" }}>Marca/s</CustomText>
-                <CustomSelect
+                <TextUI style={{ width: "75px" }}>Marca/s</TextUI>
+                <SelectUI
                   options={listaMarcas}
                   onChange={(value) => handleUpdateCreacion("marca", value)}
                   value={infoCreacion.marca}
                   placeholder="Marca *"
                   isMulti={true}
                 />
-              </CustomContainer>
+              </ContainerUI>
               {infoCreacion.marca?.some((m) => m.label === "SHELL") && (
-                <CustomContainer
+                <ContainerUI
                   justifyContent="flex-start"
                   width="100%"
                   style={{ gap: "10px" }}
                 >
-                  <CustomText style={{ width: "75px" }}>Cliente/s</CustomText>
-                  <CustomSelect
+                  <TextUI style={{ width: "75px" }}>Cliente/s</TextUI>
+                  <SelectUI
                     options={listaClientes}
                     onChange={(value) =>
                       handleUpdateCreacion("clientes", value)
@@ -450,38 +471,38 @@ export const CreacionRegistro = ({
                     isMulti={true}
                     maxWidth="auto"
                   />
-                </CustomContainer>
+                </ContainerUI>
               )}
-            </CustomContainer>
+            </ContainerUI>
           </FormularioDeCreacion>
           {!isButtonDisabled && (
-            <CustomContainer width="100%" justifyContent="flex-end">
-              <CustomButton
+            <ContainerUI width="100%" justifyContent="flex-end">
+              <ButtonUI
                 onClick={() => setMostrarConfirmacion(true)}
                 text={"Crear Importación"}
                 pcolortext={theme.colors.secondary}
                 variant="outlined"
               />
-            </CustomContainer>
+            </ContainerUI>
           )}
-        </CustomContainer>
+        </ContainerUI>
       </ContenedorVentana>
       {mostrarConfirmacion && (
         <ContendorConfirmacionCreacion>
           <h4>Desea guardar la siguiente información?</h4>
-          <CustomText>Empresa: {infoCreacion.empresa.label}</CustomText>
-          <CustomText>Proveedor: {infoCreacion.proveedor.label}</CustomText>
-          <CustomText>
+          <TextUI>Empresa: {infoCreacion.empresa.label}</TextUI>
+          <TextUI>Proveedor: {infoCreacion.proveedor.label}</TextUI>
+          <TextUI>
             Marca/s: {infoCreacion.marca.map((item) => item.label).join(", ")}
-          </CustomText>
+          </TextUI>
           {infoCreacion.clientes?.length > 0 && (
-            <CustomText>
+            <TextUI>
               Clientes/s:{" "}
               {infoCreacion.clientes.map((item) => item.label).join(", ")}
-            </CustomText>
+            </TextUI>
           )}
-          <CustomContainer justifyContent="flex-end" style={{ gap: "10px" }}>
-            <CustomButton
+          <ContainerUI justifyContent="flex-end" style={{ gap: "10px" }}>
+            <ButtonUI
               onClick={() => {
                 setMostrarConfirmacion(false);
                 actualizar();
@@ -489,8 +510,8 @@ export const CreacionRegistro = ({
               text={"Cancelar"}
               variant="outlined"
             />
-            <CustomButton onClick={InsertarImp} text="Crear" />
-          </CustomContainer>
+            <ButtonUI onClick={InsertarImp} text="Crear" />
+          </ContainerUI>
         </ContendorConfirmacionCreacion>
       )}
     </ContenedorPrincipal>

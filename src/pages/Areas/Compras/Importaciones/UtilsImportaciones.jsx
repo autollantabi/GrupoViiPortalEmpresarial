@@ -9,8 +9,8 @@ import {
   TextArea,
 } from "./Filtros/Selects";
 import { FormRow } from "components/common/FormComponents";
-import TimeInput from "components/UI/CustomComponents/TimeInput";
-import { CustomCheckboxField } from "components/UI/CustomComponents/CustomComponents";
+import InputTimeUI from "components/UI/Components/InputTimeUI";
+import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 
 /**
  * Renderiza un campo de formulario según su definición
@@ -152,9 +152,9 @@ export const renderField = (campo, options) => {
       );
       break;
 
-    case "TimeInput":
+    case "InputTimeUI":
       renderedComponent = (
-        <TimeInput
+        <InputTimeUI
           {...componentProps}
           valor={getFieldValue(campo.id)}
           readOnly={bloqueado}
@@ -163,7 +163,7 @@ export const renderField = (campo, options) => {
       break;
     case "CheckboxField":
       renderedComponent = (
-        <CustomCheckboxField
+        <CheckboxUI
           {...componentProps}
           id={campo.id}
           name={campo.id}

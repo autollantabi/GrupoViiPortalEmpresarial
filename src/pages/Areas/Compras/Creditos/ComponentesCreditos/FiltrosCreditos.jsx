@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import { useState } from "react";
+import { SelectUI } from "components/UI/Components/SelectUI";
 
 const ContainerP = styled.div`
   display: flex;
@@ -149,68 +150,35 @@ const YearSelector = styled.div`
   margin-top: 10px;
 `;
 export const CampoFiltro = ({ options, onChange, nombreColumnaFiltro, nombre }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState([]);
 
-  const handleButtonClickTodos = () => {
-    setSelectedOptions(options);
-    onChange(nombreColumnaFiltro, options.map((opt) => opt.name).join(", "));
+  // Convertir options al formato que SelectUI espera (value, label)
+  const selectOptions = options.map((opt) => ({
+    value: opt.value,
+    label: opt.name,
+  }));
+
+  const handleChange = (selected) => {
+    // selected puede ser null, un objeto o un array dependiendo de isMulti
+    const selectedArray = selected ? (Array.isArray(selected) ? selected : [selected]) : [];
+    setSelectedOptions(selectedArray);
+    
+    // Convertir a string con nombres separados por comas para mantener compatibilidad
+    const nombresString = selectedArray.map((opt) => opt.label).join(", ");
+    onChange(nombreColumnaFiltro, nombresString);
   };
-  const handleButtonClickLimpiar = () => {
-    setSelectedOptions([]);
-    onChange(nombreColumnaFiltro, "");
-  };
-
-  const handleOptionClick = (option) => {
-    const isAlreadySelected = selectedOptions.some(
-      (selected) => selected.value === option.value
-    );
-    const newSelectedOptions = isAlreadySelected
-      ? selectedOptions.filter((selected) => selected.value !== option.value)
-      : [...selectedOptions, option];
-
-    setSelectedOptions(newSelectedOptions);
-
-    // Llama a onChange con todas las opciones seleccionadas, excluyendo "Todos" y "Limpiar"
-    onChange(nombreColumnaFiltro, newSelectedOptions.map((opt) => opt.name).join(", "));
-  };
-
-  const isSelected = (option) =>
-    selectedOptions.some((selected) => selected.value === option.value);
 
   return (
-    <DropdownContainer
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <DropdownButton selected={selectedOptions.length > 0}>
-        <TituloFiltro selected={selectedOptions.length > 0}>
-          {nombre}
-        </TituloFiltro>
-        {selectedOptions.length > 0
-          ? selectedOptions.map((opt) => opt.name).join(", ")
-          : "⌵"}
-      </DropdownButton>
-
-      {isOpen && (
-        <DropdownContent>
-          <ContendorBotonesFiltro>
-            <BotonesFiltro onClick={() => handleButtonClickTodos()}>
-              Todos
-            </BotonesFiltro>
-            <BotonesFiltro onClick={() => handleButtonClickLimpiar()}>
-              Limpiar
-            </BotonesFiltro>
-          </ContendorBotonesFiltro>
-          {[...options].map((option, index) => (
-            <Option key={index} onClick={() => handleOptionClick(option)}>
-              <span>{option.name}</span>
-              <span>{isSelected(option) ? " ✓" : ""}</span>
-            </Option>
-          ))}
-        </DropdownContent>
-      )}
-    </DropdownContainer>
+    <SelectUI
+      options={selectOptions}
+      value={selectedOptions}
+      onChange={handleChange}
+      placeholder={nombre}
+      isMulti={true}
+      isSearchable={true}
+      minWidth="150px"
+      maxWidth="250px"
+    />
   );
 };
 

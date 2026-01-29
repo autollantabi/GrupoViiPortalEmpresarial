@@ -1,53 +1,63 @@
 import React, { useEffect, useState, useMemo } from "react";
-import Select from "react-select";
+import styled from "styled-components";
 
 import { ObtenerReporteComisionesLubricantes } from "services/contabilidadService";
 import {
   obtenerAniosDesde2020,
   transformarDataAValueLabel,
-} from "components/UI/ComponentesGenericos/Utils";
-import { TablaInfo } from "components/UI/ComponentesGenericos/TablaInfo";
-import { withPermissions } from "../../../../../hoc/withPermissions";
-import { usePermissions } from "../../../../../hooks/usePermissions";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
+} from "utils/Utils";
+import { TablaInfoUI } from "components/UI/Components/TablaInfoUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { useTheme } from "context/ThemeContext";
 
-const customStyles = {
-  // Estilos para las opciones (dentro del desplegable)
-  option: (provided, state) => ({
-    ...provided,
-    padding: "2px 10px 2px 10px", // Ajustar el padding
-    whiteSpace: "nowrap", // Evitar que el texto se divida en varias líneas
-    overflow: "hidden", // Ocultar el texto que sobrepasa
-    textOverflow: "ellipsis", // Añadir "..." cuando el texto sea demasiado largo
-    fontSize: "12px",
-  }),
-  // Estilos para el control (el select visible)
-  control: (provided) => ({
-    ...provided,
-    width: "max-content", // Ajustar el ancho del control
-    maxWidth: "250px",
-    fontSize: "12px",
-  }),
-  // Estilos para el menú (el contenedor de las opciones desplegadas)
-  menu: (provided) => ({
-    ...provided,
-    zIndex: 10,
-    width: "150px", // Asegurar que el menú también tenga el mismo ancho que el control
-    fontSize: "12px",
-  }),
-};
+const ContenedorPrincipal = styled.div`
+  display: flex;
+  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
+  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
+  align-items: ${({ alignItems }) => alignItems || "flex-start"};
+  width: ${({ width }) => width || "100%"};
+  height: ${({ height }) => height || "auto"};
+  gap: ${({ gap }) => gap || "0"};
+  padding: ${({ padding }) => padding || "0"};
+`;
 
-const ComisionesLubricantesComponent = ({
-  empresasAcceso,
-  permissionsLoading,
-  routeConfig,
+const ContenedorFlex = styled.div`
+  display: flex;
+  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
+  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
+  align-items: ${({ alignItems }) => alignItems || "flex-start"};
+  width: ${({ width }) => width || "auto"};
+  height: ${({ height }) => height || "auto"};
+  gap: ${({ gap }) => gap || "0"};
+  padding: ${({ padding }) => padding || "0"};
+`;
+
+const TextoMensaje = styled.p`
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+`;
+
+const ContenedorTabla = styled.div`
+  width: 100%;
+  height: calc(100vh - 150px);
+`;
+
+export const ComisionesLubricantes = ({
+  availableCompanies = [],
+  availableLines = [],
 }) => {
-  // Obtener permisos agrupados por submódulo
-  const { permissionsByModule } = usePermissions(
-    routeConfig?.modulo,
-    routeConfig?.subModules
-  );
+  const { theme } = useTheme();
+  
+  // Convertir availableCompanies de { id, nombre } a { idempresa, empresa } para compatibilidad
+  const empresasDisponibles = useMemo(() => {
+    if (!availableCompanies || availableCompanies.length === 0) {
+      return [];
+    }
+    return availableCompanies.map(emp => ({
+      idempresa: emp.id,
+      empresa: emp.nombre,
+    }));
+  }, [availableCompanies]);
   const nombresPersonalizados = {
     // Columnas principales
     VENDEDOR: "VENDEDOR",
@@ -228,9 +238,7 @@ const ComisionesLubricantesComponent = ({
   const [mes, setMes] = useState("");
 
   const datosIniciales = async () => {
-    // const getEmpresas = await ListarEmpresas();
-    // Los permisos se obtienen automáticamente del HOC
-    const getEmpresasporPermiso = empresasAcceso || [];
+    const getEmpresasporPermiso = empresasDisponibles || [];
     const transformDataEmpresas = transformarDataAValueLabel({
       data: getEmpresasporPermiso,
       labelField: "empresa",
@@ -317,68 +325,69 @@ const ComisionesLubricantesComponent = ({
   // Verificar permisos específicos
   const tienePermiso = useMemo(() => {
     return {
-      general: empresasAcceso && empresasAcceso.length > 0,
-      consultar: empresasAcceso && empresasAcceso.length > 0,
-      exportar: empresasAcceso && empresasAcceso.length > 0,
+      general: empresasDisponibles && empresasDisponibles.length > 0,
+      consultar: empresasDisponibles && empresasDisponibles.length > 0,
+      exportar: empresasDisponibles && empresasDisponibles.length > 0,
     };
-  }, [empresasAcceso]);
+  }, [empresasDisponibles]);
 
   useEffect(() => {
     if (tienePermiso.general) {
       datosIniciales();
     }
-  }, [empresasAcceso, tienePermiso.general]);
+  }, [empresasDisponibles, tienePermiso.general]);
 
-  // Mostrar loading mientras se cargan los permisos
-  if (permissionsLoading) {
-    return (
-      <CustomContainer
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
-        height="100%"
-      >
-        <p>Cargando permisos, por favor espera...</p>
-      </CustomContainer>
-    );
-  }
+  const opcionesMeses = [
+    { value: 1, label: "Enero" },
+    { value: 2, label: "Febrero" },
+    { value: 3, label: "Marzo" },
+    { value: 4, label: "Abril" },
+    { value: 5, label: "Mayo" },
+    { value: 6, label: "Junio" },
+    { value: 7, label: "Julio" },
+    { value: 8, label: "Agosto" },
+    { value: 9, label: "Septiembre" },
+    { value: 10, label: "Octubre" },
+    { value: 11, label: "Noviembre" },
+    { value: 12, label: "Diciembre" },
+  ];
 
   // Si no hay empresas con acceso, mostrar mensaje
   if (!tienePermiso.general) {
     return (
-      <CustomContainer
+      <ContenedorPrincipal
         flexDirection="column"
         justifyContent="center"
         alignItems="center"
         width="100%"
         height="100%"
       >
-        <p>No tienes permisos para acceder a Comisiones Lubricantes.</p>
-      </CustomContainer>
+        <TextoMensaje>No tienes permisos para acceder a Comisiones Lubricantes.</TextoMensaje>
+      </ContenedorPrincipal>
     );
   }
 
   // Manejar la ordenación de columnas
   const handleSort = (column, direction) => {
-    console.log("Sorted:", column, direction);
   };
 
   return (
-    <CustomContainer
+    <ContenedorPrincipal
       flexDirection="column"
       justifyContent="flex-start"
-      alignItem="flex-start"
+      alignItems="flex-start"
       height="100%"
       width="100%"
-      style={{ padding: "0" }}
+      padding="0"
     >
-      <CustomContainer
+      <ContenedorFlex
         width="100%"
         justifyContent="flex-start"
-        style={{ gap: "10px", marginBottom: "10px" }}
+        gap="10px"
+        padding="5px"
+        style={{ marginBottom: "10px" }}
       >
-        <Select
+        <SelectUI
           options={empresas}
           value={empresaSl}
           onChange={(selectedOption) => {
@@ -386,32 +395,21 @@ const ComisionesLubricantesComponent = ({
           }}
           isSearchable={true}
           placeholder="Empresa"
-          styles={customStyles}
+          minWidth="150px"
+          maxWidth="250px"
         />
-        <Select
-          options={[
-            { value: 1, label: "Enero" },
-            { value: 2, label: "Febrero" },
-            { value: 3, label: "Marzo" },
-            { value: 4, label: "Abril" },
-            { value: 5, label: "Mayo" },
-            { value: 6, label: "Junio" },
-            { value: 7, label: "Julio" },
-            { value: 8, label: "Agosto" },
-            { value: 9, label: "Septiembre" },
-            { value: 10, label: "Octubre" },
-            { value: 11, label: "Noviembre" },
-            { value: 12, label: "Diciembre" },
-          ]}
+        <SelectUI
+          options={opcionesMeses}
           value={mes}
           onChange={(selectedOption) => {
             setMes(selectedOption);
           }}
           isSearchable={true}
           placeholder="Mes"
-          styles={customStyles}
+          minWidth="150px"
+          maxWidth="250px"
         />
-        <Select
+        <SelectUI
           options={anio}
           value={anioSl}
           onChange={(selectedOption) => {
@@ -419,21 +417,22 @@ const ComisionesLubricantesComponent = ({
           }}
           isSearchable={true}
           placeholder="Año"
-          styles={customStyles}
+          minWidth="150px"
+          maxWidth="250px"
         />
         {tienePermiso.consultar && (
-          <CustomButton
-            iconLeft={"FaSearch"}
+          <ButtonUI
+            iconLeft={"FaSistrix"}
             onClick={consultarReporte}
             style={{ padding: "5px 10px" }}
             isAsync={true}
           />
         )}
-      </CustomContainer>
+      </ContenedorFlex>
 
       {/* Tabla consolidada única */}
-      <div style={{ width: "100%", height: "calc(100vh - 150px)" }}>
-        <TablaInfo
+      <ContenedorTabla>
+        <TablaInfoUI
           data={data}
           columns={columnsConfigConsolidado}
           onSort={handleSort}
@@ -456,12 +455,7 @@ const ComisionesLubricantesComponent = ({
             "REF_TOTAL_VENTA",
           ]}
         />
-      </div>
-    </CustomContainer>
+      </ContenedorTabla>
+    </ContenedorPrincipal>
   );
 };
-
-// Exportar el componente envuelto con withPermissions
-export const ComisionesLubricantes = withPermissions(
-  ComisionesLubricantesComponent
-);

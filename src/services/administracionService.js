@@ -45,7 +45,6 @@ export async function BloquearDesbloquearUsuario({
 
     // return false;
   } catch (err) {
-    console.log(err);
     // return err;
   }
 }
@@ -91,7 +90,6 @@ export const AgregarModulo = async ({ data }) => {
 export const EliminarModulo = async ({ data }) => {
   try {
     const resp = await axiosInstance.post(`/modulo/eliminar/Modulo/`, data);
-    // console.log(resp);
 
     if (resp.status === 200) {
       return resp.data.exito;
@@ -160,3 +158,241 @@ export async function ListarEmpresasAdmin() {
     return [];
   }
 }
+
+// ----------------------  PERMISOS ---------------------
+
+export const ListarPermisos = async () => {
+  try {
+    const resp = await axiosInstanceNew.get(`/permisos`);
+    if (resp.status === 200) {
+      return {
+        success: true,
+        data: resp.data.data || resp.data,
+      };
+    }
+    return { success: false, data: [] };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message: error.response?.data?.message || "Error al listar permisos",
+    };
+  }
+};
+
+export const CrearPermiso = async ({ NOMBRE_ACCION }) => {
+  try {
+    const resp = await axiosInstanceNew.post(`/permisos`, {
+      NOMBRE_ACCION,
+    });
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Permiso creado exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al crear el permiso",
+    };
+  }
+};
+
+export const ActualizarPermiso = async ({ id, NOMBRE_ACCION }) => {
+  try {
+    const resp = await axiosInstanceNew.put(`/permisos/${id}`, {
+      NOMBRE_ACCION,
+    });
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Permiso actualizado exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al actualizar el permiso",
+    };
+  }
+};
+
+// ----------------------  ROLES ---------------------
+
+export const ListarRoles = async () => {
+  try {
+    const resp = await axiosInstanceNew.get(`/roles`);
+    if (resp.status === 200) {
+      return {
+        success: true,
+        data: resp.data.data || resp.data,
+      };
+    }
+    return { success: false, data: [] };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message: error.response?.data?.message || "Error al listar roles",
+    };
+  }
+};
+
+export const CrearRol = async ({ NOMBRE_ROL }) => {
+  try {
+    const resp = await axiosInstanceNew.post(`/roles`, {
+      NOMBRE_ROL,
+    });
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Rol creado exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al crear el rol",
+    };
+  }
+};
+
+export const ActualizarRol = async ({ id, NOMBRE_ROL }) => {
+  try {
+    const resp = await axiosInstanceNew.put(`/roles/${id}`, {
+      NOMBRE_ROL,
+    });
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Rol actualizado exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al actualizar el rol",
+    };
+  }
+};
+
+// ----------------------  PERMISOS-ROL ---------------------
+
+export const ListarPermisosRol = async () => {
+  try {
+    const resp = await axiosInstanceNew.get(`/permisos-rol`);
+    if (resp.status === 200) {
+      return {
+        success: true,
+        data: resp.data.data || resp.data,
+      };
+    }
+    return { success: false, data: [] };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message: error.response?.data?.message || "Error al listar permisos-rol",
+    };
+  }
+};
+
+export const CrearPermisoRol = async ({ ID_ROL, ID_PERMISO }) => {
+  try {
+    const resp = await axiosInstanceNew.post(`/permisos-rol`, {
+      ID_ROL,
+      ID_PERMISO,
+    });
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Relación creada exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al crear la relación",
+    };
+  }
+};
+
+export const EliminarPermisoRol = async ({ id }) => {
+  try {
+    const resp = await axiosInstanceNew.delete(`/permisos-rol/${id}`);
+    return {
+      success: true,
+      message: resp.data.message || "Relación eliminada exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al eliminar la relación",
+    };
+  }
+};
+
+// ----------------------  USUARIOS-ROL-CONTEXTO ---------------------
+
+export const ListarUsuariosRolContexto = async () => {
+  try {
+    const resp = await axiosInstanceNew.get(`/usuarios-rol-contexto`);
+    if (resp.status === 200) {
+      return {
+        success: true,
+        data: resp.data.data || resp.data,
+      };
+    }
+    return { success: false, data: [] };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message: error.response?.data?.message || "Error al listar usuarios-rol-contexto",
+    };
+  }
+};
+
+export const CrearUsuarioRolContexto = async (data) => {
+  try {
+    const resp = await axiosInstanceNew.post(`/usuarios-rol-contexto`, data);
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Usuario-rol-contexto creado exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al crear el usuario-rol-contexto",
+    };
+  }
+};
+
+export const ActualizarUsuarioRolContexto = async ({ id, ...data }) => {
+  try {
+    const resp = await axiosInstanceNew.patch(`/usuarios-rol-contexto/${id}`, data);
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Usuario-rol-contexto actualizado exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al actualizar el usuario-rol-contexto",
+    };
+  }
+};
+
+export const EliminarUsuarioRolContexto = async ({ id }) => {
+  try {
+    const resp = await axiosInstanceNew.delete(`/usuarios-rol-contexto/${id}`);
+    return {
+      success: true,
+      data: resp.data.data || resp.data,
+      message: resp.data.message || "Usuario-rol-contexto eliminado exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "Error al eliminar el usuario-rol-contexto",
+    };
+  }
+};

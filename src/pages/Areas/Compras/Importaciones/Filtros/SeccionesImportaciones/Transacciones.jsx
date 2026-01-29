@@ -3,7 +3,6 @@ import {
   ConsultarDataTransaccionesSegunPI,
   UpdateIngresoTransacciones,
 } from "services/importacionesService";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { ConfirmationDialog } from "components/common/FormComponents";
 import {
   debeEstarBloqueado,
@@ -18,19 +17,23 @@ import {
   SectionImportacionesContainer,
   SectionImportacionesTitle,
 } from "../../StylesImportaciones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomLoader } from "components/UI/CustomComponents/CustomLoader";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
-const BODEGA = ["COMPRAS", "BODEGA"];
-const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
-const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 
 export const Transacciones = ({
   datos,
   setDatos,
   actualizar,
   permisosProp,
+  rolesUsuario = [],
 }) => {
+  // Usar el rol que viene como prop (ya calculado en el router)
+  const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
+
+  const tieneRolVentas = roles.includes("usuario");
+  const tieneRolBodega = roles.includes("bodega");
+  const tieneRolJefatura = roles.includes("jefatura");
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     ESTADO_PAGO: {
@@ -87,15 +90,12 @@ export const Transacciones = ({
 
   // Estados específicos para este componente
   const [datosObtenidos, setDatosObtenidos] = useState(null);
-  const [permisosCompras, setPermisosCompras] = useState([]);
-  const [permisosComprasGerencias, setPermisosComprasGerencias] = useState([]);
-  const [permisosBodega, setPermisosBodega] = useState([]);
 
   // Verificar si se deben mostrar los controles de edición
-  // Solo COMPRAS (IMPORTACIONES) puede editar Transacciones, no GERENCIA
+  // Solo COMPRAS (ventas) puede editar Transacciones, no GERENCIA (jefatura)
   const mostrarBotonEdicion =
-    permisosComprasGerencias.length === 0 &&
-    permisosCompras.length > 0 &&
+    !tieneRolJefatura &&
+    tieneRolVentas &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   // Guardar datos
@@ -189,7 +189,6 @@ export const Transacciones = ({
         datos.EMPRESA,
         datos.NUMERO_PI
       );
-      // console.log(resDataAdicional[0]);
 
       setDatosForm((prev) => ({
         ...prev,
@@ -197,10 +196,7 @@ export const Transacciones = ({
         ESTADO_PAGO: resDataAdicional[0]?.ESTADO_DEL_PAGO || "",
       }));
 
-      // Usar permisos recibidos desde props
-      setPermisosBodega(permisosProp?.bodega || []);
-      setPermisosCompras(permisosProp?.compras || []);
-      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
+      // Los permisos ahora se basan en roles, no necesitamos setear estados
 
       // Marcar como ya inicializado
       setCargaInicial(false);
@@ -233,7 +229,11 @@ export const Transacciones = ({
           estadoImportacion,
           tieneID,
           datosIniciales,
-          { permisosCompras, permisosBodega, permisosComprasGerencias }
+          { 
+            permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+            permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+            permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : []
+          }
         );
       });
 
@@ -246,9 +246,9 @@ export const Transacciones = ({
     datosForm,
     campos,
     datosIniciales,
-    permisosCompras,
-    permisosBodega,
-    permisosComprasGerencias,
+    tieneRolVentas,
+    tieneRolBodega,
+    tieneRolJefatura,
   ]);
 
   return (
@@ -256,10 +256,10 @@ export const Transacciones = ({
       <SectionImportacionesTitle>
         TRANSACCIONES
         {mostrarBotonEdicion && (
-          <CustomButton
+          <ButtonUI
             onClick={() => setMostrarConfirmacion(true)}
             pcolor={({ theme }) => theme.colors.secondary}
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             width="35px"
             height="35px"
           />
@@ -270,7 +270,7 @@ export const Transacciones = ({
         <div
           style={{ display: "flex", justifyContent: "center", padding: "20px" }}
         >
-          <CustomLoader />
+          <LoaderUI />
         </div>
       ) : (
         <FormImportacionesGrid>
@@ -278,7 +278,10 @@ export const Transacciones = ({
             return renderizarCampoConPermisos(
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
-              { permisosCompras, permisosBodega },
+              { 
+                permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
+              },
               { siempreVisibles: [] },
               {},
               {}

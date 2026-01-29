@@ -1,7 +1,8 @@
 import styled from "styled-components";
-import { useEffect, useState } from "react";
-import { ListarImportaciones } from "services/importacionesService";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useTheme } from "context/ThemeContext";
+import { IconUI } from "components/UI/Components/IconsUI";
+import { hexToRGBA } from "utils/colors";
 
 const BODEGA = ["COMPRAS", "BODEGA"];
 const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
@@ -26,11 +27,17 @@ const TablaImp = styled.table`
     font-size: 12px;
     th {
       user-select: none;
-      background-color: ${({ theme }) => theme.colors.primary};
-      color: ${({ theme }) => theme.colors.white};
+      background-color: ${({ theme }) => 
+        theme.name === "dark"
+          ? (theme.colors.backgroundCard || theme.colors.backgroundLight)
+          : (theme.colors.secondary || "#3c3c3b")};
+      color: ${({ theme }) => 
+        theme.name === "dark"
+          ? (theme.colors.text || "#212529")
+          : (theme.colors.white || "#ffffff")};
       font-weight: 100;
       word-wrap: break-word;
-      border-right: 1px solid rgba(101, 101, 101, 0.45);
+      border-right: 1px solid ${({ theme }) => theme.colors.border};
       &:first-child {
         border-top-left-radius: 5px;
       }
@@ -42,13 +49,14 @@ const TablaImp = styled.table`
 
   & .filasTablaImportaciones {
     font-size: 12px;
+    color: ${({ theme }) => theme.colors.text};
 
     &:nth-child(odd) {
-      background-color: #ffffff; /* Blanco */
+      background-color: ${({ theme }) => theme.colors.backgroundCard};
     }
 
     &:nth-child(even) {
-      background-color: #f2f2f2; /* Gris claro */
+      background-color: ${({ theme }) => theme.colors.backgroundLight};
     }
     &:last-child {
       td:first-child {
@@ -60,21 +68,21 @@ const TablaImp = styled.table`
     }
 
     td {
-      border-right: 1px solid rgba(101, 101, 101, 0.45);
-      border-bottom: 1px solid rgba(101, 101, 101, 0.45);
+      border-right: 1px solid ${({ theme }) => theme.colors.border};
+      border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
       &:first-child {
-        border-left: 1px solid rgba(101, 101, 101, 0.45);
+        border-left: 1px solid ${({ theme }) => theme.colors.border};
       }
       &:last-child {
-        border-right: 1px solid rgba(101, 101, 101, 0.45);
+        border-right: 1px solid ${({ theme }) => theme.colors.border};
       }
     }
   }
 `;
 const FilaCustom = styled.tr`
   &.completo {
-    background-color: var(--color-fila-verde);
+    background-color: ${({ theme }) => theme.colors.successLight || hexToRGBA({ hex: theme.colors.success, alpha: 0.2 })};
   }
 `;
 const CeldaDIVCustom = styled.div`
@@ -97,20 +105,20 @@ const IndicadorIcon = styled.div`
   border-radius: 100%;
   width: 10px;
   aspect-ratio: 1;
-  background-color: white;
-  border: solid 1px black;
+  background-color: ${({ theme }) => theme.colors.white};
+  border: solid 1px ${({ theme }) => theme.colors.text};
 
   &.verde {
     border: none;
-    background-color: green;
+    background-color: ${({ theme }) => theme.colors.success};
   }
   &.amarillo {
     border: none;
-    background-color: yellow;
+    background-color: ${({ theme }) => theme.colors.warning};
   }
   &.rojo {
     border: none;
-    background-color: red;
+    background-color: ${({ theme }) => theme.colors.error};
   }
 `;
 
@@ -173,58 +181,49 @@ export const TablaImportaciones = ({
   varcambiar,
   setExcelData,
   lengthDataFiltrada,
+  availableCompanies, // Empresas disponibles del nuevo sistema de recursos
+  routeConfig,
 }) => {
-  const [dataFiltrada, setDataFiltrada] = useState(dataImportacion);
+  const { theme } = useTheme();
+  const [dataFiltrada, setDataFiltrada] = useState(dataImportacion || []);
   const [dataHeaders, setDataHeaders] = useState([]);
   const [orden, setOrden] = useState({ columna: "ATA", direccion: "desc" });
   const [permisosComprasL, setPermisosComprasL] = useState(0);
-  // console.log(dataFiltrada);
 
-  // useEffect(()=>{
-  //   consultarPermisosParaImportaciones();
-  // },[])
+  // Usar el rol específico del contexto del recurso que viene del router
+  const rolesUsuario = useMemo(() => {
+    if (routeConfig?.rolDelRecurso) {
+      return [routeConfig.rolDelRecurso];
+    }
+    return [];
+  }, [routeConfig]);
 
-  const asignarDatos = async () => {
-    // Paso 1: Obtener los datos de ListarImportaciones
-    const res1 = await ListarImportaciones();
-    let datos1 = res1;
-    // console.log(datos1);
+  // Memoizar nombres de empresas para evitar recálculos innecesarios
+  const nombresEmpresas = useMemo(() => {
+    if (availableCompanies && availableCompanies.length > 0) {
+      return availableCompanies.map(emp => emp.nombre);
+    }
+    return [];
+  }, [availableCompanies]);
 
-    // Paso 1.1:  Buscar las empresas que puede ver dependiendo de si tiene compras o bodega
-    const permisosBodega = await consultarPermisosPorModuloRuta({
-      rutaModulos: BODEGA,
-    });
-    const permisosCompras = await consultarPermisosPorModuloRuta({
-      rutaModulos: IMPORTACIONES,
-    });
-    const permisosComprasGerencias = await consultarPermisosPorModuloRuta({
-      rutaModulos: COMPRASGERENCIA,
-    });
+  const asignarDatos = useCallback(() => {
+    // Usar dataImportacion directamente (ya viene filtrado desde Importaciones.jsx)
+    if (!dataImportacion || dataImportacion.length === 0) {
+      setDataFiltrada([]);
+      lengthDataFiltrada(0);
+      setExcelData([]);
+      return;
+    }
+
+    // Paso 1: Filtrar por empresas disponibles (del nuevo sistema de recursos)
     let datosf1 = [];
-    if (permisosCompras.length > 0) {
-      const permisosComprasEmpresas = permisosCompras.map(
-        (compras) => compras.empresa
-      );
-
-      datosf1 = datos1.filter((res) =>
-        permisosComprasEmpresas.includes(res.EMPRESA)
-      );
-    } else if (permisosComprasGerencias.length > 0) {
-      const permisosComprasEmpresas = permisosComprasGerencias.map(
-        (compras) => compras.empresa
-      );
-
-      datosf1 = datos1.filter((res) =>
-        permisosComprasEmpresas.includes(res.EMPRESA)
+    if (nombresEmpresas.length > 0) {
+      datosf1 = dataImportacion.filter((res) =>
+        nombresEmpresas.includes(res.EMPRESA)
       );
     } else {
-      const permisosBodegaEmpresas = permisosBodega.map(
-        (bodega) => bodega.empresa
-      );
-
-      datosf1 = datos1.filter((res) =>
-        permisosBodegaEmpresas.includes(res.EMPRESA)
-      );
+      // Si no hay empresas disponibles, no mostrar datos
+      datosf1 = [];
     }
 
     // Paso 2: Validar Estado Importación Data
@@ -360,10 +359,9 @@ export const TablaImportaciones = ({
     }
 
     // Actualizar data filtrada
-    lengthDataFiltrada(dataTemporal?.length);
     setDataFiltrada(dataTemporal);
     setExcelData(dataTemporal);
-  };
+  }, [dataImportacion, nombresEmpresas, filtrosActivos, filtroGlobal, orden, setExcelData]);
 
   const establecerImportacionEditar = (item) => {
     editarRegistro(true);
@@ -385,9 +383,9 @@ export const TablaImportaciones = ({
           {nombre}{" "}
           {orden.columna === campo &&
             (orden.direccion === "asc" ? (
-              <i className="bi bi-sort-down-alt"></i>
+              <IconUI name="FaSortDown" size={12} color={theme.name === "dark" ? theme.colors.text : theme.colors.white} />
             ) : (
-              <i className="bi bi-sort-up"></i>
+              <IconUI name="FaSortUp" size={12} color={theme.name === "dark" ? theme.colors.text : theme.colors.white} />
             ))}
         </ContendorHeader>
       </th>
@@ -406,7 +404,6 @@ export const TablaImportaciones = ({
     const hoy = new Date();
     const etd = new Date(fecha);
     const diasDiferencia = diferenciaDias(hoy, etd);
-    // console.log(diasDiferencia)
 
     // Establece el número máximo de días para el rango de colores
     const maxDias = 30; // ajusta según sea necesario
@@ -435,7 +432,14 @@ export const TablaImportaciones = ({
 
   useEffect(() => {
     asignarDatos();
-  }, [filtrosActivos, filtroGlobal, varcambiar, dataImportacion, orden]);
+  }, [asignarDatos]);
+
+  // Actualizar el contador de registros filtrados por separado para evitar bucles
+  useEffect(() => {
+    if (dataFiltrada) {
+      lengthDataFiltrada(dataFiltrada.length);
+    }
+  }, [dataFiltrada, lengthDataFiltrada]);
 
   const formatearNumeros = (value) => {
     const numericValue = parseFloat(value.toString().replace(/,/g, ""));
@@ -450,20 +454,17 @@ export const TablaImportaciones = ({
   };
 
   useEffect(() => {
-    const fetchDataHeaders = async () => {
-      const permisosCompras = await consultarPermisosPorModuloRuta({
-        rutaModulos: IMPORTACIONES,
-      });
-      const permisosComprasGerencia = await consultarPermisosPorModuloRuta({
-        rutaModulos: COMPRASGERENCIA,
-      });
+    const fetchDataHeaders = () => {
+      // Verificar roles del usuario para determinar qué columnas mostrar
+      const tieneRolVentas = rolesUsuario.includes("usuario");
+      const tieneRolJefatura = rolesUsuario.includes("jefatura");
+      const tieneRolBodega = rolesUsuario.includes("bodega");
 
-      if (permisosCompras.length > 0 || permisosComprasGerencia.length > 0) {
+      if (tieneRolVentas || tieneRolJefatura) {
         // Determinar las empresas a las que tiene acceso
-        const empresasPermitidas =
-          permisosCompras.length > 0
-            ? permisosCompras.map((compras) => compras.empresa)
-            : permisosComprasGerencia.map((compras) => compras.empresa);
+        const empresasPermitidas = availableCompanies
+          ? availableCompanies.map((emp) => emp.nombre)
+          : [];
 
         // Verificar si tiene acceso a AUTOMAX
         const tieneAutomax = empresasPermitidas.includes("AUTOMAX");
@@ -494,17 +495,18 @@ export const TablaImportaciones = ({
         columnasDinamicas = [...columnasDinamicas, ...columnasFinales];
 
         setDataHeaders(columnasDinamicas);
-        setPermisosComprasL(
-          permisosCompras.length || permisosComprasGerencia.length
-        );
-      } else {
+        setPermisosComprasL(1);
+      } else if (tieneRolBodega) {
         // Para usuarios de bodega mantener las columnas originales
         setDataHeaders(dataHeadersBodega);
+      } else {
+        // Por defecto, usar columnas básicas
+        setDataHeaders(columnasBasicasCompras);
       }
     };
 
     fetchDataHeaders();
-  }, []);
+  }, [availableCompanies, rolesUsuario]);
 
   return (
     <ContenedorPrincipal style={{ flexDirection: "column" }}>
@@ -694,20 +696,22 @@ export const TablaImportaciones = ({
 
                 {/* Botón de edición siempre al final */}
                 <td
-                  style={{ cursor: "pointer", userSelect: "none" }}
+                  style={{ 
+                    cursor: "pointer", 
+                    userSelect: "none",
+                    textAlign: "center",
+                    verticalAlign: "middle",
+                    padding: "8px"
+                  }}
                   onClick={() => establecerImportacionEditar(item)}
                 >
-                  <div>
-                    <i
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "800",
-                        width: "25px",
-                        height: "25px",
-                        color: "black",
-                      }}
-                      className="bi bi-pencil-square"
-                    ></i>
+                  <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                    <IconUI 
+                      name="FaPenToSquare" 
+                      size={18} 
+                      color={theme.colors.textSecondary || theme.colors.text}
+                      style={{ transition: "all 0.2s ease" }}
+                    />
                   </div>
                 </td>
               </FilaCustom>

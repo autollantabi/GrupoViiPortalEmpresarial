@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { useTheme } from "context/ThemeContext";
 import { hexToRGBA } from "utils/colors";
 
@@ -11,6 +11,7 @@ import {
   ListarPermisosUsuario,
   UpdatePermisoUsuario,
 } from "services/administracionService";
+import IconUI from "components/UI/Components/IconsUI";
 
 // Empresas disponibles
 const availableCompanies = [
@@ -56,7 +57,6 @@ const combinarModulosPermisos = (modulos, permisosUsuario) => {
       modulosMap[modulo.PADRE].children.push(modulo);
     }
   });
-  //   console.log(roots);
 
   return roots; // Devolver la estructura del árbol
 };
@@ -109,15 +109,9 @@ const PermisoNode = ({
         }}
       >
         {node.PADRE === 0 ? (
-          <i
-            className="bi bi-folder-fill"
-            style={{ color: theme.colors.primary }}
-          ></i>
+          <IconUI name="FaFolder" size={14} color={theme.colors.text} />
         ) : (
-          <i
-            className="bi bi-arrow-return-right"
-            style={{ color: theme.colors.textSecondary }}
-          ></i>
+          <IconUI name="FaAngleRight" size={14} color={theme.colors.text} />
         )}
       </span>
 
@@ -134,7 +128,7 @@ const PermisoNode = ({
             {node.MODULO}
           </strong>
           {!hasChildren && empresasDisponibles.length > 0 && (
-            <CustomSelect
+            <SelectUI
               placeholder="Agregar Empresa"
               options={empresasDisponibles}
               onChange={handleAgregarEmpresa}
@@ -185,7 +179,7 @@ const PermisoNode = ({
                   >
                     {empresa}
                   </strong>
-                  <CustomButton
+                  <ButtonUI
                     iconLeft="FaTrash"
                     onClick={() => onRemoveCompany(node.IDENTIFICADOR, empresa)}
                     pcolor={theme.colors.error}
@@ -199,7 +193,7 @@ const PermisoNode = ({
                     width: "100%",
                   }}
                 >
-                  <CustomButton
+                  <ButtonUI
                     text="Lectura"
                     onClick={() =>
                       handleCambiarPermiso(empresa, {
@@ -219,7 +213,7 @@ const PermisoNode = ({
                       opacity: permiso === "L" ? 1 : 0.7,
                     }}
                   />
-                  <CustomButton
+                  <ButtonUI
                     text="Escritura"
                     onClick={() =>
                       handleCambiarPermiso(empresa, {

@@ -3,18 +3,77 @@ import styled from "styled-components";
 import { CampoFiltro, CampoFiltroporFecha } from "./Filtros/Filtros";
 import { FiltroGlobalDesplegable } from "./Filtros/FiltroGlobalDesplegable";
 import { TablaImportaciones } from "./Filtros/TablaImportaciones";
-import { ExportToExcel } from "components/UI/Componentes/ExportarAExcel";
+import { ExportToExcelUI } from "components/UI/Components/ExportarAExcelUI";
 import { CreacionRegistro } from "./Filtros/CreacionRegistro";
 import { VentanaEdicionImportacion } from "./Filtros/VentanaEdicionImportacion";
 import {
   EjecutarBatImportaciones,
   ListarImportaciones,
 } from "services/importacionesService";
-import { withPermissions } from "../../../../hoc/withPermissions";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { usePermissions } from "../../../../hooks/usePermissions";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { useTheme } from "context/ThemeContext";
+import { useAuthContext } from "context/authContext";
 
-// Este componente maneja múltiples submódulos: IMPORTACIONES, BODEGA, COMPRAS-GERENCIA
+
+// Estilos
+const ContenedorPrincipal = styled.div`
+  display: flex;
+  align-items: start;
+  justify-content: start;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  position: relative;
+`;
+
+const ContenedorFiltrosP = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row;
+  padding: 5px;
+  border-bottom: solid 1px ${({ theme }) => theme.colors.border || "#cfcfcf"};
+  width: 100%;
+  gap: 15px;
+`;
+
+const ContenedorFiltros = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: start;
+  flex-direction: row;
+  gap: 10px;
+`;
+
+const ContenedorTabla = styled.div`
+  display: flex;
+  align-items: start;
+  justify-content: start;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+`;
+
+const TextoMensaje = styled.p`
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+`;
+
+const TextoNoData = styled.span`
+  width: 100%;
+  text-align: center;
+  padding-top: 15px;
+  color: ${({ theme }) => theme.colors.textSecondary || "#6c757d"};
+`;
+
+const TextoRegistros = styled.span`
+  font-size: 14px;
+  color: ${({ theme }) => theme.colors.primary || "#fd4703"};
+`;
+
+
+// Este componente maneja múltiples roles: ventas (IMPORTACIONES), bodega (BODEGA), jefatura (COMPRAS-GERENCIA)
 
 const EXCEL_CONFIG = {
   datosOcultos: [
@@ -80,16 +139,33 @@ const EXCEL_CONFIG = {
 };
 
 // Componente principal de Importaciones
-const ImportacionesComponent = ({
-  empresasAcceso,
-  permissionsLoading,
+export const Importaciones = ({
   routeConfig,
+  availableCompanies, // Del nuevo sistema de recursos (ProtectedContent)
+  availableLines, // Del nuevo sistema de recursos (ProtectedContent)
 }) => {
-  // Obtener permisos agrupados por submódulo
-  const { permissionsByModule } = usePermissions(
-    routeConfig?.modulo,
-    routeConfig?.subModules
-  );
+  const { theme } = useTheme();
+  const { user } = useAuthContext();
+
+  // Convertir availableCompanies al formato esperado
+  const empresasDisponibles = useMemo(() => {
+    if (availableCompanies && availableCompanies.length > 0) {
+      // Convertir { id, nombre } a { empresa: nombre, idempresa: id } para compatibilidad
+      return availableCompanies.map(emp => ({
+        empresa: emp.nombre,
+        idempresa: emp.id,
+      }));
+    }
+    return [];
+  }, [availableCompanies]);
+
+  // Usar el rol específico del contexto del recurso que viene del router
+  const rolesUsuario = useMemo(() => {
+    if (routeConfig?.rolDelRecurso) {
+      return [routeConfig.rolDelRecurso];
+    }
+    return [];
+  }, [routeConfig]);
   // Estados para datos y filtros
   const [importacionesData, setImportacionesData] = useState([]);
   const [datosFiltradosExcel, setDatosFiltradosExcel] = useState([]);
@@ -264,7 +340,7 @@ const ImportacionesComponent = ({
     cerrarModales();
   }, [cargarImportaciones, cerrarModales]);
 
-  // Los permisos se cargan automáticamente con withPermissions
+  // Los permisos vienen de routeConfig inyectado por SimpleRouter
 
   // Función para verificar ID en URL
   const verificarIdEnURL = useCallback(() => {
@@ -294,19 +370,20 @@ const ImportacionesComponent = ({
     };
   }, [importacionesData, extractUniqueValues]);
 
-  // Verificar permisos específicos por submódulo
+  // Verificar permisos específicos por rol
+  // Mapeo: ventas → IMPORTACIONES, bodega → BODEGA, jefatura → COMPRAS-GERENCIA
   const tienePermiso = useMemo(() => {
     return {
-      // Permiso para IMPORTACIONES (crear, editar, exportar)
-      importaciones: permissionsByModule?.["IMPORTACIONES"]?.length > 0,
-      // Permiso para BODEGA (solo visualización)
-      bodega: permissionsByModule?.["BODEGA"]?.length > 0,
-      // Permiso para COMPRAS-GERENCIA (visualización avanzada)
-      comprasGerencia: permissionsByModule?.["COMPRAS-GERENCIA"]?.length > 0,
-      // Si tiene cualquier permiso
-      cualquierPermiso: empresasAcceso && empresasAcceso.length > 0,
+      // Permiso para IMPORTACIONES (crear, editar, exportar) - rol: ventas
+      importaciones: rolesUsuario.includes("usuario"),
+      // Permiso para BODEGA (solo visualización) - rol: bodega
+      bodega: rolesUsuario.includes("bodega"),
+      // Permiso para COMPRAS-GERENCIA (visualización avanzada) - rol: jefatura
+      comprasGerencia: rolesUsuario.includes("jefatura"),
+      // Si tiene cualquier permiso (tiene empresas disponibles)
+      cualquierPermiso: empresasDisponibles && empresasDisponibles.length > 0,
     };
-  }, [permissionsByModule, empresasAcceso]);
+  }, [rolesUsuario, empresasDisponibles]);
 
   // Efectos
   useEffect(() => {
@@ -314,20 +391,11 @@ const ImportacionesComponent = ({
     cargarImportaciones();
   }, [verificarIdEnURL, cargarImportaciones]);
 
-  // Mostrar loading mientras se cargan los permisos
-  if (permissionsLoading) {
-    return (
-      <ContenedorPrincipal>
-        <p>Cargando permisos, por favor espera...</p>
-      </ContenedorPrincipal>
-    );
-  }
-
   // Si no hay empresas con acceso, mostrar mensaje
-  if (!empresasAcceso || empresasAcceso.length === 0) {
+  if (!empresasDisponibles || empresasDisponibles.length === 0) {
     return (
       <ContenedorPrincipal>
-        <p>No tienes permisos para acceder a las importaciones.</p>
+        <TextoMensaje>No tienes permisos para acceder a las importaciones.</TextoMensaje>
       </ContenedorPrincipal>
     );
   }
@@ -353,6 +421,7 @@ const ImportacionesComponent = ({
           }
           dataImportacion={modalConfig.idImportacionEditar}
           actualizarTabla={cargarImportaciones}
+          routeConfig={routeConfig}
         />
       )}
 
@@ -431,7 +500,7 @@ const ImportacionesComponent = ({
 
           {/* Botón de exportar a Excel - requiere permiso de IMPORTACIONES o COMPRAS-GERENCIA */}
           {(tienePermiso.importaciones || tienePermiso.comprasGerencia) && (
-            <ExportToExcel
+            <ExportToExcelUI
               columnasOcultas={EXCEL_CONFIG.datosOcultos}
               nombresPersonalizados={EXCEL_CONFIG.nombresPersonalizados}
               filaFinal={[]}
@@ -443,16 +512,19 @@ const ImportacionesComponent = ({
         </ContenedorFiltros>
 
         <ContenedorFiltros>
-          <CustomButton
-            iconLeft={"FaSyncAlt"}
+          <ButtonUI
+            iconLeft={"FaArrowsRotate"}
             onClick={ejecutarBatImportaciones}
           />
 
           {/* Botón Nuevo Registro - solo para IMPORTACIONES */}
           {tienePermiso.importaciones && (
-            <BotonCrearNuevo onClick={abrirModalCrear}>
-              <span style={{ color: "white" }}>Nuevo Registro +</span>
-            </BotonCrearNuevo>
+            <ButtonUI
+              text="Nuevo Registro +"
+              onClick={abrirModalCrear}
+              pcolor={theme.colors.primary}
+              pcolortext={theme.colors.white}
+            />
           )}
         </ContenedorFiltros>
       </ContenedorFiltrosP>
@@ -480,76 +552,20 @@ const ImportacionesComponent = ({
             varcambiar={contadorActualizaciones}
             setExcelData={setDatosFiltradosExcel}
             lengthDataFiltrada={setCantidadRegistrosFiltrados}
+            availableCompanies={availableCompanies}
+            routeConfig={routeConfig}
           />
         ) : (
-          <span
-            style={{ width: "100%", textAlign: "center", paddingTop: "15px" }}
-          >
+          <TextoNoData>
             NO DATA
-          </span>
+          </TextoNoData>
         )}
       </ContenedorTabla>
 
-      <span style={{ fontSize: "14px", color: "var(--primary)" }}>
+      <TextoRegistros>
         Registros: {cantidadRegistrosFiltrados} de {importacionesData?.length}
-      </span>
+      </TextoRegistros>
     </ContenedorPrincipal>
   );
 };
 
-// Exportar el componente envuelto con withPermissions
-export const Importaciones = withPermissions(ImportacionesComponent);
-
-// Estilos
-const ContenedorPrincipal = styled.div`
-  display: flex;
-  align-items: start;
-  justify-content: start;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  position: relative;
-`;
-
-const ContenedorFiltrosP = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  flex-direction: row;
-  padding: 5px;
-  border-bottom: solid 1px #cfcfcf;
-  width: 100%;
-  gap: 15px;
-`;
-
-const ContenedorFiltros = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: start;
-  flex-direction: row;
-  gap: 10px;
-`;
-
-const BotonCrearNuevo = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
-  padding: 3px 10px;
-  gap: 1px;
-  font-size: 14px;
-  background-color: var(--primary);
-  cursor: pointer;
-  color: "white";
-`;
-
-const ContenedorTabla = styled.div`
-  display: flex;
-  align-items: start;
-  justify-content: start;
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-`;

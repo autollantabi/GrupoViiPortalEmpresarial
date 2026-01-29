@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { UpdatePermisosImportacion } from "services/importacionesService";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { FormRow, ConfirmationDialog } from "components/common/FormComponents";
 import {
   actualizarDatosTrasGuardado,
@@ -14,19 +13,23 @@ import {
   SectionImportacionesContainer,
   SectionImportacionesTitle,
 } from "../../StylesImportaciones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomLoader } from "components/UI/CustomComponents/CustomLoader";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
-const BODEGA = ["COMPRAS", "BODEGA"];
-const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
-const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 
 export const PermisosImportacion = ({
   datos,
   setDatos,
   actualizar,
   permisosProp,
+  rolesUsuario = [],
 }) => {
+  // Usar el rol que viene como prop (ya calculado en el router)
+  const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
+
+  const tieneRolVentas = roles.includes("usuario");
+  const tieneRolBodega = roles.includes("bodega");
+  const tieneRolJefatura = roles.includes("jefatura");
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     POLIZA: {
@@ -125,9 +128,6 @@ export const PermisosImportacion = ({
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [actualizacionExitosa, setActualizacionExitosa] = useState(0);
 
-  const [permisosBodega, setPermisosBodega] = useState([]);
-  const [permisosCompras, setPermisosCompras] = useState([]);
-  const [permisosComprasGerencias, setPermisosComprasGerencias] = useState([]);
 
   // Cerrar confirmación y actualizar
   const handleConfirmationSuccess = () => {
@@ -137,10 +137,10 @@ export const PermisosImportacion = ({
   };
 
   // Verificar si se deben mostrar los controles de edición
-  // Solo COMPRAS (IMPORTACIONES) puede editar Permisos Importación, no GERENCIA
+  // Solo COMPRAS (ventas) puede editar Permisos Importación, no GERENCIA (jefatura)
   const mostrarBotonEdicion =
-    permisosComprasGerencias.length === 0 &&
-    permisosCompras.length > 0 &&
+    !tieneRolJefatura &&
+    tieneRolVentas &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   // Guardar datos
@@ -155,15 +155,6 @@ export const PermisosImportacion = ({
       const per_ECA = datosForm.PERMISOS_ECA || null;
       const per_MINSA = datosForm.PERMISOS_MINSA || null;
       const per_FAD = datosForm.PERMISOS_FAD || null;
-      // console.log("Datos a actualizar:", {
-      //   id,
-      //   poliza,
-      //   valor_poliza,
-      //   per_INEN,
-      //   per_ECA,
-      //   per_MINSA,
-      //   per_FAD,
-      // });
 
       const res = await UpdatePermisosImportacion({
         id,
@@ -221,10 +212,7 @@ export const PermisosImportacion = ({
       );
       setDatosForm(initialData);
 
-      // Usar permisos recibidos desde props
-      setPermisosBodega(permisosProp?.bodega || []);
-      setPermisosCompras(permisosProp?.compras || []);
-      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
+      // Los permisos ahora se basan en roles, no necesitamos setear estados
 
       // Marcar como ya inicializado
       setCargaInicial(false);
@@ -257,7 +245,11 @@ export const PermisosImportacion = ({
           estadoImportacion,
           tieneID,
           datosIniciales,
-          { permisosCompras, permisosBodega, permisosComprasGerencias }
+          { 
+            permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+            permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+            permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : []
+          }
         );
       });
 
@@ -270,9 +262,9 @@ export const PermisosImportacion = ({
     datosForm,
     campos,
     datosIniciales,
-    permisosCompras,
-    permisosBodega,
-    permisosComprasGerencias,
+    tieneRolVentas,
+    tieneRolBodega,
+    tieneRolJefatura,
   ]);
 
   return (
@@ -280,10 +272,10 @@ export const PermisosImportacion = ({
       <SectionImportacionesTitle>
         PERMISOS IMPORTACIÓN
         {mostrarBotonEdicion && (
-          <CustomButton
+          <ButtonUI
             onClick={() => setMostrarConfirmacion(true)}
             pcolor={({ theme }) => theme.colors.secondary}
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             width="35px"
             height="35px"
           />
@@ -294,7 +286,7 @@ export const PermisosImportacion = ({
         <div
           style={{ display: "flex", justifyContent: "center", padding: "20px" }}
         >
-          <CustomLoader />
+          <LoaderUI />
         </div>
       ) : (
         <FormImportacionesGrid>
@@ -302,7 +294,10 @@ export const PermisosImportacion = ({
             return renderizarCampoConPermisos(
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
-              { permisosCompras, permisosBodega },
+              { 
+                permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
+              },
               { siempreVisibles: [] },
               {},
               {}

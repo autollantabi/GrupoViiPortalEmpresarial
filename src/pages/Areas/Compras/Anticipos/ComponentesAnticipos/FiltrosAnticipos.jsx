@@ -1,5 +1,7 @@
 import styled from "styled-components";
 import { useState } from "react";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { useTheme } from "context/ThemeContext";
 
 const ContainerP = styled.div`
   display: flex;
@@ -20,16 +22,16 @@ const DropdownButton = styled.div`
   align-items: ${(props) => (props.selected ? "start" : "center")};
   gap: ${(props) => (props.selected ? "0px" : "5px")};
   background-color: ${(props) =>
-    props.selected ? "var(--secondary)" : "#f0f0f0"};
-  color: ${(props) => (props.selected ? "var(--color-perla)" : "#000")};
+    props.selected ? props.theme.colors.primary : props.theme.colors.backgroundLight};
+  color: ${(props) => (props.selected ? props.theme.colors.white : props.theme.colors.text)};
   flex-direction: ${(props) => (props.selected ? "column" : "row")};
   height: auto;
-  border: 1px solid #ddd;
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 5px;
   transition: all 0.3s ease;
 `;
 const TituloFiltro = styled.span`
-  color: ${(props) => (props.selected ? "var(--color-perla)" : "#000")};
+  color: ${(props) => (props.selected ? props.theme.colors.white : props.theme.colors.text)};
   font-size: ${(props) => (props.selected ? "11px" : "14px")};
   font-weight: 500;
   &.fechas {
@@ -82,12 +84,13 @@ const DropdownContent = styled.div`
 const DropdownContent1 = styled.div`
   display: none;
   position: absolute;
-  background-color: #f9f9f9;
+  background-color: ${({ theme }) => theme.colors.selectMenuBackground || theme.colors.backgroundCard || "#ffffff"};
   min-width: 200px;
-  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0px 8px 16px 0px rgba(0, 0, 0, 0.2)"};
   padding: 2px 2px;
   border-radius: 8px;
   z-index: 2;
+  border: 1px solid ${({ theme }) => theme.colors.border};
 
   ${DropdownContainer}:hover & {
     display: flex;
@@ -121,15 +124,16 @@ const Option1 = styled.div`
   width: 100%;
   user-select: none;
   text-align: center;
+  color: ${({ theme }) => theme.colors.text};
   &.select {
-    background-color: var(--secondary);
-    color: white;
+    background-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.white};
   }
   &.select:hover {
-    background-color: var(--secondary);
+    background-color: ${({ theme }) => theme.colors.primary};
   }
   &:hover {
-    background-color: #e9e9e9;
+    background-color: ${({ theme }) => theme.colors.selectOptionHover || theme.colors.hover || "#e9e9e9"};
   }
 `;
 
@@ -150,72 +154,40 @@ const YearSelector = styled.div`
   margin-top: 10px;
 `;
 export const CampoFiltro = ({ options, onChange, nombreColumnaFiltro, nombre }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState([]);
 
-  const handleButtonClickTodos = () => {
-    setSelectedOptions(options);
-    onChange(nombreColumnaFiltro, options.map((opt) => opt.name).join(", "));
+  // Convertir options al formato que SelectUI espera (value, label)
+  const selectOptions = options.map((opt) => ({
+    value: opt.value,
+    label: opt.name,
+  }));
+
+  const handleChange = (selected) => {
+    // selected puede ser null, un objeto o un array dependiendo de isMulti
+    const selectedArray = selected ? (Array.isArray(selected) ? selected : [selected]) : [];
+    setSelectedOptions(selectedArray);
+    
+    // Convertir a string con nombres separados por "; " para mantener compatibilidad con Anticipos
+    const nombresString = selectedArray.map((opt) => opt.label).join("; ");
+    onChange(nombreColumnaFiltro, nombresString);
   };
-  const handleButtonClickLimpiar = () => {
-    setSelectedOptions([]);
-    onChange(nombreColumnaFiltro, "");
-  };
-
-  const handleOptionClick = (option) => {
-    const isAlreadySelected = selectedOptions.some(
-      (selected) => selected.value === option.value
-    );
-    const newSelectedOptions = isAlreadySelected
-      ? selectedOptions.filter((selected) => selected.value !== option.value)
-      : [...selectedOptions, option];
-
-    setSelectedOptions(newSelectedOptions);
-
-    // Llama a onChange con todas las opciones seleccionadas, excluyendo "Todos" y "Limpiar"
-    onChange(nombreColumnaFiltro, newSelectedOptions.map((opt) => opt.name).join(", "));
-  };
-
-  const isSelected = (option) =>
-    selectedOptions.some((selected) => selected.value === option.value);
 
   return (
-    <DropdownContainer
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <DropdownButton selected={selectedOptions.length > 0}>
-        <TituloFiltro selected={selectedOptions.length > 0}>
-          {nombre}
-        </TituloFiltro>
-        {selectedOptions.length > 0
-          ? selectedOptions.map((opt) => opt.name).join(", ")
-          : "⌵"}
-      </DropdownButton>
-
-      {isOpen && (
-        <DropdownContent>
-          <ContendorBotonesFiltro>
-            <BotonesFiltro onClick={() => handleButtonClickTodos()}>
-              Todos
-            </BotonesFiltro>
-            <BotonesFiltro onClick={() => handleButtonClickLimpiar()}>
-              Limpiar
-            </BotonesFiltro>
-          </ContendorBotonesFiltro>
-          {[...options].map((option, index) => (
-            <Option key={index} onClick={() => handleOptionClick(option)}>
-              <span>{option.name}</span>
-              <span>{isSelected(option) ? " ✓" : ""}</span>
-            </Option>
-          ))}
-        </DropdownContent>
-      )}
-    </DropdownContainer>
+    <SelectUI
+      options={selectOptions}
+      value={selectedOptions}
+      onChange={handleChange}
+      placeholder={nombre}
+      isMulti={true}
+      isSearchable={true}
+      minWidth="150px"
+      maxWidth="250px"
+    />
   );
 };
 
 export const CampoFiltroporFecha = ({ numFiltro, onChange, nombre }) => {
+  const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedYear, setSelectedYear] = useState(null);
@@ -274,7 +246,13 @@ export const CampoFiltroporFecha = ({ numFiltro, onChange, nombre }) => {
               </Option1>
             ))}
           </GridContainer>
-          <hr style={{ width: "75%", margin: "0" }} />
+          <hr style={{ 
+            width: "75%", 
+            margin: "0",
+            borderColor: theme.colors.border,
+            borderStyle: "solid",
+            borderWidth: "1px 0 0 0"
+          }} />
           <YearSelector>
             {years.map((year) => (
               <Option1

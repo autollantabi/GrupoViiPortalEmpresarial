@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
-import Select from "react-select";
+import styled from "styled-components";
 
-import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
-import { withPermissions } from "../../../../../hoc/withPermissions";
-import { usePermissions } from "../../../../../hooks/usePermissions";
-import { TablaGeneralizada } from "components/UI/ComponentesGenericos/TablaInputs";
+import { TablaInputsUI } from "components/UI/Components/TablaInputsUI";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { useTheme } from "context/ThemeContext";
 
 import {
   ObtenerCategoriasSubcategoriasTecnicentro,
@@ -14,46 +13,56 @@ import {
 import {
   obtenerAniosDesde2020,
   transformarDataAValueLabel,
-} from "components/UI/ComponentesGenericos/Utils";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
+} from "utils/Utils";
 
-const customStyles = {
-  // Estilos para las opciones (dentro del desplegable)
-  option: (provided, state) => ({
-    ...provided,
-    padding: "2px 10px 2px 10px", // Ajustar el padding
-    whiteSpace: "nowrap", // Evitar que el texto se divida en varias líneas
-    overflow: "hidden", // Ocultar el texto que sobrepasa
-    textOverflow: "ellipsis", // Añadir "..." cuando el texto sea demasiado largo
-    fontSize: "12px",
-  }),
-  // Estilos para el control (el select visible)
-  control: (provided) => ({
-    ...provided,
-    width: "max-content", // Ajustar el ancho del control
-    maxWidth: "250px",
-    fontSize: "12px",
-  }),
-  // Estilos para el menú (el contenedor de las opciones desplegadas)
-  menu: (provided) => ({
-    ...provided,
-    zIndex: 10,
-    width: "150px", // Asegurar que el menú también tenga el mismo ancho que el control
-    fontSize: "12px",
-  }),
-};
+const ContenedorPrincipal = styled.div`
+  display: flex;
+  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
+  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
+  align-items: ${({ alignItems }) => alignItems || "flex-start"};
+  width: ${({ width }) => width || "100%"};
+  height: ${({ height }) => height || "auto"};
+  gap: ${({ gap }) => gap || "0"};
+  padding: ${({ padding }) => padding || "0"};
+`;
 
-const CategoriasProductosTecnicentroComponent = ({
-  empresasAcceso,
-  permissionsLoading,
+const ContenedorFlex = styled.div`
+  display: flex;
+  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
+  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
+  align-items: ${({ alignItems }) => alignItems || "flex-start"};
+  width: ${({ width }) => width || "auto"};
+  height: ${({ height }) => height || "auto"};
+  gap: ${({ gap }) => gap || "0"};
+  padding: ${({ padding }) => padding || "0"};
+  background-color: ${({ backgroundColor, theme }) => 
+    backgroundColor || "transparent"};
+`;
+
+const Separador = styled.div`
+  width: 100%;
+  height: 2px;
+  background-color: ${({ theme }) => theme.colors.border || "#dee2e6"};
+  opacity: 0.5;
+`;
+
+const TextoTitulo = styled.span`
+  align-self: flex-start;
+  padding-left: 5px;
+  font-size: 20px;
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+`;
+
+const TextoMensaje = styled.p`
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+`;
+
+export const CategoriasProductosTecnicentro = ({
   routeConfig,
+  availableCompanies = [],
+  availableLines = [],
 }) => {
-  // Obtener permisos agrupados por submódulo
-  const { permissionsByModule } = usePermissions(
-    routeConfig?.modulo,
-    routeConfig?.subModules
-  );
-  const [permisosSeccion, setPermisosSeccion] = useState([]);
+  const { theme } = useTheme();
   const [isConfigLoaded, setIsConfigLoaded] = useState(false); // Indica si la configuración está cargada
   const [anio, setAnio] = useState("");
   const [anioSl, setAnioSl] = useState("");
@@ -122,7 +131,6 @@ const CategoriasProductosTecnicentroComponent = ({
         mes,
         anio,
       });
-      console.log(datosProductosTecnicentro);
 
       // Validar que la respuesta sea un array
       if (
@@ -206,25 +214,59 @@ const CategoriasProductosTecnicentroComponent = ({
   //   return fileN;
   // };
 
-  // Verificar permisos específicos
-  const tienePermiso = useMemo(() => {
-    return {
-      general: empresasAcceso && empresasAcceso.length > 0,
-      editar: empresasAcceso && empresasAcceso.length > 0,
-      consultar: empresasAcceso && empresasAcceso.length > 0,
-    };
-  }, [empresasAcceso]);
+  // Usar availableCompanies de routeConfig si está disponible, sino usar las props
+  const companiesSource = useMemo(() => {
+    return routeConfig?.availableCompanies || availableCompanies;
+  }, [routeConfig?.availableCompanies, availableCompanies]);
 
-  useEffect(() => {
-    const cargarDatosIniciales = async () => {
-      // Los permisos se obtienen automáticamente del HOC
-      setPermisosSeccion(empresasAcceso || []);
-    };
-
-    if (tienePermiso.general) {
-      cargarDatosIniciales();
+  // Convertir availableCompanies de { id, nombre } a { idempresa, empresa } para compatibilidad
+  const empresasDisponibles = useMemo(() => {
+    if (!companiesSource || companiesSource.length === 0) {
+      return [];
     }
-  }, [empresasAcceso, tienePermiso.general]);
+    return companiesSource.map(emp => ({
+      idempresa: emp.id,
+      empresa: emp.nombre,
+    }));
+  }, [companiesSource]);
+
+  // Verificar que AUTOLLANTA esté en las empresas disponibles (requerido para Tecnicentro)
+  const tieneAccesoAutoLLanta = useMemo(() => {
+    return empresasDisponibles.some(emp => emp.empresa === "AUTOLLANTA");
+  }, [empresasDisponibles]);
+
+  // Obtener el rol del recurso para determinar el tipo de permiso
+  const rolDelRecurso = useMemo(() => {
+    return routeConfig?.rolDelRecurso || null;
+  }, [routeConfig?.rolDelRecurso]);
+
+  // Transformar empresasDisponibles al formato que espera TablaInputsUI
+  // Necesita: { empresa: string, permiso: "E" | "C" }
+  // Si el rol es "jefatura" → permiso "E" (editar), sino → permiso "C" (consultar)
+  const permisosFormateados = useMemo(() => {
+    if (!empresasDisponibles || empresasDisponibles.length === 0) {
+      return [];
+    }
+    const tipoPermiso = rolDelRecurso === "jefatura" ? "E" : "C";
+    return empresasDisponibles.map(emp => ({
+      empresa: emp.empresa,
+      permiso: tipoPermiso,
+      idempresa: emp.idempresa, // Mantener idempresa por si se necesita
+    }));
+  }, [empresasDisponibles, rolDelRecurso]);
+
+  // Verificar permisos específicos
+  // Para Tecnicentro, se requiere acceso a AUTOLLANTA específicamente
+  // Solo jefatura puede editar, otros roles solo consultan
+  const tienePermiso = useMemo(() => {
+    const tieneAcceso = tieneAccesoAutoLLanta && empresasDisponibles && empresasDisponibles.length > 0;
+    const puedeEditar = tieneAcceso && rolDelRecurso === "jefatura";
+    return {
+      general: tieneAcceso,
+      editar: puedeEditar,
+      consultar: tieneAcceso, // Todos los que tienen acceso pueden consultar
+    };
+  }, [tieneAccesoAutoLLanta, empresasDisponibles, rolDelRecurso]);
 
   useEffect(() => {
     if (tienePermiso.general) {
@@ -234,7 +276,6 @@ const CategoriasProductosTecnicentroComponent = ({
 
   // Manejar la ordenación de columnas
   const handleSort = (column, direction) => {
-    console.log("Sorted:", column, direction);
   };
 
   // Manejar el guardado de datos
@@ -259,139 +300,107 @@ const CategoriasProductosTecnicentroComponent = ({
     return updateConf;
   };
 
-  // Mostrar loading mientras se cargan los permisos
-  if (permissionsLoading) {
-    return (
-      <CustomContainer
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
-        height="100%"
-      >
-        <p>Cargando permisos, por favor espera...</p>
-      </CustomContainer>
-    );
-  }
+  const opcionesMeses = [
+    { value: 1, label: "Enero" },
+    { value: 2, label: "Febrero" },
+    { value: 3, label: "Marzo" },
+    { value: 4, label: "Abril" },
+    { value: 5, label: "Mayo" },
+    { value: 6, label: "Junio" },
+    { value: 7, label: "Julio" },
+    { value: 8, label: "Agosto" },
+    { value: 9, label: "Septiembre" },
+    { value: 10, label: "Octubre" },
+    { value: 11, label: "Noviembre" },
+    { value: 12, label: "Diciembre" },
+  ];
 
   // Si no hay empresas con acceso, mostrar mensaje
   if (!tienePermiso.general) {
     return (
-      <CustomContainer
+      <ContenedorPrincipal
         flexDirection="column"
         justifyContent="center"
         alignItems="center"
         width="100%"
         height="100%"
       >
-        <p>
+        <TextoMensaje>
           No tienes permisos para acceder a Categorías de Productos Tecnicentro.
-        </p>
-      </CustomContainer>
+        </TextoMensaje>
+      </ContenedorPrincipal>
     );
   }
 
   return (
-    <CustomContainer
+    <ContenedorPrincipal
       justifyContent="flex-start"
       alignItems="flex-start"
       flexDirection="column"
       width="100%"
       height="100%"
-      style={{ padding: "0" }}
+      padding="0"
     >
-      <span
-        style={{
-          alignSelf: "flex-start",
-          paddingLeft: "5px",
-          fontSize: "20px",
-        }}
-      >
-        TECNICENTRO
-      </span>
+      <TextoTitulo>TECNICENTRO</TextoTitulo>
       <ContenedorFlex
-        style={{
-          padding: "5px",
-          justifyContent: "flex-start",
-          alignItems: "center",
-        }}
+        padding="5px"
+        justifyContent="flex-start"
+        alignItems="center"
+        gap="10px"
       >
-        <Select
-          options={[
-            { value: 1, label: "Enero" },
-            { value: 2, label: "Febrero" },
-            { value: 3, label: "Marzo" },
-            { value: 4, label: "Abril" },
-            { value: 5, label: "Mayo" },
-            { value: 6, label: "Junio" },
-            { value: 7, label: "Julio" },
-            { value: 8, label: "Agosto" },
-            { value: 9, label: "Septiembre" },
-            { value: 10, label: "Octubre" },
-            { value: 11, label: "Noviembre" },
-            { value: 12, label: "Diciembre" },
-          ]} // Opciones pasadas desde la configuración de columnas
+        <SelectUI
+          options={opcionesMeses}
           value={mes}
           onChange={(selectedOption) => {
             setMes(selectedOption);
           }}
           isSearchable={true}
           placeholder="Mes"
-          styles={customStyles}
+          minWidth="150px"
+          maxWidth="250px"
         />
-        <Select
-          options={anio} // Opciones pasadas desde la configuración de columnas
+        <SelectUI
+          options={anio}
           value={anioSl}
           onChange={(selectedOption) => {
             setAnioSl(selectedOption);
           }}
           isSearchable={true}
           placeholder="Año"
-          styles={customStyles}
+          minWidth="150px"
+          maxWidth="250px"
         />
       </ContenedorFlex>
+      <Separador />
       <ContenedorFlex
-        style={{
-          width: "100%",
-          height: "2px",
-          backgroundColor: "gray",
-          opacity: 0.5,
-        }}
-      ></ContenedorFlex>
-      <ContenedorFlex
-        style={{
-          padding: "5px",
-          justifyContent: "center",
-          alignItems: "center",
-          width: "100%",
-        }}
+        padding="15px 10px"
+        justifyContent="center"
+        alignItems="center"
+        width="100%"
       >
         {anioSl && mes ? (
           isConfigLoaded ? (
-            <TablaGeneralizada
+            <TablaInputsUI
               data={data}
               columnsConfig={columnsConfig}
               setData={setData}
               nombreID={"CODIGO"}
               estadocondiciones={[{ 0: ["CATEGORIA", "SUBCATEGORIA"] }]}
               permisoagregar={[]}
-              permisos={permisosSeccion}
+              permisos={permisosFormateados}
               sortedInitial={{ column: "CODIGO", direction: "desc" }}
               defaultFilters={["NOMBRE", "CATEGORIA", "SUBCATEGORIA"]}
               onSave={handleSave}
             />
           ) : (
-            <p>Cargando configuración, por favor espera...</p>
+            <TextoMensaje>Cargando configuración, por favor espera...</TextoMensaje>
           )
         ) : (
-          <p>Seleccione un mes y año</p>
+          <TextoMensaje>Seleccione un mes y año</TextoMensaje>
         )}
       </ContenedorFlex>
-    </CustomContainer>
+    </ContenedorPrincipal>
   );
 };
 
-// Exportar el componente envuelto con withPermissions
-export const CategoriasProductosTecnicentro = withPermissions(
-  CategoriasProductosTecnicentroComponent
-);
+// Permisos y empresas vienen de routeConfig inyectado por SimpleRouter

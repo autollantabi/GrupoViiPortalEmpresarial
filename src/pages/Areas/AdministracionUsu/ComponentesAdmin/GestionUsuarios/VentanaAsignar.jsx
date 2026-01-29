@@ -3,6 +3,7 @@ import { ListaPermisos } from "./MantenimientoPermisos/MantenimientoPermisos";
 import styled, { keyframes } from "styled-components";
 import { useTheme } from "context/ThemeContext";
 import { hexToRGBA } from "utils/colors";
+import IconUI from "components/UI/Components/IconsUI";
 
 const fadeIn = keyframes`
   from {
@@ -131,7 +132,7 @@ export const VentanaAsignar = (props) => {
     >
       <PopUp onClick={(e) => e.stopPropagation()}>
         <IconoX onClick={cancelar}>
-          <i className="bi bi-x-circle-fill" />
+          <IconUI name="FaCircleXmark" size={14} color={theme.colors.text} />
         </IconoX>
         <ContenedorInterno>
           <TituloVentana theme={theme}>

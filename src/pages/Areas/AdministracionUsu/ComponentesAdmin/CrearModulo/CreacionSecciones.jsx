@@ -8,11 +8,11 @@ import {
 } from "services/administracionService";
 
 import { toast } from "react-toastify";
-import { ToastContainerCustom } from "components/UI/ComponentesGenericos/Toasts";
-import { BotonConEstadoIconos } from "components/UI/ComponentesGenericos/Botones";
-import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
-import { CustomInput } from "components/UI/CustomComponents/CustomInputs";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { InputUI } from "components/UI/Components/InputUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { useTheme } from "context/ThemeContext";
+import IconUI from "components/UI/Components/IconsUI";
 
 const InputStyled = styled.input`
   padding: 2px 5px;
@@ -67,7 +67,7 @@ const getFinalModules = (nodes, parentName = "") => {
 };
 
 // Componente que renderiza recursivamente cada módulo
-const ModuloNode = ({ node, onDeleteModulo }) => {
+const ModuloNode = ({ node, onDeleteModulo, theme }) => {
   if (!node) {
     return null; // No renderiza nada si el nodo es indefinido
   }
@@ -88,17 +88,32 @@ const ModuloNode = ({ node, onDeleteModulo }) => {
       <ContenedorFlex style={{ justifyContent: "flex-start" }}>
         <strong>
           {node.PADRE === 0 ? (
-            <i className="bi bi-dot"></i>
+            <IconUI name="FaCircle" size={14} color={theme.colors.text} />
           ) : (
-            <i className="bi bi-arrow-return-right"></i>
+            <IconUI name="FaAngleRight" size={14} color={theme.colors.text} />
           )}{" "}
           {node.MODULO}
         </strong>
         {node.children.length === 0 && (
-          <BotonConEstadoIconos
-            onClickAction={() => onDeleteModulo(node.IDENTIFICADOR)}
-            tipo={"delete"}
-            invertir
+          <ButtonUI
+            iconLeft="FaTrash"
+            onClick={async () => {
+              try {
+                const res = await onDeleteModulo(node.IDENTIFICADOR);
+                if (res) {
+                  toast.success("Módulo eliminado exitosamente");
+                } else {
+                  toast.error("Error al eliminar el módulo");
+                }
+              } catch (error) {
+                console.error("Error:", error);
+                toast.error("Error al eliminar el módulo");
+              }
+            }}
+            isAsync={true}
+            variant="outlined"
+            pcolortext={theme?.colors?.error || "#dc3545"}
+            style={{ padding: "2px 6px", minWidth: "auto" }}
           />
         )}
       </ContenedorFlex>
@@ -110,6 +125,7 @@ const ModuloNode = ({ node, onDeleteModulo }) => {
               key={child.IDENTIFICADOR}
               node={child}
               onDeleteModulo={onDeleteModulo}
+              theme={theme}
             />
           ))}
         </ul>
@@ -119,6 +135,7 @@ const ModuloNode = ({ node, onDeleteModulo }) => {
 };
 
 export const ListaModulos = () => {
+  const { theme } = useTheme();
   const [moduloState, setModuloState] = useState([]); // Estado de los módulos
   const [newModuleName, setNewModuleName] = useState(""); // Nombre del nuevo módulo
   const [selectedModuleId, setSelectedModuleId] = useState(""); // ID del módulo seleccionado
@@ -176,9 +193,6 @@ export const ListaModulos = () => {
     }
     consultarModulos();
     return res;
-    // console.log(elim);
-
-    // Filtrar el módulo y todos sus hij
   };
 
   return (
@@ -187,7 +201,7 @@ export const ListaModulos = () => {
 
       {/* Campo para agregar nuevos módulos o submódulos */}
       <ContenedorFlex style={{ marginBottom: "10px" }}>
-        <CustomSelect
+        <SelectUI
           options={finalModules.map((modulo) => ({
             value: modulo.id,
             label: modulo.name,
@@ -199,13 +213,13 @@ export const ListaModulos = () => {
           minWidth="350px"
         />
 
-        <CustomInput
+        <InputUI
           placeholder="Nombre de la sección"
           value={newModuleName}
           onChange={(text) => setNewModuleName(text.toUpperCase())}
           containerStyle={{ width: "250px" }}
         />
-        <CustomButton text={"Agregar"} onClick={handleAddSeccion} />
+        <ButtonUI text={"Agregar"} onClick={handleAddSeccion} />
       </ContenedorFlex>
 
       {/* Lista de módulos y submódulos */}
@@ -215,10 +229,10 @@ export const ListaModulos = () => {
             key={modulo.IDENTIFICADOR}
             node={modulo}
             onDeleteModulo={handleDeleteModulo}
+            theme={theme}
           />
         ))}
       </ContenedorFlex>
-      <ToastContainerCustom />
     </div>
   );
 };

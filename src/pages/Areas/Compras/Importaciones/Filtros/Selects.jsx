@@ -9,6 +9,8 @@ import {
 
 import "react-datepicker/dist/react-datepicker.css";
 import { hexToRGBA } from "utils/colors";
+import { useTheme } from "context/ThemeContext";
+import IconUI from "components/UI/Components/IconsUI";
 
 const DropdownContainer = styled.div`
   position: relative;
@@ -27,13 +29,19 @@ const DropdownButton = styled.div`
   align-items: ${(props) => (props.selected ? "start" : "center")};
   gap: ${(props) => (props.selected ? "0px" : "5px")};
   background-color: ${(props) =>
-    props.selected ? "var(--secondary)" : "#f0f0f0"};
-  color: ${(props) => (props.selected ? "var(--color-perla)" : "#000")};
+    props.selected 
+      ? props.theme.colors.primary 
+      : props.theme.colors.inputBackground || props.theme.colors.backgroundCard};
+  color: ${(props) => (props.selected ? props.theme.colors.white : props.theme.colors.text)};
   flex-direction: ${(props) => (props.selected ? "column" : "row")};
   /* flex-direction: column; */
-  /* border: 1px solid #ddd; */
+  border: 1px solid ${({ theme, selected }) => selected ? theme.colors.primary : theme.colors.border || "transparent"};
   border-radius: 5px;
   transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
 `;
 const DropdownButtonBasico = styled.div`
   padding: ${(props) => (props.selected ? "5px 12px" : "2px 15px")};
@@ -44,28 +52,34 @@ const DropdownButtonBasico = styled.div`
   align-items: ${(props) => (props.selected ? "start" : "center")};
   gap: ${(props) => (props.selected ? "0px" : "5px")};
   background-color: ${(props) =>
-    props.selected ? "var(--secondary)" : "#f0f0f0"};
-  color: ${(props) => (props.selected ? "var(--color-perla)" : "#000")};
+    props.selected 
+      ? props.theme.colors.primary 
+      : props.theme.colors.inputBackground || props.theme.colors.backgroundCard};
+  color: ${(props) => (props.selected ? props.theme.colors.white : props.theme.colors.text)};
   flex-direction: ${(props) => (props.selected ? "column" : "row")};
   /* flex-direction: column; */
-  /* border: 1px solid #ddd; */
+  border: 1px solid ${({ theme, selected }) => selected ? theme.colors.primary : theme.colors.border || "transparent"};
   border-radius: 5px;
   transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
 
   & > input {
     border: none;
     background-color: ${(props) =>
-      props.selected ? "var(--color-perla)" : "var(--color-contraste-1)"};
+      props.selected ? props.theme.colors.white : props.theme.colors.backgroundCard};
     border-radius: 3px;
     padding: 0 10px;
     outline: none;
     height: 22px;
     margin-bottom: ${(props) => (props.selected ? "5px" : "0")};
-    color: black;
+    color: ${({ theme }) => theme.colors.text};
   }
 `;
 const TituloSelect = styled.span`
-  color: ${(props) => (props.selected ? "var(--color-perla)" : "#000")};
+  color: ${(props) => (props.selected ? props.theme.colors.white : props.theme.colors.text)};
   font-size: ${(props) => (props.selected ? "11px" : "14px")};
   font-weight: 500;
 `;
@@ -73,18 +87,18 @@ const TituloSelect = styled.span`
 const DropdownContent = styled.div`
   display: none;
   position: absolute;
-  background-color: #f9f9f9;
+  background-color: ${({ theme }) => theme.colors.selectMenuBackground || theme.colors.backgroundCard};
   width: fit-content;
   /* min-width: 100%; */
   min-width: 120px;
   max-height: 400px;
   height: fit-content;
   overflow-y: auto;
-  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0px 8px 16px 0px rgba(0, 0, 0, 0.2)"};
   padding: 2px 2px;
   border-radius: 8px;
   z-index: 1;
-  color: black;
+  color: ${({ theme }) => theme.colors.text};
   user-select: none;
 
   &.seleccionFechas {
@@ -107,52 +121,49 @@ const Option = styled.div`
   flex-wrap: nowrap;
   justify-content: space-between;
   cursor: pointer;
+  color: ${({ theme }) => theme.colors.text};
   &.wb {
     word-break: break-all;
   }
 
   &:hover {
-    background-color: #e9e9e9;
+    background-color: ${({ theme }) => theme.colors.selectOptionHover || theme.colors.hover};
   }
 `;
 const ButtonLimpiar = styled.button`
   position: absolute;
   bottom: 10px;
   right: 10px;
-  border: solid 1px var(--secondary);
+  border: solid 1px ${({ theme }) => theme.colors.secondary};
   border-radius: 5px;
   outline: none;
   padding: 2px 8px;
-  color: var(--secondary);
+  color: ${({ theme }) => theme.colors.secondary};
+  background-color: ${({ theme }) => theme.colors.backgroundCard};
 `;
 
 const InputFCustom = styled.input`
   border-radius: 5px;
   padding: 2px 10px;
   width: auto;
-  border: solid 1px
-    ${({ theme }) => hexToRGBA({ hex: theme.colors.white, alpha: 0.2 })};
+  border: solid 1px ${({ theme }) => theme.colors.border};
 
-  background-color: transparent;
+  background-color: ${({ theme }) => theme.colors.inputBackground || theme.colors.backgroundCard};
   outline: none;
   height: 30px;
   min-width: 20vw;
   font-size: 14px;
-  color: var(--color-perla);
+  color: ${({ theme }) => theme.colors.text};
   &:focus {
-    border: solid 1px var(--secondary);
+    border: solid 1px ${({ theme }) => theme.colors.primary};
   }
   &.numFormat {
     padding: 2px 10px 2px 22px;
   }
 
   &.readonly {
-    border: solid 1px rgba(255, 255, 255, 0.2);
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.2) 0%,
-      rgba(255, 255, 255, 0.2) 100%
-    );
+    border: solid 1px ${({ theme }) => theme.colors.border};
+    background-color: ${({ theme }) => theme.colors.backgroundLight};
   }
 `;
 
@@ -191,6 +202,7 @@ export const Selects = ({
   readOnly,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { theme } = useTheme();
 
   const handleOptionClick = (option) => {
     if (!readOnly) {
@@ -219,7 +231,7 @@ export const Selects = ({
     <div
       style={{ display: "flex", alignItems: "center", flexDirection: "row" }}
     >
-      {readOnly && <i className="bi bi-lock-fill"></i>}
+      {readOnly && <IconUI name="FaLock" size={14} color={theme.colors.text} />}
       <DropdownContainer
         onClick={() => !readOnly && setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
@@ -258,7 +270,7 @@ export const SelectBasico = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState([]);
-
+  const { theme } = useTheme();
   useEffect(() => {
     if (defaultValue) {
       const defaultOption = options.find(
@@ -302,7 +314,7 @@ export const SelectBasico = ({
     <div
       style={{ display: "flex", alignItems: "center", flexDirection: "row" }}
     >
-      {readOnly && <i className="bi bi-lock-fill"></i>}
+      {readOnly && <IconUI name="FaLock" size={14} color={theme.colors.text} />}
       <DropdownContainer
         onClick={() => !readOnly && setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
@@ -333,7 +345,7 @@ export const SelectBasico = ({
   );
 };
 
-export const TimeInput = ({ onChange, nombreCampo, value }) => {
+export const InputTimeUI = ({ onChange, nombreCampo, value }) => {
   // Estados para horas, minutos y AM/PM
   const [hour, setHour] = useState("");
   const [minute, setMinute] = useState("");
@@ -436,6 +448,7 @@ export const SelectsFechas = ({
   // Asegurar que startDate siempre sea al menos una cadena vacía, nunca null
   const [startDate, setStartDate] = useState(value || "");
   const [isOpen, setIsOpen] = useState(false);
+  const { theme } = useTheme();
 
   function parseFecha(fechaString) {
     if (!fechaString || typeof fechaString !== "string") return new Date();
@@ -542,7 +555,7 @@ export const SelectsFechas = ({
     <div
       style={{ display: "flex", alignItems: "center", flexDirection: "row" }}
     >
-      {readOnly && <i className="bi bi-lock-fill"></i>}
+      {readOnly && <IconUI name="FaLock" size={14} color={theme.colors.text} />}
       <DropdownContainer
         onClick={() => !readOnly && setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
@@ -576,17 +589,22 @@ const InputDelSelect = styled.input`
   outline: none;
   width: 100%;
   border: none;
-  border-top: solid 1px
-    ${(props) => (props.selected ? "rgba(255, 255, 255, 0.7)" : "black")};
-  /* background-color: rgba(255, 255, 255, 0.7); */
-  background-color: transparent;
+  border-top: solid 1px ${(props) => 
+    props.selected 
+      ? hexToRGBA({ hex: props.theme.colors.border || props.theme.colors.textSecondary, alpha: 0.5 })
+      : props.theme.colors.border || props.theme.colors.textSecondary};
+  background-color: ${({ theme }) => theme.colors.inputBackground || theme.colors.backgroundCard};
 
   height: 24px;
   margin-bottom: ${(props) => (props.selected ? "5px" : "0")};
-  color: ${(props) => (props.selected ? "white" : "black")};
+  color: ${(props) => props.theme.colors.text};
   &::placeholder {
-    color: ${(props) =>
-      props.selected ? "rgba(255, 255, 255, 0.7)" : "black"};
+    color: ${(props) => 
+      hexToRGBA({ 
+        hex: props.theme.colors.placeholder || props.theme.colors.textSecondary, 
+        alpha: 0.8 
+      })};
+    font-weight: 300;
   }
 `;
 
@@ -602,7 +620,7 @@ export const SelectsConInput = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState("");
-
+  const { theme } = useTheme();
   // Garantizar que valueInfo sea tratado siempre como un valor válido
   const valueInfoSafe = valueInfo || (isMultiple ? [] : "");
 
@@ -659,7 +677,7 @@ export const SelectsConInput = ({
     <div
       style={{ display: "flex", alignItems: "center", flexDirection: "row" }}
     >
-      {readOnly && <i className="bi bi-lock-fill"></i>}
+      {readOnly && <IconUI name="FaLock" size={14} color={theme.colors.text} />}
       <DropdownContainer
         onClick={() => !readOnly && setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
@@ -727,6 +745,7 @@ export const InputField = ({
 }) => {
   const [inputValue, setInputValue] = useState(valor || "");
   const [isEditing, setIsEditing] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!isEditing) {
@@ -822,7 +841,7 @@ export const InputField = ({
     <div
       style={{ display: "flex", alignItems: "center", flexDirection: "row" }}
     >
-      {readOnly && <i className="bi bi-lock-fill"></i>}
+      {readOnly && <IconUI name="FaLock" size={14} color={theme.colors.text} />}
       {formatoNumero && tipo === "number" && (
         <span style={{ marginRight: "-20px", paddingLeft: "10px" }}>$</span>
       )}
@@ -846,6 +865,7 @@ export const InputField = ({
   );
 };
 export const CampoTextoArchivos = ({ setArchivo, aceptados, nombreCampo }) => {
+  const { theme } = useTheme();
   const [file, setFile] = useState(null);
 
   // Función para manejar la selección de archivos
@@ -876,16 +896,18 @@ export const CampoTextoArchivos = ({ setArchivo, aceptados, nombreCampo }) => {
           cursor: "pointer",
           display: "flex",
           gap: "10px",
-          border: "solid 1px var(--color-perla)",
+          border: `solid 1px ${theme.colors.border}`,
+          backgroundColor: theme.colors.backgroundLight || theme.colors.background,
+          color: theme.colors.text,
           justifyContent: "center",
           borderRadius: "5px",
           padding: "2px 10px",
         }}
       >
-        <i className="bi bi-upload"></i>Subir archivo (.xlsx, .docx, .pdf)
+        <IconUI name="FaUpload" size={14} color={theme.colors.text} />Subir archivo (.xlsx, .docx, .pdf)
       </label>
       {file && (
-        <span style={{ fontSize: "14px" }}>
+        <span style={{ fontSize: "14px", color: theme.colors.text }}>
           Archivo seleccionado: {file.name}
         </span>
       )}
@@ -895,26 +917,31 @@ export const CampoTextoArchivos = ({ setArchivo, aceptados, nombreCampo }) => {
 
 const TAP = styled.textarea`
   outline: none;
-  border: solid 1px
-    ${({ theme }) => hexToRGBA({ hex: theme.colors.white, alpha: 0.2 })};
+  border: solid 1px ${({ theme }) => theme.colors.border || theme.colors.inputBorder};
   border-radius: 5px;
   min-height: 100px;
   padding: 2px 10px;
   max-height: 300px;
   height: 60px;
   width: 400px;
-  background-color: transparent;
-  color: var(--color-perla);
+  background-color: ${({ theme }) => theme.colors.inputBackground || theme.colors.backgroundCard};
+  color: ${({ theme }) => theme.colors.text};
+  
+  &::placeholder {
+    color: ${({ theme }) => 
+      hexToRGBA({ 
+        hex: theme.colors.placeholder || theme.colors.textSecondary, 
+        alpha: 0.8 
+      })};
+    font-weight: 300;
+  }
+  
   &:focus {
-    border: solid 1px var(--secondary);
+    border: solid 1px ${({ theme }) => theme.colors.primary || theme.colors.inputFocus};
   }
   &.readonly {
-    border: solid 1px rgba(255, 255, 255, 0.2);
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.2) 0%,
-      rgba(255, 255, 255, 0.2) 100%
-    );
+    border: solid 1px ${({ theme }) => theme.colors.border};
+    background-color: ${({ theme }) => theme.colors.backgroundLight};
   }
 `;
 
@@ -924,6 +951,7 @@ export const TextArea = ({ valor, setValue, nombreCampo, readOnly }) => {
     const val = event.target.value;
     setValue(nombreCampo, val);
   };
+  const { theme } = useTheme();
   return (
     <div
       style={{
@@ -932,7 +960,7 @@ export const TextArea = ({ valor, setValue, nombreCampo, readOnly }) => {
         flexDirection: "row",
       }}
     >
-      {readOnly && <i className="bi bi-lock-fill"></i>}
+      {readOnly && <IconUI name="FaLock" size={14} color={theme.colors.text} />}
       <TAP
         className={readOnly && "readonly"}
         value={newValue}
@@ -942,6 +970,31 @@ export const TextArea = ({ valor, setValue, nombreCampo, readOnly }) => {
     </div>
   );
 };
+
+const StyledFileLabel = styled.label`
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  border: solid 1px ${({ theme }) => theme.colors.border};
+  background-color: ${({ theme }) => theme.colors.backgroundLight || theme.colors.background};
+  color: ${({ theme }) => theme.colors.text};
+  justify-content: center;
+  border-radius: 5px;
+  padding: 2px 10px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.hover || theme.colors.backgroundCard};
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+const StyledError = styled.div`
+  color: ${({ theme }) => theme.colors.error};
+  font-size: 14px;
+  margin-top: 5px;
+`;
 
 const ContenedorCampoArchivos = styled.div`
   display: flex;
@@ -957,13 +1010,13 @@ const ContenedorCampoArchivos = styled.div`
     gap: 5px;
     width: 467px;
     min-height: 126px;
-    background-color: var(--color-contraste-2);
+    background-color: ${({ theme }) => theme.colors.backgroundLight || theme.colors.backgroundCard};
     border-radius: 5px;
-    border: solid 1px rgba(255, 255, 255, 0.5);
+    border: solid 1px ${({ theme }) => theme.colors.border};
     padding: 4px 2px;
 
     & > .archivoname {
-      border: solid 1px white;
+      border: solid 1px ${({ theme }) => theme.colors.border};
       border-radius: 5px;
       padding: 3px 8px;
       width: 150px;
@@ -973,8 +1026,11 @@ const ContenedorCampoArchivos = styled.div`
       align-items: center;
       position: relative;
       height: auto;
+      background-color: ${({ theme }) => theme.colors.backgroundCard || theme.colors.background};
+      
       & > i {
         font-size: 50px;
+        color: ${({ theme }) => theme.colors.textSecondary || theme.colors.text};
       }
 
       &:hover .buttons {
@@ -986,6 +1042,7 @@ const ContenedorCampoArchivos = styled.div`
         word-wrap: break-word;
         font-size: 14px;
         text-align: center;
+        color: ${({ theme }) => theme.colors.text};
       }
       & > .buttons {
         display: flex;
@@ -1006,12 +1063,12 @@ const ContenedorCampoArchivos = styled.div`
         padding: 0;
         width: 26px;
         height: 26px;
-        color: white;
-        background-color: rgba(0, 0, 0, 0.3);
+        color: ${({ theme }) => theme.colors.white};
+        background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.overlay || theme.colors.black, alpha: 0.5 })};
         cursor: pointer;
 
         &:hover {
-          background-color: rgba(255, 255, 255, 0.12);
+          background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.primary, alpha: 0.3 })};
         }
       }
       .buttons > .confirmar {
@@ -1022,9 +1079,9 @@ const ContenedorCampoArchivos = styled.div`
         border-radius: 5px;
         width: fit-content;
         height: 26px;
-        color: white;
+        color: ${({ theme }) => theme.colors.white};
         gap: 3px;
-        background-color: rgba(0, 0, 0, 0.3);
+        background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.overlay || theme.colors.black, alpha: 0.5 })};
         cursor: pointer;
         & > div {
           width: 20px;
@@ -1035,7 +1092,7 @@ const ContenedorCampoArchivos = styled.div`
           align-items: center;
           border-radius: 3px;
           &.elim {
-            background-color: red;
+            background-color: ${({ theme }) => theme.colors.error};
           }
           &.cancelar {
             background-color: transparent;
@@ -1049,27 +1106,27 @@ const getIconForExtension = (filename) => {
   const extension = filename.split(".").pop();
   switch (extension) {
     case "pdf":
-      return "bi bi-filetype-pdf";
+      return "FaFilePdf";
     case "doc":
-      return "bi bi-filetype-doc";
+      return "FaFileWord";
     case "docx":
-      return "bi bi-filetype-docx";
+      return "FaFileWord";
     case "xls":
-      return "bi bi-filetype-xls";
+      return "FaFileExcel";
     case "xlsx":
-      return "bi bi-filetype-xlsx";
+      return "FaFileExcel";
     case "csv":
-      return "bi bi-filetype-csv";
+      return "FaFileCsv";
     case "png":
-      return "bi bi-filetype-png";
+      return "FaFileImage";
     case "zip":
-      return "bi bi-file-earmark-zip";
+      return "FaFileZipper";
     case "rar":
-      return "bi bi-file-earmark-zip";
+      return "FaFileZipper";
     case "7z":
-      return "bi bi-file-earmark-zip";
+      return "FaFileZipper";
     default:
-      return "bi bi-file-earmark"; // Un ícono genérico para otros tipos de archivos
+      return "FaFile"; // Un ícono genérico para otros tipos de archivos
   }
 };
 
@@ -1085,6 +1142,7 @@ export const CampoListaArchivos = ({
   const [files, setFiles] = useState(null);
   const [error, setError] = useState("");
   const [confirmaciones, setConfirmaciones] = useState({});
+  const { theme } = useTheme();
 
   useEffect(() => {
     setFiles(Array.isArray(archivos) ? archivos : []); // Asegúrate de que files sea un array
@@ -1195,7 +1253,6 @@ export const CampoListaArchivos = ({
     if (file) {
       //Si existe el archivo en el navegador
       urlArchivo = URL.createObjectURL(file);
-      console.log("file.name", file.name);
       nombreArchivoDescargar = file.name;
     } else {
       try {
@@ -1257,23 +1314,13 @@ export const CampoListaArchivos = ({
         id={"fileInputMB-" + id}
       />
       {!impFinalizado && (
-        <label
+        <StyledFileLabel
           htmlFor={"fileInputMB-" + id}
-          style={{
-            width: "100%",
-            cursor: "pointer",
-            display: "flex",
-            gap: "10px",
-            border: "solid 1px var(--color-perla)",
-            justifyContent: "center",
-            borderRadius: "5px",
-            padding: "2px 10px",
-          }}
         >
-          <i className="bi bi-upload"></i> Subir archivos ({aceptados})
-        </label>
+          <IconUI name="FaUpload" size={14} color={theme.colors.text} /> Subir archivos ({aceptados})
+        </StyledFileLabel>
       )}
-      {error && <div style={{ color: "red" }}>{error}</div>}
+      {error && <StyledError>{error}</StyledError>}
       <div className="archivos">
         {files === null ? (
           <span>Cargando...</span>
@@ -1285,11 +1332,7 @@ export const CampoListaArchivos = ({
         ) : (
           files.map((file, index) => (
             <div className="archivoname" key={index}>
-              <i
-                className={`bi ${getIconForExtension(
-                  file.nombreArchivo + "." + file.extensionArchivo
-                )}`}
-              ></i>
+              <IconUI name={getIconForExtension(file.nombreArchivo + "." + file.extensionArchivo)} size={14} color={theme.colors.text} />
               <span>{file.nombreArchivo}</span>
 
               <div className="buttons">
@@ -1304,7 +1347,7 @@ export const CampoListaArchivos = ({
                     })
                   }
                 >
-                  <i className="bi bi-download"></i>
+                  <IconUI name="FaDownload" size={14} color={theme.colors.text} />
                 </div>
                 {!impFinalizado &&
                   (!confirmaciones[file.idDocumento] ? (
@@ -1312,7 +1355,7 @@ export const CampoListaArchivos = ({
                       className="close-icon"
                       onClick={() => handleToggleConfirmation(file.idDocumento)}
                     >
-                      <i className="bi bi-x-lg"></i>
+                      <IconUI name="FaXmark" size={14} color={theme.colors.text} />
                     </div>
                   ) : (
                     <div className="confirmar">
@@ -1320,7 +1363,7 @@ export const CampoListaArchivos = ({
                         className="elim"
                         onClick={() => handleRemoveFile(file)}
                       >
-                        <i className="bi bi-trash3-fill"></i>
+                        <IconUI name="FaTrash" size={14} color={theme.colors.text} />
                       </div>
                       <div
                         className="cancelar"
@@ -1328,7 +1371,7 @@ export const CampoListaArchivos = ({
                           handleToggleConfirmation(file.idDocumento)
                         }
                       >
-                        <i className="bi bi-x-lg"></i>
+                        <IconUI name="FaXmark" size={14} color={theme.colors.text} />
                       </div>
                     </div>
                   ))}

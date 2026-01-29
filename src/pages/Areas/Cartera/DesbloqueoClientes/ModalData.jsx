@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { TablaInfo } from "components/UI/ComponentesGenericos/TablaInfo";
+import { TablaInfoUI } from "components/UI/Components/TablaInfoUI";
 import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
+import IconUI from "components/UI/Components/IconsUI";
+import { useTheme } from "context/ThemeContext";
 
 const renderDataInfo = ({ text, label }) => {
   return (
@@ -32,6 +34,7 @@ const renderDataInfo = ({ text, label }) => {
 };
 
 export const ModalData = ({ dataUsuario, onClose }) => {
+  const { theme } = useTheme();
   const [dataPrincipal, setDataPrincipal] = useState(null);
   const [cuentasDesbloqueo, setCuentasDesbloqueo] = useState(null);
   const [sociosVinculados, setSociosVinculados] = useState(null);
@@ -76,9 +79,6 @@ export const ModalData = ({ dataUsuario, onClose }) => {
   useEffect(() => {
     if (dataUsuario && dataUsuario !== dataUsuarioRef.current) {
       dataUsuarioRef.current = dataUsuario;
-      console.log(dataUsuario);
-      console.log("Ejecutando una sola vez con dataUsuario:", dataUsuario);
-
       setTimeout(() => {
         setDataPrincipal(dataUsuario);
         const resCuentasDesbloqueo = dataUsuario.cuentasDesbloqueo.map(
@@ -98,7 +98,6 @@ export const ModalData = ({ dataUsuario, onClose }) => {
             };
           }
         );
-        console.log(dataUsuario);
 
         setCuentasDesbloqueo(resCuentasDesbloqueo);
         setSociosVinculados(resSociosVinculados);
@@ -134,8 +133,10 @@ export const ModalData = ({ dataUsuario, onClose }) => {
           padding: "30px 40px",
         }}
       >
-        <i
-          className="bi bi-x-circle-fill"
+        <IconUI
+          name="FaCircleXmark"
+          size={14}
+          color={theme.colors.text}
           style={{
             position: "absolute",
             top: "5px",
@@ -210,7 +211,7 @@ export const ModalData = ({ dataUsuario, onClose }) => {
                   overflowY: "auto",
                 }}
               >
-                <TablaInfo
+                <TablaInfoUI
                   columns={columnsConfigTables.cuentasDesbloqueo}
                   data={cuentasDesbloqueo}
                   defaultFilters={["dcu_empresa"]}
@@ -248,7 +249,7 @@ export const ModalData = ({ dataUsuario, onClose }) => {
                   overflowY: "auto",
                 }}
               >
-                <TablaInfo
+                <TablaInfoUI
                   columns={columnsConfigTables.sociosVinculados}
                   data={sociosVinculados}
                   defaultFilters={["dcu_empresa"]}

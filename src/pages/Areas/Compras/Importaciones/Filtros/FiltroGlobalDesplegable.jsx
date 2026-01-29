@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styled from "styled-components";
+import { useTheme } from "context/ThemeContext";
 
 const ContenedorPrincipal = styled.div`
   display: flex;
@@ -13,7 +14,7 @@ const ContenedorCampoBuscar = styled.div`
   border: none;
   display: flex;
   gap: 1px;
-  background-color: #cfcfcf;
+  background-color: ${({ theme }) => theme.colors.border};
 `;
 const CampoBuscar = styled.input`
   border: none;
@@ -21,6 +22,17 @@ const CampoBuscar = styled.input`
   padding: 0 5px 0 10px;
   height: 100%;
   outline: none;
+  background-color: ${({ theme }) => theme.colors.inputBackground || theme.colors.backgroundCard};
+  color: ${({ theme }) => theme.colors.text};
+  
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.placeholder || theme.colors.textSecondary};
+    opacity: 0.8;
+  }
+  
+  &:focus {
+    background-color: ${({ theme }) => theme.colors.inputBackground || theme.colors.backgroundCard};
+  }
 `;
 
 const DropdownContainer = styled.div`
@@ -30,22 +42,29 @@ const DropdownContainer = styled.div`
 
 const DropdownButton = styled.div`
   padding: 5px;
-  background-color: #f0f0f0;
+  background-color: ${({ theme }) => theme.colors.backgroundLight};
   border: none;
   border-radius: 0 5px 5px 0;
+  color: ${({ theme }) => theme.colors.text};
+  cursor: pointer;
+  
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.hover};
+  }
 `;
 
 const DropdownContent = styled.div`
   display: none;
   position: absolute;
-  background-color: #f0f0f0;
+  background-color: ${({ theme }) => theme.colors.selectMenuBackground || theme.colors.backgroundCard};
   min-width: 180px;
-  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0px 8px 16px 0px rgba(0, 0, 0, 0.2)"};
   padding: 2px 2px;
   z-index: 2;
   border-radius: 5px;
   max-height: 350px;
   overflow-y: auto;
+  color: ${({ theme }) => theme.colors.text};
 
   ${DropdownContainer}:hover & {
     display: block;
@@ -55,13 +74,14 @@ const DropdownContent = styled.div`
 const Option = styled.div`
   padding: 2px 15px;
   cursor: pointer;
+  color: ${({ theme }) => theme.colors.text};
   &:hover {
-    background-color: #e9e9e9;
+    background-color: ${({ theme }) => theme.colors.selectOptionHover || theme.colors.hover};
     border-radius: 3px;
   }
 `;
 
-const CustomSelect = ({ options, onChange }) => {
+const SelectUI = ({ options, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState(options[0]);
 
@@ -127,7 +147,7 @@ export const FiltroGlobalDesplegable = ({ value, onChangeValue, onChangeCampo })
           title="Ingrese la cadena a filtrar"
         />
         <div>
-          <CustomSelect options={options} onChange={handleOptionChange} />
+          <SelectUI options={options} onChange={handleOptionChange} />
         </div>
       </ContenedorCampoBuscar>
     </ContenedorPrincipal>

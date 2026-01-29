@@ -7,20 +7,46 @@ import React, {
   useEffect,
 } from "react";
 import PropTypes from "prop-types";
-import { useNavigate } from "react-router-dom";
 import { userService_obtenerTipoUsuarioByIdUsuario } from "services/usuariosService";
-const MY_AUTH_APP = "MY_AUTH_APP_1";
+import { authService_me } from "services/authService";
+import { setAxiosIdSession, removeAxiosIdSession } from "config/axiosConfig";
+import { encrypt, decrypt, getEncryptionKey } from "utils/encryption";
+
+const ID_SESSION_STORAGE_KEY = "app_cache_token";
 
 export const AuthContext = createContext();
 
 export function AuthContextProvider({ children }) {
-  const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    localStorage.getItem(MY_AUTH_APP) ?? false
-  );
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const [idSession, setIdSession] = useState(null);
+  const [isLoading, setIsLoading] = useState(true); // Estado para saber si está cargando datos del localStorage
 
-  // Función para consultar y guardar datos del usuario
+  // Función para obtener información del usuario desde /auth/me
+  const fetchUserMe = useCallback(async () => {
+    try {
+      const response = await authService_me();
+      
+      if (response.success) {
+        // La nueva estructura tiene: USUARIO, EMPRESAS, LINEAS, PERMISOS, ROLES, CONTEXTOS
+        // Guardar toda la información del usuario en el estado
+        // response.data.CONTEXTOS es el array de contextos usuario-rol-contexto (similar a la estructura anterior)
+        setUser({
+          ...response.data, // Guardar toda la estructura (USUARIO, EMPRESAS, LINEAS, PERMISOS, ROLES, CONTEXTOS)
+          data: response.data.CONTEXTOS || [], // Mantener 'data' como array de contextos para compatibilidad
+        });
+        
+        return response.data.CONTEXTOS || [];
+      } else {
+        return null;
+      }
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+
+  // Función para consultar y guardar datos del usuario (mantener compatibilidad)
   const fetchUserData = useCallback(async (userId) => {
     try {
       const response = await userService_obtenerTipoUsuarioByIdUsuario(userId);
@@ -39,64 +65,112 @@ export function AuthContextProvider({ children }) {
 
         return tiposUsuario;
       } else {
-        console.error("Error al obtener datos del usuario:", response.message);
         return null;
       }
     } catch (error) {
-      console.error("Error en fetchUserData:", error);
       return null;
     }
   }, []);
-  // useEffect para cargar datos del usuario al inicializar
+  // useEffect para cargar datos del usuario al inicializar (solo al recargar la página)
+  // Solo se ejecuta una vez al montar el componente, no cuando user cambia
   useEffect(() => {
+    let isMounted = true;
+    
     const cargarDatosUsuario = async () => {
-      const identificador = localStorage.getItem("identificador");
-      const isAuth = localStorage.getItem(MY_AUTH_APP);
-
-      if (isAuth && identificador && !user) {
-        console.log("Cargando datos del usuario al inicializar...");
-        await fetchUserData(identificador);
+      setIsLoading(true);
+      
+      // Intentar cargar idSession encriptado del localStorage
+      const encryptedIdSession = localStorage.getItem(ID_SESSION_STORAGE_KEY);
+      if (encryptedIdSession) {
+        const encryptionKey = getEncryptionKey();
+        const decryptedIdSession = decrypt(encryptedIdSession, encryptionKey);
+        
+        if (decryptedIdSession) {
+          setIdSession(decryptedIdSession);
+          setAxiosIdSession(decryptedIdSession);
+          
+          // Ahora que tenemos el idSession, consultar /auth/me
+          try {
+            const userData = await fetchUserMe();
+            if (userData && isMounted) {
+              setIsAuthenticated(true);
+            } else if (isMounted) {
+              // Si no hay datos del usuario, limpiar
+              setIsAuthenticated(false);
+              setIdSession(null);
+              removeAxiosIdSession();
+              localStorage.removeItem(ID_SESSION_STORAGE_KEY);
+            }
+          } catch (error) {
+            // Si falla, limpiar todo
+            if (isMounted) {
+              setIsAuthenticated(false);
+              setIdSession(null);
+              removeAxiosIdSession();
+              localStorage.removeItem(ID_SESSION_STORAGE_KEY);
+            }
+          }
+        } else {
+          // Si no se puede desencriptar, limpiar
+          localStorage.removeItem(ID_SESSION_STORAGE_KEY);
+        }
+      }
+      
+      if (isMounted) {
+        setIsLoading(false);
       }
     };
 
     cargarDatosUsuario();
-  }, [fetchUserData, user]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Solo ejecutar al montar, no cuando user o idSession cambian
 
   const login = useCallback(
     async function ({
-      correo,
-      contrasena,
-      identificador,
-      modulos,
-      nombreUsuario,
+      idSession,
     }) {
-      localStorage.setItem(MY_AUTH_APP, JSON.stringify(true));
-      localStorage.setItem("identificador", identificador);
-      localStorage.setItem("modulos", modulos);
-      localStorage.setItem("correo", correo);
-      // localStorage.setItem("contrasena", contrasena);
-      localStorage.setItem("nombre", nombreUsuario || "");
-
       setIsAuthenticated(true);
 
-      // Consultar datos del usuario después del login
-      await fetchUserData(identificador);
+      // Guardar idSession en el estado y en la cabecera de axios
+      if (idSession) {
+        setIdSession(idSession);
+        setAxiosIdSession(idSession);
+        
+        // Guardar idSession encriptado en localStorage
+        const encryptionKey = getEncryptionKey();
+        const encryptedIdSession = encrypt(idSession, encryptionKey);
+        if (encryptedIdSession) {
+          localStorage.setItem(ID_SESSION_STORAGE_KEY, encryptedIdSession);
+        }
+      }
 
-      navigate("/");
+      // Ahora el login solo guarda idSession, los datos del usuario se obtienen con /auth/me
+      // Después de guardar idSession, consultar /auth/me para obtener todos los datos
+      try {
+        await fetchUserMe();
+      } catch (error) {
+        // Error silencioso
+      }
+
+      // Usar window.location en lugar de navigate porque el provider está fuera del Router
+      window.location.href = "/";
     },
-    [fetchUserData]
+    [fetchUserMe]
   );
 
   const logout = useCallback(function (navigate) {
-    localStorage.removeItem(MY_AUTH_APP);
-    localStorage.removeItem("modulos");
-    localStorage.removeItem("correo");
-    // localStorage.removeItem("contrasena");
-    localStorage.removeItem("nombre");
-    localStorage.removeItem("identificador");
-
     setIsAuthenticated(false);
     setUser(null);
+    setIdSession(null);
+    
+    // Remover la cabecera id-session de axios
+    removeAxiosIdSession();
+    
+    // Eliminar idSession encriptado del localStorage
+    localStorage.removeItem(ID_SESSION_STORAGE_KEY);
 
     // Redirigir al login usando navigate
     if (navigate) {
@@ -113,9 +187,12 @@ export function AuthContextProvider({ children }) {
       logout,
       isAuthenticated,
       user,
+      idSession,
+      isLoading,
       fetchUserData,
+      fetchUserMe,
     }),
-    [login, logout, isAuthenticated, user, fetchUserData]
+    [login, logout, isAuthenticated, user, idSession, isLoading, fetchUserData, fetchUserMe]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

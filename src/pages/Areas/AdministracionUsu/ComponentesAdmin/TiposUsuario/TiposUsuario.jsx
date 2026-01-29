@@ -11,15 +11,15 @@ import {
 } from "services/usuariosService";
 
 import { toast } from "react-toastify";
-import { CustomInput } from "components/UI/CustomComponents/CustomInputs";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { CustomCard } from "components/UI/CustomComponents/CustomCard";
-import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
+import { InputUI } from "components/UI/Components/InputUI";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { CardUI } from "components/UI/Components/CardUI";
+import { SelectUI } from "components/UI/Components/SelectUI";
 import { useTheme } from "context/ThemeContext";
 import { hexToRGBA } from "utils/colors";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { ConfirmationDialog } from "components/common/FormComponents";
-import CustomIcon from "components/UI/CustomComponents/CustomIcons";
+import IconUI from "components/UI/Components/IconsUI";
 
 export const TiposUsuario = () => {
   const { theme } = useTheme();
@@ -198,7 +198,6 @@ export const TiposUsuario = () => {
       toast.error("Debe seleccionar un usuario y un tipo de usuario");
       return;
     }
-    console.log(usuarioSeleccionado, tipoUsuarioSeleccionado);
 
     setCargando(true);
     try {
@@ -284,7 +283,7 @@ export const TiposUsuario = () => {
 
   return (
     <>
-      <CustomContainer
+      <ContainerUI
         width="100%"
         style={{
           display: "grid",
@@ -296,7 +295,7 @@ export const TiposUsuario = () => {
       >
         {/* Primera fila: Cards principales */}
         <div style={{ gridColumn: "1 / 2" }}>
-          <CustomCard
+          <CardUI
             title={
               modoEdicion
                 ? "Editar Tipo de Usuario"
@@ -308,7 +307,7 @@ export const TiposUsuario = () => {
                 : "Agrega un nuevo tipo de usuario al sistema"
             }
             body={
-              <CustomInput
+              <InputUI
                 placeholder="Nombre del Tipo de Usuario"
                 value={nombreTipoUsuario}
                 onChange={(value) => setNombreTipoUsuario(value.toUpperCase())}
@@ -320,7 +319,7 @@ export const TiposUsuario = () => {
                 style={{ display: "flex", flexDirection: "row", gap: "8px" }}
               >
                 {modoEdicion && (
-                  <CustomButton
+                  <ButtonUI
                     onClick={handleCancelar}
                     text="Cancelar"
                     disabled={cargando}
@@ -328,7 +327,7 @@ export const TiposUsuario = () => {
                     height="35px"
                   />
                 )}
-                <CustomButton
+                <ButtonUI
                   onClick={
                     modoEdicion
                       ? handleActualizarTipoUsuario
@@ -345,7 +344,7 @@ export const TiposUsuario = () => {
         </div>
 
         <div style={{ gridColumn: "2 / 3" }}>
-          <CustomCard
+          <CardUI
             title="Tipos de Usuario Existentes"
             description="Gestiona los tipos de usuario del sistema"
             body={
@@ -415,14 +414,14 @@ export const TiposUsuario = () => {
                           alignItems: "center",
                         }}
                       >
-                        <CustomButton
-                          iconLeft="FaEdit"
+                        <ButtonUI
+                          iconLeft="FaPenToSquare"
                           onClick={() => handleEditarTipoUsuario(tipo)}
                           disabled={cargando}
                           title="Editar tipo de usuario"
                         />
 
-                        <CustomButton
+                        <ButtonUI
                           iconLeft="FaTrash"
                           onClick={() => confirmarEliminacion(tipo)}
                           disabled={cargando}
@@ -439,7 +438,7 @@ export const TiposUsuario = () => {
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "8px" }}
               >
-                <CustomButton
+                <ButtonUI
                   onClick={cargarDatos}
                   text="Actualizar"
                   disabled={cargando}
@@ -453,7 +452,7 @@ export const TiposUsuario = () => {
 
         {/* Primera fila: Asignar tipo */}
         <div style={{ gridColumn: "3 / 4" }}>
-          <CustomCard
+          <CardUI
             title="Asignar Tipo de Usuario"
             description="Asigna un tipo de usuario específico a un usuario"
             body={
@@ -464,7 +463,7 @@ export const TiposUsuario = () => {
                   gap: "12px",
                 }}
               >
-                <CustomSelect
+                <SelectUI
                   options={usuarios.map((usuario) => ({
                     value: usuario.IDENTIFICADOR,
                     label: `${usuario.CORREO} - ${
@@ -496,7 +495,7 @@ export const TiposUsuario = () => {
                   maxWidth="100%"
                   minWidth="100%"
                 />
-                <CustomSelect
+                <SelectUI
                   options={tiposUsuario.map((tipo) => ({
                     value: tipo.TIPO_USUARIO_ID,
                     label: tipo.TIPO_USUARIO,
@@ -533,7 +532,7 @@ export const TiposUsuario = () => {
                 style={{ display: "flex", flexDirection: "row", gap: "8px" }}
               >
                 {(usuarioSeleccionado || tipoUsuarioSeleccionado) && (
-                  <CustomButton
+                  <ButtonUI
                     onClick={() => {
                       setUsuarioSeleccionado(null);
                       setTipoUsuarioSeleccionado(null);
@@ -544,7 +543,7 @@ export const TiposUsuario = () => {
                     width="fit-content"
                   />
                 )}
-                <CustomButton
+                <ButtonUI
                   onClick={confirmarAsignacion}
                   text="Asignar"
                   pcolor={theme.colors.success}
@@ -560,7 +559,7 @@ export const TiposUsuario = () => {
 
         {/* Segunda fila: Relaciones existentes */}
         <div style={{ gridColumn: "1 / 3" }}>
-          <CustomCard
+          <CardUI
             title="Relaciones Existentes"
             description="Usuarios con tipos asignados"
             body={
@@ -581,7 +580,7 @@ export const TiposUsuario = () => {
                   }}
                 >
                   <div style={{ flex: "1", minWidth: "200px" }}>
-                    <CustomInput
+                    <InputUI
                       placeholder="Buscar por nombre o correo..."
                       value={busquedaRelaciones}
                       onChange={setBusquedaRelaciones}
@@ -590,7 +589,7 @@ export const TiposUsuario = () => {
                     />
                   </div>
                   <div style={{ flex: "1", minWidth: "200px" }}>
-                    <CustomSelect
+                    <SelectUI
                       options={[
                         { value: null, label: "Todos los tipos" },
                         ...tiposUsuario.map((tipo) => ({
@@ -732,7 +731,7 @@ export const TiposUsuario = () => {
                                   })}`,
                                 }}
                               >
-                                <CustomIcon
+                                <IconUI
                                   name="FaTrash"
                                   size={12}
                                   style={{ cursor: "pointer" }}
@@ -777,7 +776,7 @@ export const TiposUsuario = () => {
                   Total: {filtrarRelaciones().length} de{" "}
                   {relacionesUsuarioTipo.length} relaciones
                 </span>
-                <CustomButton
+                <ButtonUI
                   onClick={cargarDatos}
                   text="Actualizar"
                   disabled={cargando}
@@ -787,7 +786,7 @@ export const TiposUsuario = () => {
             theme={theme}
           />
         </div>
-      </CustomContainer>
+      </ContainerUI>
 
       {/* Diálogos de confirmación */}
       {/* Diálogo de confirmación para eliminación */}

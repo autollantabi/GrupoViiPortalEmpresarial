@@ -3,7 +3,6 @@ import { axiosInstance } from "config/axiosConfig";
 export async function ListarEmpresas() {
   try {
     const res = await axiosInstance.get(`/empresas`);
-    // console.log(res.data)
     return res.data;
   } catch (e) {
     return [];
@@ -14,7 +13,6 @@ export async function ListarMarcas(idempresa, idproveedor) {
     const res = await axiosInstance.get(
       `/importaciones/marcas/${idempresa}/${idproveedor}`
     );
-    // console.log(res.data)
     return res.data;
   } catch (e) {
     return [];
@@ -25,7 +23,6 @@ export async function ListarProveedores(idempresa) {
     const res = await axiosInstance.get(
       `/importaciones/proveedor/${idempresa}`
     );
-    // console.log(res.data)
     return res.data;
   } catch (e) {
     return [];
@@ -36,7 +33,6 @@ async function ListarPedidos(idempresa, proveedor, marca) {
     const res = await axiosInstance.get(
       `/importaciones/pedidos/${idempresa}/${proveedor}/${marca}`
     );
-    // console.log(res.data)
     return res.data;
   } catch (e) {
     return [];
@@ -52,7 +48,6 @@ export async function ObtenerPedidosPorMarca(emp, pr, marcas) {
       try {
         // Llama a ListarPedidos para cada marca individualmente
         const resultados = await ListarPedidos(emp, pr, marca.value);
-        // console.log(resultados);
         // Modifica cada objeto en resultados para añadir marca.value a name
         const resultadosModificados = resultados.map((pedido) => ({
           ...pedido,
@@ -83,7 +78,6 @@ export async function InsertarImportacion({
   marcasN,
   clientesU,
   imp,
-  // fetch,
 }) {
   try {
     // Construir el objeto del body dinámicamente
@@ -106,7 +100,6 @@ export async function InsertarImportacion({
       `/importaciones/insertarimportacion/`,
       body
     );
-    // fetch();
     return res;
   } catch (error) {
     return [];
@@ -117,7 +110,6 @@ export async function ConsultarImportacionesQ() {
     const res = await axiosInstance.post(
       `/importaciones/consultarImportacion/`
     );
-    fetch();
     return res;
   } catch (error) {
     return [];
@@ -161,7 +153,6 @@ export async function InsertarNegociacionForwarder({
   THC,
   mov_forwarder,
   etapa,
-  // fetch,
 }) {
   try {
     const res = await axiosInstance.post(
@@ -182,7 +173,6 @@ export async function InsertarNegociacionForwarder({
         etapa,
       }
     );
-    // fetch();
     return res;
   } catch (error) {
     return [];
@@ -194,7 +184,6 @@ export async function UpdateGeneralImportacion({
   observacion,
   usuario_asignado,
   PI,
-  // fetch,
 }) {
   try {
     const res = await axiosInstance.post(`/importaciones/updateGeneral/`, {
@@ -204,7 +193,6 @@ export async function UpdateGeneralImportacion({
       usuario_asignado: usuario_asignado,
       PI,
     });
-    console.log(res);
 
     return res;
   } catch (error) {
@@ -226,7 +214,7 @@ export async function UpdateIngresoTransacciones({
       fecha_pago_total,
       etapa,
     });
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
@@ -241,7 +229,7 @@ export async function UpdatePermisosImportacion({
   per_MINSA,
   per_FAD,
   etapa,
-  // fetch,
+  
 }) {
   try {
     const res = await axiosInstance.post(
@@ -257,7 +245,7 @@ export async function UpdatePermisosImportacion({
         etapa,
       }
     );
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
@@ -269,7 +257,7 @@ export async function UpdateMovilizacion({
   fecha_estimada_bodega,
   transportista_asignado,
   etapa,
-  // fetch,
+  
 }) {
   try {
     const res = await axiosInstance.post(`/importaciones/movilizacion/`, {
@@ -279,7 +267,7 @@ export async function UpdateMovilizacion({
       transportista_asignado,
       etapa,
     });
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
@@ -293,7 +281,7 @@ export async function UpdateMercaderiaEnBodega({
   validacion_bodega_ventas,
   observacion_bodega,
   etapa,
-  // fetch,
+  
 }) {
   try {
     const res = await axiosInstance.post(`/importaciones/bodega/`, {
@@ -305,7 +293,7 @@ export async function UpdateMercaderiaEnBodega({
       observacion_bodega,
       etapa,
     });
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
@@ -324,7 +312,7 @@ export async function UpdateNacionalizacion({
   fechaLiberacion,
   nroDAI,
   etapa,
-  // fetch,
+  
 }) {
   try {
     const res = await axiosInstance.post(`/importaciones/nacionalizacion/`, {
@@ -341,7 +329,7 @@ export async function UpdateNacionalizacion({
       nroDAI,
       etapa,
     });
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
@@ -382,7 +370,7 @@ export async function InsertarIngresoFactProveedor({
       IMP,
       etapa,
     });
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
@@ -403,8 +391,6 @@ export async function ObtenerArchivosProveedor({ id, tipo }) {
     const res = await axiosInstance.get(
       `/importaciones/documentosOB/${id}/${tipo}`
     );
-    // const res = []
-    // console.log(res);
 
     return res;
   } catch (error) {
@@ -455,7 +441,6 @@ export async function RegistrarDocumentosProveedor({
   rutaBase,
   rutaCarpeta,
 }) {
-  // console.log(CARGA);
   // Crear un objeto FormData
   const formData = new FormData();
 
@@ -465,7 +450,6 @@ export async function RegistrarDocumentosProveedor({
   }
   formData.append("id", id);
   formData.append("tipo", tipo);
-  // console.log(archivos);
   try {
     const res = await axiosInstance.post(`/${rutaBase}`, formData, {
       headers: {
@@ -479,14 +463,13 @@ export async function RegistrarDocumentosProveedor({
         "Content-Type": "multipart/form-data",
       },
     });
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
   }
 }
 export async function RegistrarDocumentosBodega({ id, archivos }) {
-  // console.log(CARGA);
   // Crear un objeto FormData
   const formData = new FormData();
 
@@ -494,8 +477,7 @@ export async function RegistrarDocumentosBodega({ id, archivos }) {
   for (const arch of archivos) {
     formData.append("archivos", arch);
   }
-  formData.append("id", id);
-  // console.log(archivos);
+  formData.append("id", id);  
   try {
     const res = await axiosInstance.post(
       `/importaciones/documentosBodegaBD/`,
@@ -514,14 +496,13 @@ export async function RegistrarDocumentosBodega({ id, archivos }) {
         "Content-Type": "multipart/form-data",
       },
     });
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
   }
 }
 export async function RegistrarDocumentosPricing({ id, archivo, tipo }) {
-  // console.log(CARGA);
   // Crear un objeto FormData
   const formData = new FormData();
 
@@ -546,7 +527,7 @@ export async function RegistrarDocumentosPricing({ id, archivo, tipo }) {
         "Content-Type": "multipart/form-data",
       },
     });
-    // fetch();
+    
     return res;
   } catch (error) {
     return [];
@@ -556,7 +537,6 @@ export async function RegistrarDocumentosPricing({ id, archivo, tipo }) {
 export async function ListarImportaciones() {
   try {
     const res = await axiosInstance.get(`/importaciones/consulta/`);
-    // console.log(res.data)
     return res.data;
   } catch (e) {
     return [];
@@ -565,7 +545,6 @@ export async function ListarImportaciones() {
 export async function BuscarDatosPorIDCarga(idcarga) {
   try {
     const res = await axiosInstance.get(`/importaciones/consultaID/${idcarga}`);
-    // console.log(res.data)
     return res.data;
   } catch (e) {
     return [];
@@ -574,7 +553,6 @@ export async function BuscarDatosPorIDCarga(idcarga) {
 export async function Consultarpis(empresa) {
   try {
     const res = await axiosInstance.get(`/importaciones/PI/${empresa}`);
-    // console.log(res.data)
     return res.data;
   } catch (e) {
     return [];
@@ -582,12 +560,10 @@ export async function Consultarpis(empresa) {
 }
 export async function ConsultarDataPI(empresa, PI) {
   try {
-    // console.log(empresa, "-", PI);
     const res = await axiosInstance.post(
       `/importaciones/PI/detalle/${empresa}`,
       { PI: PI }
     );
-    // console.log(res);
     return res.data;
   } catch (e) {
     return [];
@@ -598,7 +574,6 @@ export async function ConsultarTTED({ codigo }) {
     const res = await axiosInstance.get(
       `/importaciones/estimadotransito/${codigo}`
     );
-    // console.log(res);
     if (res.status === 200) {
       return res.data[0].tiempo_estimado;
     } else {
@@ -624,12 +599,10 @@ export async function ConsultarTTRD({ codigo }) {
 }
 export async function ConsultarDataTransaccionesSegunPI(empresa, PI) {
   try {
-    // console.log(empresa, "-", PI);
     const res = await axiosInstance.post(
       `/importaciones/PI/transaccion/${empresa}`,
       { PI: PI }
     );
-    // console.log(res.data);
     return res.data;
   } catch (e) {
     return [];
@@ -637,13 +610,11 @@ export async function ConsultarDataTransaccionesSegunPI(empresa, PI) {
 }
 export async function ConsultarFechaSalgoPagar({ id, proveedor }) {
   try {
-    console.log(id, proveedor);
     const res = await axiosInstance.post(
       `/importaciones/pagar/fecha/`,
       { id, proveedor }
     );
 
-    console.log(res);
     return res.data;
   } catch (e) {
     return [];
@@ -652,7 +623,6 @@ export async function ConsultarFechaSalgoPagar({ id, proveedor }) {
 export async function FinalizarImportacion({ id }) {
   try {
     const res = await axiosInstance.post(`/importaciones/terminar/`, { id });
-    console.log(res.data);
     return res.data;
   } catch (e) {
     return [];
@@ -720,7 +690,6 @@ export async function ConsultarIMPSegunProveedor({ codigoProveedor, empresa }) {
     const res = await axiosInstance.get(
       `/importaciones/obtenerIMP/${codigoProveedor}/${empresa}`
     );
-    console.log(res);
 
     if (res.status === 200) {
       return res.data[0].NEW_IMP;
@@ -779,7 +748,6 @@ export async function EnviarCorreoPricing({ idImportacion, destinatarios }) {
         destinatarios,
       }
     );
-    // console.log(res);
 
     if (res.status === 200) {
       return true;
@@ -798,7 +766,6 @@ export async function EnviarCorreoBodega({ idImportacion, destinatarios }) {
         destinatarios,
       }
     );
-    // console.log(res);
 
     if (res.status === 200) {
       return true;

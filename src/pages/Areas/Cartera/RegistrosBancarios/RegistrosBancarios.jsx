@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import TablaTransaccionesCompleto from "../ComponentesCartera/RegistrosBancarios/TablaTransaccionesCompleto";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { withPermissions } from "../../../../hoc/withPermissions";
-import { usePermissions } from "../../../../hooks/usePermissions";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
 import { FiltrosUnificadosCartera } from "../ComponentesCartera/RegistrosBancarios/ComponentesUnificadosCartera";
 import { ModalEdicionTransaccion } from "../ComponentesCartera/RegistrosBancarios/ModalEdicionTransaccion";
 import {
@@ -10,53 +8,81 @@ import {
   actualizarEstadoTransaccionBancariaPorID,
 } from "../../../../services/carteraService";
 import { toast } from "react-toastify";
+import { useAuthContext } from "context/authContext";
+import { hasAccessToResource } from "utils/permissionsValidator";
 
-const RegistrosBancariosComponent = ({
-  empresasAcceso,
-  permissionsLoading,
+export const RegistrosBancarios = ({
   routeConfig,
+  availableCompanies, // Del nuevo sistema de recursos (ProtectedContent)
 }) => {
-  // Obtener permisos por módulo para saber desde dónde viene el usuario
-  const { permissionsByModule } = usePermissions("REGISTROS BANCARIOS", null);
+  const { user } = useAuthContext();
+  // Convertir availableCompanies al formato esperado por FiltrosUnificadosCartera
+  const empresasDisponibles = useMemo(() => {
+    if (availableCompanies && availableCompanies.length > 0) {
+      // Convertir { id, nombre } a { empresa: nombre } para compatibilidad
+      return availableCompanies.map((emp) => ({
+        empresa: emp.nombre,
+        idempresa: emp.id,
+      }));
+    }
+    return [];
+  }, [availableCompanies]);
 
-  // Determinar los tipos de transacción permitidos según los módulos padre
+  // Determinar los tipos de transacción permitidos según los recursos que realmente tiene acceso
+  // C = Créditos (CARTERA), D = Débitos (CONTABILIDAD)
   const tiposTransaccionPermitidos = useMemo(() => {
-    const modulosPermisos = JSON.parse(localStorage.getItem("modulos")) || [];
     const tiposPermitidos = [];
 
-    // Función para buscar todos los módulos padre de REGISTROS BANCARIOS
-    const findAllParentModules = (modules) => {
-      for (const module of modules) {
-        // Verificar si REGISTROS BANCARIOS está dentro de CARTERA
-        if (module.modulo === "CARTERA" && module.children) {
-          const hasRegistros = module.children.some(
-            (child) => child.modulo === "REGISTROS BANCARIOS"
-          );
-          if (hasRegistros && !tiposPermitidos.includes("C")) {
-            tiposPermitidos.push("C"); // CARTERA -> tipo C
-          }
-        }
+    if (!routeConfig || !user || !user.data) return tiposPermitidos;
 
-        // Verificar si REGISTROS BANCARIOS está dentro de CONTABILIDAD
-        if (module.modulo === "CONTABILIDAD" && module.children) {
-          const hasRegistros = module.children.some(
-            (child) => child.modulo === "REGISTROS BANCARIOS"
-          );
-          if (hasRegistros && !tiposPermitidos.includes("D")) {
-            tiposPermitidos.push("D"); // CONTABILIDAD -> tipo D
-          }
-        }
+    const userContexts = user.data;
+    const recursoPrincipal = routeConfig.recurso;
+    const recursosAlternativos = routeConfig.recursosAlternativos || [];
 
-        // Buscar recursivamente en children
-        if (module.children && module.children.length > 0) {
-          findAllParentModules(module.children);
+    // Verificar qué recurso tiene acceso realmente
+    let tieneAccesoCartera = false;
+    let tieneAccesoContabilidad = false;
+
+    // Verificar acceso al recurso principal
+    if (recursoPrincipal === "cartera.registrosbancarios") {
+      tieneAccesoCartera = hasAccessToResource(userContexts, recursoPrincipal);
+    }
+
+    // Verificar acceso a recursos alternativos
+    if (recursosAlternativos.length > 0) {
+      tieneAccesoContabilidad = recursosAlternativos.some((recursoAlt) => {
+        if (recursoAlt === "contabilidad.registrosbancarios") {
+          const tieneAcceso = hasAccessToResource(userContexts, recursoAlt);
+          return tieneAcceso;
         }
+        return false;
+      });
+    }
+
+    // También verificar si tiene acceso mediante el recurso principal de contabilidad
+    // (por si el usuario tiene acceso directo a "contabilidad.registrosbancarios" como recurso principal)
+    if (recursoPrincipal === "contabilidad.registrosbancarios") {
+      tieneAccesoContabilidad = hasAccessToResource(
+        userContexts,
+        recursoPrincipal
+      );
+    }
+
+    // Determinar tipos permitidos basándose en los recursos con acceso
+    if (tieneAccesoCartera) {
+      tiposPermitidos.push("C");
+    }
+
+    if (tieneAccesoContabilidad) {
+      tiposPermitidos.push("D");
+      // Si tiene acceso a contabilidad, también puede ver créditos (C)
+      if (!tiposPermitidos.includes("C")) {
+        tiposPermitidos.push("C");
       }
-    };
+    }
 
-    findAllParentModules(modulosPermisos);
     return tiposPermitidos;
-  }, [permissionsByModule]);
+  }, [routeConfig, user]);
   // Estados para datos filtrados y configuración
   const [todosLosDatos, setTodosLosDatos] = useState([]); // Todos los datos sin filtrar
   const [datosFiltrados, setDatosFiltrados] = useState([]);
@@ -72,7 +98,6 @@ const RegistrosBancariosComponent = ({
   const handleFiltersChange = useCallback((filtros) => {
     // Actualizar todos los datos sin filtrar (para los contadores)
     if (filtros.todosLosDatos) {
-      console.log("filtros.todosLosDatos", filtros.todosLosDatos);
       setTodosLosDatos(filtros.todosLosDatos);
     }
 
@@ -112,32 +137,29 @@ const RegistrosBancariosComponent = ({
         let resultado;
         const idTransaccion = transaccionSeleccionada.IDENTIFICADOR;
 
-        if (
-          formData.estado &&
-          formData.estado !== undefined &&
-          formData.estado !== null
-        ) {
-          resultado = await actualizarEstadoTransaccionBancariaPorID(
-            idTransaccion,
-            formData.estado,
-            localStorage.getItem("identificador"),
-            formData.comentario || "",
-            formData.ingreso || ""
-          );
-        } else {
-          const datosParaGuardar = {
-            cliente: formData.cliente.toUpperCase(),
-            codigosocio: formData.cedula,
-            usuario: parseInt(localStorage.getItem("identificador")),
-            comentariousuario: formData.comentario.toUpperCase(),
-            vendedor: formData.vendedor.toUpperCase(),
-            ingreso: formData.ingreso.toUpperCase(),
-          };
-          resultado = await actualizarTransaccionBancariaPorID(
-            idTransaccion,
-            datosParaGuardar
-          );
+        // Obtener ID del usuario desde el contexto
+        const idUsuario = user?.USUARIO?.USUA_ID || "";
+
+        if (!idUsuario) {
+          toast.error("No se pudo obtener la información del usuario");
+          return;
         }
+
+        const datosParaGuardar = {
+          cliente: formData.cliente.toUpperCase(),
+          codigosocio: formData.cedula,
+          usuario: parseInt(idUsuario),
+          comentariousuario: formData.comentario.toUpperCase(),
+          vendedor: formData.vendedor.toUpperCase(),
+          ingreso: formData.ingreso.toUpperCase(),
+        };
+        if(formData.estado) {
+          datosParaGuardar.estado = formData.estado;
+        }
+        resultado = await actualizarTransaccionBancariaPorID(
+          idTransaccion,
+          datosParaGuardar
+        );
 
         if (resultado.success) {
           // Actualizar solo el registro específico en ambos arrays
@@ -165,44 +187,47 @@ const RegistrosBancariosComponent = ({
           toast.error(resultado.message);
         }
       } catch (error) {
-        console.error("Error al guardar:", error);
-        toast.error(error.message);
+        toast.error(error.message || "Error al guardar los cambios");
       }
     },
-    [transaccionSeleccionada, handleCloseModal]
+    [transaccionSeleccionada, handleCloseModal, user]
   );
 
-  // Mostrar loading mientras se cargan los permisos
-  if (permissionsLoading) {
-    return (
-      <CustomContainer
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
-        height="100%"
-        style={{
-          padding: "20px",
-          backgroundColor: "rgba(248, 249, 250, 0.8)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "16px",
-            color: "#6c757d",
-            textAlign: "center",
-          }}
-        >
-          Cargando permisos de acceso...
-        </div>
-      </CustomContainer>
-    );
-  }
+  // Verificar si realmente tiene acceso al recurso (principal o alternativo)
+  const tieneAccesoReal = useMemo(() => {
+    if (!user || !user.data || !routeConfig) return false;
+
+    const userContexts = user.data;
+    const recursoPrincipal = routeConfig.recurso;
+    const recursosAlternativos = routeConfig.recursosAlternativos || [];
+
+    // Verificar acceso al recurso principal
+    if (
+      recursoPrincipal &&
+      hasAccessToResource(userContexts, recursoPrincipal)
+    ) {
+      return true;
+    }
+
+    // Verificar acceso a recursos alternativos
+    if (recursosAlternativos.length > 0) {
+      return recursosAlternativos.some((recursoAlt) =>
+        hasAccessToResource(userContexts, recursoAlt)
+      );
+    }
+
+    return false;
+  }, [user, routeConfig]);
 
   // Mostrar mensaje si no hay permisos
-  if (!empresasAcceso || empresasAcceso.length === 0) {
+  // Solo mostrar el mensaje si realmente no tiene acceso Y no hay empresas disponibles
+  // Si tiene acceso pero no hay empresas, permitir el acceso (puede que no tenga empresas configuradas en el alcance)
+  if (
+    !tieneAccesoReal &&
+    (!empresasDisponibles || empresasDisponibles.length === 0)
+  ) {
     return (
-      <CustomContainer
+      <ContainerUI
         flexDirection="column"
         justifyContent="center"
         alignItems="center"
@@ -229,20 +254,20 @@ const RegistrosBancariosComponent = ({
         >
           Contacta al administrador para obtener acceso.
         </div>
-      </CustomContainer>
+      </ContainerUI>
     );
   }
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="column"
       width="100%"
       height="100%"
       justifyContent="flex-start"
     >
       <FiltrosUnificadosCartera
-        empresasAcceso={empresasAcceso}
-        permissionsLoading={permissionsLoading}
+        empresasAcceso={empresasDisponibles}
+        permissionsLoading={false}
         onFiltersChange={handleFiltersChange}
         refrescar={refrescarDatos}
         tiposTransaccionPermitidos={tiposTransaccionPermitidos}
@@ -264,9 +289,6 @@ const RegistrosBancariosComponent = ({
         onClose={handleCloseModal}
         onSave={handleSaveModal}
       />
-    </CustomContainer>
+    </ContainerUI>
   );
 };
-
-// Exportar el componente envuelto con withPermissions
-export const RegistrosBancarios = withPermissions(RegistrosBancariosComponent);

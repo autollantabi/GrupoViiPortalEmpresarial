@@ -12,12 +12,16 @@ export async function authService_login({ correo, contrasena }) {
       correo,
       contrasena,
     });
+
+    
     return {
       success: true,
       message: response.data.message,
       data: response.data.data || response.data,
+      idSession: response.data.idSession, // Capturar el idSession
     };
   } catch (error) {
+    console.error("❌ [LOGIN] Error:", error);
     return { success: false, message: error.response.data.message };
   }
 }
@@ -93,5 +97,27 @@ export async function authService_actualizarContrasena({
     };
   } catch (error) {
     return { success: false, message: error.response.data.message };
+  }
+}
+
+/**
+ * Obtener información del usuario autenticado
+ * @returns {Promise<{success: boolean, message: string, data: object}>} - Información del usuario
+ */
+export async function authService_me() {
+  try {
+    const response = await axiosInstanceNew.get("/auth/me");
+    
+    return {
+      success: true,
+      message: response.data.message || "Usuario obtenido exitosamente",
+      data: response.data.data || response.data,
+    };
+  } catch (error) {
+    console.error("❌ [AUTH/ME] Error:", error);
+    return { 
+      success: false, 
+      message: error.response?.data?.message || "Error al obtener información del usuario" 
+    };
   }
 }

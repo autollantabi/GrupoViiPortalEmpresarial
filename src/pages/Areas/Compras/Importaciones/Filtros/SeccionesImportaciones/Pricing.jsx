@@ -6,7 +6,6 @@ import {
   RegistrarDocumentosPricing,
   UpdatePricing,
 } from "services/importacionesService";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { obtenerCorreosAEnviar } from "../../PermisosModulo";
 import { listCorreosEnvioPricing } from "../../CorreosTemporal";
 import { FormRow, ConfirmationDialog } from "components/common/FormComponents";
@@ -22,16 +21,18 @@ import {
   SectionImportacionesContainer,
   SectionImportacionesTitle,
 } from "../../StylesImportaciones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomLoader } from "components/UI/CustomComponents/CustomLoader";
-
-const BODEGA = ["COMPRAS", "BODEGA"];
-const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
-const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
 const correosDestinatarios = listCorreosEnvioPricing();
 
-export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
+export const Pricing = ({ datos, setDatos, actualizar, permisosProp, rolesUsuario = [] }) => {
+  // Usar el rol que viene como prop (ya calculado en el router)
+  const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
+
+  const tieneRolVentas = roles.includes("usuario");
+  const tieneRolBodega = roles.includes("bodega");
+  const tieneRolJefatura = roles.includes("jefatura");
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     CARGA: {
@@ -87,11 +88,6 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
 
   // Estados específicos para este componente
   const [todosLlenos, setTodosLlenos] = useState(false);
-  const [permisos, setPermisos] = useState({
-    bodega: [],
-    compras: [],
-    comprasGerencias: [],
-  });
   const [enviandoCorreos, setEnviandoCorreos] = useState(0);
   const [listaDeCorreosParaEnviar, setListaDeCorreosParaEnviar] = useState([]);
 
@@ -181,8 +177,8 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
 
       // Enviar correo si es necesario
       if (
-        permisos.comprasGerencias.length === 0 &&
-        permisos.compras.length > 0 &&
+        !tieneRolJefatura &&
+        tieneRolVentas &&
         enviarCorreo
       ) {
         setEnviandoCorreos(1);
@@ -279,12 +275,7 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
         }));
       }
 
-      // Usar permisos recibidos desde props
-      setPermisos({
-        bodega: permisosProp?.bodega || [],
-        compras: permisosProp?.compras || [],
-        comprasGerencias: permisosProp?.comprasGerencias || [],
-      });
+      // Los permisos ahora se basan en roles, no necesitamos setear estados
 
       // Preparar correos
       const correosAEnviar = obtenerCorreosAEnviar(
@@ -321,7 +312,7 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
 
         // Regla especial para el checkbox de correo
         if (campo.id === "ENVIAR_CORREO") {
-          nuevoEstado[campo.id] = permisos.comprasGerencias.length > 0;
+          nuevoEstado[campo.id] = tieneRolJefatura;
           return;
         }
 
@@ -332,9 +323,9 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
           tieneID,
           datosIniciales,
           {
-            permisosCompras: permisos.compras,
-            permisosBodega: permisos.bodega,
-            permisosComprasGerencias: permisos.comprasGerencias,
+            permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+            permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+            permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : [],
           }
         );
       });
@@ -343,13 +334,13 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
     };
 
     evaluarCamposBloqueados();
-  }, [datos, datosForm, campos, datosIniciales, permisos]);
+  }, [datos, datosForm, campos, datosIniciales, tieneRolVentas, tieneRolBodega, tieneRolJefatura]);
 
   // Determinar si mostrar botón de edición
-  // Solo COMPRAS (IMPORTACIONES) puede editar Pricing, no BODEGA ni GERENCIA
+  // Solo COMPRAS (ventas) puede editar Pricing, no BODEGA ni GERENCIA (jefatura)
   const mostrarBotonEdicion =
-    permisos.comprasGerencias.length === 0 &&
-    permisos.compras.length > 0 &&
+    !tieneRolJefatura &&
+    tieneRolVentas &&
     todosLlenos &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
@@ -358,10 +349,10 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
       <SectionImportacionesTitle>
         PRICING - Excel Liquidación de Precios
         {mostrarBotonEdicion && (
-          <CustomButton
+          <ButtonUI
             onClick={() => setMostrarConfirmacion(true)}
             pcolor={({ theme }) => theme.colors.secondary}
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             width="35px"
             height="35px"
           />
@@ -372,7 +363,7 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
         <div
           style={{ display: "flex", justifyContent: "center", padding: "20px" }}
         >
-          <CustomLoader />
+          <LoaderUI />
         </div>
       ) : (
         <FormImportacionesGrid>
@@ -381,8 +372,8 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp }) => {
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
               {
-                permisosCompras: permisos.compras,
-                permisosBodega: permisos.bodega,
+                permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
               },
               { siempreVisibles: [] },
               {},

@@ -1,27 +1,37 @@
 import React, { useState } from "react";
 
-import {
-  CustomContainer,
-  CustomText,
-} from "components/UI/CustomComponents/CustomComponents";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { TextUI } from "components/UI/Components/TextUI";
 import { useTheme } from "context/ThemeContext";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import {
   apiCargarArchivoTransferenciasPichincha,
   apiCargarArchivoTransferenciasBolivariano,
 } from "services/cartera/cargarTransferencias";
 import { toast } from "react-toastify";
-import { CampoListaArchivosMejorado } from "../../../../components/UI/CustomComponents/CampoListaArchivosMejorado";
 import { apiEjecutarBancos } from "services/cartera/ejecutarbancos";
+import { FileListUI } from "components/UI/Components/FileListUI";
+import { useAuthContext } from "context/authContext";
 
 export const Cartera_CargarTransferencias = () => {
   const { theme } = useTheme();
+  const { user } = useAuthContext();
   const [activeTab, setActiveTab] = useState("bolivariano"); // "bolivariano", "pichincha" o "ejecutar"
 
   // Verificar permisos para la pestaña de ejecutar bancos
   const tienePermisosAdministracion = () => {
-    const modulos = JSON.parse(localStorage.getItem("modulos") || "[]");
-    return modulos.some((modulo) => modulo.modulo === "ADMINISTRACION");
+    if (!user) {
+      return false;
+    }
+    // Usar CONTEXTOS o data (ambos contienen los mismos datos)
+    const contextos = user.CONTEXTOS || [];
+    if (!Array.isArray(contextos) || contextos.length === 0) {
+      return false;
+    }
+    // Revisar en todos los permisos si tienen uno que sea administracion
+    return contextos.some(
+      (contexto) => contexto.RECURSO?.toLowerCase() === "administracion"
+    );
   };
   // Estado para archivos de Bolivariano por empresa
   const [archivosBolivariano, setArchivosBolivariano] = useState({
@@ -38,13 +48,21 @@ export const Cartera_CargarTransferencias = () => {
   });
 
   // Manejar archivos por empresa para Bolivariano
-  const handleArchivoBolivariano = (empresaKey, files) => {
-    setArchivosBolivariano((prev) => ({ ...prev, [empresaKey]: files }));
+  // FileListUI llama setArchivo(nombreCampo, files), así que necesitamos adaptar la función
+  const handleArchivoBolivariano = (nombreCampo, files) => {
+    if (files === undefined) {
+      // Si solo se pasa un parámetro, es el nombreCampo y necesitamos retornar una función
+      return (files) => {
+        setArchivosBolivariano((prev) => ({ ...prev, [nombreCampo]: files }));
+      };
+    }
+    // Si se pasan ambos parámetros, actualizar directamente
+    setArchivosBolivariano((prev) => ({ ...prev, [nombreCampo]: files }));
   };
 
   // Verificar si hay al menos un archivo cargado para Bolivariano
   const hayArchivosBolivariano = Object.values(archivosBolivariano).some(
-    (archivos) => archivos && archivos.length > 0
+    (archivos) => archivos && Array.isArray(archivos) && archivos.length > 0
   );
 
   // Subir archivos Bolivariano
@@ -56,7 +74,8 @@ export const Cartera_CargarTransferencias = () => {
       archivosBolivariano.bolivarianoau &&
       archivosBolivariano.bolivarianoau.length > 0
     ) {
-      const archivoOriginal = archivosBolivariano.bolivarianoau[0].doc;
+      // FileListUI devuelve archivos con estructura { doc: File, ... }
+      const archivoOriginal = archivosBolivariano.bolivarianoau[0].doc || archivosBolivariano.bolivarianoau[0];
       const nuevoArchivo = new File(
         [archivoOriginal],
         "AutollantaBolivariano.txt",
@@ -70,7 +89,8 @@ export const Cartera_CargarTransferencias = () => {
       archivosBolivariano.bolivarianoma &&
       archivosBolivariano.bolivarianoma.length > 0
     ) {
-      const archivoOriginal = archivosBolivariano.bolivarianoma[0].doc;
+      // FileListUI devuelve archivos con estructura { doc: File, ... }
+      const archivoOriginal = archivosBolivariano.bolivarianoma[0].doc || archivosBolivariano.bolivarianoma[0];
       const nuevoArchivo = new File(
         [archivoOriginal],
         "MaxximundoBolivariano.txt",
@@ -90,27 +110,27 @@ export const Cartera_CargarTransferencias = () => {
     }
   };
 
-  // Manejar archivos por empresa
-  const handleArchivoPichincha = (empresaKey, files) => {
-    setArchivosPichincha((prev) => ({ ...prev, [empresaKey]: files }));
+  // Manejar archivos por empresa para Pichincha
+  // FileListUI llama setArchivo(nombreCampo, files), así que necesitamos adaptar la función
+  const handleArchivoPichincha = (nombreCampo, files) => {
+    if (files === undefined) {
+      // Si solo se pasa un parámetro, es el nombreCampo y necesitamos retornar una función
+      return (files) => {
+        setArchivosPichincha((prev) => ({ ...prev, [nombreCampo]: files }));
+      };
+    }
+    // Si se pasan ambos parámetros, actualizar directamente
+    setArchivosPichincha((prev) => ({ ...prev, [nombreCampo]: files }));
   };
 
-  // Verificar si hay al menos un archivo cargado
+  // Verificar si hay al menos un archivo cargado para Pichincha
   const hayArchivosPichincha = Object.values(archivosPichincha).some(
-    (archivos) => archivos && archivos.length > 0
+    (archivos) => archivos && Array.isArray(archivos) && archivos.length > 0
   );
 
   // Función para limpiar inputs de archivos Bolivariano
   const limpiarInputsArchivosBolivariano = () => {
-    const empresas = ["bolivarianoau", "bolivarianoma"];
-    empresas.forEach((empresa) => {
-      const fileInput = document.getElementById(
-        `fileInputMB-bolivariano-${empresa}`
-      );
-      if (fileInput) {
-        fileInput.value = "";
-      }
-    });
+    // Los archivos se limpian automáticamente al resetear el estado
   };
 
   // Función para limpiar inputs de archivos Pichincha
@@ -129,29 +149,32 @@ export const Cartera_CargarTransferencias = () => {
     // Juntar archivos, cada uno con su nombre correspondiente
     const archivos = [];
     if (archivosPichincha.au && archivosPichincha.au.length > 0) {
-      // Tomar el primer archivo del array y crear uno nuevo con el nombre deseado
-      const archivoOriginal = archivosPichincha.au[0].doc;
+      // FileListUI devuelve archivos con estructura { doc: File, ... }
+      const archivoOriginal = archivosPichincha.au[0].doc || archivosPichincha.au[0];
       const nuevoArchivo = new File([archivoOriginal], "au.csv", {
         type: "text/csv",
       });
       archivos.push(nuevoArchivo);
     }
     if (archivosPichincha.ma && archivosPichincha.ma.length > 0) {
-      const archivoOriginal = archivosPichincha.ma[0].doc;
+      // FileListUI devuelve archivos con estructura { doc: File, ... }
+      const archivoOriginal = archivosPichincha.ma[0].doc || archivosPichincha.ma[0];
       const nuevoArchivo = new File([archivoOriginal], "ma.csv", {
         type: "text/csv",
       });
       archivos.push(nuevoArchivo);
     }
     if (archivosPichincha.st && archivosPichincha.st.length > 0) {
-      const archivoOriginal = archivosPichincha.st[0].doc;
+      // FileListUI devuelve archivos con estructura { doc: File, ... }
+      const archivoOriginal = archivosPichincha.st[0].doc || archivosPichincha.st[0];
       const nuevoArchivo = new File([archivoOriginal], "st.csv", {
         type: "text/csv",
       });
       archivos.push(nuevoArchivo);
     }
     if (archivosPichincha.ik && archivosPichincha.ik.length > 0) {
-      const archivoOriginal = archivosPichincha.ik[0].doc;
+      // FileListUI devuelve archivos con estructura { doc: File, ... }
+      const archivoOriginal = archivosPichincha.ik[0].doc || archivosPichincha.ik[0];
       const nuevoArchivo = new File([archivoOriginal], "ik.csv", {
         type: "text/csv",
       });
@@ -181,42 +204,19 @@ export const Cartera_CargarTransferencias = () => {
     }
   };
 
-  const ejecutarBancoPichincha = async () => {
-    try {
-      // Aquí iría la llamada a la API para ejecutar Banco Pichincha
-      // const res = await apiEjecutarBancoPichincha();
-      // Simulación de llamada a API
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simular 2 minutos
-      toast.success("Banco Pichincha ejecutado correctamente");
-    } catch (error) {
-      toast.error("Error al ejecutar Banco Pichincha");
-    }
-  };
-
-  const ejecutarTodosBancos = async () => {
-    try {
-      // Aquí iría la llamada a la API para ejecutar todos los bancos
-      // const res = await apiEjecutarTodosBancos();
-      // Simulación de llamada a API
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simular 2 minutos
-      toast.success("Todos los bancos ejecutados correctamente");
-    } catch (error) {
-      toast.error("Error al ejecutar todos los bancos");
-    }
-  };
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="column"
       justifyContent="flex-start"
       height="100%"
       width="100%"
     >
       {/* PESTAÑAS */}
-      <CustomContainer
+      <ContainerUI
         flexDirection="row"
         style={{ gap: "10px", marginBottom: "20px" }}
       >
-        <CustomButton
+        <ButtonUI
           text="Banco Bolivariano"
           onClick={() => setActiveTab("bolivariano")}
           variant={activeTab === "bolivariano" ? "contained" : "outlined"}
@@ -226,7 +226,7 @@ export const Cartera_CargarTransferencias = () => {
               : theme.colors.primary
           }
         />
-        <CustomButton
+        <ButtonUI
           text="Banco Pichincha"
           onClick={() => setActiveTab("pichincha")}
           variant={activeTab === "pichincha" ? "contained" : "outlined"}
@@ -237,7 +237,7 @@ export const Cartera_CargarTransferencias = () => {
           }
         />
         {tienePermisosAdministracion() && (
-          <CustomButton
+          <ButtonUI
             text="Ejecutar Bancos"
             onClick={() => setActiveTab("ejecutar")}
             variant={activeTab === "ejecutar" ? "contained" : "outlined"}
@@ -248,82 +248,82 @@ export const Cartera_CargarTransferencias = () => {
             }
           />
         )}
-      </CustomContainer>
+      </ContainerUI>
 
       {/* CONTENIDO PESTAÑA BANCO BOLIVARIANO */}
       {activeTab === "bolivariano" && (
-        <CustomContainer flexDirection="column">
-          <CustomContainer flexDirection="column">
-            <CustomText color={theme.colors.error}>¡IMPORTANTE!</CustomText>
-            <CustomText style={{ maxWidth: "1000px" }} align={"center"}>
+        <ContainerUI flexDirection="column">
+          <ContainerUI flexDirection="column">
+            <TextUI color={theme.colors.error}>¡IMPORTANTE!</TextUI>
+            <TextUI style={{ maxWidth: "1000px" }} align={"center"}>
               El archivo de movimientos del <b>BANCO BOLIVARIANO</b> que subas
               en esta sección será procesado automáticamente y los movimientos
               se cargarán en Registros Bancarios. Ya no es necesario esperar
               para que se reflejen.
-            </CustomText>
-          </CustomContainer>
-          <CustomText
+            </TextUI>
+          </ContainerUI>
+          <TextUI
             color={theme.colors.primary}
             style={{ fontWeight: 700, marginBottom: 8 }}
           >
             Subir archivos Banco Bolivariano
-          </CustomText>
-          <CustomText style={{ marginBottom: 16 }}>
+          </TextUI>
+          <TextUI style={{ marginBottom: 16 }}>
             Sube un archivo TXT de movimientos para cada empresa
-          </CustomText>
-          <CustomContainer style={{ gap: 24, flexWrap: "wrap" }}>
-            <CustomContainer flexDirection="column" style={{ minWidth: 200 }}>
-              <CustomText>Autollanta</CustomText>
-              <CampoListaArchivosMejorado
+          </TextUI>
+          <ContainerUI style={{ gap: 24, flexWrap: "wrap" }}>
+            <ContainerUI flexDirection="column" style={{ minWidth: 200 }}>
+              <TextUI>Autollanta</TextUI>
+              <FileListUI
                 setArchivo={handleArchivoBolivariano}
                 aceptados=".txt"
                 nombreCampo="bolivarianoau"
-                archivos={archivosBolivariano.au}
+                archivos={archivosBolivariano.bolivarianoau}
                 impFinalizado={false}
                 id="bolivariano-au"
                 limite={1}
               />
-            </CustomContainer>
-            <CustomContainer flexDirection="column" style={{ minWidth: 200 }}>
-              <CustomText>Maxximundo</CustomText>
-              <CampoListaArchivosMejorado
+            </ContainerUI>
+            <ContainerUI flexDirection="column" style={{ minWidth: 200 }}>
+              <TextUI>Maxximundo</TextUI>
+              <FileListUI
                 setArchivo={handleArchivoBolivariano}
                 aceptados=".txt"
                 nombreCampo="bolivarianoma"
-                archivos={archivosBolivariano.ma}
+                archivos={archivosBolivariano.bolivarianoma}
                 impFinalizado={false}
                 id="bolivariano-ma"
                 limite={1}
               />
-            </CustomContainer>
-          </CustomContainer>
-          <CustomContainer style={{ marginTop: 24 }}>
-            <CustomButton
+            </ContainerUI>
+          </ContainerUI>
+          <ContainerUI style={{ marginTop: 24 }}>
+            <ButtonUI
               isAsync
               text="Subir Archivos Bolivariano"
               onClick={cargarArchivosBolivariano}
               disabled={!hayArchivosBolivariano}
             />
-          </CustomContainer>
-        </CustomContainer>
+          </ContainerUI>
+        </ContainerUI>
       )}
 
       {/* CONTENIDO PESTAÑA BANCO PICHINCHA */}
       {activeTab === "pichincha" && (
-        <CustomContainer flexDirection="column">
-          <CustomText
+        <ContainerUI flexDirection="column">
+          <TextUI
             color={theme.colors.primary}
             style={{ fontWeight: 700, marginBottom: 8 }}
           >
             Subir archivos Banco Pichincha
-          </CustomText>
-          <CustomText style={{ marginBottom: 16 }}>
+          </TextUI>
+          <TextUI style={{ marginBottom: 16 }}>
             Sube un archivo CSV de movimientos para cada empresa
-          </CustomText>
-          <CustomContainer style={{ gap: 24, flexWrap: "wrap" }}>
-            <CustomContainer flexDirection="column" style={{ minWidth: 200 }}>
-              <CustomText>Autollanta</CustomText>
-              <CampoListaArchivosMejorado
+          </TextUI>
+          <ContainerUI style={{ gap: 24, flexWrap: "wrap" }}>
+            <ContainerUI flexDirection="column" style={{ minWidth: 200 }}>
+              <TextUI>Autollanta</TextUI>
+              <FileListUI
                 setArchivo={handleArchivoPichincha}
                 aceptados=".csv"
                 nombreCampo="au"
@@ -332,10 +332,10 @@ export const Cartera_CargarTransferencias = () => {
                 id="au"
                 limite={1}
               />
-            </CustomContainer>
-            <CustomContainer flexDirection="column" style={{ minWidth: 200 }}>
-              <CustomText>Maxximundo</CustomText>
-              <CampoListaArchivosMejorado
+            </ContainerUI>
+            <ContainerUI flexDirection="column" style={{ minWidth: 200 }}>
+              <TextUI>Maxximundo</TextUI>
+              <FileListUI
                 setArchivo={handleArchivoPichincha}
                 aceptados=".csv"
                 nombreCampo="ma"
@@ -344,10 +344,10 @@ export const Cartera_CargarTransferencias = () => {
                 id="ma"
                 limite={1}
               />
-            </CustomContainer>
-            <CustomContainer flexDirection="column" style={{ minWidth: 200 }}>
-              <CustomText>Stox</CustomText>
-              <CampoListaArchivosMejorado
+            </ContainerUI>
+            <ContainerUI flexDirection="column" style={{ minWidth: 200 }}>
+              <TextUI>Stox</TextUI>
+              <FileListUI
                 setArchivo={handleArchivoPichincha}
                 aceptados=".csv"
                 nombreCampo="st"
@@ -356,10 +356,10 @@ export const Cartera_CargarTransferencias = () => {
                 id="st"
                 limite={1}
               />
-            </CustomContainer>
-            <CustomContainer flexDirection="column" style={{ minWidth: 200 }}>
-              <CustomText>Ikonix</CustomText>
-              <CampoListaArchivosMejorado
+            </ContainerUI>
+            <ContainerUI flexDirection="column" style={{ minWidth: 200 }}>
+              <TextUI>Ikonix</TextUI>
+              <FileListUI
                 setArchivo={handleArchivoPichincha}
                 aceptados=".csv"
                 nombreCampo="ik"
@@ -368,35 +368,35 @@ export const Cartera_CargarTransferencias = () => {
                 id="ik"
                 limite={1}
               />
-            </CustomContainer>
-          </CustomContainer>
-          <CustomContainer style={{ marginTop: 24 }}>
-            <CustomButton
+            </ContainerUI>
+          </ContainerUI>
+          <ContainerUI style={{ marginTop: 24 }}>
+            <ButtonUI
               isAsync
               text="Subir Archivos Pichincha"
               onClick={cargarArchivosPichincha}
               disabled={!hayArchivosPichincha}
             />
-          </CustomContainer>
-        </CustomContainer>
+          </ContainerUI>
+        </ContainerUI>
       )}
 
       {/* CONTENIDO PESTAÑA EJECUTAR BANCOS */}
       {activeTab === "ejecutar" && tienePermisosAdministracion() && (
-        <CustomContainer flexDirection="column">
-          <CustomText
+        <ContainerUI flexDirection="column">
+          <TextUI
             color={theme.colors.primary}
             style={{ fontWeight: 700, marginBottom: 8 }}
           >
             Ejecutar Procesos de Bancos
-          </CustomText>
-          <CustomText style={{ marginBottom: 16 }}>
+          </TextUI>
+          <TextUI style={{ marginBottom: 16 }}>
             Ejecuta los procesos de sincronización con los bancos. Tiempo
             aproximado: 2 minutos por proceso.
-          </CustomText>
+          </TextUI>
 
-          <CustomContainer style={{ gap: 16, flexWrap: "wrap" }}>
-            <CustomButton
+          <ContainerUI style={{ gap: 16, flexWrap: "wrap" }}>
+            <ButtonUI
               isAsync
               text="Ejecutar Coop JEP"
               onClick={() => ejecutarBanco("jep")}
@@ -404,7 +404,7 @@ export const Cartera_CargarTransferencias = () => {
               style={{ minWidth: "200px" }}
             />
 
-            <CustomButton
+            <ButtonUI
               isAsync
               text="Ejecutar Guayaquil"
               onClick={() => ejecutarBanco("guayaquil")}
@@ -412,39 +412,39 @@ export const Cartera_CargarTransferencias = () => {
               style={{ minWidth: "200px" }}
             />
 
-            <CustomButton
+            <ButtonUI
               isAsync
               text="Ejecutar Produbanco"
               onClick={() => ejecutarBanco("produbanco")}
               pcolor={theme.colors.primary}
               style={{ minWidth: "200px" }}
             />
-          </CustomContainer>
+          </ContainerUI>
 
-          <CustomContainer
+          <ContainerUI
             style={{
               marginTop: 24,
               padding: 16,
-              backgroundColor: theme.colors.background,
+              backgroundColor: theme.colors.backgroundLight,
               borderRadius: 8,
               width: "fit-content",
             }}
             flexDirection="column"
           >
-            <CustomText style={{ fontWeight: 600, marginBottom: 8 }}>
+            <TextUI style={{ fontWeight: 600, marginBottom: 8 }}>
               ⚠️ Información Importante
-            </CustomText>
-            <CustomText style={{ fontSize: "14px", lineHeight: "1.4" }}>
+            </TextUI>
+            <TextUI style={{ fontSize: "14px", lineHeight: "1.4" }}>
               • Cada proceso puede tomar aproximadamente 2 minutos en
               completarse <br />
               • No cierres la ventana mientras se ejecutan los procesos <br />
               • Los procesos se ejecutan de forma secuencial para evitar
               conflictos <br />• Recibirás una notificación cuando cada proceso
               termine cada proceso termine
-            </CustomText>
-          </CustomContainer>
-        </CustomContainer>
+            </TextUI>
+          </ContainerUI>
+        </ContainerUI>
       )}
-    </CustomContainer>
+    </ContainerUI>
   );
 };

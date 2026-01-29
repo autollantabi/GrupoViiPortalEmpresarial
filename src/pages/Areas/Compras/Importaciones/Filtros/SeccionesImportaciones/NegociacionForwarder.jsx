@@ -4,8 +4,8 @@ import {
   ConsultarAgentesForwarder,
   InsertarNegociacionForwarder,
 } from "services/importacionesService";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { FormRow, ConfirmationDialog } from "components/common/FormComponents";
+import { useAuthContext } from "context/authContext";
 import {
   actualizarDatosTrasGuardado,
   debeEstarBloqueado,
@@ -19,19 +19,23 @@ import {
   SectionImportacionesContainer,
   SectionImportacionesTitle,
 } from "../../StylesImportaciones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomLoader } from "components/UI/CustomComponents/CustomLoader";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
-const BODEGA = ["COMPRAS", "BODEGA"];
-const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
-const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 
 export const NegociacionForwarder = ({
   datos,
   setDatos,
   actualizar,
   permisosProp,
+  rolesUsuario = [],
 }) => {
+  // Usar el rol que viene como prop (ya calculado en el router)
+  const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
+
+  const tieneRolVentas = roles.includes("usuario");
+  const tieneRolBodega = roles.includes("bodega");
+  const tieneRolJefatura = roles.includes("jefatura");
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     FECHA_ENTREGA_OFRECIDA: {
@@ -145,16 +149,13 @@ export const NegociacionForwarder = ({
   const [actualizacionExitosa, setActualizacionExitosa] = useState(0);
 
   // Estados específicos para este componente
-  const [permisosCompras, setPermisosCompras] = useState([]);
-  const [permisosComprasGerencias, setPermisosComprasGerencias] = useState([]);
-  const [permisosBodega, setPermisosBodega] = useState([]);
   const [agentesForwarder, setAgentesForwarder] = useState([]);
 
   // Verificar si se deben mostrar los controles de edición
-  // Solo COMPRAS (IMPORTACIONES) puede editar Negociación Forwarder, no GERENCIA
+  // Solo COMPRAS (ventas) puede editar Negociación Forwarder, no GERENCIA (jefatura)
   const mostrarBotonEdicion =
-    permisosComprasGerencias.length === 0 &&
-    permisosCompras.length > 0 &&
+    !tieneRolJefatura &&
+    tieneRolVentas &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   // Cerrar confirmación y actualizar
@@ -267,10 +268,7 @@ export const NegociacionForwarder = ({
       );
       setDatosForm(initialData);
 
-      // Usar permisos recibidos desde props
-      setPermisosBodega(permisosProp?.bodega || []);
-      setPermisosCompras(permisosProp?.compras || []);
-      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
+      // Los permisos ahora se basan en roles, no necesitamos setear estados
 
       // Consultar agentes forwarder
       const respuestaAgentes = await ConsultarAgentesForwarder();
@@ -319,7 +317,11 @@ export const NegociacionForwarder = ({
           estadoImportacion,
           tieneID,
           datosIniciales,
-          { permisosCompras, permisosBodega, permisosComprasGerencias }
+          { 
+            permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+            permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+            permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : []
+          }
         );
       });
 
@@ -332,9 +334,9 @@ export const NegociacionForwarder = ({
     datosForm,
     campos,
     datosIniciales,
-    permisosCompras,
-    permisosBodega,
-    permisosComprasGerencias,
+    tieneRolVentas,
+    tieneRolBodega,
+    tieneRolJefatura,
   ]);
 
   return (
@@ -342,10 +344,10 @@ export const NegociacionForwarder = ({
       <SectionImportacionesTitle>
         NEGOCIACIÓN FORWARDER
         {mostrarBotonEdicion && (
-          <CustomButton
+          <ButtonUI
             onClick={() => setMostrarConfirmacion(true)}
             pcolor={({ theme }) => theme.colors.secondary}
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             width="35px"
             height="35px"
           />
@@ -356,7 +358,7 @@ export const NegociacionForwarder = ({
         <div
           style={{ display: "flex", justifyContent: "center", padding: "20px" }}
         >
-          <CustomLoader />
+          <LoaderUI />
         </div>
       ) : (
         <FormImportacionesGrid>
@@ -369,7 +371,10 @@ export const NegociacionForwarder = ({
                   options: agentesForwarder,
                 },
                 { datos, datosForm, setDatosForm, camposBloqueados },
-                { permisosCompras, permisosBodega },
+                { 
+                  permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                  permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
+                },
                 { siempreVisibles: [] },
                 {},
                 {}
@@ -379,7 +384,10 @@ export const NegociacionForwarder = ({
             return renderizarCampoConPermisos(
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
-              { permisosCompras, permisosBodega },
+              { 
+                permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
+              },
               { siempreVisibles: [] },
               {},
               {}

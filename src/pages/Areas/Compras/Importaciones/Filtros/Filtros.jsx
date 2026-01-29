@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import { useState } from "react";
+import { useTheme } from "context/ThemeContext";
 
 const ContainerP = styled.div`
   display: flex;
@@ -20,15 +21,15 @@ const DropdownButton = styled.div`
   align-items: ${(props) => (props.selected ? "start" : "center")};
   gap: ${(props) => (props.selected ? "0px" : "5px")};
   background-color: ${(props) =>
-    props.selected ? "var(--secondary)" : "#f0f0f0"};
-  color: ${(props) => (props.selected ? "var(--color-perla)" : "#000")};
+    props.selected ? props.theme.colors.secondary : props.theme.colors.backgroundLight};
+  color: ${(props) => (props.selected ? props.theme.colors.white : props.theme.colors.text)};
   flex-direction: ${(props) => (props.selected ? "column" : "row")};
-  border: 1px solid #ddd;
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 5px;
   transition: all 0.3s ease;
 `;
 const TituloFiltro = styled.span`
-  color: ${(props) => (props.selected ? "var(--color-perla)" : "#000")};
+  color: ${(props) => (props.selected ? props.theme.colors.white : props.theme.colors.text)};
   font-size: ${(props) => (props.selected ? "11px" : "14px")};
   font-weight: 500;
   &.fechas {
@@ -41,8 +42,8 @@ const ContendorBotonesFiltro = styled.div`
   justify-content: center;
   align-content: center;
   gap: 1px;
-  background-color: #cfcfcf;
-  border-bottom: solid 1px #cfcfcf;
+  background-color: ${({ theme }) => theme.colors.border};
+  border-bottom: solid 1px ${({ theme }) => theme.colors.border};
   border-radius: 6px 6px 0 0;
   font-size: 13px;
 `;
@@ -50,26 +51,28 @@ const BotonesFiltro = styled.button`
   border: none;
   padding: 3px 10px;
   width: 100%;
+  background-color: ${({ theme }) => theme.colors.backgroundLight};
+  color: ${({ theme }) => theme.colors.text};
   &:nth-child(1) {
     border-radius: 6px 0 0 0;
     &:hover {
-      background-color: var(--secondary);
-      color: var(--color-perla);
+      background-color: ${({ theme }) => theme.colors.secondary};
+      color: ${({ theme }) => theme.colors.white};
     }
   }
 
   &:nth-child(2) {
-    background-color: var(--color-error);
-    color: var(--color-perla);
+    background-color: ${({ theme }) => theme.colors.error};
+    color: ${({ theme }) => theme.colors.white};
     border-radius: 0 6px 0 0;
   }
 `;
 const DropdownContent = styled.div`
   display: none;
   position: absolute;
-  background-color: #f9f9f9;
+  background-color: ${({ theme }) => theme.colors.selectMenuBackground || theme.colors.backgroundCard};
   min-width: 200px;
-  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0px 8px 16px 0px rgba(0, 0, 0, 0.2)"};
   padding: 2px 2px;
   border-radius: 8px;
   z-index: 2;
@@ -81,9 +84,9 @@ const DropdownContent = styled.div`
 const DropdownContent1 = styled.div`
   display: none;
   position: absolute;
-  background-color: #f9f9f9;
+  background-color: ${({ theme }) => theme.colors.selectMenuBackground || theme.colors.backgroundCard};
   min-width: 200px;
-  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0px 8px 16px 0px rgba(0, 0, 0, 0.2)"};
   padding: 2px 2px;
   border-radius: 8px;
   z-index: 2;
@@ -105,8 +108,9 @@ const Option = styled.div`
   flex-wrap: nowrap;
   justify-content: space-between;
   cursor: pointer;
+  color: ${({ theme }) => theme.colors.text};
   &:hover {
-    background-color: #e9e9e9;
+    background-color: ${({ theme }) => theme.colors.selectOptionHover || theme.colors.hover};
   }
 `;
 const Option1 = styled.div`
@@ -120,15 +124,16 @@ const Option1 = styled.div`
   width: 100%;
   user-select: none;
   text-align: center;
+  color: ${({ theme }) => theme.colors.text};
   &.select {
-    background-color: var(--secondary);
-    color: white;
+    background-color: ${({ theme }) => theme.colors.secondary};
+    color: ${({ theme }) => theme.colors.white};
   }
   &.select:hover {
-    background-color: var(--secondary);
+    background-color: ${({ theme }) => theme.colors.secondary};
   }
   &:hover {
-    background-color: #e9e9e9;
+    background-color: ${({ theme }) => theme.colors.selectOptionHover || theme.colors.hover};
   }
 `;
 
@@ -222,11 +227,10 @@ export const CampoFiltroporFecha = ({ numFiltro, onChange, nombre }) => {
     value: i + 1,
     name: new Date(0, i).toLocaleString("es", { month: "short" }),
   }));
-  // console.log(months);
   
   const years = Array.from(
-    { length: 4 },
-    (_, i) => new Date().getFullYear() - i
+    { length: 5 },
+    (_, i) => new Date().getFullYear() - (i-1)
   );
   const handleMonthClick = (month) => {
     const isSelected = selectedMonths.includes(month.name);
@@ -234,7 +238,6 @@ export const CampoFiltroporFecha = ({ numFiltro, onChange, nombre }) => {
       ? selectedMonths.filter((m) => m !== month.name)
       : [...selectedMonths, month.name];
     setSelectedMonths(newSelectedMonths);
-    // console.log(newSelectedMonths);
     
     onChange(numFiltro, { months: newSelectedMonths, year: selectedYear });
   };

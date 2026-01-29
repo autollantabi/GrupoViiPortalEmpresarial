@@ -1,31 +1,41 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
 import { useTheme } from "context/ThemeContext";
-import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomInputFile } from "components/UI/CustomComponents/CustomInputs";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { FileListUI } from "components/UI/Components/FileListUI";
 import { toast } from "react-toastify";
-import { withPermissions } from "../../../../hoc/withPermissions";
 import {
   convertirArchivoBancos,
   obtenerListaBancos,
 } from "services/contabilidadService";
 
-const Contabilidad_ConversionArchivosBancosComponent = ({
-  empresasAcceso,
-  permissionsLoading,
+export const Contabilidad_ConversionArchivosBancos = ({
+  availableCompanies = [],
+  availableLines = [],
 }) => {
   const { theme } = useTheme();
-  const [archivo, setArchivo] = useState([]);
+  const [archivosList, setArchivosList] = useState([]); // Estructura que FileListUI espera
   const [empresa, setEmpresa] = useState(null);
   const [banco, setBanco] = useState(null);
   const [opcionesEmpresas, setOpcionesEmpresas] = useState(null);
   const [opcionesBancos, setOpcionesBancos] = useState(null);
 
+  // Convertir availableCompanies de { id, nombre } a { idempresa, empresa } para compatibilidad
+  const empresasDisponibles = useMemo(() => {
+    if (!availableCompanies || availableCompanies.length === 0) {
+      return [];
+    }
+    return availableCompanies.map(emp => ({
+      idempresa: emp.id,
+      empresa: emp.nombre,
+    }));
+  }, [availableCompanies]);
+
   const obtenerOpcionesListaEmpresas = async () => {
-    if (empresasAcceso && empresasAcceso.length > 0) {
-      const requestEmpresas = [...empresasAcceso];
+    if (empresasDisponibles && empresasDisponibles.length > 0) {
+      const requestEmpresas = [...empresasDisponibles];
       if (!requestEmpresas.some((item) => item.empresa === "URVI")) {
         requestEmpresas.push({ idempresa: 20, empresa: "URVI", permiso: "E" });
       }
@@ -38,15 +48,14 @@ const Contabilidad_ConversionArchivosBancosComponent = ({
     }
   };
 
-  const handleArchivo = (archivos) => {
-    // console.log(nombre);
-    setArchivo(archivos);
+  const handleArchivo = (nombreCampo, archivos) => {
+    // FileListUI devuelve archivos con estructura { doc: File, ... }
+    setArchivosList(archivos || []);
   };
 
   const obtenerBancos = async (empid) => {
     const req_bancos = await obtenerListaBancos();
     let bancosList = req_bancos;
-    console.log(req_bancos);
 
     if (empid === 20) {
       bancosList = req_bancos.filter(
@@ -70,14 +79,17 @@ const Contabilidad_ConversionArchivosBancosComponent = ({
   };
 
   const cargarArchivoTransformacion = async () => {
+    // Extraer solo los archivos File de la estructura de FileListUI
+    const archivosFile = archivosList.map((item) => item.doc || item);
+    
     const res = await convertirArchivoBancos({
       empresa: empresa.label,
       banco: banco.label,
-      archivos: archivo,
+      archivos: archivosFile,
     });
 
     if (res.success) {
-      setArchivo([]);
+      setArchivosList([]);
       setEmpresa(null);
       setBanco(null);
       toast.success(res.message);
@@ -89,26 +101,12 @@ const Contabilidad_ConversionArchivosBancosComponent = ({
   // Todos los hooks deben ir antes de cualquier return condicional
   useEffect(() => {
     obtenerOpcionesListaEmpresas();
-  }, [empresasAcceso]);
+  }, [empresasDisponibles]);
 
-  // Mostrar mensaje si no hay permisos
-  if (permissionsLoading) {
+  // Verificar si hay empresas disponibles
+  if (!empresasDisponibles || empresasDisponibles.length === 0) {
     return (
-      <CustomContainer
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
-        height="100%"
-      >
-        <div>Cargando permisos...</div>
-      </CustomContainer>
-    );
-  }
-
-  if (!empresasAcceso || empresasAcceso.length === 0) {
-    return (
-      <CustomContainer
+      <ContainerUI
         flexDirection="column"
         justifyContent="center"
         alignItems="center"
@@ -116,28 +114,30 @@ const Contabilidad_ConversionArchivosBancosComponent = ({
         height="100%"
       >
         <div>No tienes permisos para acceder a esta funcionalidad.</div>
-      </CustomContainer>
+      </ContainerUI>
     );
   }
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="column"
       justifyContent="flex-start"
       alignItems="center"
       width="100%"
       height="100%"
     >
-      <CustomContainer flexDirection="column" style={{ gap: "20px" }}>
-        <CustomInputFile
-          prevFiles={archivo}
-          setFileData={handleArchivo}
-          maxFiles={1}
-          validExtensions={["xlsx"]}
+      <ContainerUI flexDirection="column" style={{ gap: "20px" }}>
+        <FileListUI
+          setArchivo={handleArchivo}
+          aceptados=".xlsx"
+          nombreCampo="archivo"
+          archivos={archivosList}
+          impFinalizado={false}
+          id="archivo-conversion"
+          limite={1}
         />
-        {/* <InputArchivo setarchivoname={handleNombreArchivoChange} /> */}
-        <CustomContainer flexDirection="column" style={{ gap: "20px" }}>
-          <CustomSelect
+        <ContainerUI flexDirection="column" style={{ gap: "20px" }}>
+          <SelectUI
             options={opcionesEmpresas}
             value={empresa}
             onChange={handleChangeEmpresa}
@@ -145,7 +145,7 @@ const Contabilidad_ConversionArchivosBancosComponent = ({
             minWidth="200px"
           />
           {empresa && (
-            <CustomSelect
+            <SelectUI
               options={opcionesBancos}
               value={banco}
               onChange={setBanco}
@@ -153,22 +153,17 @@ const Contabilidad_ConversionArchivosBancosComponent = ({
               minWidth="200px"
             />
           )}
-          {empresa && banco && archivo.length > 0 && (
-            <CustomContainer>
-              <CustomButton
+          {empresa && banco && archivosList && archivosList.length > 0 && (
+            <ContainerUI>
+              <ButtonUI
                 text={"Transformar"}
                 onClick={cargarArchivoTransformacion}
                 isAsync
               />
-            </CustomContainer>
+            </ContainerUI>
           )}
-        </CustomContainer>
-      </CustomContainer>
-    </CustomContainer>
+        </ContainerUI>
+      </ContainerUI>
+    </ContainerUI>
   );
 };
-
-// Exportar el componente envuelto con withPermissions
-export const Contabilidad_ConversionArchivosBancos = withPermissions(
-  Contabilidad_ConversionArchivosBancosComponent
-);

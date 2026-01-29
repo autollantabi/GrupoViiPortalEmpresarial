@@ -14,7 +14,6 @@ export async function ListarDesbloqueoClientes() {
 export async function EnviarConfirmacionDesbloqueoClientes({ data }) {
   try {
     const res = await axiosInstanceNew.post(`/cartera/desbloqueo`, data);
-    console.log(res);
 
     if (res.status === 200) {
       return true;

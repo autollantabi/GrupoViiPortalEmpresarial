@@ -1,6 +1,9 @@
 import styled from "styled-components";
 import { useEffect, useState } from "react";
 import { ListarImportaciones } from "services/importacionesService";
+import { useTheme } from "context/ThemeContext";
+import { IconUI } from "components/UI/Components/IconsUI";
+import { hexToRGBA } from "utils/colors";
 
 const ContenedorPrincipal = styled.div`
   display: flex;
@@ -21,11 +24,17 @@ const TablaCustm = styled.table`
     z-index: 1;
     th {
       user-select: none;
-      background-color: ${({ theme }) => theme.colors.primary};
-      color: ${({ theme }) => theme.colors.white};
+      background-color: ${({ theme }) => 
+        theme.name === "dark"
+          ? (theme.colors.backgroundCard || theme.colors.backgroundLight)
+          : (theme.colors.secondary || "#3c3c3b")};
+      color: ${({ theme }) => 
+        theme.name === "dark"
+          ? (theme.colors.text || "#212529")
+          : (theme.colors.white || "#ffffff")};
       font-weight: 100;
       word-wrap: break-word;
-      border-right: 1px solid rgba(101, 101, 101, 0.45);
+      border-right: 1px solid ${({ theme }) => theme.colors.border};
       &:first-child {
         border-top-left-radius: 5px;
       }
@@ -36,12 +45,15 @@ const TablaCustm = styled.table`
   }
 
   & .filasTabla {
+    font-size: 12px;
+    color: ${({ theme }) => theme.colors.text};
+
     &:nth-child(odd) {
-      background-color: #ffffff; /* Blanco */
+      background-color: ${({ theme }) => theme.colors.backgroundCard};
     }
 
     &:nth-child(even) {
-      background-color: #f2f2f2; /* Gris claro */
+      background-color: ${({ theme }) => theme.colors.backgroundLight};
     }
     &:last-child {
       td:first-child {
@@ -53,21 +65,21 @@ const TablaCustm = styled.table`
     }
 
     td {
-      border-right: 1px solid rgba(101, 101, 101, 0.45);
-      border-bottom: 1px solid rgba(101, 101, 101, 0.45);
+      border-right: 1px solid ${({ theme }) => theme.colors.border};
+      border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
       &:first-child {
-        border-left: 1px solid rgba(101, 101, 101, 0.45);
+        border-left: 1px solid ${({ theme }) => theme.colors.border};
       }
       &:last-child {
-        border-right: 1px solid rgba(101, 101, 101, 0.45);
+        border-right: 1px solid ${({ theme }) => theme.colors.border};
       }
     }
   }
 `;
 const FilaCustom = styled.tr`
   &.completo {
-    background-color: var(--color-fila-verde);
+    background-color: ${({ theme }) => theme.colors.successLight || hexToRGBA({ hex: theme.colors.success, alpha: 0.2 })};
   }
 `;
 const CeldaDIVCustom = styled.div`
@@ -90,20 +102,20 @@ const IndicadorIcon = styled.div`
   border-radius: 100%;
   width: 10px;
   aspect-ratio: 1;
-  background-color: white;
-  border: solid 1px black;
+  background-color: ${({ theme }) => theme.colors.white};
+  border: solid 1px ${({ theme }) => theme.colors.text};
 
   &.verde {
     border: none;
-    background-color: green;
+    background-color: ${({ theme }) => theme.colors.success};
   }
   &.amarillo {
     border: none;
-    background-color: yellow;
+    background-color: ${({ theme }) => theme.colors.warning};
   }
   &.rojo {
     border: none;
-    background-color: red;
+    background-color: ${({ theme }) => theme.colors.error};
   }
 `;
 
@@ -119,6 +131,7 @@ export const TablaAnticipos = ({
   filtroGlobal,
   dataImportacion,
 }) => {
+  const { theme } = useTheme();
   const [dataFiltrada, setDataFiltrada] = useState(dataImportacion);
   // const [orden, setOrden] = useState({});
   const [orden, setOrden] = useState({ columna: "EMPRESA", direccion: "asc" });
@@ -259,51 +272,30 @@ export const TablaAnticipos = ({
   //   return `${day}/${month}/${year}`;
   // }
 
-  const HeaderColumna = ({ nombre, campo, orden, ordenarData }) => {
+  const HeaderColumna = ({ nombre, campo, orden, ordenarData, theme }) => {
     return (
       <th onClick={() => ordenarData(campo)}>
         <ContendorHeader>
           {nombre}{" "}
           {orden.columna === campo &&
             (orden.direccion === "asc" ? (
-              <i class="bi bi-sort-down-alt"></i>
+              <IconUI 
+                name="FaSortDown" 
+                size={14} 
+                color={theme.name === "dark" ? theme.colors.text : theme.colors.white}
+              />
             ) : (
-              <i className="bi bi-sort-up"></i>
+              <IconUI 
+                name="FaSortUp" 
+                size={14} 
+                color={theme.name === "dark" ? theme.colors.text : theme.colors.white}
+              />
             ))}
         </ContendorHeader>
       </th>
     );
   };
-  // Dependencia en dataImportacion para reaccionar a sus cambios
-
-  // Función para calcular la diferencia en días entre dos fechas
-  // function diferenciaDias(fecha1, fecha2) {
-  //   const diffTime = Math.abs(fecha2 - fecha1);
-  //   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  // }
-
-  // Función para obtener el color basado en la diferencia de días
-  // function getColorPorFecha(fecha) {
-  //   const hoy = new Date();
-  //   const etd = new Date(fecha);
-  //   const diasDiferencia = diferenciaDias(hoy, etd);
-  //   // console.log(diasDiferencia)
-
-  //   // Establece el número máximo de días para el rango de colores
-  //   const maxDias = 250; // ajusta según sea necesario
-
-  //   if (etd > hoy) {
-  //     // Fecha futura: más verde a medida que se aleja
-  //     const green = Math.min(255, (255 * diasDiferencia) / maxDias);
-  //     const red = Math.max(0, 255 - green);
-  //     return `rgba(${red}, ${green}, 0, 0.5)`;
-  //   } else {
-  //     // Fecha pasada o presente: más roja a medida que se aleja
-  //     const red = Math.min(255, (255 * diasDiferencia) / maxDias);
-  //     const alpha = 0.3 + (0.4 * red) / 255; // ajusta la transparencia según la intensidad del rojo
-  //     return `rgba(255, 0, 0, ${alpha})`;
-  //   }
-  // }
+  
   function formatearFecha(fechaIso) {
     const fecha1 = new Date(fechaIso);
     const day = String(fecha1.getUTCDate()).padStart(2, "0");
@@ -336,6 +328,7 @@ export const TablaAnticipos = ({
                 campo={item.campo}
                 orden={orden}
                 ordenarData={ordenarData}
+                theme={theme}
               />
             ))}
           </tr>
@@ -377,7 +370,16 @@ export const TablaAnticipos = ({
             ))
           ) : (
             <tr>
-              <td colSpan="15">No data available</td>
+              <td 
+                colSpan={dataHeaders.length} 
+                style={{ 
+                  textAlign: "center", 
+                  padding: "20px",
+                  color: theme.colors.textSecondary || theme.colors.text
+                }}
+              >
+                No data available
+              </td>
             </tr>
           )}
         </tbody>

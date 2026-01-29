@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTheme } from "context/ThemeContext";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 
 export const ConsultaMarketing = () => {
   const { theme } = useTheme();
@@ -24,9 +24,9 @@ export const ConsultaMarketing = () => {
 
   const BotonesNav = () => {
     return (
-      <CustomContainer style={{ gap: "10px" }}>
+      <ContainerUI style={{ gap: "10px" }}>
         {opcionesReportes.map(({ id, tituloBtn }) => (
-          <CustomButton
+          <ButtonUI
             key={id}
             text={tituloBtn}
             onClick={() => setGrafico(id)}
@@ -34,12 +34,12 @@ export const ConsultaMarketing = () => {
             pcolor={theme.colors.secondary}
           />
         ))}
-      </CustomContainer>
+      </ContainerUI>
     );
   };
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="column"
       height="100%"
       width="100%"
@@ -60,6 +60,6 @@ export const ConsultaMarketing = () => {
             />
           )
       )}
-    </CustomContainer>
+    </ContainerUI>
   );
 };

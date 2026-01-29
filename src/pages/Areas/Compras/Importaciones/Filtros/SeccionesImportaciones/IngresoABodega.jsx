@@ -4,7 +4,6 @@ import {
   RegistrarDocumentosBodega,
   UpdateMercaderiaEnBodega,
 } from "services/importacionesService";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { FormRow, ConfirmationDialog } from "components/common/FormComponents";
 import {
   debeEstarBloqueado,
@@ -18,12 +17,9 @@ import {
   SectionImportacionesContainer,
   SectionImportacionesTitle,
 } from "../../StylesImportaciones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomLoader } from "components/UI/CustomComponents/CustomLoader";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
-const BODEGA = ["COMPRAS", "BODEGA"];
-const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
-const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 
 // Funciones de utilidad para fechas y horas
 const convertirHora12a24 = (hora12) => {
@@ -60,7 +56,14 @@ export const IngresoABodega = ({
   setDatos,
   actualizar,
   permisosProp,
+  rolesUsuario = [],
 }) => {
+  // Usar el rol que viene como prop (ya calculado en el router)
+  const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
+
+  const tieneRolVentas = roles.includes("usuario");
+  const tieneRolBodega = roles.includes("bodega");
+  const tieneRolJefatura = roles.includes("jefatura");
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     FECHA_LLEGADA_REAL: {
@@ -76,7 +79,7 @@ export const IngresoABodega = ({
       tipo: "hora",
       label: "Hora Real Llegada Bodega:",
       defaultValue: "",
-      component: "TimeInput",
+      component: "InputTimeUI",
     },
     FECHA_FECHA_DESCARGA: {
       id: "FECHA_FECHA_DESCARGA",
@@ -91,7 +94,7 @@ export const IngresoABodega = ({
       tipo: "hora",
       label: "Hora de Descarga en Bodega:",
       defaultValue: "",
-      component: "TimeInput",
+      component: "InputTimeUI",
     },
     CONFIRME_IMPORTACION: {
       id: "CONFIRME_IMPORTACION",
@@ -151,11 +154,6 @@ export const IngresoABodega = ({
   const [camposBloqueados, setCamposBloqueados] = useState({});
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [actualizacionExitosa, setActualizacionExitosa] = useState(0);
-  const [permisos, setPermisos] = useState({
-    bodega: [],
-    compras: [],
-    comprasGerencias: [],
-  });
   const [todosLlenos, setTodosLlenos] = useState(false);
 
   // Verificar si todos los campos requeridos están llenos
@@ -327,12 +325,7 @@ export const IngresoABodega = ({
         }));
       }
 
-      // Usar permisos recibidos desde props
-      setPermisos({
-        bodega: permisosProp?.bodega || [],
-        compras: permisosProp?.compras || [],
-        comprasGerencias: permisosProp?.comprasGerencias || [],
-      });
+      // Los permisos ahora se basan en roles, no necesitamos setear estados
     };
 
     inicializarComponente();
@@ -349,37 +342,37 @@ export const IngresoABodega = ({
           ? datosForm[campo.id]
           : datos[campo.id];
 
-      nuevoEstado[campo.id] = debeEstarBloqueado(
-        campo,
-        valor,
-        datos.ESTADO_IMPORTACION,
-        !!datos.ID_CARGA,
-        datosIniciales,
-        {
-          permisosCompras: permisos.compras,
-          permisosBodega: permisos.bodega,
-          permisosComprasGerencias: permisos.comprasGerencias,
-        }
-      );
+        nuevoEstado[campo.id] = debeEstarBloqueado(
+          campo,
+          valor,
+          datos.ESTADO_IMPORTACION,
+          !!datos.ID_CARGA,
+          datosIniciales,
+          {
+            permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+            permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+            permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : [],
+          }
+        );
     });
 
     setCamposBloqueados(nuevoEstado);
-  }, [datos, datosForm, campos, datosIniciales, permisos]);
+  }, [datos, datosForm, campos, datosIniciales, tieneRolVentas, tieneRolBodega, tieneRolJefatura]);
 
   // Determinar si mostrar botón de edición
-  // Para BODEGA: pueden editar si tienen permisos de bodega y todos los campos están llenos
+  // Para BODEGA: pueden editar si tienen rol de bodega y todos los campos están llenos
   const mostrarBotonEdicionBodega =
-    permisos.bodega.length > 0 &&
-    permisos.compras.length === 0 &&
-    permisos.comprasGerencias.length === 0 &&
+    tieneRolBodega &&
+    !tieneRolVentas &&
+    !tieneRolJefatura &&
     todosLlenos &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
-  // Para COMPRAS: pueden editar si no son gerencia, todos los campos están llenos y la importación está EN PROCESO
+  // Para COMPRAS (ventas): pueden editar si no son gerencia, todos los campos están llenos y la importación está EN PROCESO
   const mostrarBotonEdicionCompras =
-    permisos.comprasGerencias.length === 0 &&
-    permisos.compras.length > 0 &&
-    permisos.bodega.length === 0 && // No debe tener permisos de BODEGA
+    !tieneRolJefatura &&
+    tieneRolVentas &&
+    !tieneRolBodega && // No debe tener rol de BODEGA
     todosLlenos &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
@@ -392,10 +385,10 @@ export const IngresoABodega = ({
       <SectionImportacionesTitle>
         INGRESO A BODEGA
         {mostrarBotonEdicion && (
-          <CustomButton
+          <ButtonUI
             onClick={() => setMostrarConfirmacion(true)}
             pcolor={({ theme }) => theme.colors.secondary}
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             width="35px"
             height="35px"
           />
@@ -406,7 +399,7 @@ export const IngresoABodega = ({
         <div
           style={{ display: "flex", justifyContent: "center", padding: "20px" }}
         >
-          <CustomLoader />
+          <LoaderUI />
         </div>
       ) : (
         <FormImportacionesGrid>
@@ -416,8 +409,8 @@ export const IngresoABodega = ({
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
               {
-                permisosCompras: permisos.compras,
-                permisosBodega: permisos.bodega,
+                permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
               },
               {
                 siempreVisibles: [

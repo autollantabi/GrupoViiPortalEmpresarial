@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { PaginacionUnificada } from "./ComponentesUnificadosCartera";
+import { useTheme } from "context/ThemeContext";
 import {
   columnasTablaTransacciones,
   clasesEstado,
@@ -32,8 +33,8 @@ const LoadingContainer = styled.div`
 `;
 
 const Spinner = styled.div`
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid var(--primary);
+  border: 4px solid ${({ theme }) => theme.colors.borderLight || "#f3f3f3"};
+  border-top: 4px solid ${({ theme }) => theme.colors.primary};
   border-radius: 50%;
   width: 48px;
   height: 48px;
@@ -51,7 +52,7 @@ const Spinner = styled.div`
 
 const LoadingText = styled.span`
   font-size: 14px;
-  color: #6c757d;
+  color: ${({ theme }) => theme.colors.textSecondary};
   font-weight: 500;
 `;
 
@@ -81,6 +82,7 @@ const TablaCustom = styled.table`
   border-spacing: 0;
   border-radius: 5px;
   font-size: 12px;
+  color: ${({ theme }) => theme.colors.text};
 
   & > thead {
     position: sticky;
@@ -88,11 +90,19 @@ const TablaCustom = styled.table`
     z-index: 1;
     th {
       user-select: none;
-      background-color: var(--primary);
-      color: ${({ theme }) => theme.colors.white};
+      background-color: ${({ theme }) => 
+        theme.name === "dark" 
+          ? theme.colors.backgroundCard || theme.colors.backgroundLight
+          : theme.colors.secondary
+      };
+      color: ${({ theme }) => 
+        theme.name === "dark" 
+          ? theme.colors.text
+          : theme.colors.white
+      };
       font-weight: 100;
       padding: 6px 8px;
-      border-right: 1px solid rgba(101, 101, 101, 0.45);
+      border-right: 1px solid ${({ theme }) => theme.colors.border || "rgba(101, 101, 101, 0.45)"};
       &:first-child {
         border-top-left-radius: 5px;
       }
@@ -105,33 +115,34 @@ const TablaCustom = styled.table`
   & .filasTabla {
     cursor: pointer;
     transition: all 0.2s ease;
+    color: ${({ theme }) => theme.colors.text};
 
     &:nth-child(odd) {
-      background-color: #ffffff;
+      background-color: ${({ theme }) => theme.colors.backgroundCard || theme.colors.white};
     }
 
     &:nth-child(even) {
-      background-color: #f2f2f2;
+      background-color: ${({ theme }) => theme.colors.backgroundLight || theme.colors.background};
     }
 
     &.fila-verde {
-      background-color: rgba(0, 191, 0, 0.113);
+      background-color: ${({ theme }) => theme.name === "dark" ? "rgba(0, 191, 0, 0.2)" : "rgba(0, 191, 0, 0.113)"};
     }
 
     &.fila-amarillo {
-      background-color: rgba(255, 230, 1, 0.227);
+      background-color: ${({ theme }) => theme.name === "dark" ? "rgba(255, 230, 1, 0.3)" : "rgba(255, 230, 1, 0.227)"};
     }
 
     &.fila-roja {
-      background-color: rgba(255, 1, 1, 0.199);
+      background-color: ${({ theme }) => theme.name === "dark" ? "rgba(255, 1, 1, 0.25)" : "rgba(255, 1, 1, 0.199)"};
     }
 
     &.fila-rosa {
-      background-color: rgba(222, 193, 255, 0.552);
+      background-color: ${({ theme }) => theme.name === "dark" ? "rgba(222, 193, 255, 0.4)" : "rgba(222, 193, 255, 0.552)"};
     }
 
     &.fila-azul {
-      background-color: rgba(1, 234, 255, 0.199);
+      background-color: ${({ theme }) => theme.name === "dark" ? "rgba(1, 234, 255, 0.25)" : "rgba(1, 234, 255, 0.199)"};
     }
 
     &.fila-seleccionada {
@@ -147,7 +158,7 @@ const TablaCustom = styled.table`
     }
 
     &:hover:not(.fila-seleccionada) {
-      background-color: rgba(0, 0, 0, 0.05) !important;
+      background-color: ${({ theme }) => theme.colors.hover || (theme.name === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)")} !important;
     }
 
     &:last-child {
@@ -160,17 +171,18 @@ const TablaCustom = styled.table`
     }
 
     td {
-      border-right: 1px solid rgba(101, 101, 101, 0.45);
-      border-bottom: 1px solid rgba(101, 101, 101, 0.45);
+      border-right: 1px solid ${({ theme }) => theme.colors.border || "rgba(101, 101, 101, 0.45)"};
+      border-bottom: 1px solid ${({ theme }) => theme.colors.border || "rgba(101, 101, 101, 0.45)"};
       padding: 4px 8px;
       line-height: 1.2;
       font-size: 12px;
+      color: ${({ theme }) => theme.colors.text};
 
       &:first-child {
-        border-left: 1px solid rgba(101, 101, 101, 0.45);
+        border-left: 1px solid ${({ theme }) => theme.colors.border || "rgba(101, 101, 101, 0.45)"};
       }
       &:last-child {
-        border-right: 1px solid rgba(101, 101, 101, 0.45);
+        border-right: 1px solid ${({ theme }) => theme.colors.border || "rgba(101, 101, 101, 0.45)"};
       }
     }
   }
@@ -187,6 +199,7 @@ const TablaTransaccionesCompleto = ({
   // Estado de carga
   cargando = false,
 }) => {
+  const { theme } = useTheme();
   const [paginaActual, setPaginaActual] = useState(1);
   const [filaSeleccionada, setFilaSeleccionada] = useState(null);
 
@@ -256,21 +269,21 @@ const TablaTransaccionesCompleto = ({
   // Mostrar indicador de carga
   if (cargando) {
     return (
-      <CustomContainer
+      <ContainerUI
         flexDirection="column"
         width="100%"
         style={{ flexShrink: 1, gap: "10px", overflow: "hidden" }}
       >
         <LoadingContainer>
-          <Spinner />
-          <LoadingText>Cargando transacciones bancarias...</LoadingText>
+          <Spinner theme={theme} />
+          <LoadingText theme={theme}>Cargando transacciones bancarias...</LoadingText>
         </LoadingContainer>
-      </CustomContainer>
+      </ContainerUI>
     );
   }
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="column"
       width="100%"
       style={{
@@ -282,7 +295,7 @@ const TablaTransaccionesCompleto = ({
     >
       {/* Tabla con scroll */}
       <TablaContainer>
-        <TablaCustom>
+        <TablaCustom theme={theme}>
           <thead className="cabecera-tabla">
             <tr>
               {columnasTablaTransacciones.map((columna) => (
@@ -308,7 +321,7 @@ const TablaTransaccionesCompleto = ({
                     textAlign: "center",
                     padding: "40px 20px",
                     fontSize: "14px",
-                    color: "#6c757d",
+                    color: theme.colors.textSecondary,
                     fontStyle: "italic",
                   }}
                 >
@@ -393,8 +406,8 @@ const TablaTransaccionesCompleto = ({
 
                       {/* Columna de acciones */}
                       <td style={{ width: "20px" }}>
-                        <CustomButton
-                          iconLeft="FaEdit"
+                        <ButtonUI
+                          iconLeft="FaPenToSquare"
                           onClick={() => onEdit(transaccion)}
                           variant="text"
                         />
@@ -417,7 +430,7 @@ const TablaTransaccionesCompleto = ({
           totalData={datosOrdenados.length}
         />
       </PaginacionWrapper>
-    </CustomContainer>
+    </ContainerUI>
   );
 };
 

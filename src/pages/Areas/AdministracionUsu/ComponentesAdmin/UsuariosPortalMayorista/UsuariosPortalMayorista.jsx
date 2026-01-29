@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { CustomCard } from "components/UI/CustomComponents/CustomCard";
-import { CustomInput } from "components/UI/CustomComponents/CustomInputs";
-import { CustomDateSelector } from "components/UI/CustomComponents/CustomDateSelector";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import {
-  CustomContainer,
-  CustomText,
-} from "components/UI/CustomComponents/CustomComponents";
+import { CardUI } from "components/UI/Components/CardUI";
+import { InputUI } from "components/UI/Components/InputUI";
+import { DateSelectorUI } from "components/UI/Components/DateSelectorUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { TextUI } from "components/UI/Components/TextUI";
 import { useTheme } from "context/ThemeContext";
 import { toast } from "react-toastify";
 import { hexToRGBA } from "utils/colors";
@@ -174,7 +172,7 @@ export const UsuariosPortalMayorista = () => {
   };
 
   return (
-    <CustomContainer
+    <ContainerUI
       width="100%"
       height="100%"
       flexDirection="row"
@@ -186,7 +184,7 @@ export const UsuariosPortalMayorista = () => {
         flexWrap: "wrap",
       }}
     >
-      <CustomCard
+      <CardUI
         title="Crear Nuevo Vendedor"
         description="Complete el formulario para crear un nuevo vendedor en el portal mayorista"
         body={
@@ -199,7 +197,7 @@ export const UsuariosPortalMayorista = () => {
             }}
           >
             <div style={{ flex: "1", minWidth: "250px" }}>
-              <CustomInput
+              <InputUI
                 label="Nombre"
                 placeholder="Ingrese el nombre"
                 value={formData.name}
@@ -208,7 +206,7 @@ export const UsuariosPortalMayorista = () => {
             </div>
 
             <div style={{ flex: "1", minWidth: "250px" }}>
-              <CustomInput
+              <InputUI
                 label="Apellido"
                 placeholder="Ingrese el apellido"
                 value={formData.lastname}
@@ -216,7 +214,7 @@ export const UsuariosPortalMayorista = () => {
               />
             </div>
             <div style={{ flex: "1", minWidth: "250px" }}>
-              <CustomInput
+              <InputUI
                 label="Cédula"
                 placeholder="Ingrese la cédula"
                 value={formData.card_id}
@@ -225,7 +223,7 @@ export const UsuariosPortalMayorista = () => {
             </div>
 
             <div style={{ flex: "1", minWidth: "250px" }}>
-              <CustomInput
+              <InputUI
                 label="Email"
                 type="email"
                 placeholder="Ingrese el email"
@@ -234,7 +232,7 @@ export const UsuariosPortalMayorista = () => {
               />
             </div>
             <div style={{ flex: "1", minWidth: "250px" }}>
-              <CustomInput
+              <InputUI
                 label="Teléfono"
                 placeholder="+1234567890"
                 value={formData.phone}
@@ -244,7 +242,7 @@ export const UsuariosPortalMayorista = () => {
             </div>
 
             <div style={{ flex: "1", minWidth: "250px" }}>
-              <CustomDateSelector
+              <DateSelectorUI
                 label="Fecha de Nacimiento"
                 fecha={formData.birth_date}
                 onChange={handleDateChange}
@@ -253,7 +251,7 @@ export const UsuariosPortalMayorista = () => {
           </div>
         }
         footer={
-          <CustomButton
+          <ButtonUI
             text="Crear Vendedor"
             onClick={handleSubmit}
             disabled={loading}
@@ -266,7 +264,7 @@ export const UsuariosPortalMayorista = () => {
         theme={theme}
       />
 
-      <CustomCard
+      <CardUI
         title="Lista de Usuarios - Portal Mayorista"
         description="Usuarios registrados en el portal mayorista"
         body={
@@ -277,7 +275,7 @@ export const UsuariosPortalMayorista = () => {
               gap: "12px",
             }}
           >
-            <CustomInput
+            <InputUI
               placeholder="Buscar por nombre, apellido, email, cédula o teléfono..."
               value={busquedaUsuario}
               onChange={setBusquedaUsuario}
@@ -371,13 +369,13 @@ export const UsuariosPortalMayorista = () => {
                           flexWrap: "wrap",
                         }}
                       >
-                        <CustomText
+                        <TextUI
                           weight="600"
                           size="15px"
                           color={theme.colors.text}
                         >
                           {nombre} {apellido}
-                        </CustomText>
+                        </TextUI>
                         {rol && (
                           <div
                             style={{
@@ -393,13 +391,13 @@ export const UsuariosPortalMayorista = () => {
                               })}`,
                             }}
                           >
-                            <CustomText
+                            <TextUI
                               size="11px"
                               weight="500"
                               color={theme.colors.secondary}
                             >
                               {rol}
-                            </CustomText>
+                            </TextUI>
                           </div>
                         )}
                       </div>
@@ -420,16 +418,16 @@ export const UsuariosPortalMayorista = () => {
                               gap: "2px",
                             }}
                           >
-                            <CustomText
+                            <TextUI
                               size="11px"
                               weight="500"
                               color={theme.colors.textSecondary}
                             >
                               Email
-                            </CustomText>
-                            <CustomText size="13px" color={theme.colors.text}>
+                            </TextUI>
+                            <TextUI size="13px" color={theme.colors.text}>
                               {email}
-                            </CustomText>
+                            </TextUI>
                           </div>
                         )}
 
@@ -441,16 +439,16 @@ export const UsuariosPortalMayorista = () => {
                               gap: "2px",
                             }}
                           >
-                            <CustomText
+                            <TextUI
                               size="11px"
                               weight="500"
                               color={theme.colors.textSecondary}
                             >
                               Cédula
-                            </CustomText>
-                            <CustomText size="13px" color={theme.colors.text}>
+                            </TextUI>
+                            <TextUI size="13px" color={theme.colors.text}>
                               {cedula}
-                            </CustomText>
+                            </TextUI>
                           </div>
                         )}
 
@@ -462,16 +460,16 @@ export const UsuariosPortalMayorista = () => {
                               gap: "2px",
                             }}
                           >
-                            <CustomText
+                            <TextUI
                               size="11px"
                               weight="500"
                               color={theme.colors.textSecondary}
                             >
                               Teléfono
-                            </CustomText>
-                            <CustomText size="13px" color={theme.colors.text}>
+                            </TextUI>
+                            <TextUI size="13px" color={theme.colors.text}>
                               {telefono}
-                            </CustomText>
+                            </TextUI>
                           </div>
                         )}
 
@@ -483,14 +481,14 @@ export const UsuariosPortalMayorista = () => {
                               gap: "2px",
                             }}
                           >
-                            <CustomText
+                            <TextUI
                               size="11px"
                               weight="500"
                               color={theme.colors.textSecondary}
                             >
                               Fecha de Nacimiento
-                            </CustomText>
-                            <CustomText size="13px" color={theme.colors.text}>
+                            </TextUI>
+                            <TextUI size="13px" color={theme.colors.text}>
                               {new Date(fechaNacimiento).toLocaleDateString(
                                 "es-ES",
                                 {
@@ -499,7 +497,7 @@ export const UsuariosPortalMayorista = () => {
                                   day: "numeric",
                                 }
                               )}
-                            </CustomText>
+                            </TextUI>
                           </div>
                         )}
                       </div>
@@ -511,7 +509,7 @@ export const UsuariosPortalMayorista = () => {
           </div>
         }
         footer={
-          <CustomButton
+          <ButtonUI
             text="Actualizar Lista"
             onClick={cargarUsuarios}
             disabled={cargandoUsuarios}
@@ -522,6 +520,6 @@ export const UsuariosPortalMayorista = () => {
         style={{ flex: "1", minWidth: "400px", maxWidth: "800px" }}
         theme={theme}
       />
-    </CustomContainer>
+    </ContainerUI>
   );
 };

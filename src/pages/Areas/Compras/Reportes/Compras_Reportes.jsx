@@ -1,7 +1,36 @@
 import React, { useState } from "react";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import styled from "styled-components";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { useTheme } from "context/ThemeContext";
+
+const ContenedorPrincipal = styled.div`
+  display: flex;
+  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
+  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
+  align-items: ${({ alignItems }) => alignItems || "flex-start"};
+  width: ${({ width }) => width || "100%"};
+  height: ${({ height }) => height || "auto"};
+  gap: ${({ gap }) => gap || "0"};
+  padding: ${({ padding }) => padding || "0"};
+`;
+
+const ContenedorFlex = styled.div`
+  display: flex;
+  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
+  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
+  align-items: ${({ alignItems }) => alignItems || "flex-start"};
+  width: ${({ width }) => width || "auto"};
+  height: ${({ height }) => height || "auto"};
+  gap: ${({ gap }) => gap || "0"};
+  padding: ${({ padding }) => padding || "0"};
+`;
+
+const IframeContainer = styled.div`
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
+`;
 
 export const Compras_Reportes = () => {
   const { theme } = useTheme();
@@ -24,36 +53,39 @@ export const Compras_Reportes = () => {
 
   const BotonesNav = () => {
     return (
-      <CustomContainer style={{ gap: "10px" }}>
+      <ContenedorFlex gap="10px">
         {opcionesGraficos.map(({ id, tituloBtn }) => (
-          <CustomButton
+          <ButtonUI
             key={id}
             text={tituloBtn}
             onClick={() => setGrafico(id)}
             variant={grafico === id ? "contained" : "outlined"}
-            pcolor={theme.colors.secondary}
+            pcolor={theme.colors.primary}
+            pcolortext={grafico === id ? theme.colors.white : undefined}
           />
         ))}
-      </CustomContainer>
+      </ContenedorFlex>
     );
   };
   return (
-    <CustomContainer flexDirection="column" height="100%" width="100%">
+    <ContenedorPrincipal flexDirection="column" height="100%" width="100%">
       <BotonesNav />
 
       {opcionesGraficos.map(
         ({ id, titulo, url }) =>
           grafico === id && (
-            <iframe
-              key={id}
-              title={titulo}
-              width="100%"
-              height="100%"
-              src={url}
-              allowFullScreen
-            />
+            <IframeContainer key={id}>
+              <iframe
+                title={titulo}
+                width="100%"
+                height="100%"
+                src={url}
+                allowFullScreen
+                style={{ border: "none" }}
+              />
+            </IframeContainer>
           )
       )}
-    </CustomContainer>
+    </ContenedorPrincipal>
   );
 };

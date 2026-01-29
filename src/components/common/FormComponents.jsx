@@ -1,6 +1,9 @@
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import React from "react";
 import styled from "styled-components";
+import { useTheme } from "context/ThemeContext";
+import { hexToRGBA } from "utils/colors";
+import IconUI from "components/UI/Components/IconsUI";
 
 const ContenedorBotones = styled.div`
   display: flex;
@@ -9,7 +12,7 @@ const ContenedorBotones = styled.div`
   gap: 15px;
   margin-top: 20px;
   padding: 10px;
-  background-color: ${({ theme }) => theme.colors.lightGray};
+  background-color: ${({ theme }) => theme.colors.backgroundLight || theme.colors.background};
   border-radius: 5px;
   width: 100%;
 `;
@@ -20,6 +23,7 @@ const LabelContainer = styled.div`
   justify-content: end;
   text-align: right;
   width: 200px;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const FieldContainer = styled.div`
@@ -28,6 +32,7 @@ const FieldContainer = styled.div`
 `;
 
 const StyledList = styled.ul`
+  color: ${({ theme }) => theme.colors.text};
   & > li {
     padding-top: 3px;
     width: fit-content;
@@ -36,7 +41,7 @@ const StyledList = styled.ul`
 
 const DialogOverlay = styled.div`
   width: 100%;
-  background-color: ${({ theme }) => theme.colors.white};
+  background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.overlay || theme.colors.black, alpha: 0.5 })};
   position: absolute;
   top: 0;
   left: 50%;
@@ -44,8 +49,10 @@ const DialogOverlay = styled.div`
   height: 100%;
   display: flex;
   justify-content: center;
+  align-items: center;
   padding: 20px;
   border-radius: 5px;
+  z-index: 1000;
 `;
 
 const DialogContainer = styled.div`
@@ -56,11 +63,12 @@ const DialogContainer = styled.div`
   flex-direction: column;
   top: 20px;
   z-index: 110;
-  background-color: ${({ theme }) => theme.colors.white};
+  background-color: ${({ theme }) => theme.colors.modalBackground || theme.colors.backgroundCard};
   padding: 35px;
   border-radius: 5px;
-  color: black;
+  color: ${({ theme }) => theme.colors.text};
   overflow-y: auto;
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0 0 10px rgba(0, 0, 0, 0.3)"};
 `;
 
 const SuccessContainer = styled.div`
@@ -117,8 +125,8 @@ const ConfirmationContent = styled.div`
   h4 {
     margin-bottom: 20px;
     font-weight: bold;
-    color: ${({ theme }) => theme.colors.dark};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.lightGray};
+    color: ${({ theme }) => theme.colors.text};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border || theme.colors.textSecondary};
     padding-bottom: 10px;
   }
 `;
@@ -153,7 +161,7 @@ export const ConfirmationDialog = ({
   errorMessage = "Ha ocurrido un error",
 }) => {
   if (!isOpen) return null;
-
+  const { theme } = useTheme();
   return (
     <DialogOverlay>
       <DialogContainer>
@@ -162,9 +170,9 @@ export const ConfirmationDialog = ({
             <span>{successState === 1 ? successMessage : errorMessage}</span>
             <IconContainer>
               {successState === 1 ? (
-                <i className="bi bi-check2-circle correcta" />
+                <IconUI name="FaCheck" size={14} color={theme.colors.text} />
               ) : (
-                <i className="bi bi-x-octagon erronea" />
+                <IconUI name="FaCircleXmark" size={14} color={theme.colors.text} />
               )}
             </IconContainer>
             <SuccessButtonContainer>
@@ -176,8 +184,8 @@ export const ConfirmationDialog = ({
             <h4>{title}</h4>
             {children}
             <ContenedorBotones>
-              <CustomButton text={"Cancelar"} onClick={onClose} />
-              <CustomButton
+              <ButtonUI text={"Cancelar"} onClick={onClose} />
+              <ButtonUI
                 text={"Aceptar"}
                 pcolor={({ theme }) => theme.colors.secondary}
                 onClick={onConfirm}

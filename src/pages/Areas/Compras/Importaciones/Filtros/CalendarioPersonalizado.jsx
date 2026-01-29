@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
+import { useTheme } from "context/ThemeContext";
+import IconUI from "components/UI/Components/IconsUI";
 
 const CalendarContainer = styled.div`
   display: flex;
@@ -25,14 +27,30 @@ const Day = styled.div`
   justify-content: center;
   align-items: center;
   cursor: pointer;
+  transition: all 0.2s ease;
+  
   &:hover {
-    background-color: ${({ $isSelected }) =>
-      $isSelected ? "var(--secondary)" : "lightgray"};
+    background-color: ${({ $isSelected, theme, $isDisabled }) =>
+      $isDisabled 
+        ? theme.colors.backgroundLight
+        : $isSelected 
+          ? theme.colors.secondary 
+          : theme.colors.hover || theme.colors.backgroundLight};
   }
-  background-color: ${({ $isSelected }) =>
-    $isSelected ? "var(--secondary)" : "white"};
-  color: ${({ $isSelected, theme }) =>
-    $isSelected ? theme.colors.white : "black"};
+  
+  background-color: ${({ $isSelected, theme, $isDisabled }) =>
+    $isDisabled
+      ? theme.colors.backgroundLight
+      : $isSelected 
+        ? theme.colors.secondary 
+        : theme.colors.backgroundCard || theme.colors.background};
+  
+  color: ${({ $isSelected, theme, $isDisabled }) =>
+    $isDisabled
+      ? theme.colors.textDisabled || theme.colors.textSecondary
+      : $isSelected 
+        ? theme.colors.white 
+        : theme.colors.text};
 `;
 
 const CalendarHeader = styled.div`
@@ -40,13 +58,50 @@ const CalendarHeader = styled.div`
   justify-content: space-between;
   width: 100%;
   padding: 0 5px;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const Button = styled.button`
   cursor: pointer;
-  border: solid 1px #cfcfcf;
+  border: solid 1px ${({ theme }) => theme.colors.border};
   border-radius: 5px;
-  color: var(--secondary);
+  background-color: ${({ theme }) => theme.colors.backgroundCard || theme.colors.background};
+  color: ${({ theme }) => theme.colors.secondary};
+  padding: 5px 10px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.hover || theme.colors.backgroundLight};
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+const YearInput = styled.input`
+  width: 75px;
+  outline: none;
+  border: solid 1px ${({ theme }) => theme.colors.border};
+  border-radius: 5px;
+  padding: 2px 5px;
+  background-color: ${({ theme }) => theme.colors.inputBackground || theme.colors.backgroundCard};
+  color: ${({ theme }) => theme.colors.text};
+  
+  &:focus {
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+const MonthYearDisplay = styled.div`
+  cursor: pointer;
+  color: ${({ theme }) => theme.colors.text};
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 5px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.hover || theme.colors.backgroundLight};
+  }
 `;
 
 const getDaysInMonth = (year, month) => {
@@ -64,13 +119,13 @@ export const CalendarioPersonalizado = ({
   selectedDateP,
   minDate,
 }) => {
+  const { theme } = useTheme();
   const [selectedDate, setSelectedDate] = useState(selectedDateP);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [isEditingYear, setIsEditingYear] = useState(false);
   const [editYear, setEditYear] = useState(currentYear);
   const days = getDaysInMonth(currentYear, currentMonth);
-  // console.log(minDate);
 
   useEffect(() => {
     if (selectedDate) {
@@ -116,9 +171,6 @@ export const CalendarioPersonalizado = ({
 
   const handleDate = (day) => {
     if (!minDate || day >= minDate) {
-      // console.log("kkak");
-      // console.log("min: ",minDate);
-      // console.log("select: ",day);
       setSelectedDate(day);
       let newDate = formatFecha(day);
       setDate(newDate);
@@ -129,9 +181,9 @@ export const CalendarioPersonalizado = ({
     <CalendarContainer>
       <CalendarHeader>
         <Button onClick={handlePrevMonth}>
-          <i className="bi bi-caret-left-fill" />
+          <IconUI name="FaCaretLeft" size={14} color={theme.colors.text} />
         </Button>
-        <div onClick={() => setIsEditingYear(true)}>
+        <MonthYearDisplay onClick={() => setIsEditingYear(true)}>
           {isEditingYear ? (
             <span
               style={{
@@ -144,13 +196,7 @@ export const CalendarioPersonalizado = ({
               {new Date(currentYear, currentMonth).toLocaleString("default", {
                 month: "long",
               })}
-              <input
-                style={{
-                  width: "75px",
-                  outline: "none",
-                  border: "solid 1px gray",
-                  padding: " 2px 5px",
-                }}
+              <YearInput
                 type="number"
                 value={editYear}
                 onChange={handleYearEdit}
@@ -169,31 +215,33 @@ export const CalendarioPersonalizado = ({
               month: "long",
             })} ${currentYear}`
           )}
-        </div>
+        </MonthYearDisplay>
         <Button onClick={handleNextMonth}>
-          <i className="bi bi-caret-right-fill" />
+          <IconUI name="FaCaretRight" size={14} color={theme.colors.text} />
         </Button>
       </CalendarHeader>
       <DaysContainer>
-        {days.map((day, index) => (
-          <Day
-            key={index}
-            $isSelected={
-              selectedDate &&
-              selectedDate.getDate() === day.getDate() &&
-              selectedDate.getMonth() === day.getMonth() &&
-              selectedDate.getFullYear() === day.getFullYear()
-            }
-            onClick={() => handleDate(day)}
-            style={{
-              cursor: !minDate || day >= minDate ? "pointer" : "not-allowed",
-              color: minDate && day < minDate ? "#ccc" : "",
-              backgroundColor: minDate && day < minDate ? "#f0f0f0" : "",
-            }}
-          >
-            {day.getDate()}
-          </Day>
-        ))}
+        {days.map((day, index) => {
+          const isDisabled = minDate && day < minDate;
+          return (
+            <Day
+              key={index}
+              $isSelected={
+                selectedDate &&
+                selectedDate.getDate() === day.getDate() &&
+                selectedDate.getMonth() === day.getMonth() &&
+                selectedDate.getFullYear() === day.getFullYear()
+              }
+              $isDisabled={isDisabled}
+              onClick={() => handleDate(day)}
+              style={{
+                cursor: !isDisabled ? "pointer" : "not-allowed",
+              }}
+            >
+              {day.getDate()}
+            </Day>
+          );
+        })}
       </DaysContainer>
     </CalendarContainer>
   );

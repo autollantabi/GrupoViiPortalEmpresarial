@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { useTheme } from "context/ThemeContext";
 
 export const TecnicentroReportes = () => {
@@ -25,18 +25,18 @@ export const TecnicentroReportes = () => {
   };
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="column"
       height="100%"
       width="100%"
       style={{ padding: 0 }}
     >
       {/* Botones de selección de reportes */}
-      <CustomContainer
+      <ContainerUI
         style={{ gap: "10px", padding: "10px", flexWrap: "wrap" }}
       >
         {reportes.map((reporte) => (
-          <CustomButton
+          <ButtonUI
             key={reporte.id}
             text={reporte.tituloBtn}
             onClick={() => setReporteActivo(reporte.id)}
@@ -44,7 +44,7 @@ export const TecnicentroReportes = () => {
             pcolor={theme.colors.primary}
           />
         ))}
-      </CustomContainer>
+      </ContainerUI>
 
       {/* Mostrar el iframe con el reporte seleccionado */}
       {(() => {
@@ -63,6 +63,6 @@ export const TecnicentroReportes = () => {
         }
         return null;
       })()}
-    </CustomContainer>
+    </ContainerUI>
   );
 };

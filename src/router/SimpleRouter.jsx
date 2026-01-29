@@ -1,19 +1,17 @@
+import React from "react";
 import { createBrowserRouter } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { AuthContextProvider } from "context/authContext";
+import { useState, useEffect, useMemo } from "react";
+import { useAuthContext } from "context/authContext";
 import { ThemeProvider } from "context/ThemeContext";
-import { PermissionsProvider } from "context/PermissionsContext";
+import { SidebarProvider } from "context/SidebarContext";
+import {
+  hasAccessToResource,
+  getAvailableCompanies,
+  getAvailableLines,
+} from "utils/permissionsValidator";
 
 // Layout automático - se aplica a todas las rutas
-import Header from "components/UI/Header/Header";
-import Sidebar from "components/UI/Sidebar/Sidebar";
-import Cabecera from "components/UI/NavBar/NavBar";
-import {
-  ContenedorCuerpoPaginaHorizontal,
-  ContenedorCuerpoPagina,
-} from "components/UI/ComponentesGenericos/GeneralStyled";
-import { useTheme } from "context/ThemeContext";
-import { globalConst } from "config/constants";
+import TemplatePaginas from "components/layout/TemplatePaginas";
 
 // Componentes de páginas
 import Portal from "pages/home/Portal";
@@ -45,9 +43,6 @@ import { ComisionesTecnicentroContainer } from "pages/Areas/Contabilidad/Comisio
 import { ComisionesTecnicentroCategoriasContainer } from "pages/Areas/Contabilidad/Comisiones/Tecnicentro/ComisionesTecnicentroCategorias";
 import { ComisionesLubricantes } from "pages/Areas/Contabilidad/Comisiones/Lubricantes/ReporteComisionesLubricantes";
 
-// Gestión de Clientes
-import { ReportesGestionClientes } from "pages/Areas/Gestion de Clientes/Reportes/ReportesGestionClientes";
-
 // Gobierno de Datos
 import GeneralMaestros from "pages/Areas/Gobierno de Datos/Maestros/GeneralMaestros";
 
@@ -57,13 +52,13 @@ import { FacturacionMarketing } from "pages/Areas/Marketing/FacturacionMarketing
 import { ComercialMarketing } from "pages/Areas/Marketing/ComercialMarketing";
 
 // MRP
-import { Asignacion } from "pages/Areas/MRP/ComponentesMRP/Asignacion/Asignacion";
-import { Parametrizaciones } from "pages/Areas/MRP/ComponentesMRP/Parametrizacion/Parametrizaciones";
-import { Promociones } from "pages/Areas/MRP/ComponentesMRP/Promociones/Promociones";
-import { FileUpload } from "pages/Areas/MRP/ComponentesMRP/Promociones/Nivel1/CargarArchivo";
-import { ConsultaPromociones } from "pages/Areas/MRP/ComponentesMRP/Promociones/Nivel1/ConsultaPromociones";
-import { Simulacion } from "pages/Areas/MRP/ComponentesMRP/Simulacion/Simulacion";
-import { SimulacionComercial } from "pages/Areas/MRP/ComponentesMRP/SimulacionComercial/SimulacionComercial";
+// import { Asignacion } from "pages/Areas/MRP/ComponentesMRP/Asignacion/Asignacion";
+// import { Parametrizaciones } from "pages/Areas/MRP/ComponentesMRP/Parametrizacion/Parametrizaciones";
+// import { Promociones } from "pages/Areas/MRP/ComponentesMRP/Promociones/Promociones";
+// import { FileUpload } from "pages/Areas/MRP/ComponentesMRP/Promociones/Nivel1/CargarArchivo";
+// import { ConsultaPromociones } from "pages/Areas/MRP/ComponentesMRP/Promociones/Nivel1/ConsultaPromociones";
+// import { Simulacion } from "pages/Areas/MRP/ComponentesMRP/Simulacion/Simulacion";
+// import { SimulacionComercial } from "pages/Areas/MRP/ComponentesMRP/SimulacionComercial/SimulacionComercial";
 
 // RRHH
 import { Documentacion } from "pages/Areas/RRHH/Documentacion";
@@ -71,8 +66,6 @@ import { Documentacion } from "pages/Areas/RRHH/Documentacion";
 // Tecnicentro
 import { TecnicentroReportes } from "pages/Areas/Tecnicentro/Reportes/TecnicentroReportes";
 
-// CYMC
-import { ReportesCYMC } from "pages/Areas/CYMC/ReportesCYMC";
 import { ReporteriaComercial } from "pages/Areas/Reporteria/Comercial/ReporteriaComercial";
 import { ReporteriaCobranzas } from "pages/Areas/Reporteria/Cobranzas/ReporteriaCobranzas";
 import { ReporteriaTecnicentro } from "pages/Areas/Reporteria/Tecnicentro/ReporteriaTecnicentro";
@@ -80,397 +73,182 @@ import { ReporteriaGestionGerentes } from "pages/Areas/Reporteria/GestionGerente
 import { ReporteriaGarantiasHerramientas } from "pages/Areas/Reporteria/Garantias/Herramientas/ReporteriaGarantiasHerramientas";
 import { ReporteriaCamiones } from "pages/Areas/Reporteria/Camiones/ReporteriaCamiones";
 import { ReporteriaComercialFlashdeVentas } from "pages/Areas/Reporteria/ComercialFlashdeVentas/ReporteriaComercialFlashdeVentas";
+import { ReporteriaCoordenadas } from "pages/Areas/Reporteria/Coordenadas/ReporteriaCoordenadas";
+import { Marketing5w2h } from "pages/Areas/Marketing/Marketing.5w2h";
+import { ReporteriaTecnicentroComercial } from "pages/Areas/Reporteria/TecnicentroComercial/ReporteriaTecnicentroComercial";
+import { ReporteriaImportaciones } from "pages/Areas/Reporteria/Importaciones/ReporteriaImportaciones";
+
+
+// Función para convertir un recurso a path automáticamente
+// Ejemplo: "reportes.coordenadas" -> "/reportes/coordenadas"
+function recursoToPath(recurso) {
+  if (!recurso) return null;
+  return "/" + recurso.replace(/\./g, "/");
+}
 
 // Configuración centralizada - Una sola fuente de verdad
+// Ahora usa recursos en lugar de módulos/secciones
+// Si no se especifica path, se genera automáticamente desde el recurso
 export const APP_CONFIG = [
   {
     path: "/",
     title: "Inicio",
-    icon: "bi bi-house",
+    icon: "FaHouse",
     component: Portal,
-    seccion: null,
-    modulo: null,
+    recurso: null, // No requiere recurso, solo autenticación
   },
   {
-    path: "/administracion",
     title: "Administración",
-    icon: "bi-person-badge",
+    icon: "FaGears",
     component: ComponenteAdministracionUsuario,
-    seccion: "ADMINISTRACION",
-    modulo: "ADMINISTRACION",
+    recurso: "administracion",
   },
   {
-    path: "/cartera/subir-archivo",
     title: "Subir Archivo",
-    icon: "",
     component: Cartera_CargarTransferencias,
-    seccion: "CARTERA",
-    modulo: "SUBIR ARCHIVO",
+    recurso: "cartera.subirarchivo",
   },
   {
-    path: "/cartera/registros-bancarios",
     title: "Registros Bancarios",
-    icon: "",
     component: RegistrosBancarios,
-    seccion: "CARTERA",
-    modulo: "REGISTROS BANCARIOS",
-    // Módulos alternativos para acceder a esta misma ruta
-    alternativeModules: [
-      { seccion: "CONTABILIDAD", modulo: "REGISTROS BANCARIOS" },
-    ],
+    recurso: "cartera.registrosbancarios",
+    // Recursos alternativos para acceder a esta misma ruta
+    recursosAlternativos: ["contabilidad.registrosbancarios"],
   },
   {
-    path: "/cartera/registros-historicos",
     title: "Registros Historicos",
-    icon: "",
     component: RegistrosBancariosHistorial,
-    seccion: "CARTERA",
-    modulo: "REGISTROS HISTORICOS",
+    recurso: "cartera.registroshistoricos",
   },
   {
-    path: "/cartera/gestion-cheques",
     title: "Gestión Cheques",
-    icon: "",
     component: GestionCheques,
-    seccion: "CARTERA",
-    modulo: "GESTION CHEQUES",
+    recurso: "cartera.gestioncheques",
   },
   {
-    path: "/cartera/desbloqueo-clientes",
     title: "Desbloqueo Clientes",
-    icon: "",
     component: DesbloqueoClientes,
-    seccion: "CARTERA",
-    modulo: "DESBLOQUEO CLIENTES",
+    recurso: "cartera.desbloqueoclientes",
   },
   {
-    path: "/compras/reportes",
     title: "Reportes",
-    icon: "",
     component: Compras_Reportes,
-    seccion: "COMPRAS",
-    modulo: "GRAFICAS",
+    recurso: "compras.graficas",
   },
   {
-    path: "/compras/importaciones",
     title: "Importaciones",
-    icon: "",
     component: Importaciones,
-    seccion: "COMPRAS",
-    modulo: "COMPRAS",
-    subModules: ["IMPORTACIONES", "BODEGA", "COMPRAS-GERENCIA"],
+    recurso: "compras.importaciones",
   },
   {
-    path: "/compras/creditos",
     title: "Créditos",
-    icon: "",
     component: Creditos,
-    seccion: "COMPRAS",
-    modulo: "CREDITOS",
+    recurso: "compras.creditos",
   },
   {
-    path: "/compras/anticipos",
     title: "Anticipos",
-    icon: "",
     component: Anticipos,
-    seccion: "COMPRAS",
-    modulo: "ANTICIPOS",
+    recurso: "compras.anticipos",
   },
   {
-    path: "/contabilidad/conversion",
     title: "Conversión",
-    icon: "",
     component: Contabilidad_ConversionArchivosBancos,
-    seccion: "CONTABILIDAD",
-    modulo: "CONVERSION",
+    recurso: "contabilidad.conversion",
   },
   {
-    path: "/contabilidad/reporte-flujo-caja",
     title: "Reporte Flujo de Caja",
-    icon: "",
     component: Contabilidad_ReporteFlujoCaja,
-    seccion: "CONTABILIDAD",
-    modulo: "REPORTE_FLUJOCAJA",
+    recurso: "contabilidad.reporteflujocaja",
   },
   {
-    path: "/contabilidad/comisiones/mayoristas",
     title: "Mayoristas",
-    icon: "",
     component: ComisionesMayoristas,
-    seccion: "CONTABILIDAD",
-    modulo: "MAYORISTAS",
-    hierarchy: [{ title: "Comisiones", value: "COMISIONES" }],
+    recurso: "contabilidad.comisiones.mayoristas",
   },
   {
-    path: "/contabilidad/comisiones/tecnicentro",
-    title: "Tecnicentro",
-    icon: "",
+    title: "Reportes",
     component: ComisionesTecnicentroContainer,
-    seccion: "CONTABILIDAD",
-    modulo: "TECNICENTRO",
-    hierarchy: [{ title: "Comisiones", value: "COMISIONES" }],
+    recurso: "contabilidad.comisiones.tecnicentro.reportes",
   },
   {
-    path: "/contabilidad/comisiones/tecnicentro/categorias",
-    title: "Categorías Tecnicentro",
-    icon: "",
+    title: "Categorías",
     component: ComisionesTecnicentroCategoriasContainer,
-    seccion: "CONTABILIDAD",
-    modulo: "TECNICENTRO_PRODUCTOS",
-    hierarchy: [{ title: "Comisiones", value: "COMISIONES" }],
+    recurso: "contabilidad.comisiones.tecnicentro.productos",
   },
   {
-    path: "/contabilidad/comisiones/lubricantes",
     title: "Lubricantes",
-    icon: "",
     component: ComisionesLubricantes,
-    seccion: "CONTABILIDAD",
-    modulo: "CONTABILIDAD",
-    hierarchy: [{ title: "Comisiones", value: "COMISIONES" }],
+    recurso: "contabilidad.comisiones.lubricantes",
   },
   {
-    path: "/gobierno-datos/maestros",
     title: "Maestros",
-    icon: "",
     component: GeneralMaestros,
-    seccion: "GOBIERNODATOS",
-    modulo: "MAESTROS",
+    recurso: "gobiernodatos.maestros",
   },
   {
-    path: "/marketing/inventario",
     title: "Inventario",
-    icon: "",
     component: ConsultaMarketing,
-    seccion: "MARKETING",
-    modulo: "INVENTARIO",
+    recurso: "marketing.inventario",
   },
-  // {
-  //   path: "/marketing/facturacion-mp",
-  //   title: "Facturación Mat. Pub.",
-  //   icon: "",
-  //   component: FacturacionMarketing,
-  //   seccion: "MARKETING",
-  //   modulo: "FACTURACIONMP",
-  // },
   {
-    path: "/marketing/comercial",
     title: "Comercial",
-    icon: "",
     component: ComercialMarketing,
-    seccion: "MARKETING",
-    modulo: "COMERCIALREP",
+    recurso: "marketing.comercial",
   },
   {
-    path: "/mrp/asignaciones",
-    title: "Asignaciones",
-    icon: "",
-    component: Asignacion,
-    seccion: "MRP",
-    modulo: "ASIGNACIONES",
+    title: "5W2H",
+    component: Marketing5w2h,
+    recurso: "marketing.5w2h",
   },
   {
-    path: "/mrp/promociones/crear",
-    title: "Crear Promociones",
-    icon: "",
-    component: Promociones,
-    seccion: "MRP",
-    modulo: "CREAR PROMOCION",
-    hierarchy: [{ title: "Promociones", value: "PROMOCIONES" }],
-  },
-  {
-    path: "/mrp/promociones/consultar",
-    title: "Consultar Promociones",
-    icon: "",
-    component: ConsultaPromociones,
-    seccion: "MRP",
-    modulo: "CONSULTAR PROMOCION",
-    hierarchy: [{ title: "Promociones", value: "PROMOCIONES" }],
-  },
-  {
-    path: "/mrp/promociones/cargar-archivo",
-    title: "Cargar Archivo",
-    icon: "",
-    component: FileUpload,
-    seccion: "MRP",
-    modulo: "CARGAR ARCHIVO",
-    hierarchy: [{ title: "Promociones", value: "PROMOCIONES" }],
-  },
-  {
-    path: "/mrp/parametrizaciones",
-    title: "Parametrización",
-    icon: "",
-    component: Parametrizaciones,
-    seccion: "MRP",
-    modulo: "PARAMETRIZACION",
-  },
-  {
-    path: "/mrp/simulacion",
-    title: "Simulación",
-    icon: "",
-    component: Simulacion,
-    seccion: "MRP",
-    modulo: "SIMULACION",
-  },
-  {
-    path: "/mrp/simulacion-comercial",
-    title: "Pedidos Comercial",
-    icon: "",
-    component: SimulacionComercial,
-    seccion: "MRP",
-    modulo: "PEDIDOS COMERCIAL",
-  },
-  {
-    path: "/rrhh/documentacion",
     title: "Documentación",
-    icon: "",
     component: Documentacion,
-    seccion: "RRHH",
-    modulo: "DOCUMENTACION",
+    recurso: "rrhh.documentacion",
   },
   {
-    path: "/reporteria/comercial",
     title: "Comercial",
-    icon: "",
     component: ReporteriaComercial,
-    seccion: "REPORTERIA",
-    modulo: "REP_COMERCIAL",
-    subModules: [
-      "REP_COM_NEUMATICOS",
-      "REP_COM_MOTOS",
-      "REP_COM_LUBRICANTES",
-      "REP_COM_HERRAMIENTAS",
-    ],
+    recurso: "reportes.comercial", 
   },
   {
-    path: "/reporteria/comercial-flash-de-ventas",
+    title: "Tecni. Comercial",
+    component: ReporteriaTecnicentroComercial,
+    recurso: "reportes.tecnicentrocomercial",
+  },
+  {
     title: "Flash de Ventas",
-    icon: "",
     component: ReporteriaComercialFlashdeVentas,
-    seccion: "REPORTERIA",
-    modulo: "REP_FLASH_VENTAS",
-    subModules: [
-      "REP_FLV_TODOS",
-      "REP_FLV_NEUMATICOS",
-      "REP_FLV_MOTOS",
-      "REP_FLV_LUBRICANTES",
-      "REP_FLV_HERRAMIENTAS",
-    ],
+    recurso: "reportes.flashventas",
   },
   {
-    path: "/reporteria/cobranzas",
+    title: "Importaciones",
+    component: ReporteriaImportaciones,
+    recurso: "reportes.importaciones",
+  },
+  {
+    title: "Coordenadas",
+    component: ReporteriaCoordenadas,
+    recurso: "reportes.coordenadas",
+  },
+  {
     title: "Cobranzas",
-    icon: "",
     component: ReporteriaCobranzas,
-    seccion: "REPORTERIA",
-    modulo: "REP_COBRANZAS",
+    recurso: "reportes.cobranzas",
   },
   {
-    path: "/reporteria/gestion-gerentes",
     title: "Gestión Gerentes",
-    icon: "",
     component: ReporteriaGestionGerentes,
-    seccion: "REPORTERIA",
-    modulo: "REP_GESTIONGERENTES",
+    recurso: "reportes.gestiongerentes",
   },
   {
-    path: "/reporteria/tecnicentro",
     title: "Tecnicentro",
-    icon: "",
     component: ReporteriaTecnicentro,
-    seccion: "REPORTERIA",
-    modulo: "REP_TECNICENTRO",
+    recurso: "reportes.tecnicentro",
   },
   {
-    path: "/reporteria/camiones",
     title: "Camiones",
-    icon: "",
     component: ReporteriaCamiones,
-    seccion: "REPORTERIA",
-    modulo: "REP_CAMIONES",
-  },
-  {
-    path: "/reporteria/garantias/herramientas",
-    title: "Herramientas",
-    icon: "",
-    component: ReporteriaGarantiasHerramientas,
-    seccion: "REPORTERIA",
-    modulo: "REP_GAR_HERRAMIENTAS",
-    hierarchy: [{ title: "Garantias", value: "GARANTIAS" }],
-  },
-  {
-    path: "/tecnicentro/reportes",
-    title: "Reportes",
-    icon: "",
-    component: TecnicentroReportes,
-    seccion: "TECNICENTRO",
-    modulo: "REPORTES",
-  },
-  {
-    path: "/cymc/reportes",
-    title: "Reportes",
-    icon: "",
-    component: ReportesCYMC,
-    seccion: "CYMC",
-    modulo: "REPORTES",
-  },
-];
-
-// Configuración de módulos padre para el sidebar
-export const MODULE_CONFIG = [
-  {
-    title: "Cartera",
-    icon: "bi-wallet2",
-    modulo: "CARTERA",
-  },
-  {
-    title: "Contabilidad",
-    icon: "bi-calculator",
-    modulo: "CONTABILIDAD",
-  },
-  {
-    title: "Compras",
-    icon: "bi-cart4",
-    modulo: "COMPRAS",
-  },
-  {
-    title: "MRP",
-    icon: "bi bi-journal-plus",
-    modulo: "MRP",
-  },
-  {
-    title: "Marketing",
-    icon: "bi bi-clipboard2-data",
-    modulo: "MARKETING",
-  },
-  {
-    title: "Gestión de Clientes",
-    icon: "bi bi-journals",
-    modulo: "GESTIONCLIENTES",
-  },
-  {
-    title: "Reporteria",
-    icon: "bi bi-table",
-    modulo: "REPORTERIA",
-  },
-  {
-    title: "Recursos Humanos",
-    icon: "bi bi-person-fill-gear",
-    modulo: "RRHH",
-  },
-  {
-    title: "Gobierno de Datos",
-    icon: "bi bi-database",
-    modulo: "GOBIERNODATOS",
-  },
-  {
-    title: "Tecnicentro",
-    icon: "bi bi-gear",
-    modulo: "TECNICENTRO",
-  },
-  {
-    title: "CYMC",
-    icon: "bi bi-bar-chart-line-fill",
-    modulo: "CYMC",
+    recurso: "reportes.camiones",
   },
 ];
 
@@ -480,359 +258,416 @@ export const getRoutesConfig = () => {
   APP_CONFIG.forEach((item) => {
     routes[item.path] = {
       component: item.component,
-      seccion: item.seccion,
+      recurso: item.recurso,
     };
   });
   return routes;
 };
 
-// Función para generar items del sidebar
-export const getSidebarItems = () => {
-  const modulosPermisos = JSON.parse(localStorage.getItem("modulos")) || [];
+// Función para obtener el primer nivel de un recurso (ej: "importaciones" de "importaciones.compras.reportes")
+function getResourceRoot(recurso) {
+  if (!recurso) return null;
+  return recurso.split(".")[0];
+}
 
-  const hasAdminAccess = modulosPermisos.some(
-    (modulo) =>
-      modulo.modulo === "ADMINISTRACION" ||
-      (modulo.children &&
-        modulo.children.some((child) => child.modulo === "ADMINISTRACION"))
-  );
+// Función para obtener el nombre legible de un recurso raíz
+function getResourceRootName(recursoRoot) {
+  const names = {
+    compras: "Compras",
+    cartera: "Cartera",
+    contabilidad: "Contabilidad",
+    reportes: "Reportería",
+    marketing: "Marketing",
+    rrhh: "Recursos Humanos",
+    gobiernodatos: "Gobierno de Datos",
+    administracion: "Administración",
+  };
+  return names[recursoRoot?.toLowerCase()] || recursoRoot;
+}
 
+// Función para obtener el icono de un recurso raíz
+function getResourceRootIcon(recursoRoot) {
+  const icons = {
+    compras: "FaCartFlatbed",
+    cartera: "FaWallet",
+    contabilidad: "FaCalculator",
+    reportes: "FaChartLine",
+    marketing: "FaRegClipboard",
+    rrhh: "FaPeopleGroup",
+    gobiernodatos: "FaDatabase",
+    administracion: "FaGears",
+  };
+  return icons[recursoRoot?.toLowerCase()] || "";
+}
+
+// Función para generar items del sidebar basados en recursos
+export const getSidebarItems = (userContexts = []) => {
   // Items principales
   const items = [
     {
       title: "Inicio",
-      icon: "bi bi-house",
+      icon: "FaHouse",
       path: "/",
     },
   ];
 
-  // Agregar módulos padre
-  MODULE_CONFIG.forEach((module) => {
-    const moduleItems = APP_CONFIG.filter(
-      (item) => item.seccion === module.modulo && !item.hierarchy
+  // Agrupar items por recurso raíz
+  const itemsByRoot = {};
+  // Items que son exactamente el root (sin hijos) - se mostrarán directamente
+  const rootItems = [];
+
+  APP_CONFIG.forEach((item) => {
+    // Saltar items sin recurso (como "/")
+    if (!item.recurso) return;
+
+    // Verificar acceso al recurso
+    const hasAccess = hasAccessToResource(userContexts, item.recurso);
+    
+    // También verificar recursos alternativos si existen
+    const hasAltAccess = item.recursosAlternativos?.some((recursoAlt) =>
+      hasAccessToResource(userContexts, recursoAlt)
     );
 
-    if (moduleItems.length > 0) {
-      const children = moduleItems.map((item) => ({
-        title: item.title,
-        icon: item.icon,
-        path: item.path,
-      }));
+    if (hasAccess || hasAltAccess) {
+      const root = getResourceRoot(item.recurso);
+      if (!root) return;
 
-      // Generar submenús basados en la jerarquía
-      const hierarchyGroups = {};
+      // Si el recurso es exactamente el root (sin puntos adicionales), mostrarlo directamente
+      if (item.recurso === root) {
+        const path = item.path || recursoToPath(item.recurso);
+        rootItems.push({
+          title: item.title,
+          icon: item.icon || getResourceRootIcon(root),
+          path: path,
+        });
+        return; // No agregar a itemsByRoot
+      }
 
-      // Agrupar items por jerarquía
-      APP_CONFIG.filter((item) => item.seccion === module.modulo).forEach(
-        (item) => {
-          if (item.hierarchy && item.hierarchy.length > 0) {
-            // Crear clave única para la jerarquía completa usando values
-            const hierarchyKey = item.hierarchy.map((h) => h.value).join(" > ");
+      // Si tiene hijos (tiene puntos), crear el grupo padre
+      if (!itemsByRoot[root]) {
+        itemsByRoot[root] = {
+          title: getResourceRootName(root),
+          icon: getResourceRootIcon(root),
+          children: [],
+        };
+      }
 
-            if (!hierarchyGroups[hierarchyKey]) {
-              hierarchyGroups[hierarchyKey] = {
-                hierarchy: item.hierarchy,
-                items: [],
-              };
-            }
-            hierarchyGroups[hierarchyKey].items.push(item);
-          }
-        }
-      );
-
-      // Crear jerarquía anidada usando el array hierarchy
-      const createHierarchyFromArray = (hierarchyArray, items) => {
-        if (hierarchyArray.length === 1) {
-          // Nivel final
-          return {
-            title: hierarchyArray[0].title,
-            icon: "",
-            children: items.map((item) => ({
+      // Función recursiva para construir la jerarquía completa
+      const construirJerarquia = (partes, nivelActual, contenedor, recursoParcial = "") => {
+        // Construir el recurso parcial hasta este punto para poder buscar items existentes
+        const recursoHastaAqui = recursoParcial 
+          ? `${recursoParcial}.${partes[0]}` 
+          : partes[0];
+        
+        // Si solo queda una parte, es el item final
+        if (partes.length === 1) {
+          const nivelFinal = partes[0];
+          const nivelFinalKey = nivelActual ? `${nivelActual}.${nivelFinal}` : nivelFinal;
+          const pathFinal = item.path || recursoToPath(item.recurso);
+          
+          // Verificar si ya existe un item o grupo con esta key o path
+          const itemExistente = contenedor.find(
+            (child) => child.hierarchyKey === nivelFinalKey || child.path === pathFinal
+          );
+          
+          // Si existe y es un grupo (tiene children), agregar el item a sus children
+          if (itemExistente && itemExistente.children) {
+            itemExistente.children.push({
               title: item.title,
               icon: item.icon,
-              path: item.path,
-            })),
-          };
-        } else {
-          // Nivel intermedio - crear submenú padre
-          const currentLevel = hierarchyArray[0];
-          const remainingHierarchy = hierarchyArray.slice(1);
-
-          return {
-            title: currentLevel.title,
-            icon: "",
-            children: [createHierarchyFromArray(remainingHierarchy, items)],
-          };
+              path: pathFinal,
+            });
+          } else if (!itemExistente) {
+            // Si no existe, crear el item final
+            contenedor.push({
+              title: item.title,
+              icon: item.icon,
+              path: pathFinal,
+            });
+          }
+          return;
         }
+
+        // Obtener el nivel actual (ej: "comisiones" de "contabilidad.comisiones.tecnicentro")
+        const nivelActualNombre = partes[0];
+        const nivelActualTitle = nivelActualNombre.charAt(0).toUpperCase() + nivelActualNombre.slice(1);
+        
+        // Construir la key única para este nivel
+        const nivelKey = nivelActual ? `${nivelActual}.${nivelActualNombre}` : nivelActualNombre;
+        
+        // Construir el path del recurso hasta este nivel para buscar items existentes
+        const recursoHastaEsteNivel = root ? `${root}.${recursoHastaAqui}` : recursoHastaAqui;
+        const pathHastaEsteNivel = recursoToPath(recursoHastaEsteNivel);
+        
+        // Buscar si ya existe un grupo o item para este nivel
+        let grupoNivel = contenedor.find(
+          (child) => child.hierarchyKey === nivelKey
+        );
+        
+        // También buscar por path en caso de que sea un item final que necesita convertirse en grupo
+        if (!grupoNivel) {
+          const itemPorPath = contenedor.find(
+            (child) => child.path === pathHastaEsteNivel && !child.hierarchyKey
+          );
+          if (itemPorPath) {
+            grupoNivel = itemPorPath;
+          }
+        }
+
+        // Si existe pero no tiene children (es un item final), convertirlo en grupo
+        if (grupoNivel && !grupoNivel.children) {
+          // Encontrar el índice del item original
+          const indexOriginal = contenedor.findIndex(
+            (child) => child === grupoNivel || (child.path === pathHastaEsteNivel && !child.hierarchyKey)
+          );
+          
+          if (indexOriginal !== -1) {
+            // Convertir el item final en un grupo
+            const itemFinal = { ...grupoNivel };
+            grupoNivel = {
+              title: nivelActualTitle,
+              icon: "",
+              hierarchyKey: nivelKey,
+              children: [itemFinal], // Mover el item anterior como hijo
+            };
+            // Reemplazar el item en el contenedor
+            contenedor[indexOriginal] = grupoNivel;
+          } else {
+            // Si no se encontró, crear nuevo grupo
+            grupoNivel = {
+              title: nivelActualTitle,
+              icon: "",
+              hierarchyKey: nivelKey,
+              children: [],
+            };
+            contenedor.push(grupoNivel);
+          }
+        } else if (!grupoNivel) {
+          // Si no existe, crearlo como grupo
+          grupoNivel = {
+            title: nivelActualTitle,
+            icon: "",
+            hierarchyKey: nivelKey,
+            children: [],
+          };
+          contenedor.push(grupoNivel);
+        }
+
+        // Continuar recursivamente con las partes restantes
+        const partesRestantes = partes.slice(1);
+        construirJerarquia(partesRestantes, nivelKey, grupoNivel.children, recursoHastaAqui);
       };
 
-      // Agregar submenús para cada jerarquía
-      Object.values(hierarchyGroups).forEach((group) => {
-        const hierarchyItem = createHierarchyFromArray(
-          group.hierarchy,
-          group.items
-        );
-        children.push(hierarchyItem);
-      });
-
-      items.push({
-        title: module.title,
-        icon: module.icon,
-        modulo: module.modulo,
-        children,
-      });
+      // Agrupar automáticamente por niveles del recurso (separados por puntos)
+      const partesRecurso = item.recurso.split(".");
+      
+      // Si tiene más de 2 partes, crear estructura anidada recursiva
+      if (partesRecurso.length > 2) {
+        // Omitir el root (primera parte) y construir jerarquía con el resto
+        const partesSinRoot = partesRecurso.slice(1);
+        construirJerarquia(partesSinRoot, null, itemsByRoot[root].children, "");
+      } else {
+        // Item directo sin jerarquía adicional (solo 2 niveles: root.hijo)
+        // Generar path automáticamente si no está especificado
+        const path = item.path || recursoToPath(item.recurso);
+        
+        itemsByRoot[root].children.push({
+          title: item.title,
+          icon: item.icon,
+          path: path,
+        });
+      }
     }
   });
 
-  // Agregar administración si tiene permisos
-  if (hasAdminAccess) {
-    items.push({
-      title: "Administración",
-      icon: "bi-person-badge",
-      modulo: "ADMINISTRACION",
-      path: "/administracion",
-    });
-  }
+  // Agregar items que son exactamente el root (sin hijos) directamente
+  rootItems.forEach((rootItem) => {
+    items.push(rootItem);
+  });
+
+  // Agregar items agrupados al sidebar (con hijos)
+  Object.values(itemsByRoot).forEach((rootItem) => {
+    if (rootItem.children.length === 0) return;
+
+    // Siempre mostrar el grupo padre con sus hijos, incluso si solo hay un hijo
+    // Esto permite que se vea "Cartera > Registros Bancarios" aunque solo tenga acceso a un recurso hijo
+    items.push(rootItem);
+  });
 
   return items;
 };
 
 // Componente interno del layout
-function LayoutContent({ children, seccion = null }) {
-  const { theme } = useTheme();
-
-  return (
-    <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <Header />
-      <ContenedorCuerpoPaginaHorizontal
-        style={{
-          height: `calc(100vh - ${globalConst.alturaHeader})`,
-        }}
-      >
-        <Sidebar />
-        <div
-          style={{
-            height: "100%",
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            overflowY: "auto",
-            backgroundColor: theme.colors.background,
-          }}
-        >
-          {seccion && <Cabecera seccion={seccion} />}
-          <ContenedorCuerpoPagina
-            style={{
-              flex: 1,
-            }}
-          >
-            {children}
-          </ContenedorCuerpoPagina>
-        </div>
-      </ContenedorCuerpoPaginaHorizontal>
-    </div>
-  );
+function LayoutContent({ children }) {
+  return <TemplatePaginas>{children}</TemplatePaginas>;
 }
 
 // Páginas sin layout (login, recovery)
 function AuthWrapper({ children }) {
-  const [authState, setAuthState] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Verificar si ya está autenticado
-    const isAuth = localStorage.getItem("MY_AUTH_APP_1");
-    setAuthState(isAuth === "true");
-    setLoading(false);
-  }, []);
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
-        <div>Cargando...</div>
-      </div>
-    );
-  }
-
-  // Si ya está autenticado, redirigir al home
-  if (authState) {
-    window.location.href = "/";
-    return null;
-  }
-
-  return (
-    <AuthContextProvider>
-      <ThemeProvider>{children}</ThemeProvider>
-    </AuthContextProvider>
-  );
+  return <ThemeProvider>{children}</ThemeProvider>;
 }
 
-// Función para verificar permisos de módulo (búsqueda recursiva)
-function hasModulePermission(requiredModule, alternativeModules = []) {
-  if (!requiredModule) return true; // Si no requiere módulo específico, permitir acceso
+// Las funciones de validación de permisos ahora están en utils/permissionsValidator.js
 
-  const modulosPermisos = JSON.parse(localStorage.getItem("modulos")) || [];
+// Componente interno que usa el contexto
+function ProtectedContent({
+  children,
+  recurso = null,
+  recursosAlternativos = null,
+}) {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuthContext();
+  const [permissionState, setPermissionState] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [availableCompanies, setAvailableCompanies] = useState([]);
+  const [availableLines, setAvailableLines] = useState([]);
 
-  // Función recursiva para buscar el módulo en cualquier nivel
-  const findModuleRecursively = (modules, targetModule) => {
-    for (const module of modules) {
-      if (module.modulo === targetModule) {
-        return true;
+  // Extraer el rol del recurso principal o del primer recurso alternativo con acceso
+  // Este hook debe estar antes de cualquier return condicional
+  const rolDelRecurso = useMemo(() => {
+    if (!user || !user.CONTEXTOS || !user.ROLES || !recurso) return null;
+    
+    // Función auxiliar para extraer el rol de un recurso específico
+    const getRolDelRecurso = (recursoTarget, userContexts, userRoles) => {
+      if (!recursoTarget || !userContexts || !userRoles) return null;
+      
+      // Buscar el contexto que tenga el recurso
+      const contextoEncontrado = userContexts.find(
+        (ctx) => ctx.RECURSO?.toLowerCase() === recursoTarget.toLowerCase()
+      );
+      
+      if (!contextoEncontrado?.ID_ROL) return null;
+      
+      // Buscar el rol que corresponde a ese ID_ROL
+      const rolEncontrado = userRoles.find(
+        (rol) => rol.ID_ROL === contextoEncontrado.ID_ROL
+      );
+      
+      return rolEncontrado?.NOMBRE_ROL?.toLowerCase() || null;
+    };
+    
+    // Primero intentar con el recurso principal
+    let rol = getRolDelRecurso(recurso, user.CONTEXTOS, user.ROLES);
+    
+    // Si no se encuentra y hay recursos alternativos, buscar en ellos
+    if (!rol && recursosAlternativos && Array.isArray(recursosAlternativos)) {
+      for (const recursoAlt of recursosAlternativos) {
+        rol = getRolDelRecurso(recursoAlt, user.CONTEXTOS, user.ROLES);
+        if (rol) break;
       }
-      if (module.children && module.children.length > 0) {
-        if (findModuleRecursively(module.children, targetModule)) {
-          return true;
+    }
+    
+    return rol;
+  }, [user, recurso, recursosAlternativos]);
+
+  // Crear el objeto routeConfig con toda la información necesaria
+  // Este hook también debe estar antes de cualquier return condicional
+  const routeConfig = useMemo(() => {
+    return {
+      recurso,
+      recursosAlternativos,
+      rolDelRecurso,
+      availableCompanies,
+      availableLines,
+    };
+  }, [recurso, recursosAlternativos, rolDelRecurso, availableCompanies, availableLines]);
+
+  useEffect(() => {
+    // Esperar a que termine de cargar los datos del localStorage
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    // Si no hay recurso requerido (como la ruta "/"), solo verificar autenticación
+    // No necesita permisos específicos, solo estar autenticado
+    if (!recurso) {
+      setPermissionState(isAuthenticated);
+      setLoading(false);
+      return;
+    }
+
+    // Si hay recurso requerido, verificar permisos
+    if (!isAuthenticated) {
+      setPermissionState(false);
+      setLoading(false);
+      return;
+    }
+
+    // Si está autenticado pero aún no hay datos del usuario, esperar
+    if (!user || !user.CONTEXTOS) {
+      setLoading(true);
+      return;
+    }
+
+    const userContexts = user.CONTEXTOS || []; // Array de contextos usuario-rol-contexto
+
+    // TEMPORAL: Permitir acceso completo a administración para poder agregar permisos
+    // TODO: Remover esta condición después de configurar los permisos
+    if (recurso === "administracion") {
+      setPermissionState(true);
+      setLoading(false);
+      return;
+    }
+
+    // Verificar acceso al recurso principal
+    let hasAccess = hasAccessToResource(userContexts, recurso);
+    const recursosConAcceso = []; // Array de recursos que dan acceso
+
+    // Si tiene acceso al recurso principal, agregarlo
+    if (hasAccess) {
+      recursosConAcceso.push(recurso);
+    }
+
+    // Verificar recursos alternativos
+    if (recursosAlternativos && Array.isArray(recursosAlternativos)) {
+      for (const recursoAlt of recursosAlternativos) {
+        const tieneAccesoAlt = hasAccessToResource(userContexts, recursoAlt);
+        if (tieneAccesoAlt) {
+          hasAccess = true;
+          recursosConAcceso.push(recursoAlt); // Agregar recurso alternativo que da acceso
         }
       }
     }
-    return false;
-  };
 
-  // Intentar con el módulo principal
-  if (findModuleRecursively(modulosPermisos, requiredModule)) {
-    return true;
-  }
+    setPermissionState(hasAccess);
 
-  // Si no se encuentra, intentar con los módulos alternativos
-  if (alternativeModules && alternativeModules.length > 0) {
-    for (const altModule of alternativeModules) {
-      if (findModuleRecursively(modulosPermisos, altModule.modulo)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-// Función para verificar si el usuario tiene al menos una empresa con permisos en el módulo
-function hasAnyCompanyPermission(requiredModule, alternativeModules = []) {
-  if (!requiredModule) return true; // Si no requiere módulo específico, permitir acceso
-
-  const modulosPermisos = JSON.parse(localStorage.getItem("modulos")) || [];
-
-  // Función recursiva para buscar el módulo en cualquier nivel
-  const findModuleRecursively = (modules, targetModule) => {
-    for (const module of modules) {
-      if (module.modulo === targetModule) {
-        return module;
-      }
-      if (module.children && module.children.length > 0) {
-        const found = findModuleRecursively(module.children, targetModule);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  // Intentar con el módulo principal
-  let moduloData = findModuleRecursively(modulosPermisos, requiredModule);
-
-  // Si no se encuentra, intentar con los módulos alternativos
-  if (!moduloData && alternativeModules && alternativeModules.length > 0) {
-    for (const altModule of alternativeModules) {
-      moduloData = findModuleRecursively(modulosPermisos, altModule.modulo);
-      if (moduloData) break; // Si encuentra uno, salir del loop
-    }
-  }
-
-  if (!moduloData) return false;
-
-  // Función recursiva para buscar permisos en children
-  const hasPermissionsInChildren = (children) => {
-    return children.some((child) => {
-      // Si el child tiene permisos con empresas
-      if (child.permisos && child.permisos.length > 0) {
-        return child.permisos.some(
-          (permiso) =>
-            permiso.empresa &&
-            permiso.permiso &&
-            (permiso.permiso === "L" ||
-              permiso.permiso === "E" ||
-              permiso.permiso === "A")
-        );
-      }
-      // Si tiene más children, buscar recursivamente
-      if (child.children && child.children.length > 0) {
-        return hasPermissionsInChildren(child.children);
-      }
-      return false;
-    });
-  };
-
-  // Verificar permisos directos en el módulo
-  if (moduloData.permisos && moduloData.permisos.length > 0) {
-    const hasDirectPermissions = moduloData.permisos.some(
-      (permiso) =>
-        permiso.empresa &&
-        permiso.permiso &&
-        (permiso.permiso === "L" ||
-          permiso.permiso === "E" ||
-          permiso.permiso === "A")
-    );
-    if (hasDirectPermissions) return true;
-  }
-
-  // Verificar permisos en children
-  if (moduloData.children && moduloData.children.length > 0) {
-    return hasPermissionsInChildren(moduloData.children);
-  }
-
-  return false;
-}
-
-// Wrapper para rutas protegidas
-function ProtectedWrapper({
-  children,
-  seccion = null,
-  modulo = null,
-  subModules = null,
-  alternativeModules = null,
-}) {
-  const [authState, setAuthState] = useState(null);
-  const [permissionState, setPermissionState] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Verificar autenticación desde localStorage
-    const isAuth = localStorage.getItem("MY_AUTH_APP_1");
-    setAuthState(isAuth === "true");
-
-    if (isAuth === "true") {
-      if (subModules && subModules.length > 0) {
-        // Para rutas con submódulos, verificar permisos en submódulos específicos
-        const hasAnySubModule = subModules.some((subModule) => {
-          const hasModule = hasModulePermission(subModule, alternativeModules);
-          const hasCompany = hasAnyCompanyPermission(
-            subModule,
-            alternativeModules
-          );
-          return hasModule && hasCompany;
+    // Si tiene acceso, obtener empresas y líneas disponibles
+    // Combinar empresas y líneas de TODOS los recursos que dan acceso (principal + alternativos)
+    // Pasar empresas y líneas globales del usuario (nueva estructura)
+    if (hasAccess && recursosConAcceso.length > 0) {
+      const empresasGlobales = user.EMPRESAS || null;
+      const lineasGlobales = user.LINEAS || null;
+      
+      // Combinar empresas y líneas de todos los recursos que dan acceso
+      const allCompanies = new Map();
+      const allLines = new Map();
+      
+      for (const recursoConAcceso of recursosConAcceso) {
+        const companies = getAvailableCompanies(userContexts, recursoConAcceso, empresasGlobales);
+        const lines = getAvailableLines(userContexts, recursoConAcceso, lineasGlobales);
+        
+        // Agregar empresas sin duplicados
+        companies.forEach((emp) => {
+          if (!allCompanies.has(emp.id)) {
+            allCompanies.set(emp.id, emp);
+          }
         });
-        setPermissionState(hasAnySubModule);
-      } else {
-        // Para rutas normales, verificar permisos del módulo o módulos alternativos
-        const hasModule = hasModulePermission(modulo, alternativeModules);
-        const hasCompany = hasAnyCompanyPermission(modulo, alternativeModules);
-        setPermissionState(hasModule && hasCompany);
+        
+        // Agregar líneas sin duplicados
+        lines.forEach((line) => {
+          if (!allLines.has(line.id)) {
+            allLines.set(line.id, line);
+          }
+        });
       }
+
+      setAvailableCompanies(Array.from(allCompanies.values()));
+      setAvailableLines(Array.from(allLines.values()));
+      
     }
 
     setLoading(false);
-  }, [modulo, subModules, alternativeModules]);
+  }, [isAuthenticated, user, recurso, recursosAlternativos, authLoading]);
 
   if (loading) {
     return (
@@ -849,26 +684,63 @@ function ProtectedWrapper({
     );
   }
 
-  if (!authState) {
+  if (!isAuthenticated) {
     // Redirigir al login si no está autenticado
     window.location.href = "/login";
     return null;
   }
 
-  if (!permissionState) {
+  // Solo redirigir si permissionState es explícitamente false (no null, que significa "aún cargando")
+  if (permissionState === false) {
     // Redirigir al home si no tiene permisos
     window.location.href = "/";
     return null;
   }
+  
+  // Si permissionState es null, aún está cargando, mostrar loading
+  if (permissionState === null) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <div>Cargando...</div>
+      </div>
+    );
+  }
 
   return (
-    <AuthContextProvider>
-      <ThemeProvider>
-        <PermissionsProvider>
-          <LayoutContent seccion={seccion}>{children}</LayoutContent>
-        </PermissionsProvider>
-      </ThemeProvider>
-    </AuthContextProvider>
+    <ThemeProvider>
+      <SidebarProvider>
+        <LayoutContent>
+          {React.cloneElement(children, {
+            routeConfig,
+            availableCompanies,
+            availableLines,
+          })}
+        </LayoutContent>
+      </SidebarProvider>
+    </ThemeProvider>
+  );
+}
+
+// Wrapper para rutas protegidas
+function ProtectedWrapper({
+  children,
+  recurso = null,
+  recursosAlternativos = null,
+}) {
+  return (
+    <ProtectedContent
+      recurso={recurso}
+      recursosAlternativos={recursosAlternativos}
+    >
+      {children}
+    </ProtectedContent>
   );
 }
 
@@ -896,14 +768,15 @@ const generateRoutes = () => {
 
   // Generar rutas principales desde APP_CONFIG
   APP_CONFIG.forEach((item) => {
+    // Si no hay path especificado, generarlo automáticamente desde el recurso
+    const path = item.path || (item.recurso ? recursoToPath(item.recurso) : "/");
+    
     routes.push({
-      path: item.path,
+      path: path,
       element: (
         <ProtectedWrapper
-          seccion={item.seccion}
-          modulo={item.subModules ? item.seccion : item.modulo}
-          subModules={item.subModules}
-          alternativeModules={item.alternativeModules}
+          recurso={item.recurso}
+          recursosAlternativos={item.recursosAlternativos}
         >
           <item.component routeConfig={item} />
         </ProtectedWrapper>

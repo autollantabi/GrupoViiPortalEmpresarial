@@ -3,7 +3,6 @@ import { axiosInstance } from "config/axiosConfig";
 export const EjecutarBatBancosTransaccionesCartera = async () => {
   try {
     const res = await axiosInstance.post(`/transaccion/actualizar/banco`);
-    console.log(res);
 
     if (res.status === 200) {
       return true;

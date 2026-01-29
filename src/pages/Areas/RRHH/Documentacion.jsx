@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { ContenedorPadre } from "assets/styles/StyledComponents/ContenedorPadre";
 import { videos } from "./Videos/VideosRRHH";
+import IconUI from "components/UI/Components/IconsUI";
+import { useTheme } from "context/ThemeContext";
 
 const Gallery = styled.div`
   display: flex;
@@ -88,7 +90,7 @@ const TypeLink = styled.div`
 
 export const Documentacion = () => {
   const [searchTerm, setSearchTerm] = useState("");
-
+  const { theme } = useTheme();
   const dataFiltrada = () => {
     const filtered =
       searchTerm === ""
@@ -124,9 +126,9 @@ export const Documentacion = () => {
                 <div style={{background:`linear-gradient(rgba(0, 0, 0, 0.27), rgba(0, 0, 0, 0.27)), url('${video.thumbnail}')`}} className="tbn">
                   <TypeLink>
                     {video.type === "vid" ? (
-                      <i className="bi bi-camera-video"></i>
+                      <IconUI name="FaVideo" size={14} color={theme.colors.text} />
                     ) : (
-                      <i className="bi bi-easel"></i>
+                      <IconUI name="FaImage" size={14} color={theme.colors.text} />
                     )}
                   </TypeLink>
                 </div>

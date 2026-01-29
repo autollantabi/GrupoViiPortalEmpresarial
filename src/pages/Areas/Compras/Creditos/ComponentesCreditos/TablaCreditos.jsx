@@ -1,7 +1,9 @@
 import styled from "styled-components";
 import { useEffect, useState } from "react";
-import { ListarImportaciones } from "services/importacionesService";
 import { ListarCreditosProveedores } from "services/creditosService";
+import { useTheme } from "context/ThemeContext";
+import { IconUI } from "components/UI/Components/IconsUI";
+import { hexToRGBA } from "utils/colors";
 
 const ContenedorPrincipal = styled.div`
   display: flex;
@@ -22,11 +24,17 @@ const TablaCustm = styled.table`
     z-index: 1;
     th {
       user-select: none;
-      background-color: ${({ theme }) => theme.colors.primary};
-      color: ${({ theme }) => theme.colors.white};
+      background-color: ${({ theme }) => 
+        theme.name === "dark"
+          ? (theme.colors.backgroundCard || theme.colors.backgroundLight)
+          : (theme.colors.secondary || "#3c3c3b")};
+      color: ${({ theme }) => 
+        theme.name === "dark"
+          ? (theme.colors.text || "#212529")
+          : (theme.colors.white || "#ffffff")};
       font-weight: 100;
       word-wrap: break-word;
-      border-right: 1px solid rgba(101, 101, 101, 0.45);
+      border-right: 1px solid ${({ theme }) => theme.colors.border};
       &:first-child {
         border-top-left-radius: 5px;
       }
@@ -37,12 +45,15 @@ const TablaCustm = styled.table`
   }
 
   & .filasTabla {
+    font-size: 12px;
+    color: ${({ theme }) => theme.colors.text};
+
     &:nth-child(odd) {
-      background-color: #ffffff; /* Blanco */
+      background-color: ${({ theme }) => theme.colors.backgroundCard};
     }
 
     &:nth-child(even) {
-      background-color: #f2f2f2; /* Gris claro */
+      background-color: ${({ theme }) => theme.colors.backgroundLight};
     }
     &:last-child {
       td:first-child {
@@ -54,21 +65,21 @@ const TablaCustm = styled.table`
     }
 
     td {
-      border-right: 1px solid rgba(101, 101, 101, 0.45);
-      border-bottom: 1px solid rgba(101, 101, 101, 0.45);
+      border-right: 1px solid ${({ theme }) => theme.colors.border};
+      border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
       &:first-child {
-        border-left: 1px solid rgba(101, 101, 101, 0.45);
+        border-left: 1px solid ${({ theme }) => theme.colors.border};
       }
       &:last-child {
-        border-right: 1px solid rgba(101, 101, 101, 0.45);
+        border-right: 1px solid ${({ theme }) => theme.colors.border};
       }
     }
   }
 `;
 const FilaCustom = styled.tr`
   &.completo {
-    background-color: var(--color-fila-verde);
+    background-color: ${({ theme }) => theme.colors.successLight || hexToRGBA({ hex: theme.colors.success, alpha: 0.2 })};
   }
 `;
 
@@ -86,34 +97,34 @@ const IndicadorIcon = styled.div`
   border-radius: 100%;
   width: 10px;
   aspect-ratio: 1;
-  background-color: white;
-  border: solid 1px black;
+  background-color: ${({ theme }) => theme.colors.white};
+  border: solid 1px ${({ theme }) => theme.colors.text};
 
   &.verde {
     border: none;
-    background-color: green;
+    background-color: ${({ theme }) => theme.colors.success};
   }
   &.amarillo {
     border: none;
-    background-color: yellow;
+    background-color: ${({ theme }) => theme.colors.warning};
   }
   &.rojo {
     border: none;
-    background-color: red;
+    background-color: ${({ theme }) => theme.colors.error};
   }
 `;
 
 const TdCustom = styled.td`
   &.green-background {
-    background-color: rgba(13, 219, 24, 0.6);
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.success, alpha: 0.6 })};
   }
 
   &.yellow-background {
-    background-color: rgba(237, 255, 2, 0.6);
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.warning, alpha: 0.6 })};
   }
 
   &.red-background {
-    background-color: rgba(255, 0, 0, 0.6);
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.error, alpha: 0.6 })};
   }
 `;
 
@@ -128,6 +139,7 @@ const dataHeaders = [
 ];
 
 export const TablaCreditos = ({ filtrosActivos, filtroGlobal, data }) => {
+  const { theme } = useTheme();
   const [dataFiltrada, setDataFiltrada] = useState(data);
   // const [orden, setOrden] = useState({});
   const [orden, setOrden] = useState({ columna: "EMPRESA", direccion: "asc" });
@@ -263,16 +275,24 @@ export const TablaCreditos = ({ filtrosActivos, filtroGlobal, data }) => {
   //   return `${day}/${month}/${year}`;
   // }
 
-  const HeaderColumna = ({ nombre, campo, orden, ordenarData }) => {
+  const HeaderColumna = ({ nombre, campo, orden, ordenarData, theme }) => {
     return (
       <th onClick={() => ordenarData(campo)}>
         <ContendorHeader>
           {nombre}{" "}
           {orden.columna === campo &&
             (orden.direccion === "asc" ? (
-              <i className="bi bi-sort-down-alt"></i>
+              <IconUI 
+                name="FaSortDown" 
+                size={14} 
+                color={theme.name === "dark" ? theme.colors.text : theme.colors.white}
+              />
             ) : (
-              <i className="bi bi-sort-up"></i>
+              <IconUI 
+                name="FaSortUp" 
+                size={14} 
+                color={theme.name === "dark" ? theme.colors.text : theme.colors.white}
+              />
             ))}
         </ContendorHeader>
       </th>
@@ -325,6 +345,7 @@ export const TablaCreditos = ({ filtrosActivos, filtroGlobal, data }) => {
                 campo={item.campo}
                 orden={orden}
                 ordenarData={ordenarData}
+                theme={theme}
               />
             ))}
           </tr>
@@ -346,7 +367,16 @@ export const TablaCreditos = ({ filtrosActivos, filtroGlobal, data }) => {
             ))
           ) : (
             <tr>
-              <td colSpan="15">No data available</td>
+              <td 
+                colSpan={dataHeaders.length} 
+                style={{ 
+                  textAlign: "center", 
+                  padding: "20px",
+                  color: theme.colors.textSecondary || theme.colors.text
+                }}
+              >
+                No data available
+              </td>
             </tr>
           )}
         </tbody>

@@ -126,7 +126,6 @@ export const consultarPermisosPorModuloRuta = async ({ rutaModulos }) => {
 
   // Llamamos a la función para buscar el último módulo de la ruta especificada
   const idModuloFinal = buscarModuloPorRuta(modulosData, rutaModulos);
-  // console.log(idModuloFinal);
   
   const resPermisos = await consultarPermisosPorModuloID({ moduleid: idModuloFinal });
 

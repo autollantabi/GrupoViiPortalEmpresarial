@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import Select from "react-select";
+import styled from "styled-components";
 import * as XLSX from "xlsx";
 import {
   obtenerBonificacionesManuales,
@@ -9,63 +9,124 @@ import {
 import {
   obtenerAniosDesde2020,
   transformarDataAValueLabel,
-} from "components/UI/ComponentesGenericos/Utils";
+} from "utils/Utils";
 
-import {
-  ContenedorFlex,
-  ContenedorFlexColumn,
-  ContenedorFlexRow,
-} from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { toast } from "react-toastify";
+import { useTheme } from "context/ThemeContext";
+import { SelectUI } from "components/UI/Components/SelectUI";
 
-import {
-  BotonConEstadoIconos,
-  BotonConEstadoTexto,
-} from "components/UI/ComponentesGenericos/Botones";
+import { TablaInfoUI } from "components/UI/Components/TablaInfoUI";
+import { InputUI } from "components/UI/Components/InputUI";
 
-import { TablaInfo } from "components/UI/ComponentesGenericos/TablaInfo";
-import { withPermissions } from "../../../../../hoc/withPermissions";
-import { usePermissions } from "../../../../../hooks/usePermissions";
-import { GenericTableStyled } from "components/UI/ComponentesGenericos/Tablas";
-import { TablaGeneralizada } from "components/UI/ComponentesGenericos/TablaInputs";
-import { GenericInputStyled } from "components/UI/ComponentesGenericos/Inputs";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
+const ContenedorPrincipal = styled.div`
+  display: flex;
+  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
+  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
+  align-items: ${({ alignItems }) => alignItems || "flex-start"};
+  width: ${({ width }) => width || "100%"};
+  height: ${({ height }) => height || "auto"};
+  gap: ${({ gap }) => gap || "0"};
+  padding: ${({ padding }) => padding || "0"};
+`;
 
-const customStyles = {
-  // Estilos para las opciones (dentro del desplegable)
-  option: (provided, state) => ({
-    ...provided,
-    padding: "2px 10px 2px 10px", // Ajustar el padding
-    whiteSpace: "nowrap", // Evitar que el texto se divida en varias líneas
-    overflow: "hidden", // Ocultar el texto que sobrepasa
-    textOverflow: "ellipsis", // Añadir "..." cuando el texto sea demasiado largo
-    fontSize: "12px",
-  }),
-  // Estilos para el control (el select visible)
-  control: (provided) => ({
-    ...provided,
-    width: "max-content", // Ajustar el ancho del control
-    maxWidth: "250px",
-    fontSize: "12px",
-  }),
-  // Estilos para el menú (el contenedor de las opciones desplegadas)
-  menu: (provided) => ({
-    ...provided,
-    zIndex: 10,
-    width: "150px", // Asegurar que el menú también tenga el mismo ancho que el control
-    fontSize: "12px",
-  }),
-};
+const ContenedorFlex = styled.div`
+  display: flex;
+  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
+  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
+  align-items: ${({ alignItems }) => alignItems || "flex-start"};
+  width: ${({ width }) => width || "auto"};
+  height: ${({ height }) => height || "auto"};
+  gap: ${({ gap }) => gap || "0"};
+  padding: ${({ padding }) => padding || "0"};
+`;
 
-const ComisionesTecnicentroComponent = ({
-  empresasAcceso,
-  permissionsLoading,
-  routeConfig,
+const ContenedorFlexColumn = styled(ContenedorFlex)`
+  flex-direction: column;
+`;
+
+const ContenedorFlexRow = styled(ContenedorFlex)`
+  flex-direction: row;
+`;
+
+const Separador = styled.div`
+  width: 100%;
+  height: 2px;
+  background-color: ${({ theme }) => theme.colors.border || "#dee2e6"};
+  opacity: 0.5;
+`;
+
+const TextoTitulo = styled.span`
+  align-self: flex-start;
+  padding-left: 5px;
+  font-size: 20px;
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+`;
+
+const TextoMensaje = styled.p`
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+`;
+
+const TituloSeccion = styled.h5`
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+  margin: 0;
+`;
+
+const SubtituloSeccion = styled.h6`
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+  margin: 0;
+`;
+
+const LabelVendedor = styled.label`
+  font-size: 14px;
+  color: ${({ theme }) => theme.colors.text || "#212529"};
+`;
+
+const CardVendedor = styled(ContenedorFlex)`
+  text-align: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: solid 1px ${({ theme }) => theme.colors.border || "#dee2e6"};
+  border-radius: 10px;
+  padding: 2px;
+  max-width: 125px;
+  background-color: ${({ theme }) => theme.colors.backgroundCard || "#ffffff"};
+`;
+
+const GridBonificaciones = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+`;
+
+const ContenedorBonificaciones = styled(ContenedorFlex)`
+  flex-direction: column;
+  width: 35%;
+  border-right: solid 1px ${({ theme }) => theme.colors.border || "#dee2e6"};
+  height: 100%;
+  justify-content: flex-start;
+  min-width: 420px;
+  padding: 10px;
+  gap: 10px;
+`;
+
+export const ComisionesTecnicentro = ({
+  availableCompanies = [],
+  availableLines = [],
 }) => {
-  // Obtener permisos agrupados por submódulo
-  const { permissionsByModule } = usePermissions(
-    routeConfig?.modulo,
-    routeConfig?.subModules
-  );
+  const { theme } = useTheme();
+  
+  // Convertir availableCompanies de { id, nombre } a { idempresa, empresa } para compatibilidad
+  const empresasDisponibles = useMemo(() => {
+    if (!availableCompanies || availableCompanies.length === 0) {
+      return [];
+    }
+    return availableCompanies.map(emp => ({
+      idempresa: emp.id,
+      empresa: emp.nombre,
+    }));
+  }, [availableCompanies]);
   const nombresPersonalizadosExcel = {
     VENDEDOR: "VENDEDOR",
     VTAS: "VTAS ($)",
@@ -314,7 +375,6 @@ const ComisionesTecnicentroComponent = ({
       const comEspNombres = new Set(
         agrupacion.comisionEspecializada.map((ce) => ce.nombreVendedor)
       );
-      // console.log(agrupacion);
 
       agrupacion.dataComisiones.forEach((comData) => {
         if (comData.comision !== null) {
@@ -379,10 +439,8 @@ const ComisionesTecnicentroComponent = ({
   const ConsultarReporte = async (datosReporte) => {
     if (mes !== "" && anioSl !== "") {
       if (Object.keys(datosReporte).length) {
-        // console.log(datosReporte.resultadoFinal);
         const datosSeparados = groupData(datosReporte.resultadoFinal);
         const datosTotales = groupDataTotales(datosReporte.sumatoriaFinal);
-        console.log(datosTotales);
 
         const dataFinalVendedores = formatData(datosSeparados.VENDEDORES);
         const dataFinalMecanicos = formatData(datosSeparados.MECÁNICOS);
@@ -408,7 +466,6 @@ const ComisionesTecnicentroComponent = ({
 
   // Manejar la ordenación de columnas
   const handleSort = (column, direction) => {
-    // console.log("Sorted:", column, direction);
   };
 
   // -------------------Codigo para manejar las Bonificaciones
@@ -455,20 +512,20 @@ const ComisionesTecnicentroComponent = ({
     // Como TECNICENTRO no tiene submódulos definidos, verificamos acceso general
     return {
       // Permiso general para ver y usar el módulo
-      general: empresasAcceso && empresasAcceso.length > 0,
+      general: empresasDisponibles && empresasDisponibles.length > 0,
       // Permiso para consultar reportes
-      consultar: empresasAcceso && empresasAcceso.length > 0,
+      consultar: empresasDisponibles && empresasDisponibles.length > 0,
       // Permiso para exportar a Excel
-      exportar: empresasAcceso && empresasAcceso.length > 0,
+      exportar: empresasDisponibles && empresasDisponibles.length > 0,
     };
-  }, [empresasAcceso]);
+  }, [empresasDisponibles]);
 
   // Todos los useEffect deben estar antes de cualquier return condicional
   useEffect(() => {
     if (tienePermiso.general) {
       datosIniciales();
     }
-  }, [empresasAcceso, tienePermiso.general]);
+  }, [empresasDisponibles, tienePermiso.general]);
 
   useEffect(() => {
     const fetchdatosbonificacion = async () => {
@@ -506,103 +563,73 @@ const ComisionesTecnicentroComponent = ({
     }
   }, [anioSl, mes, verificaciondeCategorias]);
 
-  // Mostrar loading mientras se cargan los permisos
-  if (permissionsLoading) {
-    return (
-      <CustomContainer
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
-        height="100%"
-      >
-        <p>Cargando permisos, por favor espera...</p>
-      </CustomContainer>
-    );
-  }
+  const opcionesMeses = [
+    { value: 1, label: "Enero" },
+    { value: 2, label: "Febrero" },
+    { value: 3, label: "Marzo" },
+    { value: 4, label: "Abril" },
+    { value: 5, label: "Mayo" },
+    { value: 6, label: "Junio" },
+    { value: 7, label: "Julio" },
+    { value: 8, label: "Agosto" },
+    { value: 9, label: "Septiembre" },
+    { value: 10, label: "Octubre" },
+    { value: 11, label: "Noviembre" },
+    { value: 12, label: "Diciembre" },
+  ];
 
   // Si no hay empresas con acceso, mostrar mensaje
   if (!tienePermiso.general) {
     return (
-      <CustomContainer
+      <ContenedorPrincipal
         flexDirection="column"
         justifyContent="center"
         alignItems="center"
         width="100%"
         height="100%"
       >
-        <p>No tienes permisos para acceder a Comisiones Tecnicentro.</p>
-      </CustomContainer>
+        <TextoMensaje>No tienes permisos para acceder a Comisiones Tecnicentro.</TextoMensaje>
+      </ContenedorPrincipal>
     );
   }
 
   return (
-    <CustomContainer
+    <ContenedorPrincipal
       justifyContent="flex-start"
       alignItems="flex-start"
       flexDirection="column"
       height="100%"
       width="100%"
-      style={{ padding: "0" }}
+      padding="0"
     >
-      <span
-        style={{
-          alignSelf: "flex-start",
-          paddingLeft: "5px",
-          fontSize: "20px",
-        }}
-      >
-        TECNICENTRO
-      </span>
+      <TextoTitulo>TECNICENTRO</TextoTitulo>
       <ContenedorFlex
-        style={{
-          padding: "5px",
-          justifyContent: "flex-start",
-          alignItems: "center",
-        }}
+        padding="5px"
+        justifyContent="flex-start"
+        alignItems="center"
+        gap="10px"
       >
-        {/* <Select
-          options={empresas} // Opciones pasadas desde la configuración de columnas
-          value={empresaSl}
-          onChange={(selectedOption) => {
-            setEmpresasSl(selectedOption);
-          }}
-          isSearchable={true}
-          placeholder="Empresa"
-          styles={customStyles}
-        /> */}
-        <Select
-          options={[
-            { value: 1, label: "Enero" },
-            { value: 2, label: "Febrero" },
-            { value: 3, label: "Marzo" },
-            { value: 4, label: "Abril" },
-            { value: 5, label: "Mayo" },
-            { value: 6, label: "Junio" },
-            { value: 7, label: "Julio" },
-            { value: 8, label: "Agosto" },
-            { value: 9, label: "Septiembre" },
-            { value: 10, label: "Octubre" },
-            { value: 11, label: "Noviembre" },
-            { value: 12, label: "Diciembre" },
-          ]} // Opciones pasadas desde la configuración de columnas
+        <SelectUI
+          options={opcionesMeses}
           value={mes}
           onChange={(selectedOption) => {
             setMes(selectedOption);
           }}
           isSearchable={true}
           placeholder="Mes"
-          styles={customStyles}
+          minWidth="150px"
+          maxWidth="250px"
         />
-        <Select
-          options={anio} // Opciones pasadas desde la configuración de columnas
+        <SelectUI
+          options={anio}
           value={anioSl}
           onChange={(selectedOption) => {
             setAnioSl(selectedOption);
           }}
           isSearchable={true}
           placeholder="Año"
-          styles={customStyles}
+          minWidth="150px"
+          maxWidth="250px"
         />
         {tienePermiso.exportar &&
           anioSl &&
@@ -610,37 +637,35 @@ const ComisionesTecnicentroComponent = ({
           verificaciondeCategorias &&
           data11.length > 0 &&
           data12.length > 0 && (
-            <BotonConEstadoIconos
-              tipo={"excel"}
-              onClickAction={exportToExcel}
+            <ButtonUI
+              iconLeft="FaFileExcel"
+              onClick={async () => {
+                try {
+                  const res = await exportToExcel();
+                  if (res) {
+                    toast.success("Exportación exitosa");
+                  } else {
+                    toast.error("Error al exportar");
+                  }
+                } catch (error) {
+                  console.error("Error:", error);
+                  toast.error("Error al exportar");
+                }
+              }}
+              isAsync={true}
+              pcolor={theme?.colors?.success || "#28a745"}
             />
           )}
       </ContenedorFlex>
-      <ContenedorFlex style={{ width: "100%", alignItems: "flex-start" }}>
-        <ContenedorFlex
-          style={{
-            flexDirection: "column",
-            width: "35%",
-            borderRight: "solid 1px gray",
-            height: "100%",
-            justifyContent: "flex-start",
-            minWidth: "420px",
-          }}
-        >
-          <ContenedorFlex
-            style={{
-              width: "100%",
-              height: "2px",
-              backgroundColor: "gray",
-              opacity: 0.5,
-            }}
-          ></ContenedorFlex>
-          <h5>BONIFICACIONES</h5>
+      <ContenedorFlex width="100%" alignItems="flex-start">
+        <ContenedorBonificaciones>
+          <Separador />
+          <TituloSeccion>BONIFICACIONES</TituloSeccion>
           {!anioSl && !mes && (
-            <span>Seleccione una fecha para poder consultar</span>
+            <TextoMensaje>Seleccione una fecha para poder consultar</TextoMensaje>
           )}
           {!verificaciondeCategorias && anioSl && mes && (
-            <span>Hay categorías de productos pendientes por asignar</span>
+            <TextoMensaje>Hay categorías de productos pendientes por asignar</TextoMensaje>
           )}
 
           {anioSl &&
@@ -649,57 +674,42 @@ const ComisionesTecnicentroComponent = ({
             Object.entries(agrupadoPorClasificacion).map(
               ([clasificacion, tipos]) => (
                 <ContenedorFlex
-                  style={{ flexDirection: "column" }}
+                  flexDirection="column"
                   key={clasificacion}
+                  gap="10px"
                 >
-                  <h5>{clasificacion}</h5>
+                  <TituloSeccion>{clasificacion}</TituloSeccion>
                   {Object.entries(tipos).map(([tipo, vendedores]) => (
-                    <div key={tipo}>
-                      <h6>{tipo}</h6>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(3, 1fr)",
-                          gap: "10px",
-                        }}
-                      >
+                    <div key={tipo} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <SubtituloSeccion>{tipo}</SubtituloSeccion>
+                      <GridBonificaciones>
                         {vendedores.map((vendedor) => (
-                          <ContenedorFlex
+                          <CardVendedor
                             key={vendedor.IDENTIFICADOR_AGRUPACION_VENDEDOR}
-                            style={{
-                              textAlign: "center",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "solid 1px gray",
-                              borderRadius: "10px",
-                              padding: "2px",
-                              maxWidth: "125px",
-                            }}
                           >
-                            <label style={{ fontSize: "14px" }}>
+                            <LabelVendedor>
                               {vendedor.NOMBRE_VENDEDOR}
-                            </label>
-                            <GenericInputStyled
+                            </LabelVendedor>
+                            <InputUI
                               type="number"
+                              min={0}
                               value={
                                 valores[
                                   vendedor.IDENTIFICADOR_AGRUPACION_VENDEDOR
                                 ] ?? 0
                               }
-                              min={0}
                               placeholder="Valor"
-                              style={{ width: "100px" }}
-                              onChange={(e) =>
+                              containerStyle={{ width: "100px" }}
+                              onChange={(text) =>
                                 handleInputChange(
                                   vendedor.IDENTIFICADOR_AGRUPACION_VENDEDOR,
-                                  e.target.value
+                                  text
                                 )
                               }
                             />
-                          </ContenedorFlex>
+                          </CardVendedor>
                         ))}
-                      </div>
+                      </GridBonificaciones>
                     </div>
                   ))}
                 </ContenedorFlex>
@@ -709,38 +719,39 @@ const ComisionesTecnicentroComponent = ({
             anioSl &&
             mes &&
             verificaciondeCategorias && (
-              <BotonConEstadoTexto
-                textoInicial={"Consultar"}
-                onClickAction={generarJSON}
-                textoActualizando={"Consultando..."}
-                textoError={"Error"}
-                textoExito={"Consulta Exitosa"}
-                time={3000}
+              <ButtonUI
+                text="Consultar"
+                onClick={async () => {
+                  try {
+                    const res = await generarJSON();
+                    if (res) {
+                      toast.success("Consulta Exitosa");
+                    } else {
+                      toast.error("Error al consultar");
+                    }
+                  } catch (error) {
+                    console.error("Error:", error);
+                    toast.error("Error al consultar");
+                  }
+                }}
+                isAsync={true}
+                pcolor={theme?.colors?.secondary || "#fd4703"}
               />
             )}
-        </ContenedorFlex>
+        </ContenedorBonificaciones>
 
-        <ContenedorFlex style={{ flexDirection: "column", width: "100%" }}>
-          <ContenedorFlex
-            style={{
-              width: "100%",
-              height: "2px",
-              backgroundColor: "gray",
-              opacity: 0.5,
-            }}
-          ></ContenedorFlex>
-          <ContenedorFlexColumn style={{ width: "100%", padding: "10px 5px" }}>
-            <h5>VENDEDORES</h5>
+        <ContenedorFlex flexDirection="column" width="100%">
+          <Separador />
+          <ContenedorFlexColumn width="100%" padding="15px 10px" gap="10px">
+            <TituloSeccion>VENDEDORES</TituloSeccion>
 
             <ContenedorFlexRow
-              style={{
-                justifyContent: "space-around",
-                alignItems: "flex-start",
-                width: "85%",
-                gap: "3%",
-              }}
+              justifyContent="space-around"
+              alignItems="flex-start"
+              width="85%"
+              gap="3%"
             >
-              <TablaInfo
+              <TablaInfoUI
                 key={`vendedores-data11-${data11.length}`}
                 data={data11}
                 columns={columnsConfig11}
@@ -750,7 +761,7 @@ const ComisionesTecnicentroComponent = ({
                 onFilterChange={handleSort}
                 excel={false}
               />
-              <TablaInfo
+              <TablaInfoUI
                 key={`vendedores-data1Total-${data1Total.length}`}
                 data={data1Total}
                 columns={columnsConfig1Totales}
@@ -762,25 +773,16 @@ const ComisionesTecnicentroComponent = ({
               />
             </ContenedorFlexRow>
           </ContenedorFlexColumn>
-          <ContenedorFlex
-            style={{
-              width: "100%",
-              height: "2px",
-              backgroundColor: "gray",
-              opacity: 0.5,
-            }}
-          ></ContenedorFlex>
-          <ContenedorFlexColumn style={{ width: "100%", padding: "10px 5px" }}>
-            <h5>MECÁNICOS</h5>
+          <Separador />
+          <ContenedorFlexColumn width="100%" padding="15px 10px" gap="10px">
+            <TituloSeccion>MECÁNICOS</TituloSeccion>
             <ContenedorFlexRow
-              style={{
-                justifyContent: "space-around",
-                alignItems: "flex-start",
-                width: "85%",
-                gap: "3%",
-              }}
+              justifyContent="space-around"
+              alignItems="flex-start"
+              width="85%"
+              gap="3%"
             >
-              <TablaInfo
+              <TablaInfoUI
                 key={`mecanicos-data12-${data12.length}`}
                 data={data12}
                 columns={columnsConfig12}
@@ -790,7 +792,7 @@ const ComisionesTecnicentroComponent = ({
                 onFilterChange={handleSort}
                 excel={false}
               />
-              <TablaInfo
+              <TablaInfoUI
                 key={`mecanicos-data2Total-${data2Total.length}`}
                 data={data2Total}
                 columns={columnsConfig2Totales}
@@ -804,11 +806,6 @@ const ComisionesTecnicentroComponent = ({
           </ContenedorFlexColumn>
         </ContenedorFlex>
       </ContenedorFlex>
-    </CustomContainer>
+    </ContenedorPrincipal>
   );
 };
-
-// Exportar el componente envuelto con withPermissions
-export const ComisionesTecnicentro = withPermissions(
-  ComisionesTecnicentroComponent
-);

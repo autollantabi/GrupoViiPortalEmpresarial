@@ -1,34 +1,39 @@
 import React from "react";
+import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { ROUTES, ROUTES_FLAT } from "config/constantsRoutes";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { MODULES_TREE } from "config/constantsModulePermissions";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { CategoriasProductosTecnicentro } from "./CategoriasProductosTecnicentro";
+
+const ContenedorPrincipal = styled.div`
+  width: 100%;
+  height: 100%;
+  position: relative;
+`;
+
+const BotonContainer = styled.div`
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 10;
+`;
 
 function ComisionesTecnicentroCategoriasContainer(props) {
   const navigate = useNavigate();
   return (
-    <CustomContainer
-      width="100%"
-      height="100%"
-      style={{ position: "relative" }}
-    >
-      <div
-        style={{ position: "absolute", top: "5px", right: "5px", zIndex: 10 }}
-      >
-        <CustomButton
+    <ContenedorPrincipal>
+      <BotonContainer>
+        <ButtonUI
           text={"Comisiones"}
           onClick={() =>
             navigate(
-              ROUTES_FLAT[MODULES_TREE.CONTABILIDAD.COMISIONES.TECNICENTRO]
+              "/contabilidad/comisiones/tecnicentro/reportes"
             )
           }
           isAsync
         />
-      </div>
+      </BotonContainer>
       <CategoriasProductosTecnicentro {...props} />
-    </CustomContainer>
+    </ContenedorPrincipal>
   );
 }
 

@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
-import { TablaInfo } from "components/UI/ComponentesGenericos/TablaInfo";
-import { BotonConEstadoTexto } from "components/UI/ComponentesGenericos/Botones";
+import { TablaInfoUI } from "components/UI/Components/TablaInfoUI";
 import {
   EnviarConfirmacionDesbloqueoClientes,
   ListarDesbloqueoClientes,
@@ -9,14 +8,25 @@ import {
 
 import { toast } from "react-toastify";
 import { ModalData } from "./ModalData";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { withPermissions } from "../../../../hoc/withPermissions";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
 
-const DesbloqueoClientesComponent = ({
-  empresasAcceso,
-  permissionsLoading,
+export const DesbloqueoClientes = ({
+  routeConfig,
+  availableCompanies, // Del nuevo sistema de recursos (ProtectedContent)
+  availableLines, // Del nuevo sistema de recursos (ProtectedContent)
 }) => {
+  // Convertir availableCompanies al formato esperado
+  const empresasDisponibles = useMemo(() => {
+    if (availableCompanies && availableCompanies.length > 0) {
+      // Convertir { id, nombre } a { empresa: nombre, idempresa: id } para compatibilidad
+      return availableCompanies.map(emp => ({
+        empresa: emp.nombre,
+        idempresa: emp.id,
+      }));
+    }
+    return [];
+  }, [availableCompanies]);
   // Estado que mantiene los datos de la tabla
   const [data, setData] = useState(null);
   const [dataGlobal, setDataGlobal] = useState(null);
@@ -39,7 +49,6 @@ const DesbloqueoClientesComponent = ({
         codigo: index + 1,
       })
     );
-    // console.log(clientesUnificadosConCodigo);
 
     setDataGlobal(clientesUnificadosConCodigo);
     const clientesDesbloquearClientePorDesbloquear =
@@ -48,7 +57,6 @@ const DesbloqueoClientesComponent = ({
         desbloqueo: item.desbloqueo,
         codigo: item.codigo,
       }));
-    // console.log(clientesDesbloquearClientePorDesbloquear);
 
     setData(clientesDesbloquearClientePorDesbloquear);
   };
@@ -91,21 +99,12 @@ const DesbloqueoClientesComponent = ({
     }
   }, [idModalMostrar]);
 
-  // Mostrar loading mientras se cargan los permisos
-  if (permissionsLoading) {
-    return (
-      <CustomContainer>
-        <p>Cargando permisos, por favor espera...</p>
-      </CustomContainer>
-    );
-  }
-
   // Si no hay empresas con acceso, mostrar mensaje
-  if (!empresasAcceso || empresasAcceso.length === 0) {
+  if (!empresasDisponibles || empresasDisponibles.length === 0) {
     return (
-      <CustomContainer>
+      <ContainerUI>
         <p>No tienes permisos para acceder al desbloqueo de clientes.</p>
-      </CustomContainer>
+      </ContainerUI>
     );
   }
 
@@ -179,7 +178,7 @@ const DesbloqueoClientesComponent = ({
   const defaultFilters = ["empresa"];
 
   return (
-    <CustomContainer
+    <ContainerUI
       width="100%"
       height="100%"
       justifyContent="flex-start"
@@ -188,14 +187,14 @@ const DesbloqueoClientesComponent = ({
       {/* Botón para añadir una nueva fila */}
       {/* <button onClick={handleAddRow}>Añadir Fila</button> */}
       {!mostrarLista && (
-        <CustomButton
+        <ButtonUI
           text="Generar Lista de Clientes a Checkear"
           onClick={handleMostrarClientes}
           isAsync
         />
       )}
 
-      <CustomContainer
+      <ContainerUI
         flexDirection="column"
         width="100%"
         style={{ padding: 0 }}
@@ -204,7 +203,7 @@ const DesbloqueoClientesComponent = ({
           <ModalData dataUsuario={dataModal} onClose={setIdModalMostrar} />
         )}
         {mostrarLista && data && (
-          <TablaInfo
+          <TablaInfoUI
             data={data}
             columns={columnsConfig}
             defaultFilters={defaultFilters}
@@ -224,16 +223,14 @@ const DesbloqueoClientesComponent = ({
               justifyContent: "flex-end",
             }}
           >
-            <CustomButton
+            <ButtonUI
               text="Finalizar Verificación"
               onClick={handleEnviarConfirmacionData}
             />
           </ContenedorFlex>
         )}
-      </CustomContainer>
-    </CustomContainer>
+      </ContainerUI>
+    </ContainerUI>
   );
 };
 
-// Exportar el componente envuelto con withPermissions
-export const DesbloqueoClientes = withPermissions(DesbloqueoClientesComponent);

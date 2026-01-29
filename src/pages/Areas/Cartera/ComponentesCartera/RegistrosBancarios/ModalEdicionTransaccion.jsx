@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomInput } from "components/UI/CustomComponents/CustomInputs";
-import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { InputUI } from "components/UI/Components/InputUI";
+import { SelectUI } from "components/UI/Components/SelectUI";
+import { useTheme } from "context/ThemeContext";
 import {
   ConsultarClientesPorEmpresa,
   ConsultarVendedoresPorEmpresa,
@@ -12,6 +13,8 @@ import {
   getColorEstado,
   formatFecha,
 } from "./configTablaTransacciones";
+import { hexToRGBA } from "utils/colors";
+import { useAuthContext } from "context/authContext";
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -19,7 +22,7 @@ const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.overlay, alpha: 0.5 })};
   display: flex;
   justify-content: center;
   align-items: center;
@@ -27,14 +30,19 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContainer = styled.div`
-  background-color: white;
+  background-color: ${({ theme }) => theme.colors.modalBackground || theme.colors.backgroundCard};
   border-radius: 8px;
   padding: 24px;
   max-width: 800px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: ${({ theme }) => 
+    theme.name === "dark" 
+      ? "0 4px 6px rgba(0, 0, 0, 0.5)"
+      : "0 4px 6px rgba(0, 0, 0, 0.1)"
+  };
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const ModalHeader = styled.div`
@@ -43,13 +51,13 @@ const ModalHeader = styled.div`
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid ${({ theme }) => theme.colors.border || theme.colors.divider};
 `;
 
 const ModalTitle = styled.h2`
   margin: 0;
   font-size: 20px;
-  color: #333;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const ModalBody = styled.div`
@@ -60,16 +68,17 @@ const ModalBody = styled.div`
 `;
 
 const InfoSection = styled.div`
-  background-color: #f8f9fa;
+  background-color: ${({ theme }) => theme.colors.backgroundLight || theme.colors.background};
   padding: 16px;
   border-radius: 6px;
   grid-column: 1 / -1;
+  border: 1px solid ${({ theme }) => theme.colors.border || theme.colors.divider};
 `;
 
 const InfoTitle = styled.h3`
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: #6c757d;
+  color: ${({ theme }) => theme.colors.textSecondary};
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
@@ -88,13 +97,13 @@ const InfoItem = styled.div`
 
 const InfoLabel = styled.span`
   font-size: 12px;
-  color: #6c757d;
+  color: ${({ theme }) => theme.colors.textSecondary};
   font-weight: 500;
 `;
 
 const InfoValue = styled.span`
   font-size: 14px;
-  color: #333;
+  color: ${({ theme }) => theme.colors.text};
   font-weight: 600;
 `;
 
@@ -119,7 +128,7 @@ const FormField = styled.div`
 
 const Label = styled.label`
   font-size: 13px;
-  color: #495057;
+  color: ${({ theme }) => theme.colors.text};
   font-weight: 500;
 `;
 
@@ -128,7 +137,7 @@ const ModalFooter = styled.div`
   justify-content: flex-end;
   gap: 12px;
   padding-top: 16px;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid ${({ theme }) => theme.colors.border || theme.colors.divider};
 `;
 
 export const ModalEdicionTransaccion = ({
@@ -137,6 +146,8 @@ export const ModalEdicionTransaccion = ({
   onClose,
   onSave,
 }) => {
+  const { theme } = useTheme();
+  const { user } = useAuthContext();
   const [formData, setFormData] = useState({
     clienteSeleccionado: null,
     cedula: "",
@@ -169,6 +180,7 @@ export const ModalEdicionTransaccion = ({
         try {
           // Consultar TODOS los clientes
           const clientes = await ConsultarClientesPorEmpresa(
+            user.USUARIO.USUA_CORREO,
             transaccion.NOMBRE_EMPRESA
           );
           const clientesOpts = clientes.map((cliente) => ({
@@ -302,6 +314,7 @@ export const ModalEdicionTransaccion = ({
       vendedor: formData.vendedorSeleccionado?.value || "",
       comentario: formData.comentario || "",
       ingreso: formData.ingreso || "",
+      estado: formData.estadoSeleccionado?.value || null,
       identificador: transaccion.IDENTIFICADOR,
     };
 
@@ -319,66 +332,66 @@ export const ModalEdicionTransaccion = ({
   if (!isOpen || !transaccion) return null;
 
   return (
-    <ModalOverlay onClick={onClose}>
-      <ModalContainer onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <ModalTitle>Editar Transacción</ModalTitle>
-          <CustomButton iconLeft="FaTimes" onClick={onClose} variant="text" />
+    <ModalOverlay theme={theme} onClick={onClose}>
+      <ModalContainer theme={theme} onClick={(e) => e.stopPropagation()}>
+        <ModalHeader theme={theme}>
+          <ModalTitle theme={theme}>Editar Transacción</ModalTitle>
+          <ButtonUI iconLeft="FaXmark" onClick={onClose} variant="text" />
         </ModalHeader>
 
         <ModalBody>
           {/* Información de la transacción */}
-          <InfoSection>
-            <InfoTitle>Información de la Transacción</InfoTitle>
+          <InfoSection theme={theme}>
+            <InfoTitle theme={theme}>Información de la Transacción</InfoTitle>
             <InfoGrid>
               <InfoItem>
-                <InfoLabel>ID</InfoLabel>
-                <InfoValue>{transaccion.IDENTIFICADOR}</InfoValue>
+                <InfoLabel theme={theme}>ID</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.IDENTIFICADOR}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>N. Documento</InfoLabel>
-                <InfoValue>{transaccion.NUMERO_DOCUMENTO}</InfoValue>
+                <InfoLabel theme={theme}>N. Documento</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.NUMERO_DOCUMENTO}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Fecha</InfoLabel>
-                <InfoValue>{formatFecha(transaccion.FECHA)}</InfoValue>
+                <InfoLabel theme={theme}>Fecha</InfoLabel>
+                <InfoValue theme={theme}>{formatFecha(transaccion.FECHA)}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Valor</InfoLabel>
-                <InfoValue>
+                <InfoLabel theme={theme}>Valor</InfoLabel>
+                <InfoValue theme={theme}>
                   ${parseFloat(transaccion.VALOR || 0).toFixed(2)}
                 </InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Agencia</InfoLabel>
-                <InfoValue>{transaccion.AGENCIA}</InfoValue>
+                <InfoLabel theme={theme}>Agencia</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.AGENCIA}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Tipo Transacción</InfoLabel>
-                <InfoValue>{transaccion.TIPO_TRANSACCION}</InfoValue>
+                <InfoLabel theme={theme}>Tipo Transacción</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.TIPO_TRANSACCION}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Concepto</InfoLabel>
-                <InfoValue>{transaccion.CONCEPTO_TRANSACCION}</InfoValue>
+                <InfoLabel theme={theme}>Concepto</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.CONCEPTO_TRANSACCION}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Referencia Banco</InfoLabel>
-                <InfoValue>{transaccion.REFERENCIA_BANCO}</InfoValue>
+                <InfoLabel theme={theme}>Referencia Banco</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.REFERENCIA_BANCO}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Cliente Banco</InfoLabel>
-                <InfoValue>{transaccion.CLIENTE_BANCO}</InfoValue>
+                <InfoLabel theme={theme}>Cliente Banco</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.CLIENTE_BANCO}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Banco</InfoLabel>
-                <InfoValue>{transaccion.NOMBRE_BANCO}</InfoValue>
+                <InfoLabel theme={theme}>Banco</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.NOMBRE_BANCO}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Empresa</InfoLabel>
-                <InfoValue>{transaccion.NOMBRE_EMPRESA}</InfoValue>
+                <InfoLabel theme={theme}>Empresa</InfoLabel>
+                <InfoValue theme={theme}>{transaccion.NOMBRE_EMPRESA}</InfoValue>
               </InfoItem>
               <InfoItem>
-                <InfoLabel>Estado Actual</InfoLabel>
+                <InfoLabel theme={theme}>Estado Actual</InfoLabel>
                 <div>
                   <ChipEstado
                     $bgColor={getColorEstado(parseInt(transaccion.ESTADO)).bg}
@@ -395,8 +408,8 @@ export const ModalEdicionTransaccion = ({
 
           {/* Campos editables */}
           <FormField>
-            <Label>Cliente</Label>
-            <CustomSelect
+            <Label theme={theme}>Cliente</Label>
+            <SelectUI
               options={clientesOptions}
               value={formData.clienteSeleccionado}
               onChange={handleClienteChange}
@@ -416,14 +429,14 @@ export const ModalEdicionTransaccion = ({
           </FormField>
 
           <FormField>
-            <Label>Cédula / RUC</Label>
-            <CustomInput
+            <Label theme={theme}>Cédula / RUC</Label>
+            <InputUI
               type="text"
               value={formData.cedula}
               onChange={(value) => {}}
               placeholder="Se completa automáticamente"
               inputStyle={{
-                backgroundColor: "#e9ecef",
+                backgroundColor: theme.colors.backgroundLight || theme.colors.background,
                 cursor: "not-allowed",
               }}
               containerStyle={{ pointerEvents: "none" }}
@@ -431,8 +444,8 @@ export const ModalEdicionTransaccion = ({
           </FormField>
 
           <FormField>
-            <Label>Vendedor</Label>
-            <CustomSelect
+            <Label theme={theme}>Vendedor</Label>
+            <SelectUI
               options={[
                 { value: "GARANTIA", label: "GARANTIA" },
                 { value: "CAJA", label: "CAJA" },
@@ -456,8 +469,8 @@ export const ModalEdicionTransaccion = ({
           </FormField>
 
           <FormField>
-            <Label>Ingreso</Label>
-            <CustomInput
+            <Label theme={theme}>Ingreso</Label>
+            <InputUI
               type="text"
               value={formData.ingreso}
               onChange={(value) => handleChange("ingreso", value)}
@@ -466,8 +479,8 @@ export const ModalEdicionTransaccion = ({
           </FormField>
 
           <FormField>
-            <Label>Comentario</Label>
-            <CustomInput
+            <Label theme={theme}>Comentario</Label>
+            <InputUI
               type="text"
               value={formData.comentario}
               onChange={(value) => handleChange("comentario", value)}
@@ -476,8 +489,8 @@ export const ModalEdicionTransaccion = ({
           </FormField>
 
           <FormField>
-            <Label>Nuevo Estado</Label>
-            <CustomSelect
+            <Label theme={theme}>Nuevo Estado</Label>
+            <SelectUI
               options={estadosOptions}
               value={formData.estadoSeleccionado || estadosOptions[0]}
               onChange={handleEstadoChange}
@@ -491,11 +504,11 @@ export const ModalEdicionTransaccion = ({
           </FormField>
         </ModalBody>
 
-        <ModalFooter>
-          <CustomButton text="Cancelar" onClick={onClose} variant="outlined" />
-          <CustomButton
+        <ModalFooter theme={theme}>
+          <ButtonUI text="Cancelar" onClick={onClose} variant="outlined" />
+          <ButtonUI
             text="Guardar Cambios"
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             onClick={handleSave}
             isAsync
           />

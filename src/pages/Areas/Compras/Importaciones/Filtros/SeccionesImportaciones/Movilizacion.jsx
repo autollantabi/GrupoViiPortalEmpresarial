@@ -4,7 +4,6 @@ import {
   EnviarCorreoBodega,
   UpdateMovilizacion,
 } from "services/importacionesService";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { FormRow, ConfirmationDialog } from "components/common/FormComponents";
 import {
   debeEstarBloqueado,
@@ -18,14 +17,11 @@ import {
   SectionImportacionesContainer,
   SectionImportacionesTitle,
 } from "../../StylesImportaciones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
-import { CustomLoader } from "components/UI/CustomComponents/CustomLoader";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 import { obtenerCorreosAEnviar } from "../../PermisosModulo";
 import { listCorreosEnvioBodega } from "../../CorreosTemporal";
 
-const BODEGA = ["COMPRAS", "BODEGA"];
-const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
-const IMPORTACIONES = ["COMPRAS", "IMPORTACIONES"];
 const correosDestinatarios = listCorreosEnvioBodega();
 
 // Funciones de utilidad para fechas y horas
@@ -58,7 +54,13 @@ const esFormatoHoraValido = (hora) => {
   return regexHora.test(hora);
 };
 
-export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
+export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp, rolesUsuario = [] }) => {
+  // Usar el rol que viene como prop (ya calculado en el router)
+  const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
+
+  const tieneRolVentas = roles.includes("usuario");
+  const tieneRolBodega = roles.includes("bodega");
+  const tieneRolJefatura = roles.includes("jefatura");
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     FECHA_FECHA_SALIDA_BODEGA: {
@@ -74,7 +76,7 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
       tipo: "hora",
       label: "Hora Salida de Puerto a Bodega:",
       defaultValue: "",
-      component: "TimeInput",
+      component: "InputTimeUI",
     },
     FECHA_LLEGADA_ESTIMADA_BODEGA: {
       id: "FECHA_LLEGADA_ESTIMADA_BODEGA",
@@ -92,7 +94,7 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
       tipo: "hora",
       label: "Hora Llegada a Bodega:",
       defaultValue: "",
-      component: "TimeInput",
+      component: "InputTimeUI",
     },
     TRANSPORTE_ASIGNADO: {
       id: "TRANSPORTE_ASIGNADO",
@@ -116,9 +118,6 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
 
   // Estados específicos para este componente
   const [transportistas, setTransportistas] = useState([]);
-  const [permisosCompras, setPermisosCompras] = useState([]);
-  const [permisosComprasGerencias, setPermisosComprasGerencias] = useState([]);
-  const [permisosBodega, setPermisosBodega] = useState([]);
   const [enviandoCorreos, setEnviandoCorreos] = useState(0);
   const [listaDeCorreosParaEnviar, setListaDeCorreosParaEnviar] = useState([]);
   const [todosLlenos, setTodosLlenos] = useState(false);
@@ -210,19 +209,19 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
   };
 
   // Verificar si se deben mostrar los controles de edición
-  // Para COMPRAS: pueden editar si no son gerencia, todos los campos están llenos y la importación está EN PROCESO
+  // Para COMPRAS (ventas): pueden editar si no son gerencia, todos los campos están llenos y la importación está EN PROCESO
   const mostrarBotonEdicionCompras =
-    permisosComprasGerencias.length === 0 &&
-    permisosCompras.length > 0 &&
-    permisosBodega.length === 0 && // No debe tener permisos de BODEGA
+    !tieneRolJefatura &&
+    tieneRolVentas &&
+    !tieneRolBodega && // No debe tener rol de BODEGA
     todosLlenos &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
-  // Para BODEGA: pueden editar si tienen permisos de bodega (sin necesidad de todos los campos llenos para AUTOMAX)
+  // Para BODEGA: pueden editar si tienen rol de bodega (sin necesidad de todos los campos llenos para AUTOMAX)
   const mostrarBotonEdicionBodega =
-    permisosBodega.length > 0 &&
-    permisosCompras.length === 0 &&
-    permisosComprasGerencias.length === 0 &&
+    tieneRolBodega &&
+    !tieneRolVentas &&
+    !tieneRolJefatura &&
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   const mostrarBotonEdicion =
@@ -319,8 +318,8 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
           datos.DOCUMENTOS_PARA_BODEGA &&
           datos.DOCUMENTOS_PARA_BODEGA.length > 0 &&
           camposRequeridos &&
-          permisosComprasGerencias.length === 0 &&
-          permisosCompras.length > 0
+          !tieneRolJefatura &&
+          tieneRolVentas
         ) {
           await envioCorreoBodega(id);
         }
@@ -365,10 +364,7 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
         await consultarTransportistas();
       }
 
-      // Usar permisos recibidos desde props
-      setPermisosBodega(permisosProp?.bodega || []);
-      setPermisosCompras(permisosProp?.compras || []);
-      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
+      // Los permisos ahora se basan en roles, no necesitamos setear estados
 
       // Preparar correos
       const correosAEnviar = obtenerCorreosAEnviar(
@@ -409,7 +405,11 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
           estadoImportacion,
           tieneID,
           datosIniciales,
-          { permisosCompras, permisosBodega, permisosComprasGerencias }
+          { 
+            permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+            permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+            permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : []
+          }
         );
       });
 
@@ -422,9 +422,9 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
     datosForm,
     campos,
     datosIniciales,
-    permisosCompras,
-    permisosBodega,
-    permisosComprasGerencias,
+    tieneRolVentas,
+    tieneRolBodega,
+    tieneRolJefatura,
   ]);
 
   // Definir reglas específicas para este componente
@@ -485,10 +485,10 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
       <SectionImportacionesTitle>
         MOVILIZACIÓN
         {mostrarBotonEdicion && (
-          <CustomButton
+          <ButtonUI
             onClick={() => setMostrarConfirmacion(true)}
             pcolor={({ theme }) => theme.colors.secondary}
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             width="35px"
             height="35px"
           />
@@ -499,7 +499,7 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
         <div
           style={{ display: "flex", justifyContent: "center", padding: "20px" }}
         >
-          <CustomLoader />
+          <LoaderUI />
         </div>
       ) : (
         <FormImportacionesGrid>
@@ -517,7 +517,10 @@ export const Movilizacion = ({ datos, setDatos, actualizar, permisosProp }) => {
             return renderizarCampoConPermisos(
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
-              { permisosCompras, permisosBodega },
+              { 
+                permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
+              },
               reglasVisibilidad,
               transformacionesCampos,
               camposEspeciales

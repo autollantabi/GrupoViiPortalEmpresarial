@@ -15,16 +15,11 @@ import {
   ObtenerEstadosdeFinalizacion,
 } from "services/importacionesService";
 import { CamionLoader } from "assets/styles/Loaders/CamionLoader";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import { hexToRGBA } from "utils/colors";
 import { separarFechaHora } from "../UtilsImportaciones";
-
-// Constantes y configuración
-const MODULOS = {
-  BODEGA: ["COMPRAS", "BODEGA"],
-  COMPRASGERENCIA: ["COMPRAS", "COMPRAS-GERENCIA"],
-  IMPORTACIONES: ["COMPRAS", "IMPORTACIONES"],
-};
+import { useTheme } from "context/ThemeContext";
+import { useAuthContext } from "context/authContext";
+import IconUI from "components/UI/Components/IconsUI";
 
 // Utilidades para formateo de fechas
 const formatUtils = {
@@ -99,7 +94,7 @@ const ContenedorPrincipal = styled.div`
   width: 100%;
   height: 100%;
   background-color: ${({ theme }) =>
-    hexToRGBA({ hex: theme.colors.black, alpha: 0.6 })};
+    hexToRGBA({ hex: theme.colors.overlay || theme.colors.black, alpha: 0.6 })};
   position: absolute;
   top: 0;
   left: 0;
@@ -124,14 +119,14 @@ const ContenedorVentanaP = styled.div`
   min-width: 800px;
   height: 95%;
   border-radius: 20px;
-  background-color: ${({ theme }) => theme.colors.primary};
-  color: ${({ theme }) => theme.colors.white};
+  background-color: ${({ theme }) => theme.colors.modalBackground || theme.colors.backgroundCard};
+  color: ${({ theme }) => theme.colors.text};
   position: absolute;
   top: 5px;
   left: 50%;
   translate: -50%;
   z-index: 101;
-  box-shadow: 0 0 10px var(--box-shadow-intense);
+  box-shadow: ${({ theme }) => theme.colors.boxShadow || "0 0 10px rgba(0, 0, 0, 0.3)"};
   animation: ${intro} 0.8s ease-in-out;
 `;
 const ContenedorBarraLateral = styled.div`
@@ -147,9 +142,13 @@ const ContenedorInformacion = styled.div`
   padding: 25px;
   width: 100%;
   min-width: 650px;
-  background-color: #4d4d4d;
+  background-color: ${({ theme }) => theme.name === "dark" 
+    ? theme.colors.backgroundDark || theme.colors.backgroundCard
+    : theme.colors.background || theme.colors.backgroundCard};
   border-radius: 10px;
   overflow-y: auto;
+  color: ${({ theme }) => theme.colors.text};
+  border: 1px solid ${({ theme }) => theme.colors.border || "transparent"};
 `;
 const BotonCerrar = styled.div`
   position: absolute;
@@ -159,10 +158,17 @@ const BotonCerrar = styled.div`
   padding: 0 5px;
   margin: 0;
   border-radius: 0 5px 0 5px;
-  background-color: ${({ theme }) => theme.colors.white};
+  background-color: ${({ theme }) => theme.colors.error};
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.error, alpha: 0.8 })};
+  }
+  
   & > i {
-    color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.white};
     font-size: 20px;
+    transition: color 0.2s ease;
   }
 `;
 
@@ -170,59 +176,64 @@ const ContendorSecciones = styled.div`
   display: block;
   width: 100%;
   margin: 10% 0;
+  color: ${({ theme }) => theme.colors.text};
+  
   & .botonFinalizar {
     border-radius: 5px;
     padding: 10px;
     margin: 5px;
-    background-color: ${({ theme }) => theme.colors.secondary};
-    color: white;
+    background-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.white};
     border: none;
-    box-shadow: 0px 0px 5px ${({ theme }) => theme.colors.shadowColor};
+    box-shadow: ${({ theme }) => theme.colors.boxShadow || "0px 0px 5px rgba(0, 0, 0, 0.2)"};
     transition: all 0.5s ease;
     &:hover {
       transform: scale(1.02);
+      background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.primary, alpha: 0.9 })};
     }
   }
   & > div {
     width: 100%;
     padding: 6px 2px 6px 10px;
-    /* border-bottom: solid 1px #cfcfcf; */
     position: relative;
     user-select: none;
     display: flex;
     justify-content: stretch;
     gap: 8px;
+    color: ${({ theme }) => theme.colors.text};
     &:last-child {
       border: none;
     }
     & > .indicador {
-      background-color: green;
+      background-color: ${({ theme }) => theme.colors.success};
       transition: transform 0.5s ease;
       min-width: 3px;
       width: 3px;
       &.actual {
-        background-color: red;
+        background-color: ${({ theme }) => theme.colors.error};
       }
     }
     & > span {
       &.mayor {
-        /* text-decoration: line-through;
-        color:red; */
-        color: gray;
+        color: ${({ theme }) => theme.colors.textSecondary || theme.colors.text};
       }
     }
     &.active {
-      background-color: #4d4d4d;
+      background-color: ${({ theme }) => theme.colors.backgroundLight || theme.colors.hover};
       border-radius: 5px 0 0 5px;
-      color: ${({ theme }) => theme.colors.secondary};
+      color: ${({ theme }) => theme.colors.primary};
 
       & > .indicador {
         transform: translateX(185px);
-        background-color: ${({ theme }) => theme.colors.secondary};
+        background-color: ${({ theme }) => theme.colors.primary};
       }
     }
     transition: all 0.2s ease;
     cursor: pointer;
+    
+    &:hover {
+      background-color: ${({ theme }) => theme.colors.backgroundLight || theme.colors.hover};
+    }
   }
 `;
 
@@ -231,14 +242,22 @@ const Boton1 = styled.button`
   border-radius: 5px;
   background-color: transparent;
   &.confirmar {
-    border: solid 1px green;
-    color: green;
-    background-color: rgba(255, 255, 255, 0.05);
+    border: solid 1px ${({ theme }) => theme.colors.success};
+    color: ${({ theme }) => theme.colors.success};
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.white, alpha: 0.05 })};
+    
+    &:hover {
+      background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.success, alpha: 0.1 })};
+    }
   }
   &.cancelar {
-    border: solid 1px gray;
-    color: gray;
-    background-color: rgba(255, 255, 255, 0.05);
+    border: solid 1px ${({ theme }) => theme.colors.textSecondary || theme.colors.border};
+    color: ${({ theme }) => theme.colors.textSecondary || theme.colors.text};
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.white, alpha: 0.05 })};
+    
+    &:hover {
+      background-color: ${({ theme }) => hexToRGBA({ hex: theme.colors.textSecondary || theme.colors.border, alpha: 0.1 })};
+    }
   }
 `;
 
@@ -401,7 +420,9 @@ const BarraLateralImportacion = ({
   permisos,
   seccionesConErrores,
   actualizarSeccionesConErrores,
+  rolesUsuario = [],
 }) => {
+  const { theme } = useTheme();
   const secciones = [
     "GENERAL",
     "NEGOCIACIÓN FORWARDER",
@@ -436,11 +457,13 @@ const BarraLateralImportacion = ({
     CONFIRME_IMPORTACION: "INGRESO A BODEGA",
     VALIDACION_INGRESO_BODEGA: "INGRESO A BODEGA",
   };
+
+  const tieneRolVentas = rolesUsuario.includes("usuario");
+  const tieneRolBodega = rolesUsuario.includes("bodega");
+  const tieneRolJefatura = rolesUsuario.includes("jefatura");
+
   const [confirmarFin, setConfirmarFin] = useState(false);
   const [mensajeTerminar, setMensajeTerminar] = useState("");
-  const [permisosBodega, setPermisosBodega] = useState([]);
-  const [permisosCompras, setPermisosCompras] = useState([]);
-  const [permisosComprasGerencias, setPermisosComprasGerencias] = useState([]);
   // Definir qué secciones deben mostrarse para cada etapa
   // const seccionesVisibles = secciones.slice(0, etapa);
 
@@ -453,7 +476,6 @@ const BarraLateralImportacion = ({
 
   const ValidarEstadosFin = async () => {
     const estadosF = await ObtenerEstadosdeFinalizacion();
-    console.log(estadosF);
     const datosSegunIDP = await BuscarDatosPorIDCarga(id);
     const datosSegunID = datosSegunIDP.importaciones;
     const datosID = datosSegunID[0];
@@ -549,14 +571,12 @@ const BarraLateralImportacion = ({
         };
       });
 
-      console.log(results);
 
       return results;
     };
     const comparisonResults = compareData(filteredTransformedData, datosID);
     const allMatch = comparisonResults.every((result) => result.isEqual);
 
-    console.log(allMatch);
     if (!allMatch) {
       const seccionesErroneas = comparisonResults
         .filter((result) => !result.isEqual)
@@ -574,8 +594,6 @@ const BarraLateralImportacion = ({
 
   const FinImportacion = async () => {
     const val = await ValidarEstadosFin();
-
-    console.log(val);
 
     if (!val) {
       setConfirmarFin(false);
@@ -613,32 +631,15 @@ const BarraLateralImportacion = ({
     ejecutarValidaciondeDatos();
   }, [validacionDeDatos]);
 
-  const consultarPermisosTotalesNecesarios = async () => {
-    const permisosdeusuarioBOD = await consultarPermisosPorModuloRuta({
-      rutaModulos: MODULOS.BODEGA,
-    });
-    const permisosdeusuarioCOMP = await consultarPermisosPorModuloRuta({
-      rutaModulos: MODULOS.IMPORTACIONES, // Corregido
-    });
-    const permisosdeusuarioCOMPG = await consultarPermisosPorModuloRuta({
-      rutaModulos: MODULOS.COMPRASGERENCIA,
-    });
-
-    setPermisosBodega(permisosdeusuarioBOD);
-    setPermisosCompras(permisosdeusuarioCOMP);
-    setPermisosComprasGerencias(permisosdeusuarioCOMPG);
-  };
-
   useEffect(() => {
     const fetch = async () => {
       await ValidarEstadosFin();
     };
     fetch();
-    consultarPermisosTotalesNecesarios();
   }, []);
 
   const seccionesAMostrar =
-    permisosCompras.length > 0 || permisosComprasGerencias.length > 0
+    tieneRolVentas || tieneRolJefatura
       ? secciones
       : seccionesBodega;
 
@@ -660,17 +661,15 @@ const BarraLateralImportacion = ({
               {nombreSeccion}{" "}
               {seccionesConErrores.includes(nombreSeccion) &&
                 realIndex + 1 <= etapa && (
-                  <i
-                    style={{ color: "yellow" }}
-                    className="bi bi-exclamation-circle"
-                  ></i>
+                  <IconUI name="FaCircleExclamation" size={14} color={theme.colors.warning} />
                 )}
             </span>
           </div>
         );
       })}
       {etapa >= 9 &&
-        permisosCompras.length > 0 &&
+        tieneRolVentas &&
+        !tieneRolJefatura &&
         docdecisivo === "SI" &&
         estadoImportacion === "EN PROCESO" && (
           <div
@@ -740,8 +739,9 @@ const BarraLateralImportacion = ({
               padding: "15px",
               justifyContent: "center",
               textAlign: "center",
-              border: "solid 1px var(--secondary)",
+              border: `solid 1px ${theme.colors.secondary}`,
               borderRadius: "10px",
+              color: theme.colors.text || theme.colors.white,
             }}
           >
             LA IMPORTACIÓN YA FUE FINALIZADA
@@ -756,17 +756,34 @@ export const VentanaEdicionImportacion = ({
   mostrarVentanaEdicion,
   dataImportacion,
   actualizarTabla,
+  routeConfig,
 }) => {
+  const { theme } = useTheme();
+  const { user } = useAuthContext();
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [seccionActual, setSeccionActual] = useState(0);
-  const [permisos, setPermisos] = useState({
-    bodega: [],
-    compras: [],
-    comprasGerencias: [],
-  });
   const [seccionesConErrores, setSeccionesConErrores] = useState([]);
   const [actualizacionCounter, setActualizacionCounter] = useState(0);
+
+  // Usar el rol que viene del routeConfig (ya calculado en el router)
+  const rolesUsuario = useMemo(() => {
+    if (routeConfig?.rolDelRecurso) {
+      return [routeConfig.rolDelRecurso];
+    }
+    return [];
+  }, [routeConfig]);
+
+  const tieneRolVentas = rolesUsuario.includes("usuario");
+  const tieneRolBodega = rolesUsuario.includes("bodega");
+  const tieneRolJefatura = rolesUsuario.includes("jefatura");
+
+  // Crear objeto de permisos para compatibilidad con componentes hijos
+  const permisos = useMemo(() => ({
+    bodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+    compras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+    comprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : [],
+  }), [tieneRolBodega, tieneRolVentas, tieneRolJefatura]);
 
   const cargarDatos = async () => {
     try {
@@ -775,27 +792,13 @@ export const VentanaEdicionImportacion = ({
       const resp = await BuscarDatosPorIDCarga(dataImportacion);
 
       if (!resp || !resp.importaciones || resp.importaciones.length === 0) {
-        setError("No se encontraron datos para esta importación");
+        console.error("No se encontraron datos para esta importación");
         setCargando(false);
         return;
       }
 
-      const [permisosBodega, permisosCompras, permisosComprasGerencias] =
-        await Promise.all([
-          consultarPermisosPorModuloRuta({ rutaModulos: MODULOS.BODEGA }),
-          consultarPermisosPorModuloRuta({
-            rutaModulos: MODULOS.IMPORTACIONES,
-          }),
-          consultarPermisosPorModuloRuta({
-            rutaModulos: MODULOS.COMPRASGERENCIA,
-          }),
-        ]);
-
-      setPermisos({
-        bodega: permisosBodega || [],
-        compras: permisosCompras || [],
-        comprasGerencias: permisosComprasGerencias || [],
-      });
+      // Los permisos ahora se basan en roles del usuario
+      // No necesitamos consultar permisos por módulo, solo usar los roles
 
       // 3. Guardar datos en el estado
       setDatos(resp);
@@ -805,7 +808,6 @@ export const VentanaEdicionImportacion = ({
       setActualizacionCounter((prev) => prev + 1);
     } catch (err) {
       console.error("Error cargando datos:", err);
-      setError("Error al cargar los datos: " + err.message);
       setCargando(false);
     }
   };
@@ -823,15 +825,14 @@ export const VentanaEdicionImportacion = ({
 
   // Determinar qué secciones mostrar según permisos
   const seccionesPermitidas = useMemo(() => {
-    const tienePermisoCompras =
-      permisos.compras.length > 0 || permisos.comprasGerencias.length > 0;
+    const tienePermisoCompras = tieneRolVentas || tieneRolJefatura;
 
     return SECCIONES_CONFIG.filter(
       (seccion) =>
         !seccion.requierePermiso ||
         (seccion.tipoPermiso === "compras" && tienePermisoCompras)
     );
-  }, [permisos]);
+  }, [tieneRolVentas, tieneRolJefatura]);
 
   // Actualizar un campo específico
   const actualizarCampo = (campo, valor) => {
@@ -986,6 +987,7 @@ export const VentanaEdicionImportacion = ({
         setDatos={actualizarCampo}
         actualizar={actualizarDatos}
         permisosProp={permisos}
+        rolesUsuario={rolesUsuario}
       />
     );
   };
@@ -1014,17 +1016,18 @@ export const VentanaEdicionImportacion = ({
             actualizarTabla();
           }}
         >
-          <i className="bi bi-x" />
+          <IconUI name="FaXmark" size={14} color={theme.colors.text} />
         </BotonCerrar>
 
         <div style={{ display: "flex", width: "100%" }}>
           <h4
             style={{
               display: "flex",
-              borderBottom: "solid 1px gray",
+              borderBottom: `solid 1px ${theme.colors.border || theme.colors.textSecondary}`,
               paddingBottom: "5px",
               width: "100%",
               gap: "8px",
+              color: theme.colors.text,
             }}
           >
             Edición Importación
@@ -1048,6 +1051,7 @@ export const VentanaEdicionImportacion = ({
                 permisos={permisos}
                 seccionesConErrores={seccionesConErrores}
                 actualizarSeccionesConErrores={actualizarSeccionesConErrores}
+                rolesUsuario={rolesUsuario}
               />
             </ContenedorBarraLateral>
 

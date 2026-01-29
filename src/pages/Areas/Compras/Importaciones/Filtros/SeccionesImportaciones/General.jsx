@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { UpdateGeneralImportacion } from "services/importacionesService";
-import { consultarPermisosPorModuloRuta } from "utils/functionsPermissions";
 import {
   FormRow,
   ConfirmationDialog,
@@ -17,31 +16,44 @@ import {
   SectionImportacionesContainer,
   SectionImportacionesTitle,
 } from "../../StylesImportaciones";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import styled from "styled-components";
-import { CustomLoader } from "components/UI/CustomComponents/CustomLoader";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
+import { useTheme } from "context/ThemeContext";
 
-const COMPRASGERENCIA = ["COMPRAS", "COMPRAS-GERENCIA"];
 
 // Componentes adicionales específicos para General
 const SectionSubtitle = styled.h6`
   margin: 10px 0;
+  color: ${({ theme }) => theme.colors.text};
+  font-weight: 500;
 `;
 
 const ClientList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 8px;
   border-radius: 5px;
-  border: solid 1px var(--color-contraste);
-  padding: 10px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  padding: 12px;
+  background-color: ${({ theme }) => theme.colors.backgroundLight || theme.colors.background};
 `;
 
 const ClientItem = styled.span`
   font-size: 14px;
+  color: ${({ theme }) => theme.colors.text};
+  padding: 4px 0;
 `;
 
-export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
+export const General = ({ datos, setDatos, actualizar, permisosProp, rolesUsuario = [] }) => {
+  const { theme } = useTheme();
+  
+  // Usar el rol que viene como prop (ya calculado en el router)
+  const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
+
+  const tieneRolVentas = roles.includes("usuario");
+  const tieneRolBodega = roles.includes("bodega");
+  const tieneRolJefatura = roles.includes("jefatura");
   // Definición centralizada de campos
   const CAMPOS_INICIALES = {
     PLAZO_PROVEEDOR: {
@@ -100,9 +112,6 @@ export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
   const [camposBloqueados, setCamposBloqueados] = useState({});
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [actualizacionExitosa, setActualizacionExitosa] = useState(0);
-  const [permisosComprasGerencias, setPermisosComprasGerencias] = useState([]);
-  const [permisosBodega, setPermisosBodega] = useState([]);
-  const [permisosCompras, setPermisosCompras] = useState([]);
 
   // 1. EFECTO DE INICIALIZACIÓN - SE EJECUTA SOLO UNA VEZ AL MONTAR
   useEffect(() => {
@@ -125,10 +134,7 @@ export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
       );
       setDatosForm(initialData);
 
-      // Usar permisos recibidos desde props
-      setPermisosBodega(permisosProp?.bodega || []);
-      setPermisosCompras(permisosProp?.compras || []);
-      setPermisosComprasGerencias(permisosProp?.comprasGerencias || []);
+      // Los permisos ahora se basan en roles, no necesitamos setear estados
     };
 
     inicializarComponente();
@@ -158,7 +164,11 @@ export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
           estadoImportacion,
           tieneID,
           datosIniciales,
-          { permisosCompras, permisosBodega, permisosComprasGerencias }
+          { 
+            permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+            permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
+            permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : []
+          }
         );
       });
 
@@ -171,9 +181,9 @@ export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
     datosForm,
     campos,
     datosIniciales,
-    permisosCompras,
-    permisosBodega,
-    permisosComprasGerencias,
+    tieneRolVentas,
+    tieneRolBodega,
+    tieneRolJefatura,
   ]);
 
   // Actualizar datos generales
@@ -226,9 +236,9 @@ export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
   // Verificar si se deben mostrar los controles de edición
   // Solo COMPRAS (IMPORTACIONES) puede editar General, no BODEGA ni GERENCIA
   const mostrarBotonEdicion =
-    permisosComprasGerencias.length === 0 &&
-    permisosCompras.length > 0 &&
-    permisosBodega.length === 0 && // BODEGA no puede editar General
+    !tieneRolJefatura &&
+    tieneRolVentas &&
+    !tieneRolBodega && // BODEGA no puede editar General
     datos.ESTADO_IMPORTACION === "EN PROCESO";
 
   return (
@@ -236,10 +246,10 @@ export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
       <SectionImportacionesTitle>
         GENERAL
         {mostrarBotonEdicion && (
-          <CustomButton
+          <ButtonUI
             onClick={() => setMostrarConfirmacion(true)}
             pcolor={({ theme }) => theme.colors.secondary}
-            iconLeft="FaSave"
+            iconLeft="FaFloppyDisk"
             width="35px"
             height="35px"
           />
@@ -250,25 +260,25 @@ export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
         {datos.EMPRESA} - {datos.PROVEEDOR} - {datos.MARCA}
       </SectionSubtitle>
 
-      <span style={{ textDecoration: "underline" }}>Pedido/s:</span>
+      <span style={{ textDecoration: "underline", color: theme.colors.text, fontWeight: 500, marginTop: "15px", display: "block" }}>Pedido/s:</span>
       {!datos.PEDIDO ? (
-        <div style={{ color: "red", fontSize: "14px", paddingLeft: "10px" }}>
+        <div style={{ color: theme.colors.error, fontSize: "14px", paddingLeft: "10px", marginTop: "5px" }}>
           No hay pedidos asociados.
         </div>
       ) : (
         <ItemList
           items={(datos.PEDIDO || "").split(",")}
-          renderItem={(pedido) => <div>{pedido.trim()}</div>}
+          renderItem={(pedido) => <div style={{ color: theme.colors.text }}>{pedido.trim()}</div>}
         />
       )}
 
-      <span style={{ textDecoration: "underline" }}>Datos adicionales:</span>
+      <span style={{ textDecoration: "underline", color: theme.colors.text, fontWeight: 500, marginTop: "15px", display: "block" }}>Datos adicionales:</span>
 
       {!campos ? (
         <div
           style={{ display: "flex", justifyContent: "center", padding: "20px" }}
         >
-          <CustomLoader />
+          <LoaderUI />
         </div>
       ) : (
         <FormImportacionesGrid>
@@ -276,7 +286,10 @@ export const General = ({ datos, setDatos, actualizar, permisosProp }) => {
             return renderizarCampoConPermisos(
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
-              { permisosCompras, permisosBodega },
+              { 
+                permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
+                permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
+              },
               { siempreVisibles: [] },
               {},
               {}

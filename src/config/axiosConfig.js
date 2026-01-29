@@ -1,9 +1,14 @@
 import axios from "axios";
-import url, { url_new , url_portal_mayorista} from "./url";
+import {
+  API_URL,
+  API_URL_NEW,
+  API_URL_PORTAL_MAYORISTA,
+  PORTAL_MAYORISTA_API_KEY,
+} from "./env";
 
 // Crear instancias de axios personalizadas
 export const axiosInstance = axios.create({
-  baseURL: url,
+  baseURL: API_URL,
   timeout: 300000, // 30 segundos
   headers: {
     "Content-Type": "application/json",
@@ -11,7 +16,7 @@ export const axiosInstance = axios.create({
 });
 
 export const axiosInstanceNew = axios.create({
-  baseURL: url_new,
+  baseURL: API_URL_NEW,
   timeout: 300000, // 300 segundos
   headers: {
     "Content-Type": "application/json",
@@ -19,20 +24,36 @@ export const axiosInstanceNew = axios.create({
 });
 
 export const axiosInstancePortalMayorista = axios.create({
-  baseURL: url_portal_mayorista,
+  baseURL: API_URL_PORTAL_MAYORISTA,
   timeout: 300000, // 300 segundos
   headers: {
     "Content-Type": "application/json",
   },
 });
 
+// Configurar el header X-Portal-API-Key en defaults para asegurar que se aplique a todas las peticiones
+if (PORTAL_MAYORISTA_API_KEY) {
+  axiosInstancePortalMayorista.defaults.headers.common["X-Portal-API-Key"] = PORTAL_MAYORISTA_API_KEY;
+} else {
+  console.warn("⚠️ PORTAL_MAYORISTA_API_KEY no está definido. Verifica la variable de entorno VITE_API_P_AS");
+}
+
+// Funciones para gestionar la cabecera id-session
+export const setAxiosIdSession = (idSession) => {
+  if (idSession) {
+    axiosInstanceNew.defaults.headers.common["id-session"] = idSession;
+  }
+};
+
+export const removeAxiosIdSession = () => {
+  delete axiosInstanceNew.defaults.headers.common["id-session"];
+};
+
 // Configurar interceptores para ambas instancias
 const configureInterceptors = (instance) => {
   // Interceptor de solicitud
   instance.interceptors.request.use(
     (config) => {
-      // Log de la solicitud para depuración
-      // console.log(`Realizando petición a: ${config.baseURL}${config.url}`);
       return config;
     },
     (error) => Promise.reject(error)
@@ -41,8 +62,6 @@ const configureInterceptors = (instance) => {
   // Interceptor de respuesta
   instance.interceptors.response.use(
     (response) => {
-      // Log de respuesta exitosa para depuración
-      // console.log(`Respuesta exitosa de: ${response.config.url}`);
       return response;
     },
     async (error) => {
@@ -80,9 +99,22 @@ const configureInterceptors = (instance) => {
   );
 };
 
-// Aplicar configuración a ambas instancias
+// Aplicar configuración a todas las instancias
 configureInterceptors(axiosInstance);
 configureInterceptors(axiosInstanceNew);
+configureInterceptors(axiosInstancePortalMayorista);
+
+// Interceptor específico para PortalMayorista que siempre agrega el header X-Portal-API-Key
+axiosInstancePortalMayorista.interceptors.request.use(
+  (config) => {
+    // Asegurar que el header X-Portal-API-Key esté presente en cada petición
+    if (PORTAL_MAYORISTA_API_KEY) {
+      config.headers["X-Portal-API-Key"] = PORTAL_MAYORISTA_API_KEY;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Exportar las instancias para uso directo
 export default {

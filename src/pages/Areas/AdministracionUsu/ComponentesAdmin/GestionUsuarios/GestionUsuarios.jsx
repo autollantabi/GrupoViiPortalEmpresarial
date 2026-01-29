@@ -7,12 +7,12 @@ import {
   adminstracionService_crearUsuario,
 } from "services/administracionService";
 import { toast } from "react-toastify";
-import { CustomInput } from "components/UI/CustomComponents/CustomInputs";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { CustomCard } from "components/UI/CustomComponents/CustomCard";
+import { InputUI } from "components/UI/Components/InputUI";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { CardUI } from "components/UI/Components/CardUI";
 import { useTheme } from "context/ThemeContext";
 import { hexToRGBA } from "utils/colors";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { VentanaAsignar } from "./VentanaAsignar";
 import styled from "styled-components";
 
@@ -94,6 +94,43 @@ const Badge = styled.span`
   font-weight: bold;
 `;
 
+const ToggleSwitch = styled.div`
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+`;
+
+const ToggleSlider = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: ${({ $checked, theme }) =>
+    $checked
+      ? theme.colors.secondary || "#4CAF50"
+      : theme.colors.textSecondary || "#ccc"};
+  transition: 0.3s;
+  border-radius: 24px;
+  &:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    transform: ${({ $checked }) => ($checked ? "translateX(20px)" : "translateX(0)")};
+  }
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
 export const GestionUsuarios = () => {
   const { theme } = useTheme();
 
@@ -158,7 +195,6 @@ export const GestionUsuarios = () => {
       const permisos = await ListarPermisosUsuario({
         idUsuario: parseInt(usuarioSeleccionado.IDENTIFICADOR),
       });
-      console.log(permisos);
 
       const permisosMap = permisos.reduce((acc, curr) => {
         acc[curr.IDENTIFICADOR_MODULO] = acc[curr.IDENTIFICADOR_MODULO] || [];
@@ -523,27 +559,27 @@ export const GestionUsuarios = () => {
 
   return (
     <>
-      <CustomContainer
-        width="100%"
+      <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "auto auto",
+          display: "flex",
+          flexDirection: "column",
           gap: "15px",
           padding: "10px",
+          width: "100%",
         }}
       >
         {/* Primera fila: Crear usuario */}
-        <div style={{ gridColumn: "1 / 2" }}>
-          <CustomCard
+        <div>
+          <CardUI
             title="Crear Nuevo Usuario"
             description="Agrega un nuevo usuario al sistema"
             body={
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
+                  flexDirection: "row",
                   gap: "12px",
+
                 }}
               >
                 {mensajeError && (
@@ -566,19 +602,19 @@ export const GestionUsuarios = () => {
                     {mensajeError}
                   </div>
                 )}
-                <CustomInput
+                <InputUI
                   placeholder="Nombre Completo"
                   value={nombre}
                   onChange={setNombre}
                   disabled={cargando}
                 />
-                <CustomInput
+                <InputUI
                   placeholder="Correo"
                   value={correo}
                   onChange={setCorreo}
                   disabled={cargando}
                 />
-                <CustomInput
+                <InputUI
                   placeholder="Contraseña"
                   value={contrasena}
                   onChange={setContrasena}
@@ -587,7 +623,7 @@ export const GestionUsuarios = () => {
               </div>
             }
             footer={
-              <CustomButton
+              <ButtonUI
                 onClick={handleCrearUsuario}
                 text="Crear Usuario"
                 pcolor={theme.colors.secondary}
@@ -604,8 +640,8 @@ export const GestionUsuarios = () => {
         </div>
 
         {/* Primera fila: Listar usuarios */}
-        <div style={{ gridColumn: "2 / 3" }}>
-          <CustomCard
+        <div>
+          <CardUI
             title="Buscar y Listar Usuarios"
             description="Gestiona los usuarios del sistema"
             body={
@@ -616,7 +652,7 @@ export const GestionUsuarios = () => {
                   gap: "12px",
                 }}
               >
-                <CustomInput
+                <InputUI
                   placeholder="Buscar por correo..."
                   value={busquedaUsuario}
                   onChange={setBusquedaUsuario}
@@ -628,7 +664,7 @@ export const GestionUsuarios = () => {
                     flexDirection: "column",
                     gap: "4px",
                     overflowY: "auto",
-                    maxHeight: "90px",
+                    maxHeight: "300px",
                   }}
                 >
                   {filtrarUsuarios().length === 0 ? (
@@ -702,32 +738,21 @@ export const GestionUsuarios = () => {
                             alignItems: "center",
                           }}
                         >
-                          <span
+                          <ToggleSwitch
                             onClick={() => handleCambiarEstado(usuario)}
-                            style={{
-                              cursor: "pointer",
-                              fontSize: "14px",
-                            }}
                             title={
                               usuario.ESTADO === "ACTIVO"
-                                ? "Desbloquear"
-                                : "Bloquear"
+                                ? "Click para desbloquear"
+                                : "Click para bloquear"
                             }
                           >
-                            <i
-                              className={
-                                usuario.ESTADO === "ACTIVO"
-                                  ? "bi bi-circle-fill"
-                                  : "bi bi-circle"
-                              }
-                              style={{
-                                color:
-                                  usuario.ESTADO === "ACTIVO" ? "green" : "red",
-                              }}
+                            <ToggleSlider
+                              $checked={usuario.ESTADO === "ACTIVO"}
+                              theme={theme}
                             />
-                          </span>
-                          <CustomButton
-                            iconLeft="FaEdit"
+                          </ToggleSwitch>
+                          <ButtonUI
+                            iconLeft="FaPenToSquare"
                             onClick={() => handleSeleccionarUsuario(usuario)}
                             pcolor={
                               usuarioSeleccionado === usuario
@@ -745,7 +770,7 @@ export const GestionUsuarios = () => {
               </div>
             }
             footer={
-              <CustomButton
+              <ButtonUI
                 onClick={listarUsuarios}
                 text="Actualizar Lista"
                 disabled={cargando}
@@ -758,8 +783,8 @@ export const GestionUsuarios = () => {
 
         {/* Segunda fila: Modificar usuario (si está seleccionado) */}
         {mostrarDatosUsuario && usuarioSeleccionado && (
-          <div style={{ gridColumn: "1 / 3" }}>
-            <CustomCard
+          <div>
+            <CardUI
               title="Gestión de Permisos del Usuario"
               description={`Usuario: ${usuarioSeleccionado.CORREO} - ${
                 usuarioSeleccionado.NOMBRE || "Sin nombre"
@@ -1064,7 +1089,7 @@ export const GestionUsuarios = () => {
             />
           </div>
         )}
-      </CustomContainer>
+      </div>
 
       {/* Ventana para asignar permisos */}
       {modulo !== "" && usuarioSeleccionado && (

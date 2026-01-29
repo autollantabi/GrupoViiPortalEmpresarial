@@ -1,59 +1,163 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { CustomContainer } from "components/UI/CustomComponents/CustomComponents";
-import { CustomSelect } from "components/UI/CustomComponents/CustomSelects";
-import { usePermissions } from "../../../hooks/usePermissions";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { ContainerUI } from "components/UI/Components/ContainerUI";
+import { SelectUI } from "components/UI/Components/SelectUI";
 import { useAuthContext } from "context/authContext";
+
+/**
+ * Mapeo de líneas a nombres legibles para el select
+ * Este mapeo se hace en el template para centralizar la lógica
+ */
+const MAPEO_LINEAS = {
+  "LLANTAS": "NEUMATICOS",
+  "LLANTAS MOTO": "MOTO",
+  "LUBRICANTES": "LUBRICANTES",
+  "HERRAMIENTAS": "HERRAMIENTAS",
+};
 
 /**
  * Componente template genérico para reportería
  * @param {Object} props
- * @param {Object} props.reportesPorTipoModuloEmpresa - Objeto que contiene los reportes organizados por tipo de usuario > módulo > empresa
- * @param {Object} props.modulosMap - Mapeo de códigos de módulos a nombres legibles (ej: { REP_COM_NEUMATICOS: "NEUMATICOS" })
- * @param {Object} props.routeConfig - Configuración de la ruta con modulo y subModules
- * @param {boolean} props.permissionsLoading - Estado de carga de permisos
+ * @param {Object} props.reportesPorTipoModuloEmpresa - Objeto que contiene los reportes organizados por rol > línea > empresa
+ * @param {Object} props.routeConfig - Configuración de la ruta
+ * @param {Array} props.availableCompanies - Empresas disponibles para el usuario (formato: [{ id, nombre }] o { "1": "AUTOLLANTA", ... })
+ * @param {Array} props.availableLines - Líneas disponibles para el usuario (formato: [{ id, nombre }] o { "3": "LLANTAS", ... })
  */
-const TemplateReporteriaComponent = ({
+export const TemplateReporteria = ({
   reportesPorTipoModuloEmpresa,
-  modulosMap = {},
   routeConfig,
-  permissionsLoading,
+  availableCompanies = [],
+  availableLines = [],
 }) => {
   const { user } = useAuthContext();
 
-  // Obtener submódulos desde la configuración de la ruta
-  const subModules = routeConfig?.subModules;
-  const tieneSubModulos =
-    subModules && Array.isArray(subModules) && subModules.length > 0;
+  // Verificar si hay recursos (líneas) en la estructura (si todas las líneas son null, no hay recursos)
+  const tieneRecursos = useMemo(() => {
+    if (!reportesPorTipoModuloEmpresa) return false;
+    // Verificar si hay al menos un rol con una línea que no sea null
+    return Object.values(reportesPorTipoModuloEmpresa).some((lineasDelRol) => {
+      return Object.keys(lineasDelRol).some((linea) => linea !== "null" && linea !== null);
+    });
+  }, [reportesPorTipoModuloEmpresa]);
 
-  // Obtener permisos: con submódulos o solo con el módulo principal
-  const { permissionsByModule } = usePermissions(
-    routeConfig?.modulo,
-    tieneSubModulos ? subModules : null
-  );
+  // Convertir availableCompanies a un Set de nombres de empresas para verificación rápida
+  // availableCompanies puede ser un objeto { "1": "AUTOLLANTA", ... } o un array [{ id, nombre }, ...]
+  const empresasDisponiblesSet = useMemo(() => {
+    if (Array.isArray(availableCompanies)) {
+      return new Set(availableCompanies.map(emp => emp.nombre));
+    }
+    // Si es un objeto, obtener los valores
+    return new Set(Object.values(availableCompanies));
+  }, [availableCompanies]);
+
+  // Convertir availableLines a un Set de nombres de líneas para verificación rápida
+  // availableLines puede ser un objeto { "3": "LLANTAS", ... } o un array [{ id, nombre }, ...]
+  const lineasDisponiblesSet = useMemo(() => {
+    if (Array.isArray(availableLines)) {
+      return new Set(availableLines.map(linea => linea.nombre?.toUpperCase()));
+    }
+    // Si es un objeto, obtener los valores y convertir a mayúsculas
+    return new Set(Object.values(availableLines).map(linea => linea.toUpperCase()));
+  }, [availableLines]);
+
+  // Obtener el recurso actual desde routeConfig
+  const recursoActual = routeConfig?.recurso || null;
+
+  // Obtener roles del usuario específicos para el recurso actual
+  // Priorizar el rol que viene en routeConfig (ya calculado en el router)
+  const rolesUsuarioParaRecurso = useMemo(() => {
+    // Si routeConfig ya tiene el rol calculado, usarlo directamente
+    if (routeConfig?.rolDelRecurso) {
+      return [routeConfig.rolDelRecurso];
+    }
+
+    // Fallback: calcular desde user.CONTEXTOS si no viene en routeConfig
+    if (!user?.CONTEXTOS || !Array.isArray(user.CONTEXTOS) || !recursoActual) {
+      return [];
+    }
+
+    // Filtrar contextos que coinciden con el recurso actual o recursos padre (herencia)
+    const contextosParaRecurso = user.CONTEXTOS.filter((contexto) => {
+      if (!contexto.RECURSO) return false;
+      
+      // Verificar si el contexto es exactamente para este recurso
+      const recursoNormalizado = recursoActual.toLowerCase();
+      const contextoRecursoNormalizado = contexto.RECURSO.toLowerCase();
+      
+      if (contextoRecursoNormalizado === recursoNormalizado) return true;
+      
+      // Verificar herencia: si el recurso actual empieza con el recurso del contexto
+      // Ejemplo: contexto.RECURSO = "reportes", recursoActual = "reportes.flashventas"
+      if (contexto.HERENCIA && recursoNormalizado.startsWith(contextoRecursoNormalizado + ".")) {
+        // Verificar que no esté bloqueado
+        const bloqueados = contexto.BLOQUEADO && contexto.BLOQUEADO !== "null" && contexto.BLOQUEADO !== "<null>"
+          ? (Array.isArray(contexto.BLOQUEADO) ? contexto.BLOQUEADO : [contexto.BLOQUEADO])
+          : [];
+        
+        // Si el recurso actual está bloqueado, no incluir este contexto
+        if (bloqueados.some(bloqueado => {
+          const bloqueadoNormalizado = (typeof bloqueado === 'string' ? bloqueado : bloqueado.resource || '')?.toLowerCase();
+          return bloqueadoNormalizado && recursoNormalizado.startsWith(bloqueadoNormalizado);
+        })) {
+          return false;
+        }
+        
+        return true;
+      }
+      
+      return false;
+    });
+
+    // Obtener los IDs de roles únicos de los contextos filtrados
+    const rolesIds = new Set(contextosParaRecurso.map(ctx => ctx.ID_ROL).filter(Boolean));
+    
+    // Obtener los nombres de roles desde user.ROLES
+    if (user?.ROLES && Array.isArray(user.ROLES)) {
+      return user.ROLES
+        .filter(rol => rolesIds.has(rol.ID_ROL))
+        .map(rol => rol.NOMBRE_ROL?.toLowerCase())
+        .filter(Boolean);
+    }
+    
+    return [];
+  }, [routeConfig, user?.CONTEXTOS, user?.ROLES, recursoActual]);
 
   // Estados para los selects en cascada
   const [tipoUsuarioSeleccionado, setTipoUsuarioSeleccionado] = useState(null);
-  const [moduloSeleccionado, setModuloSeleccionado] = useState(null);
+  const [recursoSeleccionado, setRecursoSeleccionado] = useState(null);
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState(null);
   const [reporteSeleccionado, setReporteSeleccionado] = useState(null);
+  
+  // Ref para rastrear la empresa anterior y solo resetear el recurso cuando cambia
+  const empresaAnteriorRef = useRef(null);
 
-  // Obtener nombres de tipos de usuario del usuario actual
-  const tiposUsuarioActual = useMemo(() => {
-    if (!user?.tipoUsuario || !Array.isArray(user.tipoUsuario)) return [];
-    return user.tipoUsuario.map((tipo) => tipo.TIPO_USUARIO);
-  }, [user]);
+  // Función para verificar si el usuario tiene acceso a una línea específica
+  const tieneAccesoALinea = (lineaNombre) => {
+    if (!lineaNombre) return true; // Si no hay línea específica, solo necesita acceso al recurso base
+    // Las líneas vienen en mayúsculas desde availableLines
+    return lineasDisponiblesSet.has(lineaNombre.toUpperCase());
+  };
 
-  // Opciones para el select de tipos de usuario (solo los que tienen reportes definidos)
+  // Obtener roles disponibles del usuario que coinciden con los reportes definidos
+  // Los roles en reportesPorTipoModuloEmpresa ya vienen en minúsculas (coordinadora, supervisor, jefatura)
+  // Solo mostrar los roles que el usuario tiene para el recurso actual
+  const rolesDisponibles = useMemo(() => {
+    const rolesEnReportes = Object.keys(reportesPorTipoModuloEmpresa || {});
+    return rolesEnReportes.filter((rol) => {
+      // Los roles ya están en minúsculas en la estructura nueva
+      // Solo incluir si el usuario tiene este rol para el recurso actual
+      return rolesUsuarioParaRecurso.includes(rol.toLowerCase());
+    });
+  }, [rolesUsuarioParaRecurso, reportesPorTipoModuloEmpresa]);
+
+  // Opciones para el select de roles (solo los que tienen reportes definidos y el usuario tiene)
   const opcionesTiposUsuario = useMemo(() => {
-    return tiposUsuarioActual
-      .filter((tipo) => reportesPorTipoModuloEmpresa?.[tipo])
-      .map((tipo) => ({
-        value: tipo,
-        label: tipo,
-      }));
-  }, [tiposUsuarioActual, reportesPorTipoModuloEmpresa]);
+    return rolesDisponibles.map((rol) => ({
+      value: rol,
+      label: rol,
+    }));
+  }, [rolesDisponibles]);
 
-  // Opciones para el select de empresas (basado solo en tipo seleccionado)
+  // Opciones para el select de empresas (basado solo en rol seleccionado)
   const opcionesEmpresas = useMemo(() => {
     if (
       !tipoUsuarioSeleccionado ||
@@ -63,31 +167,26 @@ const TemplateReporteriaComponent = ({
     }
 
     const empresasDisponibles = new Set();
-    const modulosDelTipo =
+    const lineasDelRol =
       reportesPorTipoModuloEmpresa[tipoUsuarioSeleccionado];
 
-    // Obtener todas las empresas que tienen reportes en algún módulo del tipo seleccionado
-    Object.keys(modulosDelTipo).forEach((moduloNombre) => {
-      // Cuando no hay submódulos, verificar permisos del módulo principal
-      // Cuando hay submódulos, verificar permisos del submódulo específico
-      const moduloParaVerificar = tieneSubModulos
-        ? moduloNombre
-        : routeConfig?.modulo;
-
-      // Verificar si el usuario tiene permisos en este módulo
-      if (permissionsByModule[moduloParaVerificar]) {
-        Object.keys(modulosDelTipo[moduloNombre]).forEach((empresa) => {
-          // Verificar si hay reportes para esta empresa y si el usuario tiene permiso
-          if (
-            modulosDelTipo[moduloNombre][empresa] &&
-            permissionsByModule[moduloParaVerificar].some(
-              (permiso) => permiso.empresa === empresa
-            )
-          ) {
-            empresasDisponibles.add(empresa);
-          }
-        });
+    // Obtener todas las empresas que tienen reportes en alguna línea del rol seleccionado
+    Object.keys(lineasDelRol).forEach((lineaNombre) => {
+      // Si la línea es null, significa que no requiere línea específica, solo verificar empresa
+      // Si no es null, verificar que el usuario tenga acceso a esta línea
+      if (lineaNombre !== "null" && lineaNombre !== null && !tieneAccesoALinea(lineaNombre)) {
+        return;
       }
+
+      Object.keys(lineasDelRol[lineaNombre]).forEach((empresa) => {
+        // Verificar si hay reportes para esta empresa y si el usuario tiene permiso (empresa está en availableCompanies)
+        if (
+          lineasDelRol[lineaNombre][empresa] &&
+          empresasDisponiblesSet.has(empresa)
+        ) {
+          empresasDisponibles.add(empresa);
+        }
+      });
     });
 
     return Array.from(empresasDisponibles).map((empresa) => ({
@@ -97,52 +196,49 @@ const TemplateReporteriaComponent = ({
   }, [
     tipoUsuarioSeleccionado,
     reportesPorTipoModuloEmpresa,
-    permissionsByModule,
-    tieneSubModulos,
-    routeConfig?.modulo,
+    empresasDisponiblesSet,
+    tieneAccesoALinea,
   ]);
 
-  // Opciones para el select de módulos (basado en tipo y empresa seleccionados)
-  const opcionesModulos = useMemo(() => {
+  // Opciones para el select de recursos (basado en rol y empresa seleccionados)
+  const opcionesRecursos = useMemo(() => {
     if (!tipoUsuarioSeleccionado || !empresaSeleccionada) {
       return [];
     }
 
-    const modulosDisponibles = new Set();
-    const modulosDelTipo =
+    const lineasDisponibles = new Set();
+    const lineasDelRol =
       reportesPorTipoModuloEmpresa[tipoUsuarioSeleccionado];
 
-    // Filtrar solo los módulos donde hay reportes para la empresa seleccionada
-    Object.keys(modulosDelTipo).forEach((moduloNombre) => {
-      // Cuando no hay submódulos, verificar permisos del módulo principal
-      // Cuando hay submódulos, verificar permisos del submódulo específico
-      const moduloParaVerificar = tieneSubModulos
-        ? moduloNombre
-        : routeConfig?.modulo;
+    // Filtrar solo las líneas donde hay reportes para la empresa seleccionada
+    // Verificar que el usuario tenga permiso para la empresa seleccionada y la línea correspondiente
+    if (empresasDisponiblesSet.has(empresaSeleccionada)) {
+      Object.keys(lineasDelRol).forEach((lineaNombre) => {
+        // Si la línea es null, omitirla del select (no se muestra en el select de recursos)
+        if (lineaNombre === "null" || lineaNombre === null) {
+          return;
+        }
+        // Verificar si hay reportes para esta empresa en esta línea
+        // Y si el usuario tiene acceso a esta línea
+        if (
+          lineasDelRol[lineaNombre]?.[empresaSeleccionada] &&
+          tieneAccesoALinea(lineaNombre)
+        ) {
+          lineasDisponibles.add(lineaNombre);
+        }
+      });
+    }
 
-      // Verificar si hay reportes para esta empresa en este módulo
-      if (
-        modulosDelTipo[moduloNombre]?.[empresaSeleccionada] &&
-        permissionsByModule[moduloParaVerificar]?.some(
-          (permiso) => permiso.empresa === empresaSeleccionada
-        )
-      ) {
-        modulosDisponibles.add(moduloNombre);
-      }
-    });
-
-    return Array.from(modulosDisponibles).map((modulo) => ({
-      value: modulo,
-      label: modulosMap[modulo] === "NEUMATICOS MOTO" ? "MOTO" : modulosMap[modulo] || modulo,
+    return Array.from(lineasDisponibles).map((linea) => ({
+      value: linea,
+      label: MAPEO_LINEAS[linea] || linea,
     }));
   }, [
     tipoUsuarioSeleccionado,
     empresaSeleccionada,
     reportesPorTipoModuloEmpresa,
-    permissionsByModule,
-    modulosMap,
-    tieneSubModulos,
-    routeConfig?.modulo,
+    empresasDisponiblesSet,
+    tieneAccesoALinea,
   ]);
 
   // Inicializar con el primer valor de cada select (solo cuando no hay valor seleccionado)
@@ -177,87 +273,92 @@ const TemplateReporteriaComponent = ({
     }
   }, [opcionesEmpresas, tipoUsuarioSeleccionado, empresaSeleccionada]);
 
-  // Obtener el módulo a usar (cuando no hay submódulos, usar el módulo principal)
-  const moduloAUsar = useMemo(() => {
-    if (tieneSubModulos) {
-      return moduloSeleccionado;
+  // Obtener el recurso a usar
+  // Si no hay recursos o no hay recurso seleccionado, buscar el recurso "null" o el primero disponible
+  const recursoAUsar = useMemo(() => {
+    if (recursoSeleccionado) {
+      return recursoSeleccionado;
     }
-    // Sin submódulos, obtener el primer módulo disponible del tipo seleccionado
-    if (
-      tipoUsuarioSeleccionado &&
-      reportesPorTipoModuloEmpresa?.[tipoUsuarioSeleccionado]
-    ) {
-      const modulosDelTipo =
-        reportesPorTipoModuloEmpresa[tipoUsuarioSeleccionado];
-      const primerModulo = Object.keys(modulosDelTipo)[0];
-      return primerModulo || routeConfig?.modulo;
+    // Si no hay recursos, buscar el recurso "null" o el primero disponible
+    if (!tieneRecursos && tipoUsuarioSeleccionado && reportesPorTipoModuloEmpresa?.[tipoUsuarioSeleccionado]) {
+      const lineasDelRol = reportesPorTipoModuloEmpresa[tipoUsuarioSeleccionado];
+      // Buscar primero "null", si no existe, tomar el primer recurso disponible
+      if (lineasDelRol["null"] || lineasDelRol[null]) {
+        return "null";
+      }
+      const primerRecurso = Object.keys(lineasDelRol)[0];
+      return primerRecurso || null;
     }
-    return routeConfig?.modulo;
-  }, [
-    tieneSubModulos,
-    moduloSeleccionado,
-    tipoUsuarioSeleccionado,
-    reportesPorTipoModuloEmpresa,
-    routeConfig?.modulo,
-  ]);
+    return null;
+  }, [recursoSeleccionado, tieneRecursos, tipoUsuarioSeleccionado, reportesPorTipoModuloEmpresa]);
 
-  // Manejar módulo: solo inicializar al inicio, después solo mantener/resetear (solo si hay submódulos)
+  // Manejar recurso: solo inicializar cuando cambia la empresa o las opciones
   useEffect(() => {
-    if (!tieneSubModulos || !tipoUsuarioSeleccionado || !empresaSeleccionada) {
-      setModuloSeleccionado(null);
+    if (!tieneRecursos || !tipoUsuarioSeleccionado || !empresaSeleccionada) {
+      empresaAnteriorRef.current = empresaSeleccionada;
+      setRecursoSeleccionado(null);
       return;
     }
 
-    if (opcionesModulos.length === 0) {
-      setModuloSeleccionado(null);
+    if (opcionesRecursos.length === 0) {
+      empresaAnteriorRef.current = empresaSeleccionada;
+      setRecursoSeleccionado(null);
       return;
     }
 
-    const moduloEstaEnOpciones = opcionesModulos.some(
-      (opt) => opt.value === moduloSeleccionado
-    );
+    // Solo resetear/inicializar si cambió la empresa
+    const empresaCambio = empresaAnteriorRef.current !== empresaSeleccionada;
+    empresaAnteriorRef.current = empresaSeleccionada;
 
-    if (!moduloEstaEnOpciones) {
-      setModuloSeleccionado(opcionesModulos[0].value);
+    if (empresaCambio) {
+      // Cuando cambia la empresa, seleccionar el primer recurso disponible
+      setRecursoSeleccionado(opcionesRecursos[0].value);
+    } else if (!recursoSeleccionado) {
+      // Si no hay recurso seleccionado y no cambió la empresa, seleccionar el primero
+      setRecursoSeleccionado(opcionesRecursos[0].value);
     }
+    // Si el usuario seleccionó manualmente un recurso, no hacer nada
   }, [
-    opcionesModulos,
+    opcionesRecursos,
     tipoUsuarioSeleccionado,
     empresaSeleccionada,
-    moduloSeleccionado,
-    tieneSubModulos,
+    tieneRecursos,
+    // No incluimos recursoSeleccionado para evitar bucles cuando el usuario selecciona manualmente
   ]);
 
   // Actualizar el reporte seleccionado cuando cambian los selects
   useEffect(() => {
+    // Validaciones básicas
     if (!tipoUsuarioSeleccionado || !empresaSeleccionada) {
       setReporteSeleccionado(null);
       return;
     }
 
-    // Si hay submódulos, necesitamos el módulo seleccionado
-    if (tieneSubModulos && !moduloSeleccionado) {
-      setReporteSeleccionado(null);
-      return;
+    // Determinar qué recurso usar
+    let recursoParaBuscar;
+    if (tieneRecursos) {
+      // Si hay recursos, necesitamos el recurso seleccionado
+      if (!recursoSeleccionado) {
+        setReporteSeleccionado(null);
+        return;
+      }
+      recursoParaBuscar = recursoSeleccionado;
+    } else {
+      // Si no hay recursos, usar "null" o el primero disponible
+      recursoParaBuscar = recursoAUsar === null ? "null" : recursoAUsar;
     }
 
-    // Obtener el módulo a usar
-    const moduloParaBuscar = tieneSubModulos ? moduloSeleccionado : moduloAUsar;
-
-    // Obtener el reporte para la combinación seleccionada
+    // Buscar el reporte directamente: rol > recurso > empresa
     const reportes =
-      reportesPorTipoModuloEmpresa[tipoUsuarioSeleccionado]?.[
-        moduloParaBuscar
-      ]?.[empresaSeleccionada];
+      reportesPorTipoModuloEmpresa[tipoUsuarioSeleccionado]?.[recursoParaBuscar]?.[empresaSeleccionada];
 
     if (reportes && reportes.length > 0) {
-      // Seleccionar el primer reporte disponible
       const primerReporte = reportes[0];
       setReporteSeleccionado({
         ...primerReporte,
-        modulo: moduloParaBuscar,
+        recurso: recursoParaBuscar,
         tipoUsuario: tipoUsuarioSeleccionado,
-        uniqueId: `${tipoUsuarioSeleccionado}-${moduloParaBuscar}-${primerReporte.id}`,
+        uniqueId: `${tipoUsuarioSeleccionado}-${recursoParaBuscar}-${primerReporte.id}`,
       });
     } else {
       setReporteSeleccionado(null);
@@ -265,9 +366,9 @@ const TemplateReporteriaComponent = ({
   }, [
     tipoUsuarioSeleccionado,
     empresaSeleccionada,
-    moduloSeleccionado,
-    moduloAUsar,
-    tieneSubModulos,
+    recursoSeleccionado,
+    recursoAUsar,
+    tieneRecursos,
     reportesPorTipoModuloEmpresa,
   ]);
 
@@ -282,41 +383,25 @@ const TemplateReporteriaComponent = ({
   const handleEmpresaChange = (selectedOption) => {
     const nuevaEmpresa = selectedOption ? selectedOption.value : null;
     setEmpresaSeleccionada(nuevaEmpresa);
-    // Resetear módulo cuando cambia la empresa (solo si hay submódulos)
-    if (tieneSubModulos) {
-      setModuloSeleccionado(null);
+    // Resetear recurso cuando cambia la empresa (solo si hay recursos)
+    if (tieneRecursos) {
+      setRecursoSeleccionado(null);
     }
     setReporteSeleccionado(null);
   };
 
-  const handleModuloChange = (selectedOption) => {
-    setModuloSeleccionado(selectedOption ? selectedOption.value : null);
+  const handleRecursoChange = (selectedOption) => {
+    setRecursoSeleccionado(selectedOption ? selectedOption.value : null);
     // El reporte se actualizará automáticamente por el useEffect
   };
 
-  // Mostrar mensaje si está cargando permisos
-  if (permissionsLoading) {
-    return (
-      <CustomContainer
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
-        height="100%"
-      >
-        <div>Cargando permisos...</div>
-      </CustomContainer>
-    );
-  }
-
-  // Verificar si tiene permisos (submódulos o módulo principal)
-  const tienePermisos =
-    permissionsByModule && Object.keys(permissionsByModule).length > 0;
+  // Verificar si tiene permisos (tiene empresas disponibles)
+  const tienePermisos = availableCompanies && (Array.isArray(availableCompanies) ? availableCompanies.length > 0 : Object.keys(availableCompanies).length > 0);
 
   // Mostrar mensaje si no hay permisos
   if (!tienePermisos) {
     return (
-      <CustomContainer
+      <ContainerUI
         flexDirection="column"
         justifyContent="center"
         alignItems="center"
@@ -324,26 +409,19 @@ const TemplateReporteriaComponent = ({
         height="100%"
       >
         <div>No tienes permisos para acceder a esta funcionalidad.</div>
-        <div style={{ fontSize: "12px", marginTop: "10px", color: "#666" }}>
-          {tieneSubModulos
-            ? `Se requieren permisos en alguno de los submódulos: ${subModules.join(
-                ", "
-              )}`
-            : `Se requieren permisos en el módulo: ${routeConfig?.modulo}`}
-        </div>
-      </CustomContainer>
+      </ContainerUI>
     );
   }
 
   return (
-    <CustomContainer
+    <ContainerUI
       flexDirection="column"
       height="100%"
       width="100%"
       style={{ padding: 0 }}
     >
-      {/* Selects en cascada: Tipo > Empresa > Permiso */}
-      <CustomContainer
+      {/* Selects en cascada: Rol > Empresa > Recurso */}
+      <ContainerUI
         style={{
           gap: "10px",
           padding: "10px",
@@ -351,10 +429,10 @@ const TemplateReporteriaComponent = ({
           alignItems: "flex-start",
         }}
       >
-        {/* Solo mostrar el select de tipo si hay más de 1 opción */}
+        {/* Solo mostrar el select de rol si hay más de 1 opción */}
         {opcionesTiposUsuario.length > 1 && (
-          <CustomSelect
-            label="Tipo de Usuario"
+          <SelectUI
+            label="Rol"
             options={opcionesTiposUsuario}
             value={
               tipoUsuarioSeleccionado
@@ -364,12 +442,12 @@ const TemplateReporteriaComponent = ({
                 : null
             }
             onChange={handleTipoUsuarioChange}
-            placeholder="Selecciona un tipo..."
+            placeholder="Selecciona un rol..."
             minWidth="200px"
           />
         )}
 
-        <CustomSelect
+        <SelectUI
           label="Empresa"
           options={opcionesEmpresas}
           value={
@@ -385,25 +463,25 @@ const TemplateReporteriaComponent = ({
           minWidth="200px"
         />
 
-        {/* Solo mostrar el select de Línea Negocio si hay submódulos */}
-        {tieneSubModulos && (
-          <CustomSelect
-            label="Línea Negocio"
-            options={opcionesModulos}
+        {/* Solo mostrar el select de Recurso si hay recursos */}
+        {tieneRecursos && (
+          <SelectUI
+            label="Recurso"
+            options={opcionesRecursos}
             value={
-              moduloSeleccionado
-                ? opcionesModulos.find(
-                    (opt) => opt.value === moduloSeleccionado
+              recursoSeleccionado
+                ? opcionesRecursos.find(
+                    (opt) => opt.value === recursoSeleccionado
                   )
                 : null
             }
-            onChange={handleModuloChange}
-            placeholder="Selecciona un módulo..."
-            isDisabled={!empresaSeleccionada || opcionesModulos.length === 0}
+            onChange={handleRecursoChange}
+            placeholder="Selecciona un recurso..."
+            isDisabled={!empresaSeleccionada || opcionesRecursos.length === 0}
             minWidth="200px"
           />
         )}
-      </CustomContainer>
+      </ContainerUI>
 
       {/* Mostrar el iframe con el reporte seleccionado */}
       {reporteSeleccionado && (
@@ -416,9 +494,6 @@ const TemplateReporteriaComponent = ({
           allowFullScreen
         />
       )}
-    </CustomContainer>
+    </ContainerUI>
   );
 };
-
-// Exportar el componente (sin withPermissions, ya que usa usePermissions internamente)
-export const TemplateReporteria = TemplateReporteriaComponent;

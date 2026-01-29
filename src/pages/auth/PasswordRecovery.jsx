@@ -1,53 +1,103 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { ROUTES } from "config/constantsRoutes";
-import { CustomInput } from "components/UI/CustomComponents/CustomInputs";
+import { InputUI } from "components/UI/Components/InputUI";
 import { hexToRGBA } from "utils/colors";
-import { CustomButton } from "components/UI/CustomComponents/CustomButtons";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
 import {
   authService_enviarCorreoRecuperacion,
   authService_verificarTokenRecuperacion,
   authService_actualizarContrasena,
 } from "services/authService";
 import { toast } from "react-toastify";
+import { TextUI } from "components/UI/Components/TextUI";
+import IconUI from "components/UI/Components/IconsUI";
+import { useTheme } from "context/ThemeContext";
 
 const Contenedor1 = styled.div`
-  height: 100vh;
   width: 100%;
-  background-color: ${({ theme }) => theme.colors.primary};
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
+  background: linear-gradient(
+    135deg,
+    ${({ theme }) => theme.colors.primary} 0%,
+    ${({ theme }) => hexToRGBA({ hex: theme.colors.primary, alpha: 0.9 })} 100%
+  );
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      circle,
+      ${({ theme }) => hexToRGBA({ hex: theme.colors.white, alpha: 0.1 })} 0%,
+      transparent 70%
+    );
+    animation: pulse 20s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.5;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+  }
 `;
 
 const Contenedor = styled.div`
-  height: auto;
+  width: 100%;
   max-width: 480px;
   min-width: 350px;
+  height: auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-direction: column;
-  background-color: ${({ theme }) =>
-    hexToRGBA({ hex: theme.colors.white, alpha: 0.8 })};
-  border-radius: 15px;
-  padding: 30px;
-  gap: 15px;
+  background-color: ${({ theme }) => theme.colors.modalBackground};
+  border: 1px solid ${({ theme }) => hexToRGBA({ hex: theme.colors.border, alpha: 0.5 })};
+  border-radius: 20px;
+  padding: 40px 35px;
+  gap: 20px;
   position: relative;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+  box-shadow: ${({ theme }) =>
+    `0 20px 60px ${hexToRGBA({ hex: theme.colors.boxShadow, alpha: 0.3 })}`};
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: ${({ theme }) =>
+      `0 25px 70px ${hexToRGBA({ hex: theme.colors.boxShadow, alpha: 0.4 })}`};
+  }
+
+  @media (max-width: 480px) {
+    padding: 30px 25px;
+    border-radius: 15px;
+    min-width: 300px;
+  }
 `;
 
 const ContenedorCambioContrasena = styled.form`
+  width: 100%;
   height: auto;
-  max-width: 480px;
-  min-width: 350px;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 15px;
+  gap: 20px;
   flex-direction: column;
-  border-radius: 15px;
 `;
 
 const ContenedorInputs = styled.div`
@@ -61,14 +111,16 @@ const ContenedorInputs = styled.div`
   }
 `;
 
-// Íconos de ojos se manejan con CustomInput.iconRight
+// Íconos de ojos se manejan con InputUI.iconRight
 
 const ErrorMensaje = styled.div`
   width: 100%;
-  color: #b3261e;
+  color: ${({ theme }) => theme.colors.error};
   font-size: 14px;
-  background: rgba(179, 38, 30, 0.08);
-  border: 1px solid rgba(179, 38, 30, 0.18);
+  background: ${({ theme }) =>
+    hexToRGBA({ hex: theme.colors.error, alpha: 0.08 })};
+  border: 1px solid
+    ${({ theme }) => hexToRGBA({ hex: theme.colors.error, alpha: 0.18 })};
   padding: 10px 12px;
   border-radius: 10px;
   line-height: 1.4;
@@ -83,12 +135,53 @@ const Divisor = styled.div`
   display: flex;
   justify-content: center;
   border-top: 1px solid
-    ${({ theme }) => hexToRGBA({ hex: theme.colors.primary, alpha: 0.2 })};
+    ${({ theme }) => hexToRGBA({ hex: theme.colors.border, alpha: 0.5 })};
   align-items: center;
-  padding: 10px 0;
+  padding: 15px 0 5px 0;
+`;
+
+const ToggleThemeButton = styled.button`
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  background-color: ${({ theme }) =>
+    hexToRGBA({ hex: theme.colors.white, alpha: 0.2 })};
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: ${({ theme }) =>
+    `0 4px 15px ${hexToRGBA({ hex: theme.colors.boxShadow, alpha: 0.2 })}`};
+
+  &:hover {
+    background-color: ${({ theme }) =>
+      hexToRGBA({ hex: theme.colors.white, alpha: 0.3 })};
+    transform: scale(1.1) rotate(15deg);
+    box-shadow: ${({ theme }) =>
+      `0 6px 20px ${hexToRGBA({ hex: theme.colors.boxShadow, alpha: 0.3 })}`};
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 480px) {
+    top: 15px;
+    right: 15px;
+    width: 45px;
+    height: 45px;
+  }
 `;
 
 function PsRecovery() {
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [step, setStep] = useState("email");
   const [correo, setCorreo] = useState("");
@@ -299,7 +392,7 @@ function PsRecovery() {
   };
 
   const handleNavigateLogin = () => {
-    navigate(ROUTES.LOGIN);
+    navigate("/login");
   };
 
   useEffect(() => {
@@ -308,7 +401,7 @@ function PsRecovery() {
     }
 
     if (redirectCountdown <= 0) {
-      navigate(ROUTES.LOGIN);
+      navigate("/login");
       return;
     }
 
@@ -321,33 +414,38 @@ function PsRecovery() {
 
   const renderEmailStep = () => (
     <ContenedorCambioContrasena onSubmit={handleEmailSubmit}>
+      <TextUI
+        size="14px"
+        align="left"
+        style={{
+          cursor: "pointer",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+        onClick={handleNavigateLogin}
+      >
+        <IconUI name="FaChevronLeft" size={12} /> Login
+      </TextUI>
       <ContenedorInputs>
-        <CustomInput
+        <InputUI
           label="Correo*"
           type="text"
           placeholder="Correo"
           value={correo}
-          iconLeft={"bi bi-envelope"}
+          iconLeft="FaRegEnvelope"
           onChange={(valor) => setCorreo(valor)}
           inputStyle={{ textTransform: "lowercase" }}
         />
       </ContenedorInputs>
-      <CustomButton
+      <ButtonUI
         text={isLoading ? "Enviando correo..." : "Continuar"}
         type="submit"
         variant="contained"
         disabled={isLoading}
         style={{ width: "100%" }}
       />
-      <Divisor>
-        <CustomButton
-          text="Iniciar Sesión"
-          onClick={handleNavigateLogin}
-          variant="outlined"
-          style={{ width: "100%" }}
-          disabled={isLoading}
-        />
-      </Divisor>
     </ContenedorCambioContrasena>
   );
 
@@ -362,12 +460,14 @@ function PsRecovery() {
           alignItems: "flex-start",
         }}
       >
-        <span style={{ fontSize: "14px", color: "#555" }}>Correo</span>
+        <span style={{ fontSize: "14px", color: theme.colors.textSecondary }}>
+          Correo
+        </span>
         <span
           style={{
             fontSize: "16px",
             fontWeight: 600,
-            color: "#1f1f1f",
+            color: theme.colors.text,
             wordBreak: "break-word",
           }}
         >
@@ -383,7 +483,7 @@ function PsRecovery() {
           alignItems: "center",
         }}
       >
-        <span style={{ fontSize: "14px", color: "#555" }}>
+        <span style={{ fontSize: "14px", color: theme.colors.textSecondary }}>
           Ingresa el código de 6 dígitos
         </span>
         <div
@@ -416,8 +516,15 @@ function PsRecovery() {
                 textAlign: "center",
                 fontSize: "22px",
                 borderRadius: "8px",
-                border: otpError ? "1px solid #d32f2f" : "1px solid #ccc",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+                border: otpError
+                  ? `1px solid ${theme.colors.error}`
+                  : `1px solid ${theme.colors.border}`,
+                backgroundColor: theme.colors.inputBackground,
+                color: theme.colors.text,
+                boxShadow: `0 1px 3px ${hexToRGBA({
+                  hex: theme.colors.boxShadow,
+                  alpha: 0.12,
+                })}`,
                 outline: "none",
                 transition: "border-color 0.2s ease",
               }}
@@ -430,7 +537,7 @@ function PsRecovery() {
           Código inválido o expirado. Inténtalo nuevamente
         </ErrorMensaje>
       )}
-      <CustomButton
+      <ButtonUI
         text={isLoading ? "Validando código..." : "Validar código"}
         type="submit"
         variant="contained"
@@ -438,7 +545,7 @@ function PsRecovery() {
         style={{ width: "100%" }}
       />
       <Divisor>
-        <CustomButton
+        <ButtonUI
           text="Ingresar otro correo"
           onClick={() => {
             setOtpValues(emptyOtpArray);
@@ -465,12 +572,14 @@ function PsRecovery() {
           alignItems: "flex-start",
         }}
       >
-        <span style={{ fontSize: "14px", color: "#555" }}>Correo</span>
+        <span style={{ fontSize: "14px", color: theme.colors.textSecondary }}>
+          Correo
+        </span>
         <span
           style={{
             fontSize: "16px",
             fontWeight: 600,
-            color: "#1f1f1f",
+            color: theme.colors.text,
             wordBreak: "break-word",
           }}
         >
@@ -478,7 +587,7 @@ function PsRecovery() {
         </span>
       </div>
       <ContenedorInputs>
-        <CustomInput
+        <InputUI
           label="Contraseña nueva*"
           type={mostrarContrasena ? "text" : "password"}
           placeholder="Ingresa tu nueva contraseña"
@@ -493,7 +602,7 @@ function PsRecovery() {
             }
           }}
           iconRight={
-            mostrarContrasena ? "bi bi-eye-slash-fill" : "bi bi-eye-fill"
+            mostrarContrasena ? "FaRegEyeSlash" : "FaRegEye"
           }
           onClickIconRight={togglePasswordVisibility1}
         />
@@ -501,9 +610,12 @@ function PsRecovery() {
       <div
         style={{
           width: "100%",
-          background: "rgba(33, 150, 243, 0.08)",
-          border: "1px solid rgba(33, 150, 243, 0.16)",
-          color: "#1f5f8b",
+          background: hexToRGBA({ hex: theme.colors.info, alpha: 0.08 }),
+          border: `1px solid ${hexToRGBA({
+            hex: theme.colors.info,
+            alpha: 0.16,
+          })}`,
+          color: theme.colors.infoDark || theme.colors.info,
           borderRadius: "10px",
           padding: "10px 12px",
           fontSize: "13px",
@@ -514,7 +626,7 @@ function PsRecovery() {
         contraseña sea más segura.
       </div>
       <ContenedorInputs>
-        <CustomInput
+        <InputUI
           label="Confirmar contraseña*"
           type={mostrarConfirmarContrasena ? "text" : "password"}
           placeholder="Confirma tu nueva contraseña"
@@ -530,8 +642,8 @@ function PsRecovery() {
           }}
           iconRight={
             mostrarConfirmarContrasena
-              ? "bi bi-eye-slash-fill"
-              : "bi bi-eye-fill"
+              ? "FaRegEyeSlash"
+              : "FaRegEye"
           }
           onClickIconRight={togglePasswordVisibility2}
         />
@@ -542,7 +654,7 @@ function PsRecovery() {
           Las contraseñas no coinciden. Revísalas e inténtalo de nuevo.
         </ErrorMensaje>
       )}
-      <CustomButton
+      <ButtonUI
         text={
           isLoading ? "Actualizando contraseña..." : "Actualizar contraseña"
         }
@@ -552,7 +664,7 @@ function PsRecovery() {
         style={{ width: "100%" }}
       />
       <Divisor>
-        <CustomButton
+        <ButtonUI
           text="Cancelar"
           onClick={() => {
             setNuevaContrasena("");
@@ -585,9 +697,14 @@ function PsRecovery() {
             gap: "16px",
             padding: "30px 20px",
             borderRadius: "16px",
-            background:
-              "linear-gradient(145deg, rgba(33, 150, 243, 0.12), rgba(33, 150, 243, 0.04))",
-            border: "1px solid rgba(33, 150, 243, 0.24)",
+            background: `linear-gradient(145deg, ${hexToRGBA({
+              hex: theme.colors.success,
+              alpha: 0.12,
+            })}, ${hexToRGBA({ hex: theme.colors.success, alpha: 0.04 })})`,
+            border: `1px solid ${hexToRGBA({
+              hex: theme.colors.success,
+              alpha: 0.24,
+            })}`,
             textAlign: "center",
           }}
         >
@@ -596,12 +713,12 @@ function PsRecovery() {
               width: "64px",
               height: "64px",
               borderRadius: "50%",
-              background: "rgba(33, 150, 243, 0.18)",
+              background: hexToRGBA({ hex: theme.colors.success, alpha: 0.18 }),
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: "32px",
-              color: "#1f5f8b",
+              color: theme.colors.successDark || theme.colors.success,
             }}
           >
             ✓
@@ -610,7 +727,7 @@ function PsRecovery() {
             style={{
               fontSize: "20px",
               fontWeight: 600,
-              color: "#1f5f8b",
+              color: theme.colors.successDark || theme.colors.success,
             }}
           >
             ¡Tu contraseña fue actualizada con éxito!
@@ -619,7 +736,7 @@ function PsRecovery() {
             style={{
               fontSize: "14px",
               lineHeight: 1.6,
-              color: "#294552",
+              color: theme.colors.textSecondary,
               maxWidth: "320px",
             }}
           >
@@ -630,7 +747,7 @@ function PsRecovery() {
                 }.`
               : " en breve."}
           </div>
-          <CustomButton
+          <ButtonUI
             text="Ir al inicio de sesión ahora"
             onClick={handleNavigateLogin}
             variant="contained"
@@ -649,8 +766,18 @@ function PsRecovery() {
 }
 
 export default function PasswordRecovery() {
+  const { theme, toggleTheme } = useTheme();
+  const isLight = theme?.name === "light";
+
   return (
     <Contenedor1>
+      <ToggleThemeButton onClick={toggleTheme} title={isLight ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}>
+        <IconUI
+          name={isLight ? "FaMoon" : "FaSun"}
+          size={22}
+          color={theme.colors.white}
+        />
+      </ToggleThemeButton>
       <PsRecovery />
     </Contenedor1>
   );

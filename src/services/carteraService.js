@@ -1,9 +1,9 @@
 import { axiosInstance, axiosInstanceNew } from "config/axiosConfig";
 
-export async function ListarEmpresasCartera() {
+export async function ListarEmpresasCartera(correo) {
   try {
     const res = await axiosInstance.get(
-      `/usuario/datos/empresa/${localStorage.getItem("correo")}`
+      `/usuario/datos/empresa/${correo}`
     );
     if (res.status === 200) {
       return res.data;
@@ -13,10 +13,10 @@ export async function ListarEmpresasCartera() {
     return [];
   }
 }
-export async function ListarClientesPorEmpresaCartera({ empresaId }) {
+export async function ListarClientesPorEmpresaCartera({ correo, empresaId }) {
   try {
     const res = await axiosInstance.get(
-      `/transaccion/clientes/${localStorage.getItem("correo")}/${empresaId}`
+      `/transaccion/clientes/${correo}/${empresaId}`
     );
 
     if (res.status === 200) {
@@ -126,7 +126,6 @@ export async function consultarTodasTransaccionesBancarias({
  */
 export async function actualizarTransaccionBancariaPorID(id, data) {
   try {
-    console.log(data);
     const res = await axiosInstanceNew.patch(`/transacciones/${id}`, data);
     return {
       success: true,
@@ -181,25 +180,6 @@ export async function actualizarEstadoTransaccionBancariaPorID(
   }
 }
 
-/**
- * Consulta el historial de transacciones de un usuario
- * @returns {Promise<Array>} Lista de transacciones del usuario
- */
-export async function ConsultarHistorialUsuario() {
-  try {
-    const res = await axiosInstance.get(
-      `/versionamiento/usuario/${localStorage.getItem("correo")}`
-    );
-
-    if (res.status === 200) {
-      return res.data;
-    }
-    return [];
-  } catch (error) {
-    console.error("Error al consultar historial de usuario:", error);
-    return [];
-  }
-}
 
 /**
  * Consulta los vendedores de una empresa
@@ -222,13 +202,14 @@ export async function ConsultarVendedoresPorEmpresa(empresa) {
 
 /**
  * Consulta los clientes para una empresa
+ * @param {string} correo - Correo del usuario
  * @param {string} empresa - ID de la empresa
  * @returns {Promise<Array>} Lista de clientes
  */
-export async function ConsultarClientesPorEmpresa(empresa) {
+export async function ConsultarClientesPorEmpresa(correo, empresa) {
   try {
     const res = await axiosInstance.get(
-      `/transaccion/clientes/${localStorage.getItem("correo")}/${empresa}`
+      `/transaccion/clientes/${correo}/${empresa}`
     );
 
     if (res.status === 200) {
