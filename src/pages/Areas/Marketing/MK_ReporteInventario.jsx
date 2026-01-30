@@ -3,7 +3,7 @@ import { useTheme } from "context/ThemeContext";
 import { ContainerUI } from "components/UI/Components/ContainerUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 
-export const ConsultaMarketing = () => {
+export const MK_ReporteInventario = () => {
   const { theme } = useTheme();
   const [grafico, setGrafico] = useState(0);
 

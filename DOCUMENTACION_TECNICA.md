@@ -106,7 +106,7 @@ PortalEmpresarial/
 │   │   └── ThemeContext.jsx
 │   │
 │   ├── pages/
-│   │   ├── auth/                # NewInicioSesion, PasswordRecovery
+│   │   ├── auth/                # LoginPage, PasswordRecovery
 │   │   ├── home/                # Portal.jsx
 │   │   ├── NotFound.jsx
 │   │   └── Areas/               # Por dominio de negocio
@@ -182,7 +182,7 @@ PortalEmpresarial/
 | Cartera         | CargarTransferencias, RegistrosBancarios, RegistrosBancariosHistorial, GestionCheques, DesbloqueoClientes |
 | Compras         | Reportes, Importaciones (filtros, tabla, ventana edición, creación), Creditos, Anticipos |
 | Contabilidad    | ConversionArchivosBancos, ReporteFlujoCaja, Comisiones (Mayoristas, Tecnicentro reportes/categorías, Lubricantes) |
-| Marketing       | ConsultaMarketing, ComercialMarketing, FacturacionMarketing, Marketing.5w2h |
+| Marketing       | MK_ReporteInventario, ComercialMarketing, FacturacionMarketing, Marketing.5w2h |
 | Reportería      | TemplateReporteria; reportes por tipo (Comercial, Flash de Ventas, Importaciones, Coordenadas, Cobranzas, Tecnicentro, etc.) |
 | RRHH            | Documentacion |
 | Gobierno de Datos | Maestros (GeneralMaestros) |

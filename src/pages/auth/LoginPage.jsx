@@ -265,7 +265,7 @@ const ContenedorImagenes = () => {
   );
 };
 
-const NewInicioSesion = () => {
+export const LoginPage = () => {
   const { theme, toggleTheme } = useTheme();
   const { login } = useAuthContext();
   const navigate = useNavigate();
@@ -394,4 +394,4 @@ const NewInicioSesion = () => {
   );
 };
 
-export default NewInicioSesion;
+export default LoginPage;

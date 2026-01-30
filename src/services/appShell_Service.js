@@ -1,6 +1,79 @@
 import { axiosInstanceAppShell } from "config/axiosConfig";
 
 /**
+ * Obtener los estados de canjes existentes para la sección de canjes
+ * @returns {Promise<Object>} { success, data: [{ ID, NAME, createdAt, updatedAt }], message }
+ */
+export async function appShellService_obtenerEstadosCanjes() {
+  try {
+    const response = await axiosInstanceAppShell.get(`/canjes/estados-canjes`);
+    return {
+      success: true,
+      data: response.data.data ?? response.data,
+      message: response.data.message || "Estados de canjes obtenidos",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message:
+        error.response?.data?.message || "Error al obtener los estados de canjes",
+    };
+  }
+}
+
+/**
+ * Obtener todos los canjes con sus estados (historial)
+ * @returns {Promise<Object>} { success, data: canjes[], message }
+ */
+export async function appShellService_obtenerCanjesConEstados() {
+  try {
+    const response = await axiosInstanceAppShell.get(`/canjes/todos-con-estados`);
+    const raw = response.data?.data ?? response.data;
+    const canjes = raw?.canjes ?? raw ?? [];
+    return {
+      success: true,
+      data: Array.isArray(canjes) ? canjes : [],
+      message: response.data?.message || "Canjes obtenidos",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message:
+        error.response?.data?.message || "Error al obtener los canjes",
+    };
+  }
+}
+
+/**
+ * Actualizar el estado de un canje (agregar entrada al historial)
+ * @param {number} canjeId - ID del canje
+ * @param {number} estadoId - ID del nuevo estado
+ * @returns {Promise<Object>} { success, data, message }
+ */
+export async function appShellService_actualizarEstadoCanje(canjeId, estadoId) {
+  try {
+    const response = await axiosInstanceAppShell.post(`/canjes/estado-historial-canje`, {
+      canjeId,
+      estadoId,
+    });
+    return {
+      success: true,
+      data: response.data.data ?? response.data,
+      message: response.data.message || "Estado del canje actualizado",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: null,
+      message:
+        error.response?.data?.message || "Error al actualizar el estado del canje",
+    };
+  }
+}
+
+/**
  * Obtener todos los usuarios del app shell
  * @returns {Promise<Object>} Respuesta de la API
  */
