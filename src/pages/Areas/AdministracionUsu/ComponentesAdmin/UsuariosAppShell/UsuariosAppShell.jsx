@@ -199,7 +199,7 @@ export const UsuariosAppShell = () => {
               value={busquedaUsuario}
               onChange={setBusquedaUsuario}
               disabled={cargandoUsuarios}
-              iconLeft="bi bi-search"
+              iconLeft="FaSistrix"
             />
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "500px", overflowY: "auto" }}>
               {cargandoUsuarios ? (
