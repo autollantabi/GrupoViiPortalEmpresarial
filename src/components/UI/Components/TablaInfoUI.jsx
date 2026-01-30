@@ -4,7 +4,7 @@ import { hexToRGBA } from "utils/colors";
 import { useTheme } from "context/ThemeContext";
 import { SelectUI } from "./SelectUI";
 
-import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
+import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 import { ExportToExcelUI } from "./ExportarAExcelUI"
 import { ButtonUI } from "./ButtonUI";
 import { IconUI } from "./IconsUI";

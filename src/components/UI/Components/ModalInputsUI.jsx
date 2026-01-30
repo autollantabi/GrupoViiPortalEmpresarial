@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { useTheme } from "context/ThemeContext";
 import { hexToRGBA } from "utils/colors";
-import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
+import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 
 // Overlay con backdrop blur para mejor efecto visual
 const Overlay = styled.div`

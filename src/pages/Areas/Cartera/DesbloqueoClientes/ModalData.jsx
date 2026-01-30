@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { TablaInfoUI } from "components/UI/Components/TablaInfoUI";
-import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
+import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 import IconUI from "components/UI/Components/IconsUI";
 import { useTheme } from "context/ThemeContext";
 

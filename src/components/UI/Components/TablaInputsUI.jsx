@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
+import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 import { hexToRGBA } from "utils/colors";
 import { useTheme } from "context/ThemeContext";
 import { SelectUI } from "./SelectUI";

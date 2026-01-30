@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
+import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 import { TablaInfoUI } from "components/UI/Components/TablaInfoUI";
 import {
   EnviarConfirmacionDesbloqueoClientes,

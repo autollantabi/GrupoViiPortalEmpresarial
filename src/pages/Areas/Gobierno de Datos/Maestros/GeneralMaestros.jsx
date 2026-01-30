@@ -1,5 +1,5 @@
 import React from "react";
-import { ContenedorFlex } from "pages/Areas/AdministracionUsu/CSS/ComponentesAdminSC";
+import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 
 const GeneralMaestros = ({ permisos }) => {
 
