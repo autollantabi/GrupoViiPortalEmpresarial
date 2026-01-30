@@ -98,7 +98,7 @@ PortalEmpresarial/
 │   ├── config/
 │   │   ├── axiosConfig.js       # 3 instancias Axios + interceptores + id-session / X-Portal-API-Key
 │   │   ├── constants.js         # globalConst (alturas header/menu)
-│   │   └── env.js               # Variables de entorno (API_URL, API_URL_NEW, PORTAL_MAYORISTA_API_KEY, etc.)
+│   │   └── env.js               # Variables de entorno (API_URL, API_URL_NEW, APP_SHELL_API_KEY, etc.)
 │   │
 │   ├── context/
 │   │   ├── authContext.jsx
@@ -134,7 +134,7 @@ PortalEmpresarial/
 │   │   ├── creditosService.js
 │   │   ├── importacionesService.js
 │   │   ├── marketingService.js
-│   │   ├── portalMayorista_Service.js
+│   │   ├── appShell_Service.js
 │   │   ├── recoveryService.js
 │   │   ├── transaccionesService.js
 │   │   └── usuariosService.js
@@ -178,7 +178,7 @@ PortalEmpresarial/
 
 | Área            | Páginas / Componentes principales |
 |-----------------|-----------------------------------|
-| Administración  | EleccionAccion → GestionUsuarios, MantenimientoPermisos, MantenimientoPermisosNuevos, TiposUsuario, UsuariosPortalMayorista, CrearModulo, Correos, Bancos |
+| Administración  | EleccionAccion → GestionUsuarios, MantenimientoPermisos, MantenimientoPermisosNuevos, TiposUsuario, UsuariosAppShell, CrearModulo, Correos, Bancos |
 | Cartera         | CargarTransferencias, RegistrosBancarios, RegistrosBancariosHistorial, GestionCheques, DesbloqueoClientes |
 | Compras         | Reportes, Importaciones (filtros, tabla, ventana edición, creación), Creditos, Anticipos |
 | Contabilidad    | ConversionArchivosBancos, ReporteFlujoCaja, Comisiones (Mayoristas, Tecnicentro reportes/categorías, Lubricantes) |
@@ -270,22 +270,22 @@ El proyecto consume **3 APIs** mediante **3 instancias de Axios** definidas en `
 
 ---
 
-### API 3 — Portal Mayorista
+### API 3 — App Shell
 
-- **Nombre / propósito:** Gestión de usuarios/vendedores del portal mayorista.
-- **Variable de entorno:** `VITE_API_URL_PORTAL_MAYORISTA` (en `env.js` como `API_URL_PORTAL_MAYORISTA`).
-- **Instancia Axios:** `axiosInstancePortalMayorista` (timeout 300000 ms).
-- **Cabecera:** `X-Portal-API-Key` con valor de `VITE_API_KEY_PORTAL_MAYORISTA` (en `env.js` como `PORTAL_MAYORISTA_API_KEY`; configurado en `axiosConfig.js`).
+- **Nombre / propósito:** Gestión de usuarios/vendedores del app shell.
+- **Variable de entorno:** `VITE_API_URL_APP_SHELL` (en `env.js` como `API_URL_APP_SHELL`).
+- **Instancia Axios:** `axiosInstanceAppShell` (timeout 300000 ms).
+- **Cabecera:** `X-Portal-API-Key` con valor de `VITE_API_KEY_APP_SHELL` (en `env.js` como `APP_SHELL_API_KEY`; configurado en `axiosConfig.js`).
 
 **Servicios que la usan:**
 
-- `portalMayorista_Service.js`:
+- `appShell_Service.js`:
   - GET `/usuarios/` → listar usuarios.
   - POST `/usuarios/` → crear vendedor (name, lastname, card_id, email, phone, roleId, birth_date).
 
-**Datos:** Entrada/salida JSON. Si `VITE_API_KEY_PORTAL_MAYORISTA` no está definida en el .env, el backend puede responder "API KEY requerida".
+**Datos:** Entrada/salida JSON. Si `VITE_API_KEY_APP_SHELL` no está definida en el .env, el backend puede responder "API KEY requerida".
 
-**Riesgos / dependencias:** Dependencia de la variable `VITE_API_KEY_PORTAL_MAYORISTA`; sin ella la integración falla.
+**Riesgos / dependencias:** Dependencia de la variable `VITE_API_KEY_APP_SHELL`; sin ella la integración falla.
 
 ---
 
@@ -295,7 +295,7 @@ El proyecto consume **3 APIs** mediante **3 instancias de Axios** definidas en `
 |--------------------------------|----------------------------------|------------------------|----------------------------------------|
 | axiosInstance                  | VITE_API_URL                     | —                      | Cartera, Compras, Contabilidad, Admin, Importaciones, Recovery, Créditos, Transacciones |
 | axiosInstanceNew               | VITE_API_URL_NEW                 | id-session (header)    | Auth, 5W2H, Transacciones cartera, Desbloqueo, BAT, Administración (permisos/roles/URC), Usuarios nuevos |
-| axiosInstancePortalMayorista   | VITE_API_URL_PORTAL_MAYORISTA    | VITE_API_KEY_PORTAL_MAYORISTA | Portal Mayorista (usuarios/vendedores) |
+| axiosInstanceAppShell         | VITE_API_URL_APP_SHELL          | VITE_API_KEY_APP_SHELL       | App Shell (usuarios/vendedores) |
 
 ---
 
@@ -335,14 +335,14 @@ El proyecto consume **3 APIs** mediante **3 instancias de Axios** definidas en `
 
 ### 7.1 Variables de entorno (Vite)
 
-Todas las variables se definen en `.env.development` y `.env.production` y se leen de forma centralizada en `src/config/env.js` (exportes: `API_URL`, `API_URL_NEW`, `API_URL_PORTAL_MAYORISTA`, `PORTAL_MAYORISTA_API_KEY`, `ENCRYPTION_KEY`, `MODE`, `FRONT_DEV`, `ENV_NAME`).
+Todas las variables se definen en `.env.development` y `.env.production` y se leen de forma centralizada en `src/config/env.js` (exportes: `API_URL`, `API_URL_NEW`, `API_URL_APP_SHELL`, `APP_SHELL_API_KEY`, `ENCRYPTION_KEY`, `MODE`, `FRONT_DEV`, `ENV_NAME`).
 
 | Variable en .env              | Uso |
 |-----------------------------|-----|
 | VITE_API_URL                | Base URL API principal (env.js: `API_URL`). |
 | VITE_API_URL_NEW            | Base URL API nueva (env.js: `API_URL_NEW`). |
-| VITE_API_URL_PORTAL_MAYORISTA | Base URL Portal Mayorista (env.js: `API_URL_PORTAL_MAYORISTA`). |
-| VITE_API_KEY_PORTAL_MAYORISTA | API Key para Portal Mayorista, cabecera X-Portal-API-Key (env.js: `PORTAL_MAYORISTA_API_KEY`). |
+| VITE_API_URL_APP_SHELL       | Base URL App Shell (env.js: `API_URL_APP_SHELL`). |
+| VITE_API_KEY_APP_SHELL       | API Key para App Shell, cabecera X-Portal-API-Key (env.js: `APP_SHELL_API_KEY`). |
 | VITE_ENCRYPTION_KEY          | Clave para encriptar/desencriptar id-session en localStorage (env.js: `ENCRYPTION_KEY`). |
 | VITE_FRONT_DEV               | URL del frontend, ej. iframes o links (env.js: `FRONT_DEV`). |
 | VITE_ENV                     | development \| production (env.js: `ENV_NAME`). |
@@ -364,7 +364,7 @@ Todas las variables se definen en `.env.development` y `.env.production` y se le
 
 ### 7.4 Otras configuraciones
 
-- **constants.js:** `globalConst` (alturas header/menu). **env.js:** variables de entorno; `PORTAL_MAYORISTA_API_KEY` para cabecera X-Portal-API-Key.
+- **constants.js:** `globalConst` (alturas header/menu). **env.js:** variables de entorno; `APP_SHELL_API_KEY` para cabecera X-Portal-API-Key.
 
 ---
 
@@ -377,7 +377,7 @@ Todas las variables se definen en `.env.development` y `.env.production` y se le
 ### 8.2 Decisiones históricas
 
 - **Permisos por recurso:** La única fuente de verdad es CONTEXTOS desde `/auth/me`, `permissionsValidator.js` (hasAccessToResource, getAvailableCompanies/Lines) y `routeConfig` inyectado por SimpleRouter a cada página.
-- **Tres APIs:** Separación por responsabilidades (legacy vs auth/permisos/transacciones vs portal mayorista); no un único BFF.
+- **Tres APIs:** Separación por responsabilidades (legacy vs auth/permisos/transacciones vs app shell); no un único BFF.
 - **Administración temporal:** En SimpleRouter, recurso `"administracion"` tiene acceso forzado (setPermissionState(true)) con comentario TODO para quitar cuando estén configurados permisos.
 - **Rutas alternativas:** Ej. `cartera.registrosbancarios` y `contabilidad.registrosbancarios` permiten acceder al mismo componente.
 - **Encriptación de sesión:** XOR + base64 en utils/encryption; clave por env. No es un estándar JWT; permite persistencia sin exponer el token en claro en localStorage.
@@ -389,7 +389,7 @@ Todas las variables se definen en `.env.development` y `.env.production` y se le
 - **Manejo de errores de API:** Interceptores actuales reintentan por timeout/red; no hay flujo estándar para 401 (renovar sesión o redirigir a login). Valorar interceptor en axiosInstanceNew para 401 y logout + redirect.
 - **Tipado:** Introducir TypeScript o al menos JSDoc en servicios y utils para contratos de API y reducción de errores.
 - **Tests:** No hay tests automatizados visibles; priorizar auth, permissionsValidator y flujos críticos (login, permisos por recurso).
-- **Portal Mayorista:** Si `VITE_API_KEY_PORTAL_MAYORISTA` no está definida en el .env, considerar no montar rutas que dependan de esa API o mostrar mensaje claro en UI.
+- **App Shell:** Si `VITE_API_KEY_APP_SHELL` no está definida en el .env, considerar no montar rutas que dependan de esa API o mostrar mensaje claro en UI.
 - **Accesibilidad y rendimiento:** Revisar tabla grande (TablaInputsUI, Importaciones) para virtualización o paginación si hay muchos registros.
 
 ---
@@ -402,7 +402,7 @@ Portal web interno que centraliza acceso a Cartera, Compras (Importaciones, Cré
 
 ### Cómo empezar
 
-1. Clonar repo, `npm install`, configurar `.env.development` / `.env.production` con las variables de la sección 7.1 (URLs de API, `VITE_API_KEY_PORTAL_MAYORISTA`, `VITE_ENCRYPTION_KEY`, etc.). Todas se consumen desde `src/config/env.js`.
+1. Clonar repo, `npm install`, configurar `.env.development` / `.env.production` con las variables de la sección 7.1 (URLs de API, `VITE_API_KEY_APP_SHELL`, `VITE_ENCRYPTION_KEY`, etc.). Todas se consumen desde `src/config/env.js`.
 2. `npm run dev` (puerto 5000; host en vite.config).
 3. Entrar por `/login`; el resto de rutas están protegidas por recurso.
 
@@ -419,7 +419,7 @@ Portal web interno que centraliza acceso a Cartera, Compras (Importaciones, Cré
 
 1. **VITE_API_URL** → Cartera, Compras, Contabilidad, Importaciones, Administración (parte), Recovery, Créditos, Transacciones (actualizar banco).
 2. **VITE_API_URL_NEW** → Login, /auth/me, 5W2H, Transacciones cartera, Desbloqueo, BAT bancos, Permisos/Roles/Usuarios-rol-contexto, Tipos de usuario.
-3. **VITE_API_URL_PORTAL_MAYORISTA** → Usuarios/vendedores portal mayorista (cabecera `X-Portal-API-Key` con `VITE_API_KEY_PORTAL_MAYORISTA`; en código se usa `PORTAL_MAYORISTA_API_KEY` desde `env.js`).
+3. **VITE_API_URL_APP_SHELL** → Usuarios/vendedores app shell (cabecera `X-Portal-API-Key` con `VITE_API_KEY_APP_SHELL`; en código se usa `APP_SHELL_API_KEY` desde `env.js`).
 
 ### Flujo típico al añadir una pantalla
 

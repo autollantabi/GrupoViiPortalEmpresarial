@@ -26,8 +26,8 @@ Copia `.env.development` (o crea uno) en la raíz y ajusta los valores. Las vari
 | `VITE_ENV` | `development` o `production` |
 | `VITE_API_URL` | Base URL API principal |
 | `VITE_API_URL_NEW` | Base URL API nueva (auth, 5W2H, transacciones, permisos) |
-| `VITE_API_URL_PORTAL_MAYORISTA` | Base URL Portal Mayorista |
-| `VITE_API_KEY_PORTAL_MAYORISTA` | API Key para Portal Mayorista (cabecera X-Portal-API-Key) |
+| `VITE_API_URL_APP_SHELL` | Base URL App Shell |
+| `VITE_API_KEY_APP_SHELL` | API Key para App Shell (cabecera X-Portal-API-Key) |
 | `VITE_ENCRYPTION_KEY` | Clave para encriptar id-session en localStorage |
 | `VITE_FRONT_DEV` | (Opcional) URL del frontend para iframes/links |
 
@@ -85,7 +85,7 @@ El proyecto usa **3 instancias de Axios** (`src/config/axiosConfig.js`):
 
 1. **VITE_API_URL** → Cartera, Compras, Contabilidad, Importaciones, Recovery, Créditos, Transacciones.
 2. **VITE_API_URL_NEW** → Login, `/auth/me`, 5W2H, Transacciones cartera, Desbloqueo, Permisos/Roles/Usuarios.
-3. **VITE_API_URL_PORTAL_MAYORISTA** → Usuarios/vendedores portal mayorista (cabecera `X-Portal-API-Key`).
+3. **VITE_API_URL_APP_SHELL** → Usuarios/vendedores app shell (cabecera `X-Portal-API-Key`).
 
 ---
 

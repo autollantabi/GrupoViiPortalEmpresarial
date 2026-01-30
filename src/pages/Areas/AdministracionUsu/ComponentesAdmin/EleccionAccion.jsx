@@ -6,7 +6,7 @@ import { TextUI } from "components/UI/Components/TextUI";
 import { useTheme } from "context/ThemeContext";
 import { TiposUsuario } from "./TiposUsuario/TiposUsuario";
 import { GestionUsuarios } from "./GestionUsuarios/GestionUsuarios";
-import { UsuariosPortalMayorista } from "./UsuariosPortalMayorista/UsuariosPortalMayorista";
+import { UsuariosAppShell } from "./UsuariosAppShell/UsuariosAppShell";
 import styled from "styled-components";
 import { MantenimientoPermisosNuevos } from "./MantenimientoPermisosNuevos/MantenimientoPermisosNuevos";
 
@@ -36,7 +36,7 @@ const EleccionAccion = (props) => {
     { id: 2, label: "Tipos de Usuario" },
     { id: 3, label: "Creacion Secciones" },
     { id: 4, label: "Bancos" },
-    { id: 5, label: "Usuarios Portal Mayorista" },
+    { id: 5, label: "Usuarios App Shell" },
     { id: 6, label: "Mantenimiento de Permisos" },
   ];
 
@@ -84,7 +84,7 @@ export const ComponenteAdministracionUsuario = () => {
     2: TiposUsuario,
     3: ListaModulos,
     4: Admin_ActualizarTransferencias,
-    5: UsuariosPortalMayorista,
+    5: UsuariosAppShell,
     6: MantenimientoPermisosNuevos,
   };
 
