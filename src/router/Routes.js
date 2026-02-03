@@ -7,7 +7,7 @@ import NotFound from "pages/NotFound";
 import { ComponenteAdministracionUsuario } from "pages/Areas/Administracion/EleccionAccion";
 
 // App Shell
-import AP_GestionCanjes from "pages/Areas/AppShell/AS_GestionCanjes/AP_GestionCanjes";
+import AS_GestionCanjes from "pages/Areas/AppShell/AS_GestionCanjes/AS_GestionCanjes";
 
 // Cartera
 import { RegistrosBancarios } from "pages/Areas/Cartera/RegistrosBancarios/RegistrosBancarios";
@@ -92,7 +92,7 @@ export const RoutesConfig = [
   },
   {
     title: "Gestión de canjes",
-    component: AP_GestionCanjes,
+    component: AS_GestionCanjes,
     recurso: "appshell.gestioncanjes",
   },
   // ================================= CARTERA =================================

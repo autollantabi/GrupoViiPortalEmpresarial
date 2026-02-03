@@ -259,7 +259,7 @@ const ResultadosInfo = styled.div`
  * @param {Array} props.canjes - Lista de canjes. Cada item: { id, codigoCliente?, nombreCliente?, historialEstados: [{ estado, fecha, comentario? }] }
  * @param {Function} props.onCambiarEstado - (canjeId, nuevoEstado) => Promise|void. Opcional; si no se pasa, se actualiza solo en estado local.
  */
-export default function AP_GestionCanjes({
+export default function AS_GestionCanjes({
     routeConfig,
     availableCompanies,
     availableLines,
