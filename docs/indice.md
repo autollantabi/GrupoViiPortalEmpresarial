@@ -19,6 +19,7 @@ La documentación está **segmentada por tema** para que un desarrollador encuen
 | [despliegue.md](despliegue.md) | Proceso de build, configuración de ambientes, consideraciones para producción. | Hacer build, desplegar, configurar producción. |
 | [pendientes.md](pendientes.md) | Mejoras técnicas sugeridas, deuda técnica detectada, suposiciones o partes no claras. | Planificar mejoras y aclarar dudas. |
 | [guia-proyecto.md](guia-proyecto.md) | Resumen ejecutivo para onboarding: qué es el proyecto, cómo empezar, dónde está cada cosa, flujo para añadir pantalla, decisiones históricas, contacto. | Incorporación de un nuevo desarrollador o consulta rápida. |
+| [seguridad.md](seguridad.md) | Cabeceras HTTP, sesión y token, variables de entorno, localStorage, encriptación, interceptor 401, ejemplo nginx, recomendaciones. | Revisar y mantener la configuración de seguridad; despliegue en producción. |
 
 ---
 
@@ -27,7 +28,8 @@ La documentación está **segmentada por tema** para que un desarrollador encuen
 1. **Nuevo en el proyecto:** [setup.md](setup.md) → [guia-proyecto.md](guia-proyecto.md) → [arquitectura.md](arquitectura.md).
 2. **Vas a tocar APIs o servicios:** [apis.md](apis.md) y [arquitectura.md](arquitectura.md) (sección de servicios y “cómo añadir una pantalla”).
 3. **Vas a desplegar:** [setup.md](setup.md) (variables de entorno) y [despliegue.md](despliegue.md).
-4. **Quieres entender un flujo concreto:** [flujo-funcional.md](flujo-funcional.md).
+4. **Revisar seguridad (headers, sesión, producción):** [seguridad.md](seguridad.md).
+5. **Quieres entender un flujo concreto:** [flujo-funcional.md](flujo-funcional.md).
 
 ---
 
@@ -36,7 +38,7 @@ La documentación está **segmentada por tema** para que un desarrollador encuen
 Para replicar esta estructura en otro repositorio:
 
 1. Crear la carpeta `docs/` y copiar este **indice.md** (adaptando la tabla de documentos a los archivos que existan).
-2. Crear o adaptar: **setup.md**, **arquitectura.md**, **apis.md** (si hay integración con APIs), **flujo-funcional.md**, **decisiones-tecnicas.md**, **despliegue.md**, **pendientes.md**, **guia-proyecto.md**.
+2. Crear o adaptar: **setup.md**, **arquitectura.md**, **apis.md** (si hay integración con APIs), **flujo-funcional.md**, **decisiones-tecnicas.md**, **despliegue.md**, **pendientes.md**, **guia-proyecto.md**, **seguridad.md** (si aplica).
 3. En la raíz, un **README.md** que enlace a `docs/indice.md` o a `docs/setup.md` como punto de entrada.
 4. Mantener la convención: un documento por tema, sin duplicar bloques largos; usar enlaces entre documentos.
 

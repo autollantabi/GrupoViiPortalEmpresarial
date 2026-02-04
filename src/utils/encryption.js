@@ -3,6 +3,8 @@
  * Usa una clave del archivo .env para encriptar/desencriptar
  */
 
+import { ENCRYPTION_KEY } from "config/env";
+
 /**
  * Encripta un texto usando una clave
  * @param {string} text - Texto a encriptar
@@ -54,8 +56,6 @@ export const decrypt = (encryptedText, key) => {
  * Obtiene la clave de encriptación desde las variables de entorno
  * @returns {string} - Clave de encriptación
  */
-import { ENCRYPTION_KEY } from "config/env";
-
 export const getEncryptionKey = () => {
   return ENCRYPTION_KEY;
 };

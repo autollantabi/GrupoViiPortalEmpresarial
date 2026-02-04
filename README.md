@@ -72,6 +72,7 @@ La documentación está **segmentada** en varios archivos. Punto de entrada: **[
 | [docs/decisiones-tecnicas.md](docs/decisiones-tecnicas.md) | Justificación de tecnologías y trade-offs |
 | [docs/despliegue.md](docs/despliegue.md) | Build, ambientes, consideraciones de producción |
 | [docs/pendientes.md](docs/pendientes.md) | Mejoras, deuda técnica, suposiciones |
+| [docs/seguridad.md](docs/seguridad.md) | Cabeceras HTTP, sesión, 401, nginx, recomendaciones de seguridad |
 
 ## Estructura relevante del código
 

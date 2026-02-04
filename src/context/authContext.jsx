@@ -9,7 +9,7 @@ import React, {
 import PropTypes from "prop-types";
 import { userService_obtenerTipoUsuarioByIdUsuario } from "services/usuariosService";
 import { authService_me } from "services/authService";
-import { setAxiosIdSession, removeAxiosIdSession } from "config/axiosConfig";
+import { setAxiosIdSession, removeAxiosIdSession, clearSessionClient } from "config/axiosConfig";
 import { encrypt, decrypt, getEncryptionKey } from "utils/encryption";
 
 const ID_SESSION_STORAGE_KEY = "app_cache_token";
@@ -95,24 +95,19 @@ export function AuthContextProvider({ children }) {
             if (userData && isMounted) {
               setIsAuthenticated(true);
             } else if (isMounted) {
-              // Si no hay datos del usuario, limpiar
               setIsAuthenticated(false);
               setIdSession(null);
-              removeAxiosIdSession();
-              localStorage.removeItem(ID_SESSION_STORAGE_KEY);
+              clearSessionClient();
             }
           } catch (error) {
-            // Si falla, limpiar todo
             if (isMounted) {
               setIsAuthenticated(false);
               setIdSession(null);
-              removeAxiosIdSession();
-              localStorage.removeItem(ID_SESSION_STORAGE_KEY);
+              clearSessionClient();
             }
           }
         } else {
-          // Si no se puede desencriptar, limpiar
-          localStorage.removeItem(ID_SESSION_STORAGE_KEY);
+          clearSessionClient();
         }
       }
       
@@ -165,12 +160,7 @@ export function AuthContextProvider({ children }) {
     setIsAuthenticated(false);
     setUser(null);
     setIdSession(null);
-    
-    // Remover la cabecera id-session de axios
-    removeAxiosIdSession();
-    
-    // Eliminar idSession encriptado del localStorage
-    localStorage.removeItem(ID_SESSION_STORAGE_KEY);
+    clearSessionClient();
 
     // Redirigir al login usando navigate
     if (navigate) {

@@ -38,6 +38,9 @@ if (APP_SHELL_API_KEY) {
   console.warn("⚠️ APP_SHELL_API_KEY no está definido. Verifica la variable de entorno VITE_API_KEY_APP_SHELL");
 }
 
+// Clave de localStorage del token (debe coincidir con authContext ID_SESSION_STORAGE_KEY)
+const ID_SESSION_STORAGE_KEY = "app_cache_token";
+
 // Funciones para gestionar la cabecera id-session
 export const setAxiosIdSession = (idSession) => {
   if (idSession) {
@@ -47,6 +50,16 @@ export const setAxiosIdSession = (idSession) => {
 
 export const removeAxiosIdSession = () => {
   delete axiosInstanceNew.defaults.headers.common["id-session"];
+};
+
+/** Limpia sesión en cliente (token y cabecera). Usado en logout y en interceptor 401. */
+export const clearSessionClient = () => {
+  removeAxiosIdSession();
+  try {
+    localStorage.removeItem(ID_SESSION_STORAGE_KEY);
+  } catch (e) {
+    // localStorage no disponible (entorno privado, etc.)
+  }
 };
 
 // Configurar interceptores para ambas instancias
@@ -85,19 +98,29 @@ const configureInterceptors = (instance) => {
         return instance(originalRequest);
       }
 
-      // Log detallado de errores
-      // if (error.response) {
-      //   console.error(`Error ${error.response.status} en: ${originalRequest.url}`, error.response.data);
-      // } else if (error.request) {
-      //   console.error(`Sin respuesta para: ${originalRequest.url}`, error.message);
-      // } else {
-      //   console.error(`Error de configuración: ${originalRequest?.url || 'desconocido'}`, error.message);
-      // }
-
       return Promise.reject(error);
     }
   );
 };
+
+// Interceptor 401 solo para API nueva (sesión expirada o inválida): limpiar sesión y redirigir a login
+axiosInstanceNew.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const url = error.config?.url || "";
+      // No redirigir si es la petición de login (credenciales incorrectas)
+      if (!url.includes("/auth/login")) {
+        clearSessionClient();
+        const path = typeof window !== "undefined" ? window.location.pathname : "";
+        if (path !== "/login" && path !== "/recovery") {
+          window.location.href = "/login";
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Aplicar configuración a todas las instancias
 configureInterceptors(axiosInstance);
