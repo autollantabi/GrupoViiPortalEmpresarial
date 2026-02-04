@@ -1,4 +1,4 @@
-import { axiosInstanceAppShell } from "config/axiosConfig";
+import { axiosInstanceNew } from "config/axiosConfig";
 
 /**
  * Obtener los estados de canjes existentes para la sección de canjes
@@ -6,7 +6,7 @@ import { axiosInstanceAppShell } from "config/axiosConfig";
  */
 export async function appShellService_obtenerEstadosCanjes() {
   try {
-    const response = await axiosInstanceAppShell.get(`/canjes/estados-canjes`);
+    const response = await axiosInstanceNew.get(`/club-shell-maxx/canjes/estados-canjes`);
     return {
       success: true,
       data: response.data.data ?? response.data,
@@ -28,7 +28,7 @@ export async function appShellService_obtenerEstadosCanjes() {
  */
 export async function appShellService_obtenerCanjesConEstados() {
   try {
-    const response = await axiosInstanceAppShell.get(`/canjes/todos-con-estados`);
+    const response = await axiosInstanceNew.get(`/club-shell-maxx/canjes/todos-con-estados`);
     const raw = response.data?.data ?? response.data;
     const canjes = raw?.canjes ?? raw ?? [];
     return {
@@ -54,7 +54,7 @@ export async function appShellService_obtenerCanjesConEstados() {
  */
 export async function appShellService_actualizarEstadoCanje(canjeId, estadoId) {
   try {
-    const response = await axiosInstanceAppShell.post(`/canjes/estado-historial-canje`, {
+    const response = await axiosInstanceNew.post(`/club-shell-maxx/canjes/estado-historial-canje`, {
       canjeId,
       estadoId,
     });
@@ -79,7 +79,7 @@ export async function appShellService_actualizarEstadoCanje(canjeId, estadoId) {
  */
 export async function appShellService_obtenerUsuarios() {
   try {
-    const response = await axiosInstanceAppShell.get(`/usuarios/`);
+    const response = await axiosInstanceNew.get(`/club-shell-maxx/usuarios`);
     return {
       success: true,
       data: response.data.data || response.data,
@@ -113,8 +113,8 @@ export async function appShellService_crearVendedor(vendedorData) {
         : null,
     };
 
-    const response = await axiosInstanceAppShell.post(
-      `/usuarios/`,
+      const response = await axiosInstanceNew.post(
+      `/club-shell-maxx/usuarios`,
       dataToSend
     );
 

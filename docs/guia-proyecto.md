@@ -6,7 +6,7 @@ Este documento es el **resumen ejecutivo** para que un desarrollador nuevo entie
 
 ## 1. Qué es el proyecto
 
-Portal Empresarial es un **portal web interno** (SPA) que centraliza el acceso a Cartera, Compras (Importaciones, Créditos, Anticipos), Contabilidad (Comisiones, Flujo de Caja, Conversión), Marketing (5W2H, Inventario, Comercial), Reportería (varios reportes), RRHH, Gobierno de Datos y Administración. Incluye el módulo **App Shell** (gestión de canjes, usuarios/vendedores).
+Portal Empresarial es un **portal web interno** (SPA) que centraliza el acceso a Cartera, Compras (Importaciones, Créditos, Anticipos), Contabilidad (Comisiones, Flujo de Caja, Conversión), Marketing (5W2H, Inventario, Comercial), Reportería (varios reportes), RRHH, Gobierno de Datos y Administración.
 
 La **autenticación** y la **autorización por recurso** (y por empresa/línea) son el núcleo del diseño: el menú y el acceso a cada pantalla dependen de los permisos del usuario.
 
@@ -28,7 +28,7 @@ La **autenticación** y la **autorización por recurso** (y por empresa/línea) 
 | Rutas y menú | `src/router/SimpleRouter.jsx`, `src/router/Routes.js` (RoutesConfig, ProtectedContent, getSidebarItems). |
 | Sesión y usuario | `src/context/authContext.jsx`, `src/services/authService.js` (API 2). |
 | Permisos por recurso | `src/utils/permissionsValidator.js`; se usan en SimpleRouter y en páginas que reciben `routeConfig`. |
-| Llamadas HTTP | `src/services/*`; 3 instancias en `src/config/axiosConfig.js`; variables de entorno en `src/config/env.js`. |
+| Llamadas HTTP | `src/services/*`; 2 instancias en `src/config/axiosConfig.js`; variables de entorno en `src/config/env.js`. |
 | Layout | `src/components/layout/TemplatePaginas.jsx`, `Sidebar.jsx`, `Header.jsx`. |
 | Páginas | `src/pages/Areas/` por dominio; cada página recibe `routeConfig`, `availableCompanies`, `availableLines` (inyectadas por SimpleRouter). |
 | Detalle de APIs | [apis.md](apis.md). |
@@ -36,11 +36,10 @@ La **autenticación** y la **autorización por recurso** (y por empresa/línea) 
 
 ---
 
-## 4. Las tres APIs
+## 4. Las dos APIs
 
 1. **VITE_API_URL** → Cartera, Compras, Contabilidad, Importaciones, Administración (parte), Recovery, Créditos, Transacciones (actualizar banco).
 2. **VITE_API_URL_NEW** → Login, `/auth/me`, 5W2H, Transacciones cartera, Desbloqueo, BAT bancos, Permisos/Roles/Usuarios-rol-contexto, Tipos de usuario.
-3. **VITE_API_URL_APP_SHELL** → Canjes (estados, historial, actualización de estado), Usuarios/vendedores app shell (cabecera `X-Portal-API-Key` con `VITE_API_KEY_APP_SHELL`).
 
 Detalle en [apis.md](apis.md).
 
@@ -57,7 +56,7 @@ Detalle en [apis.md](apis.md).
 ## 6. Decisiones históricas y código legado
 
 - **Permisos por recurso:** La fuente de verdad es CONTEXTOS desde `/auth/me`, `permissionsValidator.js` (hasAccessToResource, getAvailableCompanies/Lines) y `routeConfig` inyectado por SimpleRouter a cada página.
-- **Tres APIs:** Separación por responsabilidades (legacy vs auth/permisos/transacciones vs app shell); no hay un único BFF.
+- **Dos APIs:** Separación por responsabilidades (legacy vs auth/permisos/transacciones); no hay un único BFF.
 - **Administración temporal:** En SimpleRouter, el recurso `"administracion"` tiene acceso forzado (setPermissionState(true)) con comentario TODO para quitar cuando estén configurados permisos en backend.
 - **Rutas alternativas:** Ej. `cartera.registrosbancarios` y `contabilidad.registrosbancarios` permiten acceder al mismo componente.
 - **Encriptación de sesión:** Implementación en `utils/encryption.js` (clave por env). No es un estándar JWT; permite persistencia sin exponer el token en claro en localStorage.
@@ -67,7 +66,7 @@ Detalle en [apis.md](apis.md).
 
 ## 7. Contacto / autor
 
-Desarrollador principal: **Diego Barbecho** (GitHub: [diegobarpdev](https://github.com/diegobarpdev)). Para decisiones de negocio y permisos en backend, coordinar con el equipo que mantiene las tres APIs.
+Desarrollador principal: **Diego Barbecho** (GitHub: [diegobarpdev](https://github.com/diegobarpdev)). Para decisiones de negocio y permisos en backend, coordinar con el equipo que mantiene las dos APIs.
 
 ---
 

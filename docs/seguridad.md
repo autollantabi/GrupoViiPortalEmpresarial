@@ -72,9 +72,8 @@ Si usas `Content-Security-Policy`, hay que probar bien: la app carga Bootstrap, 
 - Las variables con prefijo **`VITE_`** se embeben en el bundle en tiempo de build; **cualquier usuario puede verlas** en el código del frontend (DevTools, “View source”).
 - Por tanto, **no** deben usarse para secretos que deban ser solo de servidor (contraseñas de BD, tokens privados, etc.).
 - En este proyecto se usan para:
-  - URLs de APIs (`VITE_API_URL`, `VITE_API_URL_NEW`, `VITE_API_URL_APP_SHELL`).
+  - URLs de APIs (`VITE_API_URL`, `VITE_API_URL_NEW`).
   - Clave de encriptación del token en `localStorage` (`VITE_ENCRYPTION_KEY`).
-  - API Key del App Shell (`VITE_API_KEY_APP_SHELL`), enviada en cabecera.
 
 **Recomendación:** En producción, `VITE_ENCRYPTION_KEY` debe ser una clave fuerte y distinta por entorno; no usar el valor por defecto de `env.js`. Los archivos `.env*` están en `.gitignore` y no se versionan.
 
@@ -108,8 +107,7 @@ Si usas `Content-Security-Policy`, hay que probar bien: la app carga Bootstrap, 
 ## 7. Otras buenas prácticas ya presentes
 
 - No se usa `dangerouslySetInnerHTML` ni `eval` en el código revisado, lo que reduce superficie de XSS.
-- Las instancias de Axios diferencian APIs y cabeceras (API principal, API nueva con `id-session`, App Shell con `X-Portal-API-Key`).
-- La API Key del App Shell no se envía a la API de login ni a la API principal; solo al App Shell.
+- Las instancias de Axios diferencian APIs y cabeceras (API principal, API nueva con `id-session`).
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Descripción general
 
-**Portal Empresarial** es una aplicación web (SPA) que centraliza el acceso a múltiples áreas de negocio del grupo empresarial: Cartera, Compras (Importaciones, Créditos, Anticipos), Contabilidad (Comisiones, Flujo de Caja, Conversión de archivos), Marketing (5W2H, Inventario, Comercial), Reportería (reportes por empresa/línea), RRHH (Documentación), Gobierno de Datos y Administración de Usuarios. Incluye además el módulo **App Shell** (gestión de canjes, usuarios/vendedores).
+**Portal Empresarial** es una aplicación web (SPA) que centraliza el acceso a múltiples áreas de negocio del grupo empresarial: Cartera, Compras (Importaciones, Créditos, Anticipos), Contabilidad (Comisiones, Flujo de Caja, Conversión de archivos), Marketing (5W2H, Inventario, Comercial), Reportería (reportes por empresa/línea), RRHH (Documentación), Gobierno de Datos y Administración de Usuarios.
 
 La aplicación exige **autenticación** (login con correo/contraseña) y **autorización por recurso**: el menú y el acceso a cada pantalla dependen de los permisos del usuario, con notación de puntos (ej. `contabilidad.comisiones.tecnicentro`). Las empresas y líneas disponibles se calculan por recurso desde el backend.
 
@@ -15,7 +15,7 @@ La aplicación exige **autenticación** (login con correo/contraseña) y **autor
 ## Tipo de aplicación
 
 - **Aplicación web** (Single Page Application — SPA).
-- **Frontend único:** Consume tres APIs HTTP (principal, nueva/auth, App Shell) mediante Axios; no incluye backend propio.
+- **Frontend único:** Consume dos APIs HTTP (principal, nueva/auth) mediante Axios; no incluye backend propio.
 
 ## Stack tecnológico
 
@@ -41,8 +41,7 @@ La aplicación exige **autenticación** (login con correo/contraseña) y **autor
 5. **Contabilidad:** Conversión de archivos bancos, flujo de caja, comisiones (Mayoristas, Tecnicentro, Lubricantes).
 6. **Marketing:** 5W2H, inventario, comercial, facturación.
 7. **Reportería:** Reportes por tipo (Comercial, Cobranzas, Tecnicentro, Coordenadas, Importaciones, etc.).
-8. **App Shell:** Gestión de canjes (estados, historial) y usuarios/vendedores del app shell.
-9. **Administración:** Gestión de usuarios, permisos, roles y contextos (acceso temporal sin restricción de recurso; ver documentación técnica).
+8. **Administración:** Gestión de usuarios, permisos, roles y contextos (acceso temporal sin restricción de recurso; ver documentación técnica).
 
 ## Guía rápida de ejecución
 
@@ -66,8 +65,8 @@ La documentación está **segmentada** en varios archivos. Punto de entrada: **[
 | [docs/indice.md](docs/indice.md) | Índice de la documentación y guía de la estructura (plantilla para otros proyectos) |
 | [docs/setup.md](docs/setup.md) | Requisitos, variables de entorno, pasos locales, errores comunes |
 | [docs/arquitectura.md](docs/arquitectura.md) | Arquitectura, carpetas, árbol, módulos, cómo añadir una pantalla |
-| [docs/apis.md](docs/apis.md) | Integración con las 3 APIs: endpoints, servicios, cabeceras |
-| [docs/flujo-funcional.md](docs/flujo-funcional.md) | Flujos principales (login, permisos, canjes, auth/autorización) |
+| [docs/apis.md](docs/apis.md) | Integración con las 2 APIs: endpoints, servicios, cabeceras |
+| [docs/flujo-funcional.md](docs/flujo-funcional.md) | Flujos principales (login, permisos, auth/autorización) |
 | [docs/guia-proyecto.md](docs/guia-proyecto.md) | Onboarding: qué es el proyecto, cómo empezar, dónde está cada cosa |
 | [docs/decisiones-tecnicas.md](docs/decisiones-tecnicas.md) | Justificación de tecnologías y trade-offs |
 | [docs/despliegue.md](docs/despliegue.md) | Build, ambientes, consideraciones de producción |
@@ -81,19 +80,18 @@ src/
 ├── config/          # env.js, axiosConfig.js, constants.js
 ├── context/         # authContext, ThemeContext, SidebarContext
 ├── router/          # SimpleRouter.jsx, Routes.js (APP_CONFIG, rutas protegidas)
-├── pages/           # auth/, home/, Areas/ (Cartera, Compras, Marketing, AppShell, etc.)
+├── pages/           # auth/, home/, Areas/ (Cartera, Compras, Marketing, etc.)
 ├── components/      # layout/, common/, UI/Components
-├── services/        # Llamadas HTTP (3 APIs)
+├── services/        # Llamadas HTTP (2 APIs)
 └── utils/           # encryption, permissionsValidator, theme, colors, Utils
 ```
 
-## Las tres APIs
+## Las dos APIs
 
-El proyecto usa **tres instancias de Axios** (`src/config/axiosConfig.js`):
+El proyecto usa **dos instancias de Axios** (`src/config/axiosConfig.js`):
 
 1. **VITE_API_URL** — Cartera, Compras, Contabilidad, Importaciones, Recovery, Créditos, Transacciones.
 2. **VITE_API_URL_NEW** — Login, `/auth/me`, 5W2H, Transacciones cartera, Desbloqueo, Permisos/Roles/Usuarios.
-3. **VITE_API_URL_APP_SHELL** — Canjes (estados, historial), usuarios/vendedores del app shell (cabecera `X-Portal-API-Key`).
 
 Detalle de endpoints y servicios en [docs/apis.md](docs/apis.md).
 

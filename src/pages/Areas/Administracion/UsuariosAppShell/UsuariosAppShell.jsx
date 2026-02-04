@@ -36,11 +36,18 @@ export const UsuariosAppShell = () => {
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false);
   const [busquedaUsuario, setBusquedaUsuario] = useState("");
 
+  const normalizarListaUsuarios = (data) => {
+    if (Array.isArray(data)) return data;
+    if (data?.data && Array.isArray(data.data)) return data.data;
+    if (data?.users && Array.isArray(data.users)) return data.users;
+    return [];
+  };
+
   const cargarUsuarios = async () => {
     setCargandoUsuarios(true);
     const res = await appShellService_obtenerUsuarios();
     if (res.success) {
-      setUsuarios(res.data || []);
+      setUsuarios(normalizarListaUsuarios(res.data));
     } else {
       toast.error(res.message || "Error al obtener los usuarios");
     }
@@ -69,9 +76,10 @@ export const UsuariosAppShell = () => {
   };
 
   const filtrarUsuarios = () => {
-    if (!busquedaUsuario.trim()) return usuarios;
+    const list = Array.isArray(usuarios) ? usuarios : [];
+    if (!busquedaUsuario.trim()) return list;
     const busqueda = busquedaUsuario.toLowerCase().trim();
-    return usuarios.filter((usuario) => {
+    return list.filter((usuario) => {
       const nombre = (usuario.NAME || usuario.name || "").toLowerCase();
       const apellido = (usuario.LASTNAME || usuario.lastname || "").toLowerCase();
       const email = (usuario.EMAIL || usuario.email || "").toLowerCase();

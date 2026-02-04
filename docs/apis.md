@@ -1,16 +1,15 @@
 # Integración con APIs externas
 
-El proyecto consume **tres APIs** mediante **tres instancias de Axios** definidas en `src/config/axiosConfig.js`. Las URLs y claves se leen de `src/config/env.js` (variables `VITE_*` en `.env.development` / `.env.production`).
+El proyecto consume **dos APIs** mediante **dos instancias de Axios** definidas en `src/config/axiosConfig.js`. Las URLs se leen de `src/config/env.js` (variables `VITE_*` en `.env.development` / `.env.production`).
 
 ---
 
 ## Resumen por instancia
 
-| Instancia               | Variable URL              | Cabecera / clave              | Uso principal |
-|-------------------------|---------------------------|--------------------------------|---------------|
-| `axiosInstance`        | `VITE_API_URL`            | —                              | Cartera, Compras, Contabilidad, Importaciones, Recovery, Créditos, Transacciones |
-| `axiosInstanceNew`     | `VITE_API_URL_NEW`        | `id-session` (tras login)      | Auth, 5W2H, Transacciones cartera, Desbloqueo, BAT, Administración (permisos/roles/URC), Usuarios nuevos |
-| `axiosInstanceAppShell`| `VITE_API_URL_APP_SHELL`   | `X-Portal-API-Key` (env)       | Canjes (estados, historial), Usuarios/vendedores App Shell |
+| Instancia            | Variable URL       | Cabecera        | Uso principal |
+|----------------------|-------------------|-----------------|---------------|
+| `axiosInstance`     | `VITE_API_URL`    | —               | Cartera, Compras, Contabilidad, Importaciones, Recovery, Créditos, Transacciones |
+| `axiosInstanceNew`  | `VITE_API_URL_NEW`| `id-session` (tras login) | Auth, 5W2H, Transacciones cartera, Desbloqueo, BAT, Administración (permisos/roles/URC), Usuarios nuevos |
 
 ---
 
@@ -75,29 +74,6 @@ El proyecto consume **tres APIs** mediante **tres instancias de Axios** definida
 
 - **Login:** envía `correo`, `contrasena`; respuesta incluye `idSession`. `/auth/me` devuelve usuario con CONTEXTOS, EMPRESAS, LINEAS, ROLES, etc.
 - **Riesgos:** Toda la sesión depende de esta API. Si `id-session` no se envía o expira, las llamadas fallan; el interceptor no renueva token automáticamente.
-
----
-
-## API 3 — App Shell
-
-- **Propósito:** Gestión de canjes (estados, historial) y de usuarios/vendedores del app shell.
-- **Variable de entorno:** `VITE_API_URL_APP_SHELL` (en `env.js`: `API_URL_APP_SHELL`).
-- **Instancia:** `axiosInstanceAppShell` (timeout 300000 ms).
-- **Cabecera:** `X-Portal-API-Key` con valor de `VITE_API_KEY_APP_SHELL` (en `env.js`: `APP_SHELL_API_KEY`).
-
-### Servicios que la usan
-
-- `appShell_Service.js`:
-  - GET `/canjes/estados-canjes` — listar estados de canjes.
-  - GET `/canjes/todos-con-estados` — listar canjes con historial de estados.
-  - POST `/canjes/estado-historial-canje` — actualizar estado de un canje (body: `{ canjeId, estadoId }`).
-  - GET `/usuarios/` — listar usuarios.
-  - POST `/usuarios/` — crear vendedor (name, lastname, card_id, email, phone, roleId, birth_date).
-
-### Datos y riesgos
-
-- **Datos:** Entrada/salida JSON. Si `VITE_API_KEY_APP_SHELL` no está definida, el backend puede responder "API KEY requerida".
-- **Riesgos:** Sin la variable la integración falla; las rutas que consumen App Shell requieren la clave configurada.
 
 ---
 

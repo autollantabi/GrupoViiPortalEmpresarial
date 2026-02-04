@@ -12,12 +12,6 @@ export const API_URL = ENV.VITE_API_URL ?? "";
 /** Base URL API nueva (auth, /auth/me, 5W2H, transacciones cartera, permisos, etc.) */
 export const API_URL_NEW = ENV.VITE_API_URL_NEW ?? "";
 
-/** Base URL App Shell (usuarios/vendedores) */
-export const API_URL_APP_SHELL = ENV.VITE_API_URL_APP_SHELL ?? "";
-
-/** API Key para App Shell (cabecera X-Portal-API-Key) */
-export const APP_SHELL_API_KEY = ENV.VITE_API_KEY_APP_SHELL ?? "";
-
 /** Clave para encriptar/desencriptar id-session en localStorage */
 export const ENCRYPTION_KEY = ENV.VITE_ENCRYPTION_KEY ?? "default-encryption-key-change-in-env";
 
@@ -33,8 +27,6 @@ export const ENV_NAME = ENV.VITE_ENV ?? ENV.MODE ?? "development";
 export default {
   API_URL,
   API_URL_NEW,
-  API_URL_APP_SHELL,
-  APP_SHELL_API_KEY,
   ENCRYPTION_KEY,
   MODE,
   FRONT_DEV,

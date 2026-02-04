@@ -30,7 +30,6 @@ Vite compila el proyecto en modo producción y genera la salida en la carpeta **
 - Node.js con suficiente memoria (el script fija 4096 MB).
 - Archivo **`.env.production`** en la raíz con las variables necesarias para producción (ver [setup.md](setup.md)):
   - `VITE_API_URL`, `VITE_API_URL_NEW` (obligatorias para login y funcionalidad principal).
-  - `VITE_API_URL_APP_SHELL`, `VITE_API_KEY_APP_SHELL` (si se usan rutas del App Shell).
   - `VITE_ENCRYPTION_KEY` (recomendado no usar el valor por defecto en producción).
 - Dependencias instaladas (`npm install`) y sin errores de compilación (p. ej. ESLint o tipos si se añaden).
 
@@ -71,9 +70,8 @@ Vite compila el proyecto en modo producción y genera la salida en la carpeta **
 
 - Todas las `VITE_*` se embeben en el bundle en tiempo de build. No es posible cambiar URLs o claves sin volver a hacer build.
 - En producción, usar `.env.production` con:
-  - URLs finales de las tres APIs (HTTPS recomendado).
+  - URLs finales de las dos APIs (HTTPS recomendado).
   - `VITE_ENCRYPTION_KEY` fuerte y exclusivo para producción.
-  - `VITE_API_KEY_APP_SHELL` si se usan rutas del App Shell.
 
 ### 3.2 Servidor web y rutas SPA
 
@@ -83,8 +81,8 @@ Vite compila el proyecto en modo producción y genera la salida en la carpeta **
 
 ### 3.3 CORS y cabeceras
 
-- Las tres APIs deben permitir el origen del frontend en producción (cabecera `Origin`). Si las APIs y el frontend están en dominios distintos, CORS debe estar configurado en el backend.
-- La API nueva debe aceptar la cabecera `id-session` desde el origen del frontend; la API App Shell debe aceptar `X-Portal-API-Key`.
+- Las dos APIs deben permitir el origen del frontend en producción (cabecera `Origin`). Si las APIs y el frontend están en dominios distintos, CORS debe estar configurado en el backend.
+- La API nueva debe aceptar la cabecera `id-session` desde el origen del frontend.
 
 ### 3.4 Postbuild (script opcional)
 

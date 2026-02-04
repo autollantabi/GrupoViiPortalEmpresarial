@@ -30,10 +30,10 @@ Este documento recoge la justificación de las tecnologías elegidas, alternativ
 - **Justificación:** CSS-in-JS con soporte de temas y props dinámicas; evita conflictos de clases globales y permite reutilizar componentes con estilos encapsulados.
 - **Alternativas:** Tailwind (parcialmente presente en el proyecto), CSS Modules, Emotion. El proyecto combina styled-components con Bootstrap (parcial) y Tailwind (config presente).
 
-### 1.5 Axios (3 instancias)
+### 1.5 Axios (2 instancias)
 
-- **Uso:** Tres clientes HTTP: API principal, API nueva (auth/permisos/transacciones), App Shell.
-- **Justificación:** Separar por responsabilidad y por cabeceras (id-session en API nueva, X-Portal-API-Key en App Shell). Axios permite interceptores (reintentos por timeout/red en el código) y configuración por instancia.
+- **Uso:** Dos clientes HTTP: API principal, API nueva (auth/permisos/transacciones).
+- **Justificación:** Separar por responsabilidad y por cabeceras (id-session en API nueva). Axios permite interceptores (reintentos por timeout/red en el código) y configuración por instancia.
 - **Alternativas:** fetch nativo, ky, got. Axios sigue siendo habitual en proyectos empresariales por interceptores y API uniforme.
 
 ### 1.6 Encriptación de sesión (utils/encryption.js)
@@ -44,7 +44,7 @@ Este documento recoge la justificación de las tecnologías elegidas, alternativ
 
 ### 1.7 Permisos por recurso (notación de puntos)
 
-- **Uso:** Recursos como `importaciones.compras.reportes`, `cartera.registrosbancarios`, `appshell.gestioncanjes`. Herencia (acceso a recurso padre implica acceso a hijos); recursos bloqueados para restringir hijos.
+- **Uso:** Recursos como `importaciones.compras.reportes`, `cartera.registrosbancarios`. Herencia (acceso a recurso padre implica acceso a hijos); recursos bloqueados para restringir hijos.
 - **Justificación:** Un solo modelo de permisos para menú y rutas; empresas y líneas disponibles se calculan por recurso desde `user.CONTEXTOS`.
 - **Alternativa:** Permisos por rol sin jerarquía de recursos. La notación de puntos permite una jerarquía flexible sin hardcodear pantallas por rol.
 
@@ -52,7 +52,7 @@ Este documento recoge la justificación de las tecnologías elegidas, alternativ
 
 ## 2. Alternativas consideradas (inferidas del contexto)
 
-- **Un solo backend (BFF):** No adoptado. El proyecto consume tres APIs distintas (legacy, nueva/auth, App Shell). Un BFF unificaría contratos y cabeceras pero añadiría una capa más; la decisión actual mantiene el frontend como único orquestador.
+- **Un solo backend (BFF):** No adoptado. El proyecto consume dos APIs distintas (legacy, nueva/auth). Un BFF unificaría contratos y cabeceras pero añadiría una capa más; la decisión actual mantiene el frontend como único orquestador.
 - **State manager global (Redux, Zustand):** No adoptado de forma explícita. El estado global se limita a AuthContext, ThemeContext y SidebarContext. Para el tamaño actual del proyecto, los contextos son suficientes; un state manager podría valorarse si crece la complejidad de estado compartido.
 - **TypeScript:** No adoptado. El proyecto es JavaScript (JSX). TypeScript reduciría errores de tipos y mejoraría el autocompletado; la migración tendría coste y no está documentada como decisión explícita.
 - **Tests automatizados:** No hay tests visibles en el repositorio (coverage, Jest, Vitest). Se infiere que no se priorizó en la fase actual; se recomienda para auth, permissionsValidator y flujos críticos (ver [pendientes.md](pendientes.md)).
@@ -63,7 +63,7 @@ Este documento recoge la justificación de las tecnologías elegidas, alternativ
 
 | Área | Decisión | Trade-off |
 |------|----------|-----------|
-| Tres APIs | Mantener tres clientes Axios con URLs y cabeceras distintas. | Ventaja: separación clara por dominio y por backend. Desventaja: más configuración (env), más documentación y posible duplicación de lógica de errores. |
+| Dos APIs | Mantener dos clientes Axios con URLs y cabeceras distintas. | Ventaja: separación clara por dominio y por backend. Desventaja: más configuración (env), más documentación y posible duplicación de lógica de errores. |
 | Administración sin restricción de recurso | En SimpleRouter, recurso `administracion` tiene acceso forzado (TODO para quitar cuando estén configurados permisos). | Ventaja: permite configurar permisos sin bloquear a los administradadores. Desventaja: riesgo de acceso amplio hasta que se configure el recurso en backend. |
 | Recursos alternativos | Rutas como Registros Bancarios accesibles por `cartera.registrosbancarios` o `contabilidad.registrosbancarios`. | Ventaja: mismo componente para dos contextos de negocio. Desventaja: lógica de permisos y empresas/líneas debe combinar ambos recursos. |
 | Build en carpeta `build/` | `vite.config.js` usa `outDir: "build"` (en lugar de `dist`). | Ventaja: compatibilidad con scripts o documentación que esperan `build/`. Desventaja: difiere del valor por defecto de Vite (`dist`). |

@@ -6,7 +6,7 @@ Este documento describe la arquitectura general del Portal Empresarial, las carp
 
 ## 1. Arquitectura general
 
-El proyecto es una **Single Page Application (SPA)** de frontend que consume **tres APIs HTTP** distintas. No incluye backend propio; toda la lógica de negocio persistente y autenticación reside en servicios externos.
+El proyecto es una **Single Page Application (SPA)** de frontend que consume **dos APIs HTTP** distintas. No incluye backend propio; toda la lógica de negocio persistente y autenticación reside en servicios externos.
 
 ### 1.1 Flujo de alto nivel
 
@@ -38,8 +38,8 @@ index.jsx
 | Layout          | `components/layout/`    | TemplatePaginas, Sidebar, Header |
 | Páginas         | `pages/`                 | Pantallas por área (auth, home, Areas/*) |
 | Componentes UI  | `components/UI/Components/` | Componentes reutilizables (botones, tablas, modales, selects, etc.) |
-| Servicios       | `services/`              | Llamadas HTTP a las tres APIs |
-| Configuración   | `config/`                | env, axios (3 instancias), constantes |
+| Servicios       | `services/`              | Llamadas HTTP a las dos APIs |
+| Configuración   | `config/`                | env, axios (2 instancias), constantes |
 | Contexto        | `context/`               | Auth, Theme, Sidebar |
 | Utilidades      | `utils/`                 | Permisos, encriptación, temas, colores, helpers |
 
@@ -67,7 +67,7 @@ index.jsx
 | `App.jsx`         | Envuelve la app en AuthContextProvider, ThemeProvider, RouterProvider y ToastUI. |
 | `index.jsx`       | createRoot, importación de estilos globales (index.css, Bootstrap, Toastify), render de App. |
 | `index.css`       | Estilos globales. |
-| `config/`         | env.js (variables VITE_*), axiosConfig.js (3 instancias Axios + interceptores + id-session / X-Portal-API-Key), constants.js (globalConst para alturas header/menu). |
+| `config/`         | env.js (variables VITE_*), axiosConfig.js (2 instancias Axios + interceptores + id-session), constants.js (globalConst para alturas header/menu). |
 | `context/`        | authContext.jsx (sesión, user, login, logout, fetchUserMe), ThemeContext.jsx (tema claro/oscuro), SidebarContext.jsx (estado expandido del sidebar). |
 | `router/`         | SimpleRouter.jsx (createBrowserRouter, getRoutesConfig, getSidebarItems, ProtectedContent, inyección de routeConfig), Routes.js (RoutesConfig: lista de rutas con path, title, icon, component, recurso, recursosAlternativos, public, rootOnly). |
 | `pages/`          | auth (LoginPage, PasswordRecovery), home (Portal), NotFound; Areas (Administracion, AppShell, Cartera, Compras, Contabilidad, Marketing, Reporteria, RRHH, etc.). |
@@ -118,7 +118,7 @@ Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Rou
 
 ### 3.4 Servicios HTTP
 
-- Cada servicio en `services/` usa una de las tres instancias de Axios (axiosInstance, axiosInstanceNew, axiosInstanceAppShell) según la API que corresponda.
+- Cada servicio en `services/` usa una de las dos instancias de Axios (axiosInstance, axiosInstanceNew) según la API que corresponda.
 - Los servicios devuelven objetos normalizados (p. ej. { success, data, message }) y capturan errores; no manejan redirecciones ni toasts de forma centralizada (cada página puede hacerlo).
 
 ### 3.5 Páginas
@@ -137,7 +137,7 @@ Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Rou
 | **Composición**           | TemplatePaginas compone Sidebar + Header + children; las páginas componen componentes UI y layout. |
 | **Inyección de props**   | ProtectedContent inyecta routeConfig, availableCompanies, availableLines al hijo mediante cloneElement. |
 | **Servicios por dominio**| services/ organizado por dominio (auth, cartera, appShell, importaciones, etc.) en lugar de un único cliente. |
-| **Múltiples instancias de cliente HTTP** | Tres Axios con bases y cabeceras distintas (API principal, API nueva con id-session, App Shell con X-Portal-API-Key). |
+| **Múltiples instancias de cliente HTTP** | Dos Axios con bases y cabeceras distintas (API principal, API nueva con id-session). |
 | **Rutas protegidas**      | Wrapper que verifica autenticación y recurso antes de renderizar el contenido; en caso contrario redirección o mensaje. |
 | **Sidebar dinámico**      | Menú generado a partir de RoutesConfig y permisos (getSidebarItems), sin hardcodear ítems por rol. |
 
@@ -197,7 +197,6 @@ PortalEmpresarial/
 | Área           | Componentes principales |
 |----------------|-------------------------|
 | Administración | EleccionAccion, GestionUsuarios, MantenimientoPermisos, MantenimientoPermisosNuevos, UsuariosAppShell |
-| App Shell      | AS_GestionCanjes (gestión de canjes, historial de estados) |
 | Cartera        | CargarTransferencias, RegistrosBancarios, RegistrosBancariosHistorial, DesbloqueoClientes, GestionCheques |
 | Compras        | Reportes, Importaciones (filtros, tabla, ventana edición), Creditos, Anticipos |
 | Contabilidad   | ConversionArchivosBancos, ReporteFlujoCaja, Comisiones (Mayoristas, Tecnicentro, Lubricantes) |
@@ -215,9 +214,9 @@ PortalEmpresarial/
 
 ---
 
-## 7. Integración con las tres APIs
+## 7. Integración con las dos APIs
 
-Resumen: API 1 (`VITE_API_URL`) — Cartera, Compras, Contabilidad, Importaciones, Recovery, Créditos, Transacciones. API 2 (`VITE_API_URL_NEW`) — Auth, 5W2H, Transacciones cartera, Desbloqueo, Permisos/Roles/URC. API 3 (`VITE_API_URL_APP_SHELL`) — Canjes, Usuarios/vendedores.
+Resumen: API 1 (`VITE_API_URL`) — Cartera, Compras, Contabilidad, Importaciones, Recovery, Créditos, Transacciones. API 2 (`VITE_API_URL_NEW`) — Auth, 5W2H, Transacciones cartera, Desbloqueo, Permisos/Roles/URC.
 
 **Detalle de endpoints, servicios y cabeceras:** [apis.md](apis.md).
 

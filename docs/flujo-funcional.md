@@ -51,29 +51,7 @@ Este documento describe, paso a paso, los flujos principales del sistema: login,
 
 ---
 
-## 4. Flujo de gestión de canjes (App Shell)
-
-1. **Acceso:** El usuario accede a la ruta configurada para Gestión de canjes (recurso `appshell.gestioncanjes`), siempre que tenga permiso a ese recurso y la API App Shell esté configurada (`VITE_API_URL_APP_SHELL`, `VITE_API_KEY_APP_SHELL`).
-2. **Carga inicial:**
-   - Se llama a `appShellService_obtenerEstadosCanjes()` → GET `/canjes/estados-canjes` para obtener la lista de estados (ID, NAME, etc.).
-   - Se llama a `appShellService_obtenerCanjesConEstados()` → GET `/canjes/todos-con-estados` para obtener los canjes con su historial de estados.
-   - Los datos se mapean al formato del componente (mapCanjeApiToComponent) y se muestran en tarjetas (CardUI) por canje, con historial horizontal de estados y flechas entre estados.
-3. **Filtros:** El usuario puede filtrar por cliente y por estado (SelectUI). La lista mostrada se filtra en memoria según los valores seleccionados.
-4. **Cambio de estado:**
-   - El usuario hace clic en el badge del estado actual del canje (si hay siguiente estado disponible).
-   - Se abre un modal de confirmación (ModalConfirmacionUI) preguntando si desea pasar al siguiente estado.
-   - Si el usuario confirma:
-     - Se busca el `estadoId` del siguiente estado en la lista `estadosCanjes` (por nombre).
-     - Se llama a `appShellService_actualizarEstadoCanje(canjeId, estadoId)` → POST `/canjes/estado-historial-canje` con body `{ canjeId, estadoId }`.
-     - Si la respuesta es exitosa, se actualiza el estado local del componente añadiendo la nueva entrada al historial del canje correspondiente y se cierra el modal.
-     - Si falla, se cierra el modal y se puede mostrar error en consola (o ampliarse con toast).
-5. **Tooltip:** Al pasar el ratón sobre el badge de estado se muestra un tooltip (TooltipUI) con texto tipo "Clic para pasar a [siguiente estado]" o "Estado actual".
-
-**Resumen:** Carga estados y canjes → listado con filtros → clic en estado → confirmación → POST estado-historial-canje → actualización local del historial.
-
----
-
-## 5. Flujo de cierre de sesión
+## 4. Flujo de cierre de sesión
 
 1. **Usuario** hace clic en "Cerrar sesión" (o equivalente) en el Sidebar o Header.
 2. **AuthContext:** Se ejecuta `logout()` (o la función equivalente expuesta por el contexto).
@@ -82,9 +60,9 @@ Este documento describe, paso a paso, los flujos principales del sistema: login,
 
 ---
 
-## 6. Autenticación, autorización y permisos (detalle)
+## 5. Autenticación, autorización y permisos (detalle)
 
-### 6.1 Autenticación y sesión
+### 5.1 Autenticación y sesión
 
 1. Usuario envía correo/contraseña → `authService_login` (API 2) → respuesta con `idSession`.
 2. `idSession` se encripta con `encryption.encrypt` y se guarda en `localStorage` bajo clave fija.
@@ -92,31 +70,31 @@ Este documento describe, paso a paso, los flujos principales del sistema: login,
 4. Se llama a `fetchUserMe()` → GET `/auth/me` → se guarda en `user` (CONTEXTOS, EMPRESAS, LINEAS, etc.).
 5. En carga de app, `authContext` lee token encriptado del `localStorage`, desencripta, setea id-session y llama a `/auth/me`; si falla, limpia sesión.
 
-### 6.2 Autorización por recurso
+### 5.2 Autorización por recurso
 
 - **Cálculo de acceso:** `hasAccessToResource(userContexts, recurso)` compara recurso solicitado con cada `context.RECURSO` (exacto o prefijo con herencia); respeta `BLOQUEADO` / `RECURSOS_BLOQUEADOS`. Lógica en `utils/permissionsValidator.js`.
 - **Empresas/líneas:** `getAvailableCompanies(userContexts, recurso, user.EMPRESAS)` y `getAvailableLines(..., user.LINEAS)` agregan empresas/líneas de los contextos que tienen acceso al recurso.
 - **Rol por recurso:** `rolDelRecurso` se obtiene en SimpleRouter buscando en user.CONTEXTOS y user.ROLES el rol del recurso (o alternativos) y se incluye en `routeConfig`.
 
-### 6.3 Permisos en tabla (TablaInputsUI)
+### 5.3 Permisos en tabla (TablaInputsUI)
 
 - Prop `permisos`: array de `{ empresa, permiso: "E"|"C" }`.
 - Doble clic: si `permisos` tiene entrada para `item.EMPRESA` con `permiso === "E"` se activa edición; si es "C" solo consulta o flujo alternativo.
 - Varias páginas construyen este array desde `availableCompanies` + `routeConfig.rolDelRecurso` (ej. jefatura → "E", resto → "C").
 
-### 6.4 Datos del usuario (post login)
+### 5.4 Datos del usuario (post login)
 
 Tras login se llama a `/auth/me` (API 2). La respuesta se guarda en `user` con estructura tipo: `USUARIO`, `EMPRESAS`, `LINEAS`, `PERMISOS`, `ROLES`, `CONTEXTOS`. `CONTEXTOS` es un array de contextos (recurso, rol, alcance por empresas/líneas, bloqueados, herencia). En varios sitios se usa `user.data` como alias de `CONTEXTOS`.
 
 ---
 
-## 7. Flujos adicionales (resumen)
+## 6. Flujos adicionales (resumen)
 
 - **Reportería:** El usuario elige tipo de reporte, empresa/línea (según routeConfig y permisos); TemplateReporteria puede cargar iframes o contenido según el reporte.
 - **Importaciones:** Filtros por empresa/fechas → tabla de importaciones; edición/creación mediante ventanas modales y múltiples servicios (general, transacción, bodega, nacionalización, etc.); permisos por rol (ventas, bodega, jefatura) definen columnas y permisos.
 - **Registros bancarios (Cartera):** Filtros por empresa y fechas → carga de transacciones desde API nueva; permisos por recurso; recurso alternativo `contabilidad.registrosbancarios` permite el mismo componente.
 - **Comisiones Tecnicentro:** Reportes y categorías de productos; categorías usan API principal; permisos de edición por rol "jefatura" y empresas con AUTOLLANTA.
-- **Administración:** Acceso temporal sin restricción por recurso (TODO en SimpleRouter para quitar cuando estén configurados permisos). Incluye gestión de usuarios, permisos, roles, contextos y Usuarios App Shell.
+- **Administración:** Acceso temporal sin restricción por recurso (TODO en SimpleRouter para quitar cuando estén configurados permisos). Incluye gestión de usuarios, permisos, roles y contextos.
 
 Los detalles de cada pantalla (campos, validaciones, endpoints concretos) se encuentran en el código de cada página y en los servicios correspondientes; la documentación de la API backend es la fuente de verdad para contratos de endpoints.
 
