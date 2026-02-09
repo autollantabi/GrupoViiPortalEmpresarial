@@ -83,7 +83,7 @@ index.jsx
 Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Routes.js:
 
 - **Administracion:** EleccionAccion, GestionUsuarios, MantenimientoPermisos, MantenimientoPermisosNuevos, UsuariosAppShell, etc.
-- **AppShell:** AS_GestionCanjes (gestión de canjes con historial de estados).
+- **AppShell:** AS_GestionCanjes (gestión de canjes con historial de estados), AS_UsuariosApp (lista de usuarios del club shell con filtro por texto y por rol).
 - **Cartera:** CargarTransferencias, RegistrosBancarios, RegistrosBancariosHistorial, DesbloqueoClientes, GestionCheques.
 - **Compras:** Reportes, Importaciones (Filtros, Tabla, VentanaEdicion), Creditos, Anticipos.
 - **Contabilidad:** ConversionArchivosBancos, FlujoDeCaja, Comisiones (Mayoristas, Tecnicentro, Lubricantes).
@@ -197,6 +197,7 @@ PortalEmpresarial/
 | Área           | Componentes principales |
 |----------------|-------------------------|
 | Administración | EleccionAccion, GestionUsuarios, MantenimientoPermisos, MantenimientoPermisosNuevos, UsuariosAppShell |
+| AppShell       | AS_GestionCanjes (canjes), AS_UsuariosApp (usuarios club shell: lista, filtro global y por rol, orden por fecha de creación) |
 | Cartera        | CargarTransferencias, RegistrosBancarios, RegistrosBancariosHistorial, DesbloqueoClientes, GestionCheques |
 | Compras        | Reportes, Importaciones (filtros, tabla, ventana edición), Creditos, Anticipos |
 | Contabilidad   | ConversionArchivosBancos, ReporteFlujoCaja, Comisiones (Mayoristas, Tecnicentro, Lubricantes) |

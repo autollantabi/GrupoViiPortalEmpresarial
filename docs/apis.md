@@ -61,6 +61,7 @@ El proyecto consume **dos APIs** mediante **dos instancias de Axios** definidas 
 - `carteraDesbloqueoClientesService.js` — GET/POST `/cartera/desbloqueo`.
 - `administracionService.js` — POST `/usuarios/`, GET/POST/PUT/DELETE `/permisos`, `/roles`, `/permisos-rol`, `/usuarios-rol-contexto`.
 - `usuariosService.js` — GET/POST/PUT/DELETE `/usuarios/tipoUsuario/`, y otros endpoints de usuarios nuevos.
+- `appShell_Service.js` — Club Shell: usuarios/info, usuarios (CRUD), canjes (estados y historial).
 
 ### Endpoints representativos
 
@@ -69,6 +70,7 @@ El proyecto consume **dos APIs** mediante **dos instancias de Axios** definidas 
 - Cartera: `/transacciones`, `/transacciones/:id`, `/cartera/bash/bancos/`, `/cartera/desbloqueo`, uploads de archivos transferencias.
 - Administración: `/usuarios/`, `/permisos`, `/roles`, `/permisos-rol`, `/usuarios-rol-contexto`.
 - Usuarios: `/usuarios/tipoUsuario/`, etc.
+- Club Shell: `/club-shell-maxx/usuarios/info`, `/club-shell-maxx/usuarios`, `/club-shell-maxx/canjes/*`.
 
 ### Datos y riesgos
 

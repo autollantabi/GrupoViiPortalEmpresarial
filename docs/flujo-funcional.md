@@ -95,6 +95,7 @@ Tras login se llama a `/auth/me` (API 2). La respuesta se guarda en `user` con e
 - **Registros bancarios (Cartera):** Filtros por empresa y fechas → carga de transacciones desde API nueva; permisos por recurso; recurso alternativo `contabilidad.registrosbancarios` permite el mismo componente.
 - **Comisiones Tecnicentro:** Reportes y categorías de productos; categorías usan API principal; permisos de edición por rol "jefatura" y empresas con AUTOLLANTA.
 - **Administración:** Acceso temporal sin restricción por recurso (TODO en SimpleRouter para quitar cuando estén configurados permisos). Incluye gestión de usuarios, permisos, roles y contextos.
+- **Usuarios App (Club Shell):** Pantalla AS_UsuariosApp (recurso appshell.usuariosapp). Lista de usuarios del club shell con filtro global por texto, filtro por rol y orden por fecha de creación. Solo consulta (crear/editar en Administración → Usuarios App Shell).
 
 Los detalles de cada pantalla (campos, validaciones, endpoints concretos) se encuentran en el código de cada página y en los servicios correspondientes; la documentación de la API backend es la fuente de verdad para contratos de endpoints.
 

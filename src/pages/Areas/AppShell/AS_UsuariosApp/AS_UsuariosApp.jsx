@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "context/ThemeContext";
 import { ContainerUI } from "components/UI/Components/ContainerUI";
 import { InputUI } from "components/UI/Components/InputUI";
+import { SelectUI } from "components/UI/Components/SelectUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { TextUI } from "components/UI/Components/TextUI";
 import { hexToRGBA } from "utils/colors";
@@ -26,6 +27,7 @@ export default function AS_UsuariosApp() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [filtroGlobal, setFiltroGlobal] = useState("");
+  const [filtroRol, setFiltroRol] = useState(null);
 
   const cargarUsuarios = async () => {
     setCargando(true);
@@ -41,6 +43,25 @@ export default function AS_UsuariosApp() {
 
   useEffect(() => {
     cargarUsuarios();
+  }, []);
+
+
+  const rolNombre = (u) => {
+    // Priorizar ROLE.NAME_ROLE si existe
+    if (u.ROLE?.NAME_ROLE) return u.ROLE.NAME_ROLE;
+    if (u.ROLE?.name) return u.ROLE.name;
+    // Si no, buscar por ROLE_ID en el mapeo
+    const roleId = u.ROLE_ID ?? u.roleId;
+    if (roleId != null) return ROLES_APP_SHELL.find((r) => r.id === roleId)?.name ?? "";
+    return "";
+  };
+
+  const opcionesRoles = useMemo(() => {
+    const lista = [
+      { value: "", label: "Todos los roles" },
+      ...ROLES_APP_SHELL.map((r) => ({ value: r.name, label: r.name })),
+    ];
+    return lista;
   }, []);
 
   const usuariosFiltrados = useMemo(() => {
@@ -66,6 +87,13 @@ export default function AS_UsuariosApp() {
         );
       });
     }
+    if (filtroRol?.value) {
+      const rolBusqueda = String(filtroRol.value).trim();
+      list = list.filter((u) => {
+        const nombreRol = rolNombre(u);
+        return nombreRol && nombreRol.toUpperCase() === rolBusqueda.toUpperCase();
+      });
+    }
     return [...list].sort((a, b) => {
       const dateA = a.createdAt ?? a.created_at ?? "";
       const dateB = b.createdAt ?? b.created_at ?? "";
@@ -74,17 +102,7 @@ export default function AS_UsuariosApp() {
       if (!dateB) return -1;
       return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
-  }, [usuarios, filtroGlobal]);
-
-  const rolNombre = (u) => {
-    // Priorizar ROLE.NAME_ROLE si existe
-    if (u.ROLE?.NAME_ROLE) return u.ROLE.NAME_ROLE;
-    if (u.ROLE?.name) return u.ROLE.name;
-    // Si no, buscar por ROLE_ID en el mapeo
-    const roleId = u.ROLE_ID ?? u.roleId;
-    if (roleId != null) return ROLES_APP_SHELL.find((r) => r.id === roleId)?.name ?? "";
-    return "";
-  };
+  }, [usuarios, filtroGlobal, filtroRol]);
 
   return (
     <ContainerUI
@@ -109,13 +127,29 @@ export default function AS_UsuariosApp() {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
-        <InputUI
-          iconLeft="FaSistrix"
-          placeholder="Buscar por nombre, apellido, email, cédula, teléfono o código SAP..."
-          value={filtroGlobal}
-          onChange={setFiltroGlobal}
-          disabled={cargando}
-        />
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12 }}>
+          <div style={{ flex: "1", minWidth: 260 }}>
+            <InputUI
+              iconLeft="FaSistrix"
+              placeholder="Buscar por nombre, apellido, email, cédula, teléfono o código SAP..."
+              value={filtroGlobal}
+              onChange={setFiltroGlobal}
+              disabled={cargando}
+            />
+          </div>
+          <div style={{ minWidth: 200 }}>
+            <SelectUI
+              label="Rol"
+              placeholder="Todos los roles"
+              options={opcionesRoles}
+              value={filtroRol ?? opcionesRoles[0]}
+              onChange={(opt) => setFiltroRol(opt?.value === "" ? null : opt)}
+              isSearchable={false}
+              minWidth="200px"
+              maxWidth="240px"
+            />
+          </div>
+        </div>
 
         {cargando ? (
           <div style={{ textAlign: "center", padding: 40, color: theme?.colors?.textSecondary, fontSize: 14 }}>

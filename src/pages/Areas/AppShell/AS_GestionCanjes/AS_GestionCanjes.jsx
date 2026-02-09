@@ -16,64 +16,6 @@ import {
     appShellService_actualizarEstadoCanje,
 } from "services/appShell_Service";
 
-// Flujo de estados del canje (el orden define la secuencia)
-const ESTADOS_CANJE = [
-    "Solicitado",
-    "En revisión",
-    "Aprobado",
-    "En preparación",
-    "Entregado",
-];
-const ESTADO_FINAL_ALTERNATIVO = "Rechazado";
-
-// Datos ficticios para pruebas (quitar o reemplazar cuando se conecte la API)
-const CANJES_FICTICIOS = [
-    {
-        id: 1,
-        nombreCanje: "GiftCard KFC",
-        codigoCliente: "SOC001",
-        nombreCliente: "Distribuidora Norte S.A.S",
-        historialEstados: [
-            { estado: "Solicitado", fecha: "2025-01-20T09:00:00.000Z", comentario: null },
-            { estado: "En revisión", fecha: "2025-01-21T14:30:00.000Z", comentario: null },
-        ],
-    },
-    {
-        id: 2,
-        nombreCanje: "Vale Pizza Hut",
-        codigoCliente: "SOC042",
-        nombreCliente: "Comercial del Pacífico",
-        historialEstados: [
-            { estado: "Solicitado", fecha: "2025-01-22T10:15:00.000Z", comentario: null },
-        ],
-    },
-    {
-        id: 3,
-        nombreCanje: "GiftCard KFC",
-        codigoCliente: "SOC108",
-        nombreCliente: "Almacén Central Ltda",
-        historialEstados: [
-            { estado: "Solicitado", fecha: "2025-01-18T08:00:00.000Z", comentario: null },
-            { estado: "En revisión", fecha: "2025-01-19T11:00:00.000Z", comentario: null },
-            { estado: "Aprobado", fecha: "2025-01-23T16:00:00.000Z", comentario: "Documentación OK" },
-            { estado: "En preparación", fecha: "2025-01-24T09:30:00.000Z", comentario: null },
-        ],
-    },
-    {
-        id: 4,
-        nombreCanje: "Bono Cinépolis",
-        codigoCliente: "SOC205",
-        nombreCliente: "Puntos de Venta Sur",
-        historialEstados: [
-            { estado: "Solicitado", fecha: "2025-01-25T07:45:00.000Z", comentario: null },
-            { estado: "En revisión", fecha: "2025-01-25T12:00:00.000Z", comentario: null },
-            { estado: "Aprobado", fecha: "2025-01-26T10:00:00.000Z", comentario: null },
-            { estado: "En preparación", fecha: "2025-01-26T14:00:00.000Z", comentario: null },
-            { estado: "Entregado", fecha: "2025-01-27T09:00:00.000Z", comentario: null },
-        ],
-    },
-];
-
 function mapCanjeApiToComponent(apiCanje) {
     const usuario = apiCanje.USUARIO ?? apiCanje.usuario;
     const producto = apiCanje.PRODUCTO ?? apiCanje.producto;
@@ -111,8 +53,8 @@ function getFechaOrigen(canje) {
     return historial.length > 0 ? historial[0].fecha : null;
 }
 
-function getSiguienteEstado(estadoActual, listaNombresEstados = ESTADOS_CANJE) {
-    if (!listaNombresEstados?.length) return estadoActual ? null : ESTADOS_CANJE[0] || null;
+function getSiguienteEstado(estadoActual, listaNombresEstados) {
+    if (!listaNombresEstados?.length) return null;
     if (!estadoActual) return listaNombresEstados[0] || null;
     const idx = listaNombresEstados.indexOf(estadoActual);
     if (idx === -1 || idx >= listaNombresEstados.length - 1) return null;
@@ -305,10 +247,8 @@ export default function AS_GestionCanjes({
     }, []);
 
     const nombresEstados = useMemo(() => {
-        if (estadosCanjes.length > 0) {
-            return estadosCanjes.map((e) => e.NAME ?? e.name ?? String(e.ID ?? e.id ?? ""));
-        }
-        return ESTADOS_CANJE;
+        if (!estadosCanjes?.length) return [];
+        return estadosCanjes.map((e) => e.NAME ?? e.name ?? String(e.ID ?? e.id ?? ""));
     }, [estadosCanjes]);
 
     // Sincronizar con prop solo cuando la lista de ids cambie (evita bucle si canjesProp es [] por defecto)
