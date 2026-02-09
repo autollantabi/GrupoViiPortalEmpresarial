@@ -95,6 +95,30 @@ export async function appShellService_obtenerUsuarios() {
 }
 
 /**
+ * Obtener lista de usuarios con info (endpoint /club-shell-maxx/usuarios/info)
+ * @returns {Promise<Object>} { success, data: usuarios[], message }
+ */
+export async function appShellService_obtenerUsuariosInfo() {
+  try {
+    const response = await axiosInstanceNew.get(`/club-shell-maxx/usuarios/info`);
+    const raw = response.data?.data ?? response.data;
+    const list = Array.isArray(raw) ? raw : raw?.users ?? raw?.data ?? [];
+    return {
+      success: true,
+      data: Array.isArray(list) ? list : [],
+      message: response.data?.message || "Usuarios obtenidos",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message:
+        error.response?.data?.message || "Error al obtener los usuarios",
+    };
+  }
+}
+
+/**
  * Crear un nuevo vendedor en el app shell
  * @param {Object} vendedorData - Datos del vendedor a crear
  * @returns {Promise<Object>} Respuesta de la API

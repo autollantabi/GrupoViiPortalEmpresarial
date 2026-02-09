@@ -9,14 +9,14 @@ export const ReporteriaGarantiasHerramientas = ({
   // Estructura de reportes: rol (minúscula) > línea (mayúsculas) > empresa (mayúsculas)
   const reportesPorTipoModuloEmpresa = useMemo(
     () => ({
-      usuario: {
+      jefatura: {
         HERRAMIENTAS: {
           IKONIX: [
             {
               id: 0,
               tituloBtn: "Reporte Garantias Herramientas 1",
               titulo: "Reporte de Garantias Herramientas - Ikonix",
-              url: "https://app.powerbi.com/view?r=eyJrIjoiMzExYjA1OTMtM2ZmYS00MjU1LWE4ZTEtNDExN2FiNDhkNDFiIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=223706378e9e40d970c8",
+              url: "https://app.powerbi.com/view?r=eyJrIjoiZmYyODE0YTgtNjVmNC00NzlkLWIzYmEtNThhN2NlNDdiYjJmIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=0e0ebcdc611fe7079915",
             },
           ],
         },

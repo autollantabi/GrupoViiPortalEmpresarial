@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { CardUI } from "components/UI/Components/CardUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
@@ -55,11 +55,38 @@ export const UsuariosRolContextoSection = ({
   setBloqueado,
 }) => {
   const { user } = useAuthContext();
+  const [buscarPermiso, setBuscarPermiso] = useState("");
+
+  // Mapeo de nombres de empresas a abreviaturas
+  const obtenerAbreviaturaEmpresa = (nombre) => {
+    const mapeo = {
+      "AUTOLLANTA": "AUT",
+      "MAXXIMUNDO": "MAX",
+      "STOX": "STX",
+      "IKONIX": "IKO",
+      "AUTOMAX": "ATX",
+      "GRUPOVII": "VII",
+    };
+    return mapeo[nombre?.toUpperCase()] || nombre?.substring(0, 3).toUpperCase() || "";
+  };
+
+  // Mapeo de nombres de líneas a abreviaturas
+  const obtenerAbreviaturaLinea = (nombre) => {
+    const mapeo = {
+      "LLANTAS": "LLA",
+      "LLANTAS MOTO": "LMO",
+      "HERRAMIENTAS": "HER",
+      "LUBRICANTES": "LUB",
+      "ILUMINACION": "ILU",
+      "ILUMINACIÓN": "ILU",
+    };
+    return mapeo[nombre?.toUpperCase()] || nombre?.substring(0, 3).toUpperCase() || "";
+  };
 
   // Obtener empresas del usuario (formato: { "1": "AUTOLLANTA", "2": "MAXXIMUNDO", ... })
   const empresas = useMemo(() => {
     if (!user?.EMPRESAS) return [];
-    
+
     // Si es un objeto, convertirlo a array
     if (typeof user.EMPRESAS === 'object' && !Array.isArray(user.EMPRESAS)) {
       return Object.entries(user.EMPRESAS).map(([id, nombre]) => ({
@@ -67,7 +94,7 @@ export const UsuariosRolContextoSection = ({
         NOMBRE: nombre,
       }));
     }
-    
+
     // Si ya es un array, usarlo directamente
     return Array.isArray(user.EMPRESAS) ? user.EMPRESAS : [];
   }, [user?.EMPRESAS]);
@@ -75,7 +102,7 @@ export const UsuariosRolContextoSection = ({
   // Obtener líneas del usuario (formato: { "3": "LLANTAS", "4": "LUBRICANTES", ... })
   const lineasNegocio = useMemo(() => {
     if (!user?.LINEAS) return [];
-    
+
     // Si es un objeto, convertirlo a array con formato { value, label }
     if (typeof user.LINEAS === 'object' && !Array.isArray(user.LINEAS)) {
       return Object.entries(user.LINEAS).map(([id, nombre]) => ({
@@ -83,7 +110,7 @@ export const UsuariosRolContextoSection = ({
         label: nombre,
       }));
     }
-    
+
     // Si ya es un array, convertirlo al formato esperado
     if (Array.isArray(user.LINEAS)) {
       return user.LINEAS.map((linea) => ({
@@ -91,7 +118,7 @@ export const UsuariosRolContextoSection = ({
         label: linea.NOMBRE || linea.nombre || linea.label,
       }));
     }
-    
+
     return [];
   }, [user?.LINEAS]);
   const handleCrearUsuarioRolContexto = async () => {
@@ -116,9 +143,9 @@ export const UsuariosRolContextoSection = ({
         BLOQUEADO:
           bloqueado.trim() !== ""
             ? bloqueado
-                .split(",")
-                .map((b) => b.trim())
-                .filter(Boolean)
+              .split(",")
+              .map((b) => b.trim())
+              .filter(Boolean)
             : null,
       };
 
@@ -138,7 +165,7 @@ export const UsuariosRolContextoSection = ({
 
   const handleActualizarUsuarioRolContexto = async () => {
     if (!contextoEditando) return;
-    
+
     const recursoValue = recurso?.value || recurso || "";
     if (!usuarioSeleccionadoContexto || !rolSeleccionadoContexto || !recursoValue.trim()) {
       toast.error("Debe completar usuario, rol y recurso");
@@ -160,9 +187,9 @@ export const UsuariosRolContextoSection = ({
         BLOQUEADO:
           bloqueado.trim() !== ""
             ? bloqueado
-                .split(",")
-                .map((b) => b.trim())
-                .filter(Boolean)
+              .split(",")
+              .map((b) => b.trim())
+              .filter(Boolean)
             : null,
       };
 
@@ -224,10 +251,21 @@ export const UsuariosRolContextoSection = ({
       }
       agrupados[idUsuario].contextos.push(item);
     });
-    
+
     let grupos = Object.values(agrupados);
-    
-    // Filtrar por búsqueda
+
+    // Filtrar por búsqueda de permisos primero (si hay búsqueda de permisos)
+    if (buscarPermiso.trim()) {
+      grupos = grupos.map((grupo) => {
+        const contextosFiltrados = filtrarContextos(grupo.contextos);
+        return {
+          ...grupo,
+          contextos: contextosFiltrados,
+        };
+      }).filter((grupo) => grupo.contextos.length > 0); // Solo mantener usuarios con al menos un permiso que coincida
+    }
+
+    // Filtrar por búsqueda de usuario
     if (buscarUsuario.trim()) {
       const busqueda = buscarUsuario.toLowerCase().trim();
       grupos = grupos.filter((grupo) => {
@@ -236,7 +274,7 @@ export const UsuariosRolContextoSection = ({
         return nombre.includes(busqueda) || correo.includes(busqueda);
       });
     }
-    
+
     return grupos;
   };
 
@@ -257,9 +295,9 @@ export const UsuariosRolContextoSection = ({
       toast.error("Error: Usuario no proporcionado");
       return;
     }
-    
+
     const idUsuario = usuario.USUA_ID || usuario.IDENTIFICADOR || usuario.ID || usuario.id;
-    
+
     if (!idUsuario) {
       toast.error("Error: No se pudo obtener el ID del usuario");
       return;
@@ -275,12 +313,12 @@ export const UsuariosRolContextoSection = ({
       value: usuarioFinal.IDENTIFICADOR || usuarioFinal.USUA_ID || usuarioFinal.ID || idUsuario,
       label: `${usuarioFinal.USUA_NOMBRE || usuarioFinal.NOMBRE || "Usuario"} (${usuarioFinal.USUA_CORREO || usuarioFinal.CORREO || ""})`,
     };
-    
+
     setUsuarioSeleccionadoContexto(usuarioEnOpciones);
     setMostrarFormulario(true);
-    
+
     toast.success(`Usuario ${usuarioFinal.USUA_NOMBRE || usuarioFinal.NOMBRE || "Usuario"} seleccionado`);
-    
+
     setTimeout(() => {
       const formulario = document.querySelector('[data-formulario-contexto]');
       if (formulario) {
@@ -303,7 +341,7 @@ export const UsuariosRolContextoSection = ({
   // Función para iniciar edición de contexto
   const handleIniciarEdicionContexto = (contexto) => {
     setContextoEditando(contexto);
-    
+
     const usuarioEncontrado = usuarios.find(
       (u) => (u.USUA_ID || u.IDENTIFICADOR) === contexto.ID_USUARIO
     );
@@ -313,7 +351,7 @@ export const UsuariosRolContextoSection = ({
         label: `${usuarioEncontrado.USUA_NOMBRE || usuarioEncontrado.NOMBRE} (${usuarioEncontrado.USUA_CORREO || usuarioEncontrado.CORREO})`,
       });
     }
-    
+
     const rolEncontrado = roles.find((r) => r.ID_ROL === contexto.ID_ROL);
     if (rolEncontrado) {
       setRolSeleccionadoContexto({
@@ -321,16 +359,16 @@ export const UsuariosRolContextoSection = ({
         label: rolEncontrado.NOMBRE_ROL,
       });
     }
-    
+
     if (contexto.RECURSO) {
       setRecurso({
         value: contexto.RECURSO,
         label: contexto.RECURSO,
       });
     }
-    
+
     setHerencia(contexto.HERENCIA || false);
-    
+
     if (contexto.SOBRE_ESCRIBIR_PERMISOS && contexto.SOBRE_ESCRIBIR_PERMISOS !== "null") {
       const permisosIds = Array.isArray(contexto.SOBRE_ESCRIBIR_PERMISOS)
         ? contexto.SOBRE_ESCRIBIR_PERMISOS
@@ -346,9 +384,9 @@ export const UsuariosRolContextoSection = ({
     } else {
       setSobreEscribirPermisos([]);
     }
-    
-    const alcance = typeof contexto.ALCANCE === "string" 
-      ? JSON.parse(contexto.ALCANCE) 
+
+    const alcance = typeof contexto.ALCANCE === "string"
+      ? JSON.parse(contexto.ALCANCE)
       : contexto.ALCANCE || {};
     const empresasIds = alcance.empresas || alcance.EMPRESAS || [];
     const empresasSeleccionadas = empresasIds
@@ -359,17 +397,17 @@ export const UsuariosRolContextoSection = ({
         label: e.NOMBRE,
       }));
     setAlcanceEmpresas(empresasSeleccionadas);
-    
+
     const lineasIds = alcance.lineas || alcance.LINEAS || [];
     // Usar lineasNegocio del useMemo (viene del user)
     const lineasSeleccionadas = lineasIds
       .map((id) => lineasNegocio.find((l) => l.value === id))
       .filter(Boolean);
     setAlcanceLineas(lineasSeleccionadas);
-    
+
     if (contexto.BLOQUEADO && contexto.BLOQUEADO !== "<null>" && contexto.BLOQUEADO !== "null") {
       let bloqueadosArray = [];
-      
+
       if (Array.isArray(contexto.BLOQUEADO)) {
         bloqueadosArray = contexto.BLOQUEADO;
       } else if (typeof contexto.BLOQUEADO === "string") {
@@ -384,14 +422,14 @@ export const UsuariosRolContextoSection = ({
           bloqueadosArray = contexto.BLOQUEADO.split(",").map((b) => b.trim()).filter(Boolean);
         }
       }
-      
+
       setBloqueado(bloqueadosArray.join(", "));
     } else {
       setBloqueado("");
     }
-    
+
     setMostrarFormulario(true);
-    
+
     setTimeout(() => {
       const formulario = document.querySelector('[data-formulario-contexto]');
       if (formulario) {
@@ -418,6 +456,91 @@ export const UsuariosRolContextoSection = ({
   const obtenerNombrePermiso = (idPermiso) => {
     const permiso = permisos.find((p) => p.ID_PERMISO === idPermiso);
     return permiso?.NOMBRE_ACCION || "Permiso no encontrado";
+  };
+
+  // Filtrar contextos por término de búsqueda
+  const filtrarContextos = (contextos) => {
+    if (!buscarPermiso.trim()) return contextos;
+
+    const busqueda = buscarPermiso.toLowerCase().trim();
+
+    return contextos.filter((item) => {
+      // Buscar en recurso
+      const recurso = (item.RECURSO || "").toLowerCase();
+      if (recurso.includes(busqueda)) return true;
+
+      // Buscar en nombre del rol
+      const nombreRol = (item.ROL?.NOMBRE_ROL || "").toLowerCase();
+      if (nombreRol.includes(busqueda)) return true;
+
+      // Buscar en permisos sobrescritos
+      if (item.SOBRE_ESCRIBIR_PERMISOS && item.SOBRE_ESCRIBIR_PERMISOS !== "null") {
+        const permisosArray = Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS)
+          ? item.SOBRE_ESCRIBIR_PERMISOS
+          : [];
+        const nombresPermisos = permisosArray
+          .map((id) => obtenerNombrePermiso(id))
+          .join(" ")
+          .toLowerCase();
+        if (nombresPermisos.includes(busqueda)) return true;
+      }
+
+      // Buscar en empresas del alcance
+      const alcance = typeof item.ALCANCE === "string"
+        ? JSON.parse(item.ALCANCE)
+        : item.ALCANCE || {};
+      const empresasIds = alcance.empresas || alcance.EMPRESAS || [];
+      const nombresEmpresas = empresasIds
+        .map((id) => empresas.find((e) => e.ID === id)?.NOMBRE || "")
+        .join(" ")
+        .toLowerCase();
+      if (nombresEmpresas.includes(busqueda)) return true;
+
+      // Buscar en líneas del alcance
+      const lineasIds = alcance.lineas || alcance.LINEAS || [];
+      const nombresLineas = lineasIds
+        .map((id) => lineasNegocio.find((l) => l.value === id)?.label || "")
+        .join(" ")
+        .toLowerCase();
+      if (nombresLineas.includes(busqueda)) return true;
+
+      // Buscar en recursos bloqueados
+      if (item.BLOQUEADO && item.BLOQUEADO !== "<null>" && item.BLOQUEADO !== "null") {
+        const bloqueadosArray = Array.isArray(item.BLOQUEADO)
+          ? item.BLOQUEADO
+          : typeof item.BLOQUEADO === "string"
+            ? item.BLOQUEADO.split(",").map((b) => b.trim())
+            : [];
+        const bloqueadosStr = bloqueadosArray.join(" ").toLowerCase();
+        if (bloqueadosStr.includes(busqueda)) return true;
+      }
+
+      return false;
+    });
+  };
+
+  // Agrupar contextos por el primer segmento del recurso
+  const agruparContextosPorRecurso = (contextos) => {
+    const grupos = {};
+
+    contextos.forEach((item) => {
+      const recurso = item.RECURSO || "";
+      // Obtener el primer segmento (antes del primer punto) o el recurso completo si no tiene puntos
+      const grupoKey = recurso.includes(".") ? recurso.split(".")[0] : recurso || "otros";
+
+      if (!grupos[grupoKey]) {
+        grupos[grupoKey] = [];
+      }
+      grupos[grupoKey].push(item);
+    });
+
+    // Ordenar cada grupo y devolver como array de objetos { grupo, items }
+    return Object.entries(grupos)
+      .map(([grupo, items]) => ({
+        grupo,
+        items: items.sort((a, b) => (a.RECURSO || "").localeCompare(b.RECURSO || "")),
+      }))
+      .sort((a, b) => a.grupo.localeCompare(b.grupo));
   };
 
   // Opciones para los selects
@@ -678,13 +801,13 @@ export const UsuariosRolContextoSection = ({
               </div>
             )}
 
-            {/* Buscador de usuarios */}
+            {/* Buscadores */}
             <div
               style={{
-                marginBottom: "12px",
-                position: "relative",
                 display: "flex",
-                alignItems: "center",
+                flexDirection: "column",
+                gap: "8px",
+                marginBottom: "12px",
               }}
             >
               <InputUI
@@ -692,6 +815,12 @@ export const UsuariosRolContextoSection = ({
                 placeholder="Buscar usuario por nombre o correo..."
                 value={buscarUsuario}
                 onChange={setBuscarUsuario}
+              />
+              <InputUI
+                iconLeft={"FaSistrix"}
+                placeholder="Buscar permisos por recurso, rol, permisos sobrescritos, empresas, líneas o bloqueados..."
+                value={buscarPermiso}
+                onChange={setBuscarPermiso}
               />
             </div>
 
@@ -759,9 +888,9 @@ export const UsuariosRolContextoSection = ({
                           paddingBottom: estaExpandido ? "8px" : "0",
                           borderBottom: estaExpandido
                             ? `1px solid ${hexToRGBA({
-                                hex: theme.colors.primary,
-                                alpha: 0.2,
-                              })}`
+                              hex: theme.colors.primary,
+                              alpha: 0.2,
+                            })}`
                             : "none",
                         }}
                       >
@@ -850,190 +979,287 @@ export const UsuariosRolContextoSection = ({
                             gap: "10px",
                           }}
                         >
-                          {grupo.contextos.map((item) => {
-                            const alcance =
-                              typeof item.ALCANCE === "string"
-                                ? JSON.parse(item.ALCANCE)
-                                : item.ALCANCE || {};
-                            const empresasAlcance =
-                              alcance.empresas || alcance.EMPRESAS || [];
-                            const lineasAlcance =
-                              alcance.lineas || alcance.LINEAS || [];
-                            const bloqueados =
-                              item.BLOQUEADO &&
-                              item.BLOQUEADO !== "<null>" &&
-                              item.BLOQUEADO !== "null"
-                                ? Array.isArray(item.BLOQUEADO)
-                                  ? item.BLOQUEADO
-                                  : typeof item.BLOQUEADO === "string"
-                                  ? item.BLOQUEADO.split(",").map((b) => b.trim())
-                                  : []
-                                : [];
+                          {(() => {
+                            // grupo.contextos ya viene filtrado por buscarPermiso en agruparPorUsuario
+                            const contextosFiltrados = buscarPermiso.trim() 
+                              ? grupo.contextos 
+                              : filtrarContextos(grupo.contextos);
+                            const gruposRecursos = agruparContextosPorRecurso(contextosFiltrados);
 
-                            return (
+                            if (gruposRecursos.length === 0) {
+                              // Este caso solo debería ocurrir si no hay búsqueda activa y no hay contextos
+                              // (pero esto ya está manejado arriba, así que no debería aparecer)
+                              return null;
+                            }
+
+                            return gruposRecursos.map((grupoRecurso) => (
                               <div
-                                key={item.ID_USUARIO_ROL_CONTEXTO}
+                                key={grupoRecurso.grupo}
                                 style={{
-                                  padding: "10px",
-                                  backgroundColor: hexToRGBA({
-                                    hex: theme.colors.primary,
-                                    alpha: 0.03,
-                                  }),
-                                  borderRadius: "4px",
-                                  border: `1px solid ${hexToRGBA({
-                                    hex: theme.colors.primary,
-                                    alpha: 0.1,
-                                  })}`,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "8px",
+                                  marginBottom: "12px",
                                 }}
                               >
+                                {/* Encabezado del grupo */}
                                 <div
                                   style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    marginBottom: "6px",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    color: theme.colors.primary,
+                                    textTransform: "capitalize",
+                                    paddingBottom: "4px",
+                                    borderBottom: `1px solid ${hexToRGBA({
+                                      hex: theme.colors.primary,
+                                      alpha: 0.2,
+                                    })}`,
                                   }}
                                 >
-                                  <div
-                                    style={{
-                                      fontSize: "14px",
-                                      fontWeight: "600",
-                                      color: theme.colors.text,
-                                    }}
-                                  >
-                                    {item.RECURSO}
-                                  </div>
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "8px",
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        fontSize: "11px",
-                                        padding: "3px 6px",
-                                        backgroundColor: hexToRGBA({
-                                          hex: theme.colors.secondary,
-                                          alpha: 0.15,
-                                        }),
-                                        borderRadius: "4px",
-                                        color: theme.colors.secondary,
-                                        fontWeight: "600",
-                                      }}
-                                    >
-                                      {item.ROL?.NOMBRE_ROL || "Sin rol"}
-                                    </div>
-                                    <ButtonUI
-                                      iconLeft="FaPenToSquare"
-                                      onClick={() => handleIniciarEdicionContexto(item)}
-                                      pcolor={theme.colors.primary}
-                                      style={{ padding: "4px 8px", minWidth: "auto" }}
-                                      title="Editar contexto"
-                                    />
-                                    <ButtonUI
-                                      iconLeft="FaTrash"
-                                      onClick={() => handleAbrirModalEliminar(item.ID_USUARIO_ROL_CONTEXTO)}
-                                      pcolor={theme.colors.error}
-                                      style={{ padding: "4px 8px", minWidth: "auto" }}
-                                      title="Eliminar contexto"
-                                    />
-                                  </div>
+                                  {grupoRecurso.grupo}
                                 </div>
 
+                                {/* Chips del grupo */}
                                 <div
                                   style={{
                                     display: "flex",
-                                    flexDirection: "column",
-                                    gap: "4px",
-                                    fontSize: "12px",
+                                    flexWrap: "wrap",
+                                    gap: "8px",
+                                    alignItems: "flex-start",
                                   }}
                                 >
-                                  <div>
-                                    <strong style={{ color: theme.colors.primary }}>
-                                      Herencia:
-                                    </strong>{" "}
-                                    <span style={{ color: theme.colors.text }}>
-                                      {item.HERENCIA ? "Sí" : "No"}
-                                    </span>
-                                  </div>
+                                  {grupoRecurso.items.map((item) => {
+                                    const alcance =
+                                      typeof item.ALCANCE === "string"
+                                        ? JSON.parse(item.ALCANCE)
+                                        : item.ALCANCE || {};
+                                    const empresasAlcance =
+                                      alcance.empresas || alcance.EMPRESAS || [];
+                                    const lineasAlcance =
+                                      alcance.lineas || alcance.LINEAS || [];
+                                    const bloqueados =
+                                      item.BLOQUEADO &&
+                                        item.BLOQUEADO !== "<null>" &&
+                                        item.BLOQUEADO !== "null"
+                                        ? Array.isArray(item.BLOQUEADO)
+                                          ? item.BLOQUEADO
+                                          : typeof item.BLOQUEADO === "string"
+                                            ? item.BLOQUEADO.split(",").map((b) => b.trim())
+                                            : []
+                                        : [];
+                                    const sobrescribirCount =
+                                      item.SOBRE_ESCRIBIR_PERMISOS &&
+                                        item.SOBRE_ESCRIBIR_PERMISOS !== "null" &&
+                                        Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS)
+                                        ? item.SOBRE_ESCRIBIR_PERMISOS.length
+                                        : 0;
+                                    const tituloCompleto = [
+                                      item.HERENCIA !== false ? "Herencia: Sí" : "Herencia: No",
+                                      sobrescribirCount > 0 && `Sobrescribir: ${(Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS) ? item.SOBRE_ESCRIBIR_PERMISOS : []).map((id) => obtenerNombrePermiso(id)).join(", ")}`,
+                                      empresasAlcance.length > 0 && `Empresas: ${empresasAlcance.map((id) => empresas.find((e) => e.ID === id)?.NOMBRE || id).join(", ")}`,
+                                      lineasAlcance.length > 0 && `Líneas: ${lineasAlcance.map((id) => lineasNegocio.find((l) => l.value === id)?.label || id).join(", ")}`,
+                                      bloqueados.length > 0 && `Bloqueados: ${bloqueados.join(", ")}`,
+                                    ].filter(Boolean).join(" · ");
 
-                                  {item.SOBRE_ESCRIBIR_PERMISOS &&
-                                    item.SOBRE_ESCRIBIR_PERMISOS !== "null" &&
-                                    Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS) &&
-                                    item.SOBRE_ESCRIBIR_PERMISOS.length > 0 && (
-                                      <div>
-                                        <strong
-                                          style={{ color: theme.colors.primary }}
+                                    // Obtener abreviaturas de empresas
+                                    const abreviaturasEmpresas = empresasAlcance
+                                      .map((id) => {
+                                        const empresa = empresas.find((e) => e.ID === id);
+                                        return empresa ? obtenerAbreviaturaEmpresa(empresa.NOMBRE) : null;
+                                      })
+                                      .filter(Boolean);
+
+                                    // Obtener abreviaturas de líneas
+                                    const abreviaturasLineas = lineasAlcance
+                                      .map((id) => {
+                                        const linea = lineasNegocio.find((l) => l.value === id);
+                                        return linea ? obtenerAbreviaturaLinea(linea.label) : null;
+                                      })
+                                      .filter(Boolean);
+
+                                    return (
+                                      <div
+                                        key={item.ID_USUARIO_ROL_CONTEXTO}
+                                        title={tituloCompleto}
+                                        style={{
+                                          display: "flex",
+                                          flexDirection: "row",
+                                          alignItems: "flex-start",
+                                          gap: "10px",
+                                          padding: "8px 12px",
+                                          backgroundColor: hexToRGBA({
+                                            hex: theme.colors.primary,
+                                            alpha: 0.06,
+                                          }),
+                                          borderRadius: "12px",
+                                          border: `1px solid ${hexToRGBA({
+                                            hex: theme.colors.primary,
+                                            alpha: 0.15,
+                                          })}`,
+                                          fontSize: "13px",
+                                          minWidth: "fit-content",
+                                        }}
+                                      >
+                                        {/* Columna 1: Nombre del recurso + chips */}
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: "6px",
+                                            flex: 1,
+                                            minWidth: 0,
+                                          }}
                                         >
-                                          Sobrescribir:
-                                        </strong>{" "}
-                                        <span style={{ color: theme.colors.text }}>
-                                          {item.SOBRE_ESCRIBIR_PERMISOS
-                                            .map((id) => obtenerNombrePermiso(id))
-                                            .join(", ")}
-                                        </span>
+                                          {/* Primera línea: Recurso, Rol, Herencia */}
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              flexWrap: "wrap",
+                                              alignItems: "center",
+                                              gap: "6px",
+                                            }}
+                                          >
+                                            <span
+                                              style={{
+                                                fontWeight: "600",
+                                                color: theme.colors.text,
+                                                whiteSpace: "nowrap",
+                                              }}
+                                            >
+                                              {item.RECURSO}
+                                            </span>
+                                            <span
+                                              style={{
+                                                fontSize: "11px",
+                                                padding: "2px 8px",
+                                                backgroundColor: hexToRGBA({
+                                                  hex: theme.colors.secondary,
+                                                  alpha: 0.2,
+                                                }),
+                                                borderRadius: "12px",
+                                                color: theme.colors.secondary,
+                                                fontWeight: "600",
+                                                whiteSpace: "nowrap",
+                                              }}
+                                            >
+                                              {item.ROL?.NOMBRE_ROL || "Sin rol"}
+                                            </span>
+                                            <span
+                                              style={{
+                                                fontSize: "10px",
+                                                color: theme.colors.textSecondary,
+                                                whiteSpace: "nowrap",
+                                              }}
+                                            >
+                                              H:{item.HERENCIA ? "Sí" : "No"}
+                                            </span>
+                                          </div>
+
+                                          {/* Segunda línea: Empresas y Líneas como chips */}
+                                          {(abreviaturasEmpresas.length > 0 || abreviaturasLineas.length > 0) && (
+                                            <div
+                                              style={{
+                                                display: "flex",
+                                                flexWrap: "wrap",
+                                                alignItems: "center",
+                                                gap: "4px",
+                                              }}
+                                            >
+                                              {abreviaturasEmpresas.map((abrev, index) => (
+                                                <span
+                                                  key={`emp-${index}`}
+                                                  style={{
+                                                    fontSize: "10px",
+                                                    padding: "2px 6px",
+                                                    backgroundColor: hexToRGBA({
+                                                      hex: theme.colors.primary,
+                                                      alpha: 0.15,
+                                                    }),
+                                                    borderRadius: "8px",
+                                                    color: theme.colors.primary,
+                                                    fontWeight: "600",
+                                                    whiteSpace: "nowrap",
+                                                  }}
+                                                >
+                                                  {abrev}
+                                                </span>
+                                              ))}
+                                              {abreviaturasLineas.map((abrev, index) => (
+                                                <span
+                                                  key={`lin-${index}`}
+                                                  style={{
+                                                    fontSize: "10px",
+                                                    padding: "2px 6px",
+                                                    backgroundColor: hexToRGBA({
+                                                      hex: theme.colors.secondary,
+                                                      alpha: 0.15,
+                                                    }),
+                                                    borderRadius: "8px",
+                                                    color: theme.colors.secondary,
+                                                    fontWeight: "600",
+                                                    whiteSpace: "nowrap",
+                                                  }}
+                                                >
+                                                  {abrev}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+
+                                          {/* Sobrescribir y Bloqueados */}
+                                          {(sobrescribirCount > 0 || bloqueados.length > 0) && (
+                                            <div
+                                              style={{
+                                                fontSize: "10px",
+                                                color: theme.colors.primary,
+                                                opacity: 0.9,
+                                              }}
+                                            >
+                                              {[
+                                                sobrescribirCount > 0 && `Sob:${sobrescribirCount}`,
+                                                bloqueados.length > 0 && `Bloq:${bloqueados.length}`,
+                                              ].filter(Boolean).join(" ")}
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Columna 2: Botones en columna */}
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: "4px",
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          <ButtonUI
+                                            iconLeft="FaPenToSquare"
+                                            onClick={() => handleIniciarEdicionContexto(item)}
+                                            pcolor={theme.colors.primary}
+                                            style={{ padding: "4px 8px", minWidth: "auto" }}
+                                            title="Editar contexto"
+                                            iconSize={18}
+                                            width="28px"
+                                            height="24px"
+                                          />
+                                          <ButtonUI
+                                            iconLeft="FaTrash"
+                                            onClick={() => handleAbrirModalEliminar(item.ID_USUARIO_ROL_CONTEXTO)}
+                                            pcolor={theme.colors.error}
+                                            style={{ padding: "4px 8px", minWidth: "auto" }}
+                                            title="Eliminar contexto"
+                                            iconSize={14}
+                                            width="28px"
+                                            height="24px"
+                                          />
+                                        </div>
                                       </div>
-                                    )}
-
-                                  {empresasAlcance.length > 0 && (
-                                    <div>
-                                      <strong
-                                        style={{ color: theme.colors.primary }}
-                                      >
-                                        Empresas:
-                                      </strong>{" "}
-                                      <span style={{ color: theme.colors.text }}>
-                                        {empresasAlcance
-                                          .map(
-                                            (id) =>
-                                              item.EMPRESAS?.[id] ||
-                                              empresas.find((e) => e.ID === id)
-                                                ?.NOMBRE ||
-                                              id
-                                          )
-                                          .join(", ")}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {lineasAlcance.length > 0 && (
-                                    <div>
-                                      <strong
-                                        style={{ color: theme.colors.primary }}
-                                      >
-                                        Líneas:
-                                      </strong>{" "}
-                                      <span style={{ color: theme.colors.text }}>
-                                        {lineasAlcance
-                                          .map(
-                                            (id) =>
-                                              item.LINEAS?.[id] ||
-                                              lineasNegocio.find(
-                                                (l) => l.value === id
-                                              )?.label ||
-                                              id
-                                          )
-                                          .join(", ")}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {bloqueados.length > 0 && (
-                                    <div>
-                                      <strong style={{ color: theme.colors.error }}>
-                                        Bloqueados:
-                                      </strong>{" "}
-                                      <span style={{ color: theme.colors.text }}>
-                                        {bloqueados.join(", ")}
-                                      </span>
-                                    </div>
-                                  )}
+                                    );
+                                  })}
                                 </div>
                               </div>
-                            );
-                          })}
+                            ));
+                          })()}
                         </div>
                       )}
                     </div>

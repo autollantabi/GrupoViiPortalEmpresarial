@@ -48,6 +48,8 @@ import { ReporteriaCoordenadas } from "pages/Areas/Reporteria/Coordenadas/Report
 import { Marketing5w2h } from "pages/Areas/Marketing/Marketing.5w2h";
 import { ReporteriaTecnicentroComercial } from "pages/Areas/Reporteria/TecnicentroComercial/ReporteriaTecnicentroComercial";
 import { ReporteriaImportaciones } from "pages/Areas/Reporteria/Importaciones/ReporteriaImportaciones";
+import { ReporteriaGarantiasHerramientas } from "pages/Areas/Reporteria/Garantias/Herramientas/ReporteriaGarantiasHerramientas";
+import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 
 // Configuración centralizada - Una sola fuente de verdad
 // Ahora usa recursos en lugar de módulos/secciones
@@ -94,6 +96,11 @@ export const RoutesConfig = [
     title: "Gestión de canjes",
     component: AS_GestionCanjes,
     recurso: "appshell.gestioncanjes",
+  },
+  {
+    title: "Usuarios App",
+    component: AS_UsuariosApp,
+    recurso: "appshell.usuariosapp",
   },
   // ================================= CARTERA =================================
   {
@@ -261,6 +268,11 @@ export const RoutesConfig = [
     title: "Coordenadas",
     component: ReporteriaCoordenadas,
     recurso: "reportes.coordenadas",
+  },
+  {
+    title: "Garantias Herramientas",
+    component: ReporteriaGarantiasHerramientas,
+    recurso: "reportes.garantiasherramientas",
   },
   {
     title: "Cobranzas",
