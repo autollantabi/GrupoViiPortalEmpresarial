@@ -416,7 +416,6 @@ export default function AS_GestionCanjes({
                 <>
                     <FiltrosBar theme={theme}>
                         <ContenedorFlex style={{ flexDirection: "column", gap: 4, minWidth: 220 }}>
-
                             <SelectUI
                                 options={opcionesClientes}
                                 value={filtroCliente ?? opcionesClientes[0]}
@@ -428,7 +427,6 @@ export default function AS_GestionCanjes({
                             />
                         </ContenedorFlex>
                         <ContenedorFlex style={{ flexDirection: "column", gap: 4, minWidth: 200 }}>
-
                             <SelectUI
                                 options={opcionesEstado}
                                 value={filtroEstado ?? opcionesEstado[0]}
