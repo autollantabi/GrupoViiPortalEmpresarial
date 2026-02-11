@@ -50,6 +50,8 @@ import { ReporteriaTecnicentroComercial } from "pages/Areas/Reporteria/Tecnicent
 import { ReporteriaImportaciones } from "pages/Areas/Reporteria/Importaciones/ReporteriaImportaciones";
 import { ReporteriaGarantiasHerramientas } from "pages/Areas/Reporteria/Garantias/Herramientas/ReporteriaGarantiasHerramientas";
 import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
+import MDM_Crud from "pages/Areas/MDM/MDM_Crud/MDM_Crud";
+import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 
 // Configuración centralizada - Una sola fuente de verdad
 // Ahora usa recursos en lugar de módulos/secciones
@@ -101,6 +103,11 @@ export const RoutesConfig = [
     title: "Usuarios App",
     component: AS_UsuariosApp,
     recurso: "appshell.usuariosapp",
+  },
+  {
+    title: "Hab Shell Form",
+    component: AS_HabShellForm,
+    recurso: "appshell.habshellform",
   },
   // ================================= CARTERA =================================
   {
@@ -221,6 +228,18 @@ export const RoutesConfig = [
     title: "5W2H",
     component: Marketing5w2h,
     recurso: "marketing.5w2h",
+  },
+  // ================================= MDM =================================
+  {
+    recurso: "mdm",
+    title: "MDM",
+    icon: "FaDatabase",
+    rootOnly: true,
+  },
+  {
+    title: "Crud",
+    component: MDM_Crud,
+    recurso: "mdm.crud",
   },
   // ================================= RRHH =================================
   {

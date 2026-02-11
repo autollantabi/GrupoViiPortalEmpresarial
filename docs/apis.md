@@ -61,7 +61,7 @@ El proyecto consume **dos APIs** mediante **dos instancias de Axios** definidas 
 - `carteraDesbloqueoClientesService.js` — GET/POST `/cartera/desbloqueo`.
 - `administracionService.js` — POST `/usuarios/`, GET/POST/PUT/DELETE `/permisos`, `/roles`, `/permisos-rol`, `/usuarios-rol-contexto`.
 - `usuariosService.js` — GET/POST/PUT/DELETE `/usuarios/tipoUsuario/`, y otros endpoints de usuarios nuevos.
-- `appShell_Service.js` — Club Shell: usuarios/info, usuarios (CRUD), canjes (estados y historial).
+- `appShell_Service.js` — Club Shell Maxx: usuarios/info, usuarios (CRUD), canjes (estados y historial). **Portal Mayorista:** usuarios, usuarios-permitidos/app-shell (habilitar/quitar permiso).
 
 ### Endpoints representativos
 
@@ -70,7 +70,8 @@ El proyecto consume **dos APIs** mediante **dos instancias de Axios** definidas 
 - Cartera: `/transacciones`, `/transacciones/:id`, `/cartera/bash/bancos/`, `/cartera/desbloqueo`, uploads de archivos transferencias.
 - Administración: `/usuarios/`, `/permisos`, `/roles`, `/permisos-rol`, `/usuarios-rol-contexto`.
 - Usuarios: `/usuarios/tipoUsuario/`, etc.
-- Club Shell: `/club-shell-maxx/usuarios/info`, `/club-shell-maxx/usuarios`, `/club-shell-maxx/canjes/*`.
+- **Club Shell Maxx** (misma base URL API 2): `GET /club-shell-maxx/canjes/estados-canjes`, `GET /club-shell-maxx/canjes/todos-con-estados`, `POST /club-shell-maxx/canjes/estado-historial-canje`, `GET /club-shell-maxx/usuarios`, `GET /club-shell-maxx/usuarios/info`, `POST /club-shell-maxx/usuarios` (crear vendedor).
+- **Portal Mayorista** (misma base URL API 2): `GET /portal-mayorista/usuarios` (lista con ID_USER, NAME_USER, EMAIL, ACCESS_APP_SHELL, etc.), `POST /portal-mayorista/usuarios-permitidos/app-shell` (body: `{ "email": "..." }`), `DELETE /portal-mayorista/usuarios-permitidos/app-shell/{email}` (email en path, codificado).
 
 ### Datos y riesgos
 

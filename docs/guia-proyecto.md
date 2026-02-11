@@ -39,7 +39,7 @@ La **autenticación** y la **autorización por recurso** (y por empresa/línea) 
 ## 4. Las dos APIs
 
 1. **VITE_API_URL** → Cartera, Compras, Contabilidad, Importaciones, Administración (parte), Recovery, Créditos, Transacciones (actualizar banco).
-2. **VITE_API_URL_NEW** → Login, `/auth/me`, 5W2H, Transacciones cartera, Desbloqueo, BAT bancos, Permisos/Roles/Usuarios-rol-contexto, Tipos de usuario, Club Shell (usuarios, canjes).
+2. **VITE_API_URL_NEW** → Login, `/auth/me`, 5W2H, Transacciones cartera, Desbloqueo, BAT bancos, Permisos/Roles/Usuarios-rol-contexto, Tipos de usuario, Club Shell Maxx (usuarios, canjes), Portal Mayorista (usuarios, permisos app-shell por email).
 
 Detalle en [apis.md](apis.md).
 

@@ -121,6 +121,85 @@ export async function appShellService_obtenerUsuariosInfo() {
 }
 
 /**
+ * Obtener usuarios del portal mayorista (lista para habilitar sección)
+ * GET /portal-mayorista/usuarios
+ * @returns {Promise<Object>} { success, data: [{ ID_USER, NAME_USER, EMAIL, ACCESS_APP_SHELL, ... }], message }
+ */
+export async function appShellService_obtenerUsuariosPortalMayorista() {
+  try {
+    const response = await axiosInstanceNew.get(`/portal-mayorista/usuarios`);
+    const raw = response.data?.data ?? response.data;
+    const list = Array.isArray(raw) ? raw : [];
+    return {
+      success: true,
+      data: list,
+      message: response.data?.message || "Usuarios obtenidos",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message:
+        error.response?.data?.message || "Error al obtener los usuarios",
+    };
+  }
+}
+
+/**
+ * Habilitar la sección (App Shell) para un usuario por email (portal mayorista)
+ * POST /portal-mayorista/usuarios-permitidos/app-shell
+ * @param {string} email - Email del usuario
+ * @returns {Promise<Object>} { success, data, message }
+ */
+export async function appShellService_habilitarSeccionUsuario(email) {
+  try {
+    const response = await axiosInstanceNew.post(
+      `/portal-mayorista/usuarios-permitidos/app-shell`,
+      { email }
+    );
+    return {
+      success: true,
+      data: response.data?.data ?? response.data,
+      message: response.data?.message || "Sección habilitada correctamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: null,
+      message:
+        error.response?.data?.message || "Error al habilitar la sección para el usuario",
+    };
+  }
+}
+
+/**
+ * Quitar el permiso de App Shell a un usuario por email (portal mayorista)
+ * DELETE /portal-mayorista/usuarios-permitidos/app-shell/{email}
+ * @param {string} email - Email del usuario
+ * @returns {Promise<Object>} { success, data, message }
+ */
+export async function appShellService_quitarPermisoSeccionUsuario(email) {
+  try {
+    const emailEncoded = encodeURIComponent(email);
+    const response = await axiosInstanceNew.delete(
+      `/portal-mayorista/usuarios-permitidos/app-shell/${emailEncoded}`
+    );
+    return {
+      success: true,
+      data: response.data?.data ?? response.data,
+      message: response.data?.message || "Permiso quitado correctamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: null,
+      message:
+        error.response?.data?.message || "Error al quitar el permiso al usuario",
+    };
+  }
+}
+
+/**
  * Crear un nuevo vendedor en el app shell
  * @param {Object} vendedorData - Datos del vendedor a crear
  * @returns {Promise<Object>} Respuesta de la API

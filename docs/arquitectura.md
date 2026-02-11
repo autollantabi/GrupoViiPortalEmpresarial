@@ -83,7 +83,7 @@ index.jsx
 Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Routes.js:
 
 - **Administracion:** EleccionAccion, GestionUsuarios, MantenimientoPermisos, MantenimientoPermisosNuevos, UsuariosAppShell, etc.
-- **AppShell:** AS_GestionCanjes (gestión de canjes con historial de estados), AS_UsuariosApp (lista de usuarios del club shell con filtro por texto y por rol).
+- **AppShell:** AS_GestionCanjes (gestión de canjes con historial de estados), AS_UsuariosApp (lista de usuarios del club shell con filtro por texto y por rol; asociaciones Manager/Vendedor/Influenciador en chips), AS_HabShellForm (habilitar o quitar permiso de formulario mayorista en App Shell por usuario, vía portal-mayorista).
 - **Cartera:** CargarTransferencias, RegistrosBancarios, RegistrosBancariosHistorial, DesbloqueoClientes, GestionCheques.
 - **Compras:** Reportes, Importaciones (Filtros, Tabla, VentanaEdicion), Creditos, Anticipos.
 - **Contabilidad:** ConversionArchivosBancos, FlujoDeCaja, Comisiones (Mayoristas, Tecnicentro, Lubricantes).

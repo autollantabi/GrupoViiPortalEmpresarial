@@ -22,6 +22,22 @@ function normalizarListaUsuarios(data) {
   return [];
 }
 
+/** Tipo de asociación según el rol del usuario: INFLUENCIADOR → Manager; MANAGER → Vendedor */
+function tipoAsociacionLabel(rolNombreUsuario) {
+  const r = (rolNombreUsuario || "").toUpperCase();
+  if (r === "INFLUENCIADOR") return "Manager asociado";
+  if (r === "MANAGER") return "Vendedor asociado";
+  return "Asociado";
+}
+
+/** Mensaje cuando la asociación está pendiente (arreglo vacío o sin datos) */
+function mensajeAsociacionPendiente(rolNombreUsuario) {
+  const r = (rolNombreUsuario || "").toUpperCase();
+  if (r === "INFLUENCIADOR") return "Asociación con manager pendiente";
+  if (r === "MANAGER") return "Asociación con vendedor pendiente";
+  return "Asociación pendiente";
+}
+
 export default function AS_UsuariosApp() {
   const { theme } = useTheme();
   const [usuarios, setUsuarios] = useState([]);
@@ -339,6 +355,53 @@ export default function AS_UsuariosApp() {
                         </div>
                       )}
                     </div>
+                    {(["MANAGER", "INFLUENCIADOR"].includes((rol || "").toUpperCase()) && (() => {
+                      const raw = usuario.ASSOCIATED ?? usuario.associated;
+                      const esArregloVacio = Array.isArray(raw) && raw.length === 0;
+                      const assoc = Array.isArray(raw) && raw.length > 0 ? raw[0] : raw;
+                      const tieneDatos = assoc && typeof assoc === "object" && (assoc.NAME ?? assoc.name ?? assoc.EMAIL ?? assoc.email);
+                      const chipPendiente = {
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        border: `1px solid ${hexToRGBA({ hex: theme?.colors?.warning ?? "#eab308", alpha: 0.4 })}`,
+                        backgroundColor: hexToRGBA({ hex: theme?.colors?.warning ?? "#eab308", alpha: 0.12 }),
+                        color: theme?.colors?.warning ?? "#b45309",
+                      };
+                      const chipStyle = {
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        border: `1px solid ${hexToRGBA({ hex: theme?.colors?.primary ?? "#334155", alpha: 0.2 })}`,
+                        backgroundColor: hexToRGBA({ hex: theme?.colors?.primary ?? "#334155", alpha: 0.08 }),
+                        color: theme?.colors?.text,
+                      };
+                      const chipSecondary = {
+                        ...chipStyle,
+                        border: `1px solid ${hexToRGBA({ hex: theme?.colors?.secondary ?? "#6366f1", alpha: 0.3 })}`,
+                        backgroundColor: hexToRGBA({ hex: theme?.colors?.secondary ?? "#6366f1", alpha: 0.12 }),
+                        color: theme?.colors?.secondary,
+                      };
+                      if (esArregloVacio || !tieneDatos) {
+                        return (
+                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                            <span style={chipPendiente}>{mensajeAsociacionPendiente(rol)}</span>
+                          </div>
+                        );
+                      }
+                      const nombreAssoc = [assoc.NAME ?? assoc.name, assoc.LASTNAME ?? assoc.lastname].filter(Boolean).join(" ") || "—";
+                      const emailAssoc = assoc.EMAIL ?? assoc.email ?? "—";
+                      const tipoLabel = tipoAsociacionLabel(rol);
+                      return (
+                        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                          <span style={chipSecondary}>{tipoLabel}</span>
+                          <span style={chipStyle}>{nombreAssoc}</span>
+                          <span style={chipStyle}>{emailAssoc}</span>
+                        </div>
+                      );
+                    })())}
                   </div>
                 );
               })}
