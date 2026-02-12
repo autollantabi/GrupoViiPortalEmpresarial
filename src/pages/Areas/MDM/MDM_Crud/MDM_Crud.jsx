@@ -8,54 +8,129 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
 
-const LINEAS_NEGOCIO = [{ value: "LLANTAS", label: "LLANTAS" }];
+const LINEAS_NEGOCIO = [
+    { value: "LLANTAS", label: "LLANTAS" },
+    { value: "LLANTAS MOTO", label: "LLANTAS MOTO" },
+    { value: "LUBRICANTES", label: "LUBRICANTES" },
+];
 const TIPOS_LLANTAS = [
     { value: "Americana", label: "Americana" },
     { value: "Milimetrica", label: "Milimétrica" },
     { value: "Decimal", label: "Decimal" },
 ];
 const VELOCIDADES = "Y G R H L Q W F J M P V S I K T N".split(" ").map((v) => ({ value: v, label: v }));
-const EMPRESAS_PLACEHOLDER = [
-    { value: "E1", label: "Empresa 1" },
-    { value: "E2", label: "Empresa 2" },
+const MARCAS_LUBRICANTES = [
+    { value: "SHELL", label: "SHELL" },
+    { value: "PENNZOIL", label: "PENNZOIL" },
+    { value: "AC DELCO", label: "AC DELCO" },
 ];
+const EMPRESAS_POR_LINEA = {
+    LLANTAS: [
+        { value: "AUTOLLANTA", label: "AUTOLLANTA" },
+        { value: "MAXXIMUNDO", label: "MAXXIMUNDO" },
+        { value: "STOX", label: "STOX" },
+        { value: "AUTOMAX", label: "AUTOMAX" },
+    ],
+    "LLANTAS MOTO": [
+        { value: "MAXXIMUNDO", label: "MAXXIMUNDO" },
+    ],
+    LUBRICANTES: [
+        { value: "MAXXIMUNDO", label: "MAXXIMUNDO" },
+    ],
+};
+const CAMPO_LABELS = {
+    tipo: "Tipo", ancho: "Ancho", altura: "Altura/Serie", rin: "Rin",
+    diseño: "Diseño", lona: "Lona/Robustez", carga: "Carga", velocidad: "Velocidad",
+    marca: "Marca", modelo: "Modelo", tipoLub: "Tipo", viscosidad: "Viscosidad", empaque: "Empaque",
+};
 
 const ID_BORRADOR = "draft";
 
-function validarAncho(tipo, valor) {
+// --- Configuración de rangos por línea de negocio ---
+const LINEA_CONFIG = {
+    LLANTAS: {
+        ancho: {
+            Americana: { min: 8, max: 13, step: 0.5 },
+            Milimetrica: { min: 55, max: 385, step: 5 },
+            Decimal: { min: 2.5, max: 14, step: 0.5 },
+        },
+        altura: {
+            Americana: { min: 18, max: 38, step: 1 },
+            Milimetrica: { min: 35, max: 100, step: 5 },
+        },
+        rin: { min: 10, max: 24.5, step: 0.5 },
+        lona: { min: 6, max: 24, step: 1 },
+        carga: { tipo: "formato" },
+    },
+    "LLANTAS MOTO": {
+        ancho: {
+            Americana: { min: 4.5, max: 11, step: 0.5 },
+            Milimetrica: { min: 60, max: 245, step: 5 },
+            Decimal: { min: 2.5, max: 4.6, step: 0.1 },
+        },
+        altura: {
+            Americana: { min: 10, max: 32, step: 1 },
+            Milimetrica: { min: 40, max: 100, step: 5 },
+        },
+        rin: { min: 5, max: 21, step: 1 },
+        lona: { min: 2, max: 8, step: 1 },
+        carga: { tipo: "rango", min: 14, max: 98, step: 1 },
+    },
+};
+
+function generarOpciones(min, max, step) {
+    const arr = [];
+    const factor = 10000;
+    const minI = Math.round(min * factor);
+    const maxI = Math.round(max * factor);
+    const stepI = Math.round(step * factor);
+    for (let i = minI; i <= maxI; i += stepI) {
+        const v = i / factor;
+        const s = Number.isInteger(v) ? String(v) : parseFloat(v.toFixed(2)).toString();
+        arr.push({ value: s, label: s });
+    }
+    return arr;
+}
+
+function generarCargasFormato() {
+    const arr = [];
+    for (let i = 2; i <= 30; i++) arr.push({ value: String(i), label: String(i) });
+    for (let i = 4; i <= 30; i += 2) arr.push({ value: `${i}/${i - 2}`, label: `${i}/${i - 2}` });
+    return arr;
+}
+
+function validarRequerido(valor) {
     if (valor == null || String(valor).trim() === "") return "Requerido";
+    return null;
+}
+
+function validarEnRango(valor, min, max) {
+    const err = validarRequerido(valor);
+    if (err) return err;
     const n = parseFloat(String(valor).replace(",", "."));
     if (Number.isNaN(n)) return "Debe ser número";
-    if (tipo === "Americana") {
-        if (n < 8 || n > 13) return "Entre 8 y 13";
-        return null;
-    }
-    if (tipo === "Milimetrica") {
-        if (!Number.isInteger(n) || n < 55 || n > 385) return "Entero entre 55 y 385";
-        return null;
-    }
-    if (tipo === "Decimal") {
-        if (n < 2.5 || n > 14) return "Entre 2.5 y 14";
-        return null;
-    }
+    if (n < min || n > max) return `Entre ${min} y ${max}`;
     return null;
 }
 
-function validarAltura(tipo, valor) {
+function validarAncho(config, tipo, valor) {
+    if (!config || !tipo) return validarRequerido(valor);
+    const cfg = config.ancho?.[tipo];
+    if (!cfg) return validarRequerido(valor);
+    return validarEnRango(valor, cfg.min, cfg.max);
+}
+
+function validarAltura(config, tipo, valor) {
     if (tipo === "Decimal") return null;
-    if (valor == null || String(valor).trim() === "") return "Requerido";
-    const n = parseInt(String(valor), 10);
-    if (Number.isNaN(n)) return "Debe ser entero";
-    if (tipo === "Americana" && (n < 18 || n > 38)) return "Entero entre 18 y 38";
-    if (tipo === "Milimetrica" && (n < 35 || n > 100)) return "Entero entre 35 y 100";
-    return null;
+    if (!config || !tipo) return validarRequerido(valor);
+    const cfg = config.altura?.[tipo];
+    if (!cfg) return validarRequerido(valor);
+    return validarEnRango(valor, cfg.min, cfg.max);
 }
 
-function validarRin(valor) {
-    if (valor == null || String(valor).trim() === "") return "Requerido";
-    const n = parseFloat(String(valor).replace(",", "."));
-    if (Number.isNaN(n) || n < 10 || n > 24.5) return "Entre 10 y 24.5";
-    return null;
+function validarRin(config, valor) {
+    if (!config) return validarRequerido(valor);
+    return validarEnRango(valor, config.rin.min, config.rin.max);
 }
 
 function validarDiseño(valor) {
@@ -63,19 +138,28 @@ function validarDiseño(valor) {
     return null;
 }
 
-function validarLona(valor) {
-    if (valor == null || String(valor).trim() === "") return "Requerido";
-    const n = parseInt(String(valor), 10);
-    if (Number.isNaN(n) || n < 6 || n > 24) return "Entre 6 y 24";
-    return null;
+function validarLona(config, valor) {
+    if (!config) return validarRequerido(valor);
+    return validarEnRango(valor, config.lona.min, config.lona.max);
 }
 
-function validarCarga(valor) {
-    if (valor == null || String(valor).trim() === "") return "Requerido";
-    const s = String(valor).trim();
-    if (/^\d+$/.test(s)) return null;
-    if (/^\d+\/\d+$/.test(s)) return null;
-    return "Formato X o X/X (2 o 3 números)";
+function validarCarga(config, valor) {
+    const err = validarRequerido(valor);
+    if (err) return err;
+    if (!config) return null;
+    if (config.carga.tipo === "formato") {
+        const s = String(valor).trim();
+        if (/^\d+$/.test(s)) return null;
+        if (/^\d+\/\d+$/.test(s)) return null;
+        return "Formato X o X/X";
+    }
+    if (config.carga.tipo === "rango") {
+        const n = parseInt(String(valor), 10);
+        if (Number.isNaN(n) || n < config.carga.min || n > config.carga.max)
+            return `Entero entre ${config.carga.min} y ${config.carga.max}`;
+        return null;
+    }
+    return null;
 }
 
 function validarVelocidad(valor) {
@@ -85,10 +169,38 @@ function validarVelocidad(valor) {
     return null;
 }
 
+// --- Validaciones LUBRICANTES ---
+function validarModelo(valor) {
+    if (valor == null || String(valor).trim() === "") return "Requerido";
+    if (!/^[A-Za-záéíóúñÁÉÍÓÚÑüÜ\s]+$/.test(String(valor).trim())) return "Solo caracteres alfabéticos";
+    return null;
+}
+
+function validarViscosidad(valor) {
+    if (valor == null || String(valor).trim() === "") return null; // OPCIONAL
+    const s = String(valor).trim().toUpperCase();
+    if (!/^\d{1,2}W\d{1,2}$/.test(s)) return "Formato XWX (ej: 5W30, 10W40)";
+    return null;
+}
+
+function validarEmpaque(valor) {
+    if (valor == null || String(valor).trim() === "") return "Requerido";
+    const s = String(valor).trim();
+    if (!/^\d+\*\d+[A-Za-záéíóúñÁÉÍÓÚÑ]+$/.test(s)) return "Formato X*XM (ej: 1*4GAL)";
+    return null;
+}
+
+function buildDescripcionLubricantes(marca, modelo, tipoLub, viscosidad, empaque) {
+    return [marca, modelo, tipoLub, viscosidad, empaque]
+        .map((v) => (v != null ? String(v).trim() : ""))
+        .filter(Boolean)
+        .join(" ");
+}
+
 function buildDescripcionConVariables(tipo, ancho, altura, rin, diseño, lona, carga, velocidad) {
     const r = rin != null && String(rin).trim() !== "" ? String(rin).trim() : "";
     const d = diseño != null ? String(diseño).trim() : "";
-    const lo = lona != null ? String(lona).trim() : "";
+    const lo = lona != null && String(lona).trim() !== "" ? `${String(lona).trim()}PR` : "";
     const c = carga != null ? String(carga).trim() : "";
     const v = velocidad != null ? String(velocidad).trim().toUpperCase() : "";
     const part = `R-${r} ${d} ${lo} ${c}${v}`.trim();
@@ -118,13 +230,20 @@ export default function MDM_Crud() {
     const [linea, setLinea] = useState(null);
     const [empresa, setEmpresa] = useState(null);
     const [tipo, setTipo] = useState(null);
-    const [ancho, setAncho] = useState("");
-    const [altura, setAltura] = useState("");
-    const [rin, setRin] = useState("");
+    const [ancho, setAncho] = useState(null);
+    const [altura, setAltura] = useState(null);
+    const [rin, setRin] = useState(null);
     const [diseño, setDiseño] = useState("");
-    const [lona, setLona] = useState("");
-    const [carga, setCarga] = useState("");
+    const [lona, setLona] = useState(null);
+    const [carga, setCarga] = useState(null);
     const [velocidad, setVelocidad] = useState(null);
+    // Lubricantes
+    const [marca, setMarca] = useState(null);
+    const [modelo, setModelo] = useState("");
+    const [tipoLub, setTipoLub] = useState("");
+    const [viscosidad, setViscosidad] = useState("");
+    const [empaque, setEmpaque] = useState("");
+
     const [touchedFields, setTouchedFields] = useState(() => new Set());
     const [mostrarFormularioNuevoItem, setMostrarFormularioNuevoItem] = useState(false);
 
@@ -137,6 +256,40 @@ export default function MDM_Crud() {
         setMostrarFormularioNuevoItem(false);
     }, [currentGroupId]);
 
+    const lineaActual = currentGroup?.linea;
+    const config = LINEA_CONFIG[lineaActual] || null;
+    const esLlantas = lineaActual === "LLANTAS" || lineaActual === "LLANTAS MOTO";
+    const esLubricantes = lineaActual === "LUBRICANTES";
+
+    const opcionesAncho = useMemo(() => {
+        if (!config || !tipo?.value) return [];
+        const cfg = config.ancho?.[tipo.value];
+        return cfg ? generarOpciones(cfg.min, cfg.max, cfg.step) : [];
+    }, [config, tipo]);
+
+    const opcionesAltura = useMemo(() => {
+        if (!config || !tipo?.value) return [];
+        const cfg = config.altura?.[tipo.value];
+        return cfg ? generarOpciones(cfg.min, cfg.max, cfg.step) : [];
+    }, [config, tipo]);
+
+    const opcionesRin = useMemo(() => {
+        if (!config) return [];
+        return generarOpciones(config.rin.min, config.rin.max, config.rin.step);
+    }, [config]);
+
+    const opcionesLona = useMemo(() => {
+        if (!config) return [];
+        return generarOpciones(config.lona.min, config.lona.max, config.lona.step);
+    }, [config]);
+
+    const opcionesCarga = useMemo(() => {
+        if (!config) return [];
+        if (config.carga.tipo === "formato") return generarCargasFormato();
+        if (config.carga.tipo === "rango") return generarOpciones(config.carga.min, config.carga.max, config.carga.step);
+        return [];
+    }, [config]);
+
     const gruposGuardados = useMemo(() => groups.filter((g) => g.id !== ID_BORRADOR), [groups]);
 
     const crearGrupo = useCallback(() => {
@@ -148,17 +301,12 @@ export default function MDM_Crud() {
         setLinea(null);
         setEmpresa(null);
         setTipo(null);
-        setAncho("");
-        setAltura("");
-        setRin("");
-        setDiseño("");
-        setLona("");
-        setCarga("");
-        setVelocidad(null);
+        setAncho(null); setAltura(null); setRin(null); setDiseño("");
+        setLona(null); setCarga(null); setVelocidad(null);
+        setMarca(null); setModelo(""); setTipoLub(""); setViscosidad(""); setEmpaque("");
         setTouchedFields(new Set());
         setMostrarFormularioNuevoItem(false);
         setSelectedItemIds(new Set());
-        toast.success("Nuevo grupo en edición. Asigne línea, empresa y ítems, luego Guardar grupo.");
     }, []);
 
     const asignarLineaEmpresa = useCallback(() => {
@@ -174,83 +322,98 @@ export default function MDM_Crud() {
     }, [currentGroupId, linea, empresa]);
 
     const limpiarFormulario = useCallback(() => {
-        setTipo(null);
-        setAncho("");
-        setAltura("");
-        setRin("");
-        setDiseño("");
-        setLona("");
-        setCarga("");
-        setVelocidad(null);
+        // Llantas
+        setTipo(null); setAncho(null); setAltura(null); setRin(null);
+        setDiseño(""); setLona(null); setCarga(null); setVelocidad(null);
+        // Lubricantes
+        setMarca(null); setModelo(""); setTipoLub(""); setViscosidad(""); setEmpaque("");
+        // Común
         setTouchedFields(new Set());
     }, []);
 
     const errores = useMemo(() => {
+        if (esLubricantes) {
+            return {
+                marca: validarRequerido(marca?.value),
+                modelo: validarModelo(modelo),
+                tipoLub: validarRequerido(tipoLub),
+                viscosidad: validarViscosidad(viscosidad),
+                empaque: validarEmpaque(empaque),
+            };
+        }
         const tipoVal = tipo?.value;
         return {
             tipo: !tipoVal ? "Requerido" : null,
-            ancho: validarAncho(tipoVal, ancho),
-            altura: validarAltura(tipoVal, altura),
-            rin: validarRin(rin),
+            ancho: validarAncho(config, tipoVal, ancho?.value),
+            altura: validarAltura(config, tipoVal, altura?.value),
+            rin: validarRin(config, rin?.value),
             diseño: validarDiseño(diseño),
-            lona: validarLona(lona),
-            carga: validarCarga(carga),
-            velocidad: validarVelocidad(velocidad?.value ?? velocidad),
+            lona: validarLona(config, lona?.value),
+            carga: validarCarga(config, carga?.value),
+            velocidad: validarVelocidad(velocidad?.value),
         };
-    }, [tipo, ancho, altura, rin, diseño, lona, carga, velocidad]);
+    }, [esLubricantes, config, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, modelo, tipoLub, viscosidad, empaque]);
 
     const marcarTocado = useCallback((campo) => {
         setTouchedFields((prev) => new Set(prev).add(campo));
     }, []);
 
+    const renderCampo = (campo, label, { tipoComp = "select", placeholder, options, value, onChange, onChangeExtra } = {}) => (
+        <div key={campo} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {tipoComp === "select" ? (
+                <SelectUI
+                    label={label} placeholder={placeholder || "Seleccionar"} options={options || []}
+                    value={value} onChange={(v) => { onChange(v); onChangeExtra?.(v); marcarTocado(campo); }} minWidth="100%"
+                />
+            ) : (
+                <InputUI
+                    label={label} placeholder={placeholder || ""}
+                    value={value} onChange={(v) => { onChange(v); onChangeExtra?.(v); marcarTocado(campo); }}
+                />
+            )}
+            {touchedFields.has(campo) && errores[campo] && (
+                <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores[campo]}</TextUI>
+            )}
+        </div>
+    );
+
     const agregarItem = useCallback(() => {
         if (!currentGroup) return;
-        const { tipo: errTipo, ancho: errAncho, altura: errAltura, rin: errRin, diseño: errDiseño, lona: errLona, carga: errCarga, velocidad: errVelocidad } = errores;
-        const conError = [
-            errTipo && { campo: "Tipo", msg: errTipo },
-            errAncho && { campo: "Ancho", msg: errAncho },
-            errAltura && { campo: "Altura/Serie", msg: errAltura },
-            errRin && { campo: "Rin", msg: errRin },
-            errDiseño && { campo: "Diseño", msg: errDiseño },
-            errLona && { campo: "Lona/Robustez", msg: errLona },
-            errCarga && { campo: "Carga", msg: errCarga },
-            errVelocidad && { campo: "Velocidad", msg: errVelocidad },
-        ].filter(Boolean);
-        if (conError.length > 0) {
-            setTouchedFields(new Set(["tipo", "ancho", "altura", "rin", "diseño", "lona", "carga", "velocidad"]));
-            const texto = conError.map((e) => `${e.campo}: ${e.msg}`).join(" — ");
-            toast.error("Campos con error: " + texto);
+        const camposConError = Object.entries(errores)
+            .filter(([, msg]) => msg != null)
+            .map(([campo, msg]) => ({ campo: CAMPO_LABELS[campo] || campo, msg }));
+        if (camposConError.length > 0) {
+            setTouchedFields(new Set(Object.keys(errores)));
+            toast.error("Campos con error: " + camposConError.map((e) => `${e.campo}: ${e.msg}`).join(" — "));
             return;
         }
-        const descripcionConVariables = buildDescripcionConVariables(
-            tipo?.value,
-            ancho,
-            tipo?.value === "Decimal" ? null : altura,
-            rin,
-            diseño,
-            lona,
-            carga,
-            velocidad?.value ?? velocidad
-        );
-        const item = {
-            id: `i-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            tipo: tipo?.value,
-            ancho,
-            altura: tipo?.value === "Decimal" ? null : altura,
-            rin,
-            diseño,
-            lona,
-            carga,
-            velocidad: velocidad?.value ?? velocidad,
-            descripcionConVariables,
-        };
+        const id = `i-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        let item;
+        if (esLubricantes) {
+            item = {
+                id, marca: marca?.value, modelo, tipoLub,
+                viscosidad: viscosidad || null, empaque,
+                descripcionConVariables: buildDescripcionLubricantes(marca?.value, modelo, tipoLub, viscosidad, empaque),
+            };
+        } else {
+            item = {
+                id, tipo: tipo?.value, ancho: ancho?.value,
+                altura: tipo?.value === "Decimal" ? null : altura?.value,
+                rin: rin?.value, diseño, lona: lona?.value,
+                carga: carga?.value, velocidad: velocidad?.value,
+                descripcionConVariables: buildDescripcionConVariables(
+                    tipo?.value, ancho?.value, tipo?.value === "Decimal" ? null : altura?.value,
+                    rin?.value, diseño, lona?.value, carga?.value, velocidad?.value
+                ),
+            };
+        }
         setGroups((prev) =>
             prev.map((g) => (g.id === currentGroupId ? { ...g, items: [...g.items, item] } : g))
         );
         limpiarFormulario();
         setMostrarFormularioNuevoItem(false);
         toast.success("Item agregado");
-    }, [currentGroup, currentGroupId, errores, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, limpiarFormulario]);
+    }, [currentGroup, currentGroupId, errores, esLubricantes, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, modelo, tipoLub, viscosidad, empaque, limpiarFormulario]);
 
     const toggleSeleccionItem = useCallback((id) => {
         setSelectedItemIds((prev) => {
@@ -314,7 +477,7 @@ export default function MDM_Crud() {
     );
 
     const tieneLineaYEmpresa = currentGroup?.linea && currentGroup?.empresa;
-    const mostrarFormulario = tieneLineaYEmpresa && currentGroup?.linea === "LLANTAS";
+    const mostrarFormulario = tieneLineaYEmpresa && (esLlantas || esLubricantes);
 
     return (
         <div
@@ -421,7 +584,7 @@ export default function MDM_Crud() {
                                     placeholder="Seleccionar línea"
                                     options={LINEAS_NEGOCIO}
                                     value={linea}
-                                    onChange={setLinea}
+                                    onChange={(v) => { setLinea(v); setEmpresa(null); }}
                                     minWidth="200px"
                                 />
                             </div>
@@ -429,7 +592,7 @@ export default function MDM_Crud() {
                                 <SelectUI
                                     label="Empresa"
                                     placeholder="Seleccionar empresa"
-                                    options={EMPRESAS_PLACEHOLDER}
+                                    options={EMPRESAS_POR_LINEA[linea?.value] || []}
                                     value={empresa}
                                     onChange={setEmpresa}
                                     minWidth="200px"
@@ -445,10 +608,6 @@ export default function MDM_Crud() {
                                         display: "flex",
                                         flexDirection: "column",
                                         gap: 12,
-                                        padding: 16,
-                                        borderRadius: 8,
-                                        border: `1px solid ${hexToRGBA({ hex: theme?.colors?.primary, alpha: 0.25 })}`,
-                                        backgroundColor: hexToRGBA({ hex: theme?.colors?.primary, alpha: 0.06 }),
                                     }}
                                 >
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -531,83 +690,26 @@ export default function MDM_Crud() {
                                                 }}
                                             >
                                                 <TextUI size="14px" weight="600">
-                                                    Nuevo ítem (LLANTAS)
+                                                    Nuevo ítem ({currentGroup?.linea})
                                                 </TextUI>
                                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                        <SelectUI
-                                                            label="Tipo"
-                                                            placeholder="Tipo"
-                                                            options={TIPOS_LLANTAS}
-                                                            value={tipo}
-                                                            onChange={(v) => { setTipo(v); setAncho(""); setAltura(""); marcarTocado("tipo"); }}
-                                                            minWidth="100%"
-                                                        />
-                                                        {touchedFields.has("tipo") && errores.tipo && (
-                                                            <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores.tipo}</TextUI>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                        <InputUI
-                                                            label="Ancho"
-                                                            placeholder={tipo?.value === "Americana" ? "8-13" : tipo?.value === "Milimetrica" ? "55-385" : "2.5-14"}
-                                                            value={ancho}
-                                                            onChange={(v) => { setAncho(v); marcarTocado("ancho"); }}
-                                                        />
-                                                        {touchedFields.has("ancho") && errores.ancho && (
-                                                            <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores.ancho}</TextUI>
-                                                        )}
-                                                    </div>
-                                                    {tipo?.value !== "Decimal" && (
-                                                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                            <InputUI
-                                                                label="Altura/Serie"
-                                                                placeholder={tipo?.value === "Americana" ? "18-38" : "35-100"}
-                                                                value={altura}
-                                                                onChange={(v) => { setAltura(v); marcarTocado("altura"); }}
-                                                            />
-                                                            {touchedFields.has("altura") && errores.altura && (
-                                                                <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores.altura}</TextUI>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                        <InputUI label="Rin (10-24.5)" placeholder="10 a 24.5" value={rin} onChange={(v) => { setRin(v); marcarTocado("rin"); }} />
-                                                        {touchedFields.has("rin") && errores.rin && (
-                                                            <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores.rin}</TextUI>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                        <InputUI label="Diseño" placeholder="Alfanumérico" value={diseño} onChange={(v) => { setDiseño(v); marcarTocado("diseño"); }} />
-                                                        {touchedFields.has("diseño") && errores.diseño && (
-                                                            <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores.diseño}</TextUI>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                        <InputUI label="Lona/Robustez (6-24)" placeholder="6 a 24" value={lona} onChange={(v) => { setLona(v); marcarTocado("lona"); }} />
-                                                        {touchedFields.has("lona") && errores.lona && (
-                                                            <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores.lona}</TextUI>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                        <InputUI label="Carga (X o X/X)" placeholder="Ej: 8 o 12/14" value={carga} onChange={(v) => { setCarga(v); marcarTocado("carga"); }} />
-                                                        {touchedFields.has("carga") && errores.carga && (
-                                                            <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores.carga}</TextUI>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                                        <SelectUI
-                                                            label="Velocidad"
-                                                            placeholder="Letra"
-                                                            options={VELOCIDADES}
-                                                            value={velocidad}
-                                                            onChange={(v) => { setVelocidad(v); marcarTocado("velocidad"); }}
-                                                            minWidth="100%"
-                                                        />
-                                                        {touchedFields.has("velocidad") && errores.velocidad && (
-                                                            <TextUI size="11px" style={{ color: theme?.colors?.error || "#dc3545" }}>{errores.velocidad}</TextUI>
-                                                        )}
-                                                    </div>
+                                                    {esLlantas && (<>
+                                                        {renderCampo("tipo", "Tipo", { placeholder: "Tipo", options: TIPOS_LLANTAS, value: tipo, onChange: setTipo, onChangeExtra: () => { setAncho(null); setAltura(null); } })}
+                                                        {renderCampo("ancho", "Ancho", { options: opcionesAncho, value: ancho, onChange: setAncho })}
+                                                        {tipo?.value !== "Decimal" && renderCampo("altura", "Altura/Serie", { options: opcionesAltura, value: altura, onChange: setAltura })}
+                                                        {renderCampo("rin", "Rin", { options: opcionesRin, value: rin, onChange: setRin })}
+                                                        {renderCampo("diseño", "Diseño", { tipoComp: "input", placeholder: "Alfanumérico", value: diseño, onChange: setDiseño })}
+                                                        {renderCampo("lona", "Lona/Robustez", { options: opcionesLona, value: lona, onChange: setLona })}
+                                                        {renderCampo("carga", "Carga", { options: opcionesCarga, value: carga, onChange: setCarga })}
+                                                        {renderCampo("velocidad", "Velocidad", { placeholder: "Letra", options: VELOCIDADES, value: velocidad, onChange: setVelocidad })}
+                                                    </>)}
+                                                    {esLubricantes && (<>
+                                                        {renderCampo("marca", "Marca", { options: MARCAS_LUBRICANTES, value: marca, onChange: setMarca })}
+                                                        {renderCampo("modelo", "Modelo", { tipoComp: "input", placeholder: "Caracteres alfabéticos", value: modelo, onChange: setModelo })}
+                                                        {renderCampo("tipoLub", "Tipo", { tipoComp: "input", placeholder: "Caracteres alfanuméricos", value: tipoLub, onChange: setTipoLub })}
+                                                        {renderCampo("viscosidad", "Viscosidad (opcional)", { tipoComp: "input", placeholder: "Ej: 5W30, 10W40", value: viscosidad, onChange: setViscosidad })}
+                                                        {renderCampo("empaque", "Empaque", { tipoComp: "input", placeholder: "Ej: 1*4GAL", value: empaque, onChange: setEmpaque })}
+                                                    </>)}
                                                 </div>
                                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                                                     <ButtonUI
