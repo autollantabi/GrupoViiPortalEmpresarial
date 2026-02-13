@@ -228,6 +228,7 @@ export default function AS_GestionCanjes({
     useEffect(() => {
         appShellService_obtenerEstadosCanjes().then((res) => {
             if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                console.log(res);
                 setEstadosCanjes(res.data);
             }
         });

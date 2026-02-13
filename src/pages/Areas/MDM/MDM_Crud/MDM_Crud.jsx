@@ -24,6 +24,110 @@ const MARCAS_LUBRICANTES = [
     { value: "PENNZOIL", label: "PENNZOIL" },
     { value: "AC DELCO", label: "AC DELCO" },
 ];
+
+// --- Marcas de llantas (value = marca referencial para descripción, marcaOriginal = para BD) ---
+const MARCAS_LLANTAS = [
+    { value: "APLUS", label: "APLUS", marcaOriginal: "APLUS" },
+    { value: "ANSU", label: "ANSU", marcaOriginal: "WONDERLAND" },
+    { value: "CST", label: "CST", marcaOriginal: "CST" },
+    { value: "FARROAD BRAND", label: "FARROAD BRAND", marcaOriginal: "FARROAD BRAND" },
+    { value: "FORTUNE", label: "FORTUNE", marcaOriginal: "FORTUNE" },
+    { value: "HAOHUA", label: "HAOHUA", marcaOriginal: "HAOHUA" },
+    { value: "MAXTREK", label: "MAXTREK", marcaOriginal: "MAXTREK" },
+    { value: "MAXXIS", label: "MAXXIS", marcaOriginal: "MAXXIS" },
+    { value: "WONDERLAND", label: "WONDERLAND", marcaOriginal: "WONDERLAND" },
+];
+
+// --- Jerarquía CATEGORIA → SEGMENTO → APLICACION → EJE (llantas) ---
+const CATEGORIAS_LLANTAS = {
+    "PCR (PASSENGER CAR RADIAL)": {
+        segmentos: {
+            "PASAJERO(PCR)": {
+                aplicaciones: {
+                    "PASAJERO": ["P(PASSENGER)", "HP (HIGH PERFORMANCE)", "UHP (ULTRA HIGH PERFORMANCE)"],
+                    "TAXI": ["TAXI"],
+                    "RUN FLAT": ["RUN FLAT"],
+                },
+            },
+            "COMPETENCIA": {
+                aplicaciones: {
+                    "RALLY": ["S(SOFT)", "M(MEDIUM)", "H(HARD)", "SLICK", "SEMI SLICK"],
+                    "PISTA": ["S(SOFT)", "M(MEDIUM)", "H(HARD)", "SLICK", "SEMI SLICK"],
+                },
+            },
+        },
+    },
+    "LT 4X4 (LIGHT TRUCK)": {
+        segmentos: {
+            "LT/4X4/SUV(LTR)": {
+                aplicaciones: {
+                    "ON": ["P(PASSENGER)", "RUN FLAT", "UHP (ULTRA HIGH PERFORMANCE)", "HP (HIGH PERFORMANCE)", "HT (HIGHWAY TERRAIN)"],
+                    "ON/OFF": ["RT(RUGGED TERRAIN)", "AT(ALL TERRAIN)"],
+                    "OFF": ["MT(MUD TERRAIN)"],
+                },
+            },
+            "COMERCIAL": {
+                aplicaciones: {
+                    "COMERCIAL (CARGA) & VAN": ["HT (HIGHWAY TERRAIN)", "AT(ALL TERRAIN)"],
+                },
+            },
+            "RUNFLAT": {
+                aplicaciones: {
+                    "HP": ["HP (HIGH PERFORMANCE)"],
+                    "UHP": ["UHP (ULTRA HIGH PERFORMANCE)"],
+                },
+            },
+            "LT BIAS (LIGHT TRUCK BIAS)": {
+                aplicaciones: {
+                    "ON": ["DIRECCIONAL (TODA POSICION)", "MIXTA", "TRACCION", "TRAILER (ARRASTRE)"],
+                    "ON/OFF": ["DIRECCIONAL (TODA POSICION)", "MIXTA", "TRACCION", "TRAILER (ARRASTRE)"],
+                    "OFF": ["DIRECCIONAL (TODA POSICION)", "MIXTA", "TRACCION", "TRAILER (ARRASTRE)"],
+                },
+            },
+        },
+    },
+    "CAMION PESADO": {
+        segmentos: {
+            "TBR (TRUCK & BUS RADIAL)": {
+                aplicaciones: {
+                    "LONG HAUL": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "REGIONAL": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "URBANA": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "ON/OFF": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "MIXTA"],
+                    "OFF": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                },
+            },
+            "TBB (TRUCK & BUS BIAS)": {
+                aplicaciones: {
+                    "ON": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "ON/OFF": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "OFF": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                },
+            },
+        },
+    },
+    "CAMION LIVIANO": {
+        segmentos: {
+            "LTSR (LIGHT TRUCK SERVICE RADIAL)": {
+                aplicaciones: {
+                    "OFF": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "REGIONAL": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "URBANA": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "ON/OFF": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                },
+            },
+            "LTSB (LIGHT TRUCK SERVICE BIAS)": {
+                aplicaciones: {
+                    "OFF": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "REGIONAL": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "URBANA": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                    "ON/OFF": ["DIRECCIONAL (TODA POSICION)", "TRACCION", "TRAILER (ARRASTRE)", "MIXTA"],
+                },
+            },
+        },
+    },
+};
+
 const EMPRESAS_POR_LINEA = {
     LLANTAS: [
         { value: "AUTOLLANTA", label: "AUTOLLANTA" },
@@ -39,6 +143,7 @@ const EMPRESAS_POR_LINEA = {
     ],
 };
 const CAMPO_LABELS = {
+    marcaLlanta: "Marca", categoria: "Categoría", segmento: "Segmento", aplicacion: "Aplicación", eje: "Eje",
     tipo: "Tipo", ancho: "Ancho", altura: "Altura/Serie", rin: "Rin",
     diseño: "Diseño", lona: "Lona/Robustez", carga: "Carga", velocidad: "Velocidad",
     marca: "Marca", modelo: "Modelo", tipoLub: "Tipo", viscosidad: "Viscosidad", empaque: "Empaque",
@@ -46,9 +151,12 @@ const CAMPO_LABELS = {
 
 const ID_BORRADOR = "draft";
 
-// --- Configuración de rangos por línea de negocio ---
+// --- Configuración por línea de negocio ---
 const LINEA_CONFIG = {
     LLANTAS: {
+        formType: "llantas",
+        marcas: MARCAS_LLANTAS,
+        categorias: CATEGORIAS_LLANTAS,
         ancho: {
             Americana: { min: 8, max: 13, step: 0.5 },
             Milimetrica: { min: 55, max: 385, step: 5 },
@@ -63,6 +171,7 @@ const LINEA_CONFIG = {
         carga: { tipo: "formato" },
     },
     "LLANTAS MOTO": {
+        formType: "llantas",
         ancho: {
             Americana: { min: 4.5, max: 11, step: 0.5 },
             Milimetrica: { min: 60, max: 245, step: 5 },
@@ -75,6 +184,9 @@ const LINEA_CONFIG = {
         rin: { min: 5, max: 21, step: 1 },
         lona: { min: 2, max: 8, step: 1 },
         carga: { tipo: "rango", min: 14, max: 98, step: 1 },
+    },
+    LUBRICANTES: {
+        formType: "lubricantes",
     },
 };
 
@@ -197,17 +309,19 @@ function buildDescripcionLubricantes(marca, modelo, tipoLub, viscosidad, empaque
         .join(" ");
 }
 
-function buildDescripcionConVariables(tipo, ancho, altura, rin, diseño, lona, carga, velocidad) {
+function buildDescripcionConVariables(marcaRef, tipo, ancho, altura, rin, diseño, lona, carga, velocidad) {
+    const m = marcaRef != null ? String(marcaRef).trim() : "";
     const r = rin != null && String(rin).trim() !== "" ? String(rin).trim() : "";
     const d = diseño != null ? String(diseño).trim() : "";
     const lo = lona != null && String(lona).trim() !== "" ? `${String(lona).trim()}PR` : "";
     const c = carga != null ? String(carga).trim() : "";
     const v = velocidad != null ? String(velocidad).trim().toUpperCase() : "";
     const part = `R-${r} ${d} ${lo} ${c}${v}`.trim();
-    if (tipo === "Americana") return `${altura || ""} x ${ancho || ""} ${part}`.trim();
-    if (tipo === "Milimetrica") return `${ancho || ""}/${altura || ""} ${part}`.trim();
-    if (tipo === "Decimal") return `${ancho || ""} ${part}`.trim();
-    return "";
+    let desc = "";
+    if (tipo === "Americana") desc = `${altura || ""} x ${ancho || ""} ${part}`.trim();
+    else if (tipo === "Milimetrica") desc = `${ancho || ""}/${altura || ""} ${part}`.trim();
+    else if (tipo === "Decimal") desc = `${ancho || ""} ${part}`.trim();
+    return m ? `${m} ${desc}` : desc;
 }
 
 function exportarItemsATxt(items, nombreArchivo) {
@@ -237,6 +351,12 @@ export default function MDM_Crud() {
     const [lona, setLona] = useState(null);
     const [carga, setCarga] = useState(null);
     const [velocidad, setVelocidad] = useState(null);
+    // Clasificación llantas
+    const [marcaLlanta, setMarcaLlanta] = useState(null);
+    const [categoria, setCategoria] = useState(null);
+    const [segmento, setSegmento] = useState(null);
+    const [aplicacion, setAplicacion] = useState(null);
+    const [eje, setEje] = useState(null);
     // Lubricantes
     const [marca, setMarca] = useState(null);
     const [modelo, setModelo] = useState("");
@@ -258,8 +378,34 @@ export default function MDM_Crud() {
 
     const lineaActual = currentGroup?.linea;
     const config = LINEA_CONFIG[lineaActual] || null;
-    const esLlantas = lineaActual === "LLANTAS" || lineaActual === "LLANTAS MOTO";
-    const esLubricantes = lineaActual === "LUBRICANTES";
+    const esLlantas = config?.formType === "llantas";
+    const esLubricantes = config?.formType === "lubricantes";
+
+    // Opciones en cascada: Marca, Categoría → Segmento → Aplicación → Eje
+    const opcionesMarcaLlanta = useMemo(() => config?.marcas || [], [config]);
+
+    const opcionesCategoria = useMemo(() => {
+        if (!config?.categorias) return [];
+        return Object.keys(config.categorias).map((v) => ({ value: v, label: v }));
+    }, [config]);
+
+    const opcionesSegmento = useMemo(() => {
+        if (!config?.categorias || !categoria?.value) return [];
+        const cat = config.categorias[categoria.value];
+        return cat ? Object.keys(cat.segmentos).map((v) => ({ value: v, label: v })) : [];
+    }, [config, categoria]);
+
+    const opcionesAplicacion = useMemo(() => {
+        if (!config?.categorias || !categoria?.value || !segmento?.value) return [];
+        const seg = config.categorias[categoria.value]?.segmentos?.[segmento.value];
+        return seg ? Object.keys(seg.aplicaciones).map((v) => ({ value: v, label: v })) : [];
+    }, [config, categoria, segmento]);
+
+    const opcionesEje = useMemo(() => {
+        if (!config?.categorias || !categoria?.value || !segmento?.value || !aplicacion?.value) return [];
+        const ejes = config.categorias[categoria.value]?.segmentos?.[segmento.value]?.aplicaciones?.[aplicacion.value];
+        return ejes ? ejes.map((v) => ({ value: v, label: v })) : [];
+    }, [config, categoria, segmento, aplicacion]);
 
     const opcionesAncho = useMemo(() => {
         if (!config || !tipo?.value) return [];
@@ -303,6 +449,7 @@ export default function MDM_Crud() {
         setTipo(null);
         setAncho(null); setAltura(null); setRin(null); setDiseño("");
         setLona(null); setCarga(null); setVelocidad(null);
+        setMarcaLlanta(null); setCategoria(null); setSegmento(null); setAplicacion(null); setEje(null);
         setMarca(null); setModelo(""); setTipoLub(""); setViscosidad(""); setEmpaque("");
         setTouchedFields(new Set());
         setMostrarFormularioNuevoItem(false);
@@ -325,6 +472,8 @@ export default function MDM_Crud() {
         // Llantas
         setTipo(null); setAncho(null); setAltura(null); setRin(null);
         setDiseño(""); setLona(null); setCarga(null); setVelocidad(null);
+        // Clasificación llantas
+        setMarcaLlanta(null); setCategoria(null); setSegmento(null); setAplicacion(null); setEje(null);
         // Lubricantes
         setMarca(null); setModelo(""); setTipoLub(""); setViscosidad(""); setEmpaque("");
         // Común
@@ -343,6 +492,11 @@ export default function MDM_Crud() {
         }
         const tipoVal = tipo?.value;
         return {
+            marcaLlanta: config?.marcas ? validarRequerido(marcaLlanta?.value) : null,
+            categoria: config?.categorias ? validarRequerido(categoria?.value) : null,
+            segmento: config?.categorias ? validarRequerido(segmento?.value) : null,
+            aplicacion: config?.categorias ? validarRequerido(aplicacion?.value) : null,
+            eje: config?.categorias ? validarRequerido(eje?.value) : null,
             tipo: !tipoVal ? "Requerido" : null,
             ancho: validarAncho(config, tipoVal, ancho?.value),
             altura: validarAltura(config, tipoVal, altura?.value),
@@ -352,7 +506,7 @@ export default function MDM_Crud() {
             carga: validarCarga(config, carga?.value),
             velocidad: validarVelocidad(velocidad?.value),
         };
-    }, [esLubricantes, config, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, modelo, tipoLub, viscosidad, empaque]);
+    }, [esLubricantes, config, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, modelo, tipoLub, viscosidad, empaque, marcaLlanta, categoria, segmento, aplicacion, eje]);
 
     const marcarTocado = useCallback((campo) => {
         setTouchedFields((prev) => new Set(prev).add(campo));
@@ -397,12 +551,20 @@ export default function MDM_Crud() {
             };
         } else {
             item = {
-                id, tipo: tipo?.value, ancho: ancho?.value,
+                id,
+                marcaRef: marcaLlanta?.value || null,
+                marcaOriginal: marcaLlanta?.marcaOriginal || marcaLlanta?.value || null,
+                categoria: categoria?.value || null,
+                segmento: segmento?.value || null,
+                aplicacion: aplicacion?.value || null,
+                eje: eje?.value || null,
+                tipo: tipo?.value, ancho: ancho?.value,
                 altura: tipo?.value === "Decimal" ? null : altura?.value,
                 rin: rin?.value, diseño, lona: lona?.value,
                 carga: carga?.value, velocidad: velocidad?.value,
                 descripcionConVariables: buildDescripcionConVariables(
-                    tipo?.value, ancho?.value, tipo?.value === "Decimal" ? null : altura?.value,
+                    marcaLlanta?.value, tipo?.value, ancho?.value,
+                    tipo?.value === "Decimal" ? null : altura?.value,
                     rin?.value, diseño, lona?.value, carga?.value, velocidad?.value
                 ),
             };
@@ -413,7 +575,7 @@ export default function MDM_Crud() {
         limpiarFormulario();
         setMostrarFormularioNuevoItem(false);
         toast.success("Item agregado");
-    }, [currentGroup, currentGroupId, errores, esLubricantes, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, modelo, tipoLub, viscosidad, empaque, limpiarFormulario]);
+    }, [currentGroup, currentGroupId, errores, esLubricantes, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, modelo, tipoLub, viscosidad, empaque, marcaLlanta, categoria, segmento, aplicacion, eje, limpiarFormulario]);
 
     const toggleSeleccionItem = useCallback((id) => {
         setSelectedItemIds((prev) => {
@@ -477,7 +639,7 @@ export default function MDM_Crud() {
     );
 
     const tieneLineaYEmpresa = currentGroup?.linea && currentGroup?.empresa;
-    const mostrarFormulario = tieneLineaYEmpresa && (esLlantas || esLubricantes);
+    const mostrarFormulario = tieneLineaYEmpresa && !!config;
 
     return (
         <div
@@ -694,6 +856,13 @@ export default function MDM_Crud() {
                                                 </TextUI>
                                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
                                                     {esLlantas && (<>
+                                                        {config?.marcas && renderCampo("marcaLlanta", "Marca", { options: opcionesMarcaLlanta, value: marcaLlanta, onChange: setMarcaLlanta })}
+                                                        {config?.categorias && (<>
+                                                            {renderCampo("categoria", "Categoría", { options: opcionesCategoria, value: categoria, onChange: setCategoria, onChangeExtra: () => { setSegmento(null); setAplicacion(null); setEje(null); } })}
+                                                            {renderCampo("segmento", "Segmento", { options: opcionesSegmento, value: segmento, onChange: setSegmento, onChangeExtra: () => { setAplicacion(null); setEje(null); } })}
+                                                            {renderCampo("aplicacion", "Aplicación", { options: opcionesAplicacion, value: aplicacion, onChange: setAplicacion, onChangeExtra: () => { setEje(null); } })}
+                                                            {renderCampo("eje", "Eje", { options: opcionesEje, value: eje, onChange: setEje })}
+                                                        </>)}
                                                         {renderCampo("tipo", "Tipo", { placeholder: "Tipo", options: TIPOS_LLANTAS, value: tipo, onChange: setTipo, onChangeExtra: () => { setAncho(null); setAltura(null); } })}
                                                         {renderCampo("ancho", "Ancho", { options: opcionesAncho, value: ancho, onChange: setAncho })}
                                                         {tipo?.value !== "Decimal" && renderCampo("altura", "Altura/Serie", { options: opcionesAltura, value: altura, onChange: setAltura })}

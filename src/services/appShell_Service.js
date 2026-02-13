@@ -10,7 +10,7 @@ export async function appShellService_obtenerEstadosCanjes() {
     console.log(response);
     return {
       success: true,
-      data: response.data?.data?.data ?? response.data.data ?? response.data,
+      data: response?.data?.data?.data ?? response?.data?.data ?? response?.data,
       message: response.data.message || "Estados de canjes obtenidos",
     };
   } catch (error) {
@@ -31,8 +31,8 @@ export async function appShellService_obtenerCanjesConEstados() {
   try {
     const response = await axiosInstanceNew.get(`/club-shell-maxx/canjes/todos-con-estados`);
     console.log(response);
-    const raw = response.data?.data?.data ?? response.data?.data ?? response.data;
-    const canjes = raw?.canjes ?? raw ?? [];
+    const raw = response?.data?.data?.data ?? response?.data?.data ?? response?.data;
+    const canjes = raw ?? [];
     return {
       success: true,
       data: Array.isArray(canjes) ? canjes : [],

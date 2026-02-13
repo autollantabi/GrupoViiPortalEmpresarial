@@ -8,12 +8,10 @@ import {
 } from "services/administracionService";
 import { toast } from "react-toastify";
 import { InputUI } from "components/UI/Components/InputUI";
-import { ContainerUI } from "components/UI/Components/ContainerUI";
 import { CardUI } from "components/UI/Components/CardUI";
 import { useTheme } from "context/ThemeContext";
 import { hexToRGBA } from "utils/colors";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
-import { VentanaAsignar } from "./VentanaAsignar";
 import styled from "styled-components";
 
 // Styled components para evitar estilos duplicados (deben estar fuera del componente)

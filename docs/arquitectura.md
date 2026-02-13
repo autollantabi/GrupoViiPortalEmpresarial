@@ -87,6 +87,7 @@ Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Rou
 - **Cartera:** CargarTransferencias, RegistrosBancarios, RegistrosBancariosHistorial, DesbloqueoClientes, GestionCheques.
 - **Compras:** Reportes, Importaciones (Filtros, Tabla, VentanaEdicion), Creditos, Anticipos.
 - **Contabilidad:** ConversionArchivosBancos, FlujoDeCaja, Comisiones (Mayoristas, Tecnicentro, Lubricantes).
+- **MDM:** MDM_Crud (Master Data Management — CRUD de ítems por grupo, config-driven para múltiples líneas de negocio: LLANTAS, LLANTAS MOTO, LUBRICANTES).
 - **Marketing:** MK_ReporteInventario, ComercialMarketing, FacturacionMarketing, Marketing.5w2h.
 - **Reporteria:** TemplateReporteria y reportes por tipo (Comercial, Cobranzas, Tecnicentro, Coordenadas, Importaciones, etc.).
 - **RRHH:** Documentacion, Videos.
@@ -201,6 +202,7 @@ PortalEmpresarial/
 | Cartera        | CargarTransferencias, RegistrosBancarios, RegistrosBancariosHistorial, DesbloqueoClientes, GestionCheques |
 | Compras        | Reportes, Importaciones (filtros, tabla, ventana edición), Creditos, Anticipos |
 | Contabilidad   | ConversionArchivosBancos, ReporteFlujoCaja, Comisiones (Mayoristas, Tecnicentro, Lubricantes) |
+| MDM            | MDM_Crud (gestión de grupos de ítems config-driven: LLANTAS, LLANTAS MOTO, LUBRICANTES) |
 | Marketing      | MK_ReporteInventario, ComercialMarketing, FacturacionMarketing, Marketing.5w2h |
 | Reportería     | TemplateReporteria; reportes por tipo (Comercial, Cobranzas, Tecnicentro, Coordenadas, etc.) |
 | RRHH           | Documentacion, Videos |
