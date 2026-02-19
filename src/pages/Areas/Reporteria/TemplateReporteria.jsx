@@ -14,16 +14,14 @@ const MAPEO_LINEAS = {
   "HERRAMIENTAS": "HERRAMIENTAS",
 };
 
-/** Canales conocidos para validar estructura por canal */
-const CANALES_CONOCIDOS = ["TODOS", "B2B", "B2C"];
-
 /**
  * Convierte la estructura en árbol (rol > línea > empresa [> canal]) a una lista de reportes.
- * Cada item queda con forma: { id, url, titulo, tituloBtn?, rol, linea, empresa, canal? }
+ * canalesKeys: array de claves de canal (desde user.CANALES, ej. id o nombre); si vacío, no se tratan ramas por canal.
  */
-const treeToList = (tree) => {
+const treeToList = (tree, canalesKeys = []) => {
   if (!tree || typeof tree !== "object") return [];
   const list = [];
+  const canalesSet = new Set(canalesKeys && canalesKeys.length > 0 ? canalesKeys : []);
   Object.keys(tree).forEach((rol) => {
     const lineasDelRol = tree[rol];
     if (!lineasDelRol || typeof lineasDelRol !== "object") return;
@@ -38,8 +36,8 @@ const treeToList = (tree) => {
           raw.forEach((r) => list.push({ ...r, rol, linea, empresa, canal: null }));
           return;
         }
-        if (typeof raw === "object" && CANALES_CONOCIDOS.some((c) => Object.prototype.hasOwnProperty.call(raw, c))) {
-          CANALES_CONOCIDOS.forEach((canal) => {
+        if (typeof raw === "object" && [...canalesSet].some((c) => Object.prototype.hasOwnProperty.call(raw, c))) {
+          canalesSet.forEach((canal) => {
             const arr = raw[canal];
             if (Array.isArray(arr)) arr.forEach((r) => list.push({ ...r, rol, linea, empresa, canal }));
           });
@@ -92,13 +90,44 @@ export const TemplateReporteria = ({
 }) => {
   const { user } = useAuthContext();
 
-  // Una sola fuente: lista normalizada (desde prop reportes o desde árbol legacy)
-  const reportesLista = useMemo(() => {
-    if (Array.isArray(reportesProp) && reportesProp.length > 0) {
-      return normalizeReportesList(reportesProp);
+  // Canales del usuario: misma lógica que empresas (objeto { "1": "B2B", ... } o array de { id, nombre }). Sin fallback.
+  const canalesNormalizados = useMemo(() => {
+    if (!user?.CANALES) return [];
+    if (typeof user.CANALES === "object" && !Array.isArray(user.CANALES)) {
+      return Object.entries(user.CANALES).map(([id, nombre]) => ({ id: parseInt(id, 10), label: nombre }));
     }
-    return treeToList(reportesPorTipoModuloEmpresa || {});
-  }, [reportesProp, reportesPorTipoModuloEmpresa]);
+    if (!Array.isArray(user.CANALES) || user.CANALES.length === 0) return [];
+    return user.CANALES.map((c) => ({
+      id: c.id ?? c.ID,
+      label: c.nombre ?? c.NOMBRE ?? c.label ?? c.codigo ?? String(c.id ?? c.ID),
+    }));
+  }, [user?.CANALES]);
+
+  const canalesDelUsuario = useMemo(() => canalesNormalizados.map((c) => c.id), [canalesNormalizados]);
+  const canalesKeysParaArbol = useMemo(
+    () => canalesNormalizados.flatMap((c) => [c.id, c.label].filter(Boolean)),
+    [canalesNormalizados]
+  );
+
+  // Una sola fuente: lista normalizada (desde prop reportes o desde árbol legacy).
+  // Canal: mismo criterio que empresas — en REPORTES se puede escribir por label ("B2B"); aquí se resuelve a id.
+  const reportesLista = useMemo(() => {
+    let list;
+    if (Array.isArray(reportesProp) && reportesProp.length > 0) {
+      list = normalizeReportesList(reportesProp);
+    } else {
+      list = treeToList(reportesPorTipoModuloEmpresa || {}, canalesKeysParaArbol);
+    }
+    if (canalesNormalizados.length === 0) return list;
+    return list.map((r) => {
+      if (r.canal == null || r.canal === "") return r;
+      if (typeof r.canal === "string") {
+        const found = canalesNormalizados.find((c) => (c.label || "").toLowerCase() === (r.canal || "").toLowerCase());
+        return { ...r, canal: found ? found.id : r.canal };
+      }
+      return r;
+    });
+  }, [reportesProp, reportesPorTipoModuloEmpresa, canalesKeysParaArbol, canalesNormalizados]);
 
   // Convertir availableCompanies a un Set de nombres de empresas para verificación rápida
   // availableCompanies puede ser un objeto { "1": "AUTOLLANTA", ... } o un array [{ id, nombre }, ...]
@@ -315,7 +344,7 @@ export const TemplateReporteria = ({
     );
   }, [tipoUsuarioSeleccionado, empresaSeleccionada, recursoParaBuscar, reportesFiltrados]);
 
-  // Opciones para el select de Canal (canales únicos para rol+empresa+recurso actual)
+  // Opciones para el select de Canal (canales únicos para rol+empresa+recurso actual; valor = id, label desde user.CANALES)
   const opcionesCanales = useMemo(() => {
     if (!tipoUsuarioSeleccionado || !empresaSeleccionada || recursoParaBuscar == null) return [];
     const lineaNorm = recursoParaBuscar === "null" ? null : recursoParaBuscar;
@@ -331,11 +360,15 @@ export const TemplateReporteria = ({
         .map((r) => r.canal)
     );
     let list = [...canales];
-    if (Array.isArray(availableCanales) && availableCanales.length > 0) {
-      list = list.filter((c) => availableCanales.includes(c));
+    const permitidos = Array.isArray(availableCanales) && availableCanales.length > 0 ? availableCanales : canalesDelUsuario;
+    if (permitidos.length > 0) {
+      list = list.filter((c) => permitidos.includes(c));
     }
-    return list.map((c) => ({ value: c, label: c }));
-  }, [tipoUsuarioSeleccionado, empresaSeleccionada, recursoParaBuscar, reportesFiltrados, availableCanales]);
+    return list.map((id) => ({
+      value: id,
+      label: canalesNormalizados.find((c) => c.id === id)?.label ?? String(id),
+    }));
+  }, [tipoUsuarioSeleccionado, empresaSeleccionada, recursoParaBuscar, reportesFiltrados, availableCanales, canalesDelUsuario, canalesNormalizados]);
 
   // Manejar recurso: solo inicializar cuando cambia la empresa o las opciones
   useEffect(() => {

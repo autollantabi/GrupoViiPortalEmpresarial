@@ -26,6 +26,8 @@ export function AuthContextProvider({ children }) {
   const fetchUserMe = useCallback(async () => {
     try {
       const response = await authService_me();
+
+      console.log("response", response.data.CONTEXTOS);
       
       if (response.success) {
         // La nueva estructura tiene: USUARIO, EMPRESAS, LINEAS, PERMISOS, ROLES, CONTEXTOS

@@ -217,6 +217,7 @@ export function getAvailableCanales(userContexts, recurso) {
   if (!userContexts || !Array.isArray(userContexts) || userContexts.length === 0) {
     return [];
   }
+  console.log("userContexts", userContexts);
 
   if (!recurso) return [];
 

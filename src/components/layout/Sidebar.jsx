@@ -126,10 +126,37 @@ const ContenedorMenu = styled.div.withConfig({
   gap: 5px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-end;
   transition: width 0.4s ease-in-out, align-items 0.4s ease-in-out;
   position: relative;
+`;
+
+/** Área con scroll para los ítems del menú cuando hay muchos */
+const MenuItemsScroll = styled.div`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-right: 2px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${(props) => hexToRGBA({ hex: props.theme.colors.white, alpha: 0.25 })};
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: ${(props) => hexToRGBA({ hex: props.theme.colors.white, alpha: 0.4 })};
+  }
 `;
 
 const ContenedorFlex = styled.div`
@@ -341,12 +368,7 @@ const Sidebar = () => {
       onMouseLeave={handleMouseLeave}
     >
       <ContenedorMenu $isexpanded={isExpanded}>
-        <ContenedorFlex
-          $flexDirection="column"
-          $justifyContent="flex-start"
-          $width="100%"
-          $gap="5px"
-        >
+        <MenuItemsScroll>
           {menuItems.map((item, index) => (
             <MenuItem
               key={index}
@@ -356,13 +378,14 @@ const Sidebar = () => {
               setActiveMenu={setActiveMenu}
             />
           ))}
-        </ContenedorFlex>
+        </MenuItemsScroll>
         <ContenedorFlex
           $flexDirection="column"
           $justifyContent="flex-start"
           $width="100%"
           $gap="5px"
           $padding="0 0 10px 0"
+          style={{ flexShrink: 0 }}
         >
           <SeparatorUI
             color={hexToRGBA({ hex: theme.colors.white, alpha: 0.2 })}

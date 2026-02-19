@@ -59,12 +59,23 @@ export const UsuariosRolContextoSection = ({
   const { user } = useAuthContext();
   const [buscarPermiso, setBuscarPermiso] = useState("");
 
-  // Opciones fijas para Canal (Alcance): Todos, B2B, B2C
-  const opcionesCanales = [
-    { value: "TODOS", label: "Todos" },
-    { value: "B2B", label: "B2B" },
-    { value: "B2C", label: "B2C" },
-  ];
+  // Canales del usuario: misma lógica que empresas (objeto { "1": "B2B", ... } o array de { id, nombre })
+  const opcionesCanales = useMemo(() => {
+    if (!user?.CANALES) return [];
+
+    if (typeof user.CANALES === "object" && !Array.isArray(user.CANALES)) {
+      return Object.entries(user.CANALES).map(([id, nombre]) => ({
+        value: parseInt(id, 10),
+        label: nombre,
+      }));
+    }
+
+    if (!Array.isArray(user.CANALES) || user.CANALES.length === 0) return [];
+    return user.CANALES.map((c) => ({
+      value: c.id ?? c.ID,
+      label: c.nombre ?? c.NOMBRE ?? c.label ?? c.codigo ?? String(c.id ?? c.ID),
+    }));
+  }, [user?.CANALES]);
 
   // Mapeo de nombres de empresas a abreviaturas
   const obtenerAbreviaturaEmpresa = (nombre) => {
@@ -522,9 +533,9 @@ export const UsuariosRolContextoSection = ({
         .toLowerCase();
       if (nombresLineas.includes(busqueda)) return true;
 
-      // Buscar en canales del alcance (TODOS, B2B, B2C)
+      // Buscar en canales del alcance (por id se resuelve a label para el texto)
       const canalesIds = alcance.canales || alcance.CANALES || [];
-      const nombresCanales = canalesIds.join(" ").toLowerCase();
+      const nombresCanales = canalesIds.map((id) => opcionesCanales.find((c) => c.value === id)?.label ?? id).join(" ").toLowerCase();
       if (nombresCanales.includes(busqueda)) return true;
 
       // Buscar en recursos bloqueados
@@ -1095,7 +1106,7 @@ export const UsuariosRolContextoSection = ({
                                       sobrescribirCount > 0 && `Sobrescribir: ${(Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS) ? item.SOBRE_ESCRIBIR_PERMISOS : []).map((id) => obtenerNombrePermiso(id)).join(", ")}`,
                                       empresasAlcance.length > 0 && `Empresas: ${empresasAlcance.map((id) => empresas.find((e) => e.ID === id)?.NOMBRE || id).join(", ")}`,
                                       lineasAlcance.length > 0 && `Líneas: ${lineasAlcance.map((id) => lineasNegocio.find((l) => l.value === id)?.label || id).join(", ")}`,
-                                      canalesAlcance.length > 0 && `Canales: ${canalesAlcance.join(", ")}`,
+                                      canalesAlcance.length > 0 && `Canales: ${canalesAlcance.map((id) => opcionesCanales.find((c) => c.value === id)?.label ?? id).join(", ")}`,
                                       bloqueados.length > 0 && `Bloqueados: ${bloqueados.join(", ")}`,
                                     ].filter(Boolean).join(" · ");
 
@@ -1241,7 +1252,7 @@ export const UsuariosRolContextoSection = ({
                                                   {abrev}
                                                 </span>
                                               ))}
-                                              {canalesAlcance.map((canal, index) => (
+                                              {canalesAlcance.map((id, index) => (
                                                 <span
                                                   key={`canal-${index}`}
                                                   style={{
@@ -1257,7 +1268,7 @@ export const UsuariosRolContextoSection = ({
                                                     whiteSpace: "nowrap",
                                                   }}
                                                 >
-                                                  {canal}
+                                                  {opcionesCanales.find((c) => c.value === id)?.label ?? id}
                                                 </span>
                                               ))}
                                             </div>
