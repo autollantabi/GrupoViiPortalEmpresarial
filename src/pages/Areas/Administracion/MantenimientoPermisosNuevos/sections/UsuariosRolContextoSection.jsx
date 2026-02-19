@@ -51,11 +51,20 @@ export const UsuariosRolContextoSection = ({
   setAlcanceEmpresas,
   alcanceLineas,
   setAlcanceLineas,
+  alcanceCanales,
+  setAlcanceCanales,
   bloqueado,
   setBloqueado,
 }) => {
   const { user } = useAuthContext();
   const [buscarPermiso, setBuscarPermiso] = useState("");
+
+  // Opciones fijas para Canal (Alcance): Todos, B2B, B2C
+  const opcionesCanales = [
+    { value: "TODOS", label: "Todos" },
+    { value: "B2B", label: "B2B" },
+    { value: "B2C", label: "B2C" },
+  ];
 
   // Mapeo de nombres de empresas a abreviaturas
   const obtenerAbreviaturaEmpresa = (nombre) => {
@@ -139,6 +148,7 @@ export const UsuariosRolContextoSection = ({
         ALCANCE: {
           EMPRESAS: alcanceEmpresas.map((e) => e.value),
           LINEAS: alcanceLineas.map((l) => l.value),
+          CANALES: alcanceCanales.map((c) => c.value),
         },
         BLOQUEADO:
           bloqueado.trim() !== ""
@@ -183,6 +193,7 @@ export const UsuariosRolContextoSection = ({
         ALCANCE: {
           EMPRESAS: alcanceEmpresas.map((e) => e.value),
           LINEAS: alcanceLineas.map((l) => l.value),
+          CANALES: alcanceCanales.map((c) => c.value),
         },
         BLOQUEADO:
           bloqueado.trim() !== ""
@@ -405,6 +416,12 @@ export const UsuariosRolContextoSection = ({
       .filter(Boolean);
     setAlcanceLineas(lineasSeleccionadas);
 
+    const canalesIds = alcance.canales || alcance.CANALES || [];
+    const canalesSeleccionados = canalesIds
+      .map((id) => opcionesCanales.find((c) => c.value === id))
+      .filter(Boolean);
+    setAlcanceCanales(canalesSeleccionados);
+
     if (contexto.BLOQUEADO && contexto.BLOQUEADO !== "<null>" && contexto.BLOQUEADO !== "null") {
       let bloqueadosArray = [];
 
@@ -449,6 +466,7 @@ export const UsuariosRolContextoSection = ({
     setSobreEscribirPermisos([]);
     setAlcanceEmpresas([]);
     setAlcanceLineas([]);
+    setAlcanceCanales([]);
     setBloqueado("");
   };
 
@@ -503,6 +521,11 @@ export const UsuariosRolContextoSection = ({
         .join(" ")
         .toLowerCase();
       if (nombresLineas.includes(busqueda)) return true;
+
+      // Buscar en canales del alcance (TODOS, B2B, B2C)
+      const canalesIds = alcance.canales || alcance.CANALES || [];
+      const nombresCanales = canalesIds.join(" ").toLowerCase();
+      if (nombresCanales.includes(busqueda)) return true;
 
       // Buscar en recursos bloqueados
       if (item.BLOQUEADO && item.BLOQUEADO !== "<null>" && item.BLOQUEADO !== "null") {
@@ -725,11 +748,11 @@ export const UsuariosRolContextoSection = ({
                   />
                 </div>
 
-                {/* 5. Alcances */}
+                {/* 5. Alcances: Empresas, Líneas de Negocio, Canal */}
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: "1fr 1fr 1fr",
                     gap: "12px",
                   }}
                 >
@@ -751,6 +774,18 @@ export const UsuariosRolContextoSection = ({
                       options={lineasNegocio}
                       value={alcanceLineas}
                       onChange={setAlcanceLineas}
+                      isMulti
+                      isSearchable
+                      minWidth="100%"
+                      maxWidth="100%"
+                    />
+                  </div>
+                  <div style={{ width: "100%" }}>
+                    <SelectUI
+                      placeholder="Canal (Alcance)"
+                      options={opcionesCanales}
+                      value={alcanceCanales}
+                      onChange={setAlcanceCanales}
                       isMulti
                       isSearchable
                       minWidth="100%"
@@ -818,7 +853,7 @@ export const UsuariosRolContextoSection = ({
               />
               <InputUI
                 iconLeft={"FaSistrix"}
-                placeholder="Buscar permisos por recurso, rol, permisos sobrescritos, empresas, líneas o bloqueados..."
+                placeholder="Buscar por recurso, rol, permisos, empresas, líneas, canales o bloqueados..."
                 value={buscarPermiso}
                 onChange={setBuscarPermiso}
               />
@@ -1037,6 +1072,8 @@ export const UsuariosRolContextoSection = ({
                                       alcance.empresas || alcance.EMPRESAS || [];
                                     const lineasAlcance =
                                       alcance.lineas || alcance.LINEAS || [];
+                                    const canalesAlcance =
+                                      alcance.canales || alcance.CANALES || [];
                                     const bloqueados =
                                       item.BLOQUEADO &&
                                         item.BLOQUEADO !== "<null>" &&
@@ -1058,6 +1095,7 @@ export const UsuariosRolContextoSection = ({
                                       sobrescribirCount > 0 && `Sobrescribir: ${(Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS) ? item.SOBRE_ESCRIBIR_PERMISOS : []).map((id) => obtenerNombrePermiso(id)).join(", ")}`,
                                       empresasAlcance.length > 0 && `Empresas: ${empresasAlcance.map((id) => empresas.find((e) => e.ID === id)?.NOMBRE || id).join(", ")}`,
                                       lineasAlcance.length > 0 && `Líneas: ${lineasAlcance.map((id) => lineasNegocio.find((l) => l.value === id)?.label || id).join(", ")}`,
+                                      canalesAlcance.length > 0 && `Canales: ${canalesAlcance.join(", ")}`,
                                       bloqueados.length > 0 && `Bloqueados: ${bloqueados.join(", ")}`,
                                     ].filter(Boolean).join(" · ");
 
@@ -1155,8 +1193,8 @@ export const UsuariosRolContextoSection = ({
                                             </span>
                                           </div>
 
-                                          {/* Segunda línea: Empresas y Líneas como chips */}
-                                          {(abreviaturasEmpresas.length > 0 || abreviaturasLineas.length > 0) && (
+                                          {/* Segunda línea: Empresas, Líneas y Canales como chips */}
+                                          {(abreviaturasEmpresas.length > 0 || abreviaturasLineas.length > 0 || canalesAlcance.length > 0) && (
                                             <div
                                               style={{
                                                 display: "flex",
@@ -1201,6 +1239,25 @@ export const UsuariosRolContextoSection = ({
                                                   }}
                                                 >
                                                   {abrev}
+                                                </span>
+                                              ))}
+                                              {canalesAlcance.map((canal, index) => (
+                                                <span
+                                                  key={`canal-${index}`}
+                                                  style={{
+                                                    fontSize: "10px",
+                                                    padding: "2px 6px",
+                                                    backgroundColor: hexToRGBA({
+                                                      hex: theme.colors.info,
+                                                      alpha: 0.2,
+                                                    }),
+                                                    borderRadius: "8px",
+                                                    color: theme.colors.info,
+                                                    fontWeight: "600",
+                                                    whiteSpace: "nowrap",
+                                                  }}
+                                                >
+                                                  {canal}
                                                 </span>
                                               ))}
                                             </div>

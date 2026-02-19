@@ -200,3 +200,43 @@ export function getAvailableLines(userContexts, recurso, lineasGlobales = null) 
 
   return Array.from(lines.values());
 }
+
+/**
+ * Obtiene los canales disponibles para un recurso específico (desde ALCANCE.CANALES)
+ * @param {Array} userContexts - Array de contextos del usuario
+ * @param {string} recurso - Recurso a verificar
+ * @returns {Array<string>} Array de códigos de canal (ej. ["TODOS", "B2B", "B2C"])
+ */
+export function getAvailableCanales(userContexts, recurso) {
+  if (!userContexts || !Array.isArray(userContexts) || userContexts.length === 0) {
+    return [];
+  }
+
+  if (!recurso) return [];
+
+  const canales = new Set();
+  const targetResource = recurso.toLowerCase().trim();
+
+  for (const context of userContexts) {
+    const contextResource = context.RECURSO?.toLowerCase()?.trim();
+
+    if (!contextResource) continue;
+
+    const hasAccess =
+      contextResource === targetResource ||
+      targetResource.startsWith(contextResource + ".");
+
+    if (hasAccess && !isResourceBlocked(context.RECURSOS_BLOQUEADOS || context.BLOQUEADO, targetResource)) {
+      const alcance = typeof context.ALCANCE === "string"
+        ? (() => { try { return JSON.parse(context.ALCANCE); } catch { return {}; } })()
+        : (context.ALCANCE || {});
+
+      const canalesAlcance = alcance.canales || alcance.CANALES;
+      if (Array.isArray(canalesAlcance) && canalesAlcance.length > 0) {
+        canalesAlcance.forEach((c) => canales.add(c));
+      }
+    }
+  }
+
+  return Array.from(canales);
+}

@@ -1,35 +1,30 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { TemplateReporteria } from "../TemplateReporteria";
 
-export const ReporteriaImportaciones = ({ 
+const REPORTES = [
+  {
+    id: 1,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiNGRmZDg1MzMtZTczOC00MmVmLTlmNzUtNTQ4MTg1OTc0YWZjIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    titulo: "Importaciones - GrupoVii (JEFATURA)",
+    rol: "jefatura",
+    linea: null,
+    empresa: "GRUPOVII",
+  },
+];
+
+export const ReporteriaImportaciones = ({
   routeConfig,
   availableCompanies = [],
   availableLines = [],
+  availableCanales,
 }) => {
-  // Estructura de reportes: rol (minúscula) > línea (mayúsculas) > empresa (mayúsculas)
-  const reportesPorTipoModuloEmpresa = useMemo(
-    () => ({
-      jefatura: {
-        null: {
-          GRUPOVII: [
-            {
-              id: 1,
-              titulo: "Importaciones - GrupoVii (JEFATURA)",
-              url: "https://app.powerbi.com/view?r=eyJrIjoiNGRmZDg1MzMtZTczOC00MmVmLTlmNzUtNTQ4MTg1OTc0YWZjIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
-            },
-          ],
-        },
-      },
-    }),
-    []
-  );
-
   return (
     <TemplateReporteria
-      reportesPorTipoModuloEmpresa={reportesPorTipoModuloEmpresa}
+      reportes={REPORTES}
       routeConfig={routeConfig}
       availableCompanies={availableCompanies}
       availableLines={availableLines}
+      availableCanales={availableCanales}
     />
   );
 };

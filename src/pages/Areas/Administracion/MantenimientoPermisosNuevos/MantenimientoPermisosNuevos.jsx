@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import styled from "styled-components";
 import { useTheme } from "context/ThemeContext";
 import {
   ListarPermisos,
@@ -13,8 +14,64 @@ import { RolesSection } from "./sections/RolesSection";
 import { PermisosRolSection } from "./sections/PermisosRolSection";
 import { UsuariosRolContextoSection } from "./sections/UsuariosRolContextoSection";
 
+const TABS = {
+  BASICO: "basico",
+  ASIGNACIONES: "asignaciones",
+};
+
+const TabsContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+`;
+
+const TabsBar = styled.div`
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid ${({ theme }) => theme?.colors?.border || "#e0e0e0"};
+  margin-bottom: 15px;
+  flex-shrink: 0;
+`;
+
+const TabButton = styled.button`
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  background: transparent;
+  color: ${({ theme, $active }) =>
+    $active ? theme?.colors?.primary : theme?.colors?.textSecondary || "#666"};
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+
+  &:hover {
+    color: ${({ theme }) => theme?.colors?.primary};
+  }
+
+  ${({ $active, theme }) =>
+    $active &&
+    `
+    color: ${theme?.colors?.primary};
+    border-bottom-color: ${theme?.colors?.primary};
+  `}
+`;
+
+const TabContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 0 0 10px 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+`;
+
 export const MantenimientoPermisosNuevos = () => {
   const { theme } = useTheme();
+  const [activeTab, setActiveTab] = useState(TABS.BASICO);
 
   // Estados para Permisos
   const [permisos, setPermisos] = useState([]);
@@ -59,6 +116,7 @@ export const MantenimientoPermisosNuevos = () => {
   const [sobreEscribirPermisos, setSobreEscribirPermisos] = useState([]);
   const [alcanceEmpresas, setAlcanceEmpresas] = useState([]);
   const [alcanceLineas, setAlcanceLineas] = useState([]);
+  const [alcanceCanales, setAlcanceCanales] = useState([]);
   const [bloqueado, setBloqueado] = useState("");
 
   // Cargar datos al montar
@@ -161,95 +219,114 @@ export const MantenimientoPermisosNuevos = () => {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "15px",
-        padding: "10px",
-        width: "100%",
-      }}
-    >
-      <PermisosSection
-        theme={theme}
-        permisos={permisos}
-        nuevoPermiso={nuevoPermiso}
-        setNuevoPermiso={setNuevoPermiso}
-        permisoEditando={permisoEditando}
-        setPermisoEditando={setPermisoEditando}
-        permisoEditandoNombre={permisoEditandoNombre}
-        setPermisoEditandoNombre={setPermisoEditandoNombre}
-        cargandoPermisos={cargandoPermisos}
-        setCargandoPermisos={setCargandoPermisos}
-        cargarPermisos={cargarPermisos}
-      />
+    <TabsContainer>
+      <TabsBar>
+        <TabButton
+          type="button"
+          $active={activeTab === TABS.BASICO}
+          onClick={() => setActiveTab(TABS.BASICO)}
+        >
+          Creación y asignaciones básicas
+        </TabButton>
+        <TabButton
+          type="button"
+          $active={activeTab === TABS.ASIGNACIONES}
+          onClick={() => setActiveTab(TABS.ASIGNACIONES)}
+        >
+          Asignaciones importantes
+        </TabButton>
+      </TabsBar>
 
-      <RolesSection
-        theme={theme}
-        roles={roles}
-        nuevoRol={nuevoRol}
-        setNuevoRol={setNuevoRol}
-        rolEditando={rolEditando}
-        setRolEditando={setRolEditando}
-        rolEditandoNombre={rolEditandoNombre}
-        setRolEditandoNombre={setRolEditandoNombre}
-        cargandoRoles={cargandoRoles}
-        setCargandoRoles={setCargandoRoles}
-        cargarRoles={cargarRoles}
-      />
+      <TabContent>
+        {activeTab === TABS.BASICO && (
+          <>
+            <PermisosSection
+              theme={theme}
+              permisos={permisos}
+              nuevoPermiso={nuevoPermiso}
+              setNuevoPermiso={setNuevoPermiso}
+              permisoEditando={permisoEditando}
+              setPermisoEditando={setPermisoEditando}
+              permisoEditandoNombre={permisoEditandoNombre}
+              setPermisoEditandoNombre={setPermisoEditandoNombre}
+              cargandoPermisos={cargandoPermisos}
+              setCargandoPermisos={setCargandoPermisos}
+              cargarPermisos={cargarPermisos}
+            />
 
-      <PermisosRolSection
-        theme={theme}
-        permisosRol={permisosRol}
-        roles={roles}
-        permisos={permisos}
-        rolSeleccionado={rolSeleccionado}
-        setRolSeleccionado={setRolSeleccionado}
-        permisoSeleccionado={permisoSeleccionado}
-        setPermisoSeleccionado={setPermisoSeleccionado}
-        cargandoPermisosRol={cargandoPermisosRol}
-        setCargandoPermisosRol={setCargandoPermisosRol}
-        cargarPermisosRol={cargarPermisosRol}
-      />
+            <RolesSection
+              theme={theme}
+              roles={roles}
+              nuevoRol={nuevoRol}
+              setNuevoRol={setNuevoRol}
+              rolEditando={rolEditando}
+              setRolEditando={setRolEditando}
+              rolEditandoNombre={rolEditandoNombre}
+              setRolEditandoNombre={setRolEditandoNombre}
+              cargandoRoles={cargandoRoles}
+              setCargandoRoles={setCargandoRoles}
+              cargarRoles={cargarRoles}
+            />
 
-      <UsuariosRolContextoSection
-        theme={theme}
-        usuariosRolContexto={usuariosRolContexto}
-        usuarios={usuarios}
-        roles={roles}
-        permisos={permisos}
-        empresas={empresas}
-        cargandoUsuariosRolContexto={cargandoUsuariosRolContexto}
-        cargarUsuariosRolContexto={cargarUsuariosRolContexto}
-        usuariosExpandidos={usuariosExpandidos}
-        setUsuariosExpandidos={setUsuariosExpandidos}
-        buscarUsuario={buscarUsuario}
-        setBuscarUsuario={setBuscarUsuario}
-        mostrarFormulario={mostrarFormulario}
-        setMostrarFormulario={setMostrarFormulario}
-        contextoEditando={contextoEditando}
-        setContextoEditando={setContextoEditando}
-        mostrarModalEliminar={mostrarModalEliminar}
-        setMostrarModalEliminar={setMostrarModalEliminar}
-        contextoAEliminar={contextoAEliminar}
-        setContextoAEliminar={setContextoAEliminar}
-        usuarioSeleccionadoContexto={usuarioSeleccionadoContexto}
-        setUsuarioSeleccionadoContexto={setUsuarioSeleccionadoContexto}
-        rolSeleccionadoContexto={rolSeleccionadoContexto}
-        setRolSeleccionadoContexto={setRolSeleccionadoContexto}
-        recurso={recurso}
-        setRecurso={setRecurso}
-        herencia={herencia}
-        setHerencia={setHerencia}
-        sobreEscribirPermisos={sobreEscribirPermisos}
-        setSobreEscribirPermisos={setSobreEscribirPermisos}
-        alcanceEmpresas={alcanceEmpresas}
-        setAlcanceEmpresas={setAlcanceEmpresas}
-        alcanceLineas={alcanceLineas}
-        setAlcanceLineas={setAlcanceLineas}
-        bloqueado={bloqueado}
-        setBloqueado={setBloqueado}
-      />
-    </div>
+            <PermisosRolSection
+              theme={theme}
+              permisosRol={permisosRol}
+              roles={roles}
+              permisos={permisos}
+              rolSeleccionado={rolSeleccionado}
+              setRolSeleccionado={setRolSeleccionado}
+              permisoSeleccionado={permisoSeleccionado}
+              setPermisoSeleccionado={setPermisoSeleccionado}
+              cargandoPermisosRol={cargandoPermisosRol}
+              setCargandoPermisosRol={setCargandoPermisosRol}
+              cargarPermisosRol={cargarPermisosRol}
+            />
+          </>
+        )}
+
+        {activeTab === TABS.ASIGNACIONES && (
+          <UsuariosRolContextoSection
+            theme={theme}
+            usuariosRolContexto={usuariosRolContexto}
+            usuarios={usuarios}
+            roles={roles}
+            permisos={permisos}
+            empresas={empresas}
+            cargandoUsuariosRolContexto={cargandoUsuariosRolContexto}
+            cargarUsuariosRolContexto={cargarUsuariosRolContexto}
+            usuariosExpandidos={usuariosExpandidos}
+            setUsuariosExpandidos={setUsuariosExpandidos}
+            buscarUsuario={buscarUsuario}
+            setBuscarUsuario={setBuscarUsuario}
+            mostrarFormulario={mostrarFormulario}
+            setMostrarFormulario={setMostrarFormulario}
+            contextoEditando={contextoEditando}
+            setContextoEditando={setContextoEditando}
+            mostrarModalEliminar={mostrarModalEliminar}
+            setMostrarModalEliminar={setMostrarModalEliminar}
+            contextoAEliminar={contextoAEliminar}
+            setContextoAEliminar={setContextoAEliminar}
+            usuarioSeleccionadoContexto={usuarioSeleccionadoContexto}
+            setUsuarioSeleccionadoContexto={setUsuarioSeleccionadoContexto}
+            rolSeleccionadoContexto={rolSeleccionadoContexto}
+            setRolSeleccionadoContexto={setRolSeleccionadoContexto}
+            recurso={recurso}
+            setRecurso={setRecurso}
+            herencia={herencia}
+            setHerencia={setHerencia}
+            sobreEscribirPermisos={sobreEscribirPermisos}
+            setSobreEscribirPermisos={setSobreEscribirPermisos}
+            alcanceEmpresas={alcanceEmpresas}
+            setAlcanceEmpresas={setAlcanceEmpresas}
+            alcanceLineas={alcanceLineas}
+            setAlcanceLineas={setAlcanceLineas}
+            alcanceCanales={alcanceCanales}
+            setAlcanceCanales={setAlcanceCanales}
+            bloqueado={bloqueado}
+            setBloqueado={setBloqueado}
+          />
+        )}
+      </TabContent>
+    </TabsContainer>
   );
 };

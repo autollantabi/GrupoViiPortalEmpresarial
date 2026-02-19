@@ -597,7 +597,7 @@ export default function MDM_Crud() {
             return;
         }
         const fecha = new Date(currentGroup.createdAt).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }).replace(/[/:]/g, "-");
-        exportarItemsATxt(currentGroup.items, `grupo-${fecha}.txt`);
+        exportarItemsATxt(currentGroup.items, `MDM_SAP_${fecha}.txt`);
         toast.success("Grupo exportado");
     }, [currentGroup]);
 
@@ -607,7 +607,7 @@ export default function MDM_Crud() {
             return;
         }
         const items = currentGroup.items.filter((i) => selectedItemIds.has(i.id));
-        exportarItemsATxt(items, "seleccionados.txt");
+        exportarItemsATxt(items, `MDM_SAP_${fecha}.txt`);
         toast.success("Exportados " + items.length + " ítem(s)");
     }, [currentGroup, selectedItemIds]);
 
@@ -969,7 +969,7 @@ export default function MDM_Crud() {
                                             return;
                                         }
                                         const fecha = new Date(g.createdAt).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }).replace(/[/:]/g, "-");
-                                        exportarItemsATxt(g.items, `grupo-${fecha}.txt`);
+                                        exportarItemsATxt(g.items, `MDM_SAP_${fecha}.txt`);
                                         toast.success("Grupo exportado");
                                     }}
                                     style={{ padding: "4px 8px", minWidth: "auto", fontSize: 11 }}

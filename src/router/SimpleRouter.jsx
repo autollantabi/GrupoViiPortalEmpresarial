@@ -8,6 +8,7 @@ import {
   hasAccessToResource,
   getAvailableCompanies,
   getAvailableLines,
+  getAvailableCanales,
 } from "utils/permissionsValidator";
 
 // Configuración de rutas
@@ -277,6 +278,7 @@ function ProtectedContent({
   const [loading, setLoading] = useState(true);
   const [availableCompanies, setAvailableCompanies] = useState([]);
   const [availableLines, setAvailableLines] = useState([]);
+  const [availableCanales, setAvailableCanales] = useState([]);
 
   // Extraer el rol del recurso principal o del primer recurso alternativo con acceso
   // Este hook debe estar antes de cualquier return condicional
@@ -325,8 +327,9 @@ function ProtectedContent({
       rolDelRecurso,
       availableCompanies,
       availableLines,
+      availableCanales,
     };
-  }, [recurso, recursosAlternativos, rolDelRecurso, availableCompanies, availableLines]);
+  }, [recurso, recursosAlternativos, rolDelRecurso, availableCompanies, availableLines, availableCanales]);
 
   useEffect(() => {
     // Esperar a que termine de cargar los datos del localStorage
@@ -399,9 +402,12 @@ function ProtectedContent({
       const allCompanies = new Map();
       const allLines = new Map();
 
+      const allCanales = new Set();
+
       for (const recursoConAcceso of recursosConAcceso) {
         const companies = getAvailableCompanies(userContexts, recursoConAcceso, empresasGlobales);
         const lines = getAvailableLines(userContexts, recursoConAcceso, lineasGlobales);
+        const canales = getAvailableCanales(userContexts, recursoConAcceso);
 
         // Agregar empresas sin duplicados
         companies.forEach((emp) => {
@@ -416,10 +422,13 @@ function ProtectedContent({
             allLines.set(line.id, line);
           }
         });
+
+        canales.forEach((c) => allCanales.add(c));
       }
 
       setAvailableCompanies(Array.from(allCompanies.values()));
       setAvailableLines(Array.from(allLines.values()));
+      setAvailableCanales(Array.from(allCanales));
 
     }
 
@@ -478,6 +487,7 @@ function ProtectedContent({
             routeConfig,
             availableCompanies,
             availableLines,
+            availableCanales,
           })}
         </LayoutContent>
       </SidebarProvider>
