@@ -41,13 +41,13 @@ Este documento describe, paso a paso, los flujos principales del sistema: login,
    - Comprueba `isAuthenticated` y existencia de `user` (y `user.CONTEXTOS`).
    - Llama a `hasAccessToResource(userContexts, recurso)` (y, si aplica, a recursos alternativos). La lógica está en `utils/permissionsValidator.js` (notación de puntos, herencia, recursos bloqueados).
    - Si no tiene acceso: no se renderiza el contenido de la ruta (o se muestra mensaje/redirección según implementación).
-   - Si tiene acceso: obtiene `availableCompanies` y `availableLines` con `getAvailableCompanies` y `getAvailableLines` (combinando todos los recursos que dan acceso).
+   - Si tiene acceso: obtiene `availableCompanies`, `availableLines` y `availableCanales` con `getAvailableCompanies`, `getAvailableLines` y `getAvailableCanales` (combinando todos los recursos que dan acceso).
    - Calcula `rolDelRecurso` a partir de user.CONTEXTOS y user.ROLES.
-   - Construye `routeConfig` (recurso, recursosAlternativos, rolDelRecurso, availableCompanies, availableLines) e inyecta `routeConfig`, `availableCompanies` y `availableLines` al componente de la página mediante `React.cloneElement`.
+   - Construye `routeConfig` (recurso, recursosAlternativos, rolDelRecurso, availableCompanies, availableLines, availableCanales) e inyecta `routeConfig`, `availableCompanies`, `availableLines` y `availableCanales` al componente de la página mediante `React.cloneElement`.
 4. **Layout:** Se renderiza TemplatePaginas (Sidebar + Header + área de contenido). El Sidebar muestra solo ítems para los que el usuario tiene permiso (getSidebarItems(userContexts)).
-5. **Página:** El componente de la página recibe las props inyectadas y las usa para filtros (empresa/línea), permisos de edición (p. ej. rol "jefatura" → "E", resto → "C" en tablas) y llamadas a servicios.
+5. **Página:** El componente de la página recibe las props inyectadas y las usa para filtros (empresa/línea/canal), permisos de edición (p. ej. rol "jefatura" → "E", resto → "C" en tablas) y llamadas a servicios.
 
-**Resumen:** Ruta protegida → verificación de recurso → empresas/líneas y rol → inyección a la página → sidebar filtrado por permisos.
+**Resumen:** Ruta protegida → verificación de recurso → empresas/líneas/canales y rol → inyección a la página → sidebar filtrado por permisos.
 
 ---
 
@@ -73,7 +73,7 @@ Este documento describe, paso a paso, los flujos principales del sistema: login,
 ### 5.2 Autorización por recurso
 
 - **Cálculo de acceso:** `hasAccessToResource(userContexts, recurso)` compara recurso solicitado con cada `context.RECURSO` (exacto o prefijo con herencia); respeta `BLOQUEADO` / `RECURSOS_BLOQUEADOS`. Lógica en `utils/permissionsValidator.js`.
-- **Empresas/líneas:** `getAvailableCompanies(userContexts, recurso, user.EMPRESAS)` y `getAvailableLines(..., user.LINEAS)` agregan empresas/líneas de los contextos que tienen acceso al recurso.
+- **Empresas/líneas/canales:** `getAvailableCompanies(userContexts, recurso, user.EMPRESAS)`, `getAvailableLines(..., user.LINEAS)` y `getAvailableCanales(userContexts, recurso)` agregan empresas, líneas y canales (desde ALCANCE.CANALES) de los contextos que tienen acceso al recurso.
 - **Rol por recurso:** `rolDelRecurso` se obtiene en SimpleRouter buscando en user.CONTEXTOS y user.ROLES el rol del recurso (o alternativos) y se incluye en `routeConfig`.
 
 ### 5.3 Permisos en tabla (TablaInputsUI)
@@ -84,13 +84,13 @@ Este documento describe, paso a paso, los flujos principales del sistema: login,
 
 ### 5.4 Datos del usuario (post login)
 
-Tras login se llama a `/auth/me` (API 2). La respuesta se guarda en `user` con estructura tipo: `USUARIO`, `EMPRESAS`, `LINEAS`, `PERMISOS`, `ROLES`, `CONTEXTOS`. `CONTEXTOS` es un array de contextos (recurso, rol, alcance por empresas/líneas, bloqueados, herencia). En varios sitios se usa `user.data` como alias de `CONTEXTOS`.
+Tras login se llama a `/auth/me` (API 2). La respuesta se guarda en `user` con estructura tipo: `USUARIO`, `EMPRESAS`, `LINEAS`, `PERMISOS`, `ROLES`, `CONTEXTOS`. `CONTEXTOS` es un array de contextos (recurso, rol, alcance por empresas/líneas/canales — ALCANCE.EMPRESAS, ALCANCE.LINEAS, ALCANCE.CANALES —, bloqueados, herencia). En varios sitios se usa `user.data` como alias de `CONTEXTOS`.
 
 ---
 
 ## 6. Flujos adicionales (resumen)
 
-- **Reportería:** El usuario elige tipo de reporte, empresa/línea (según routeConfig y permisos); TemplateReporteria puede cargar iframes o contenido según el reporte.
+- **Reportería:** El usuario elige tipo de reporte, empresa, línea (recurso) y canal si aplica (según routeConfig y permisos). Los reportes se definen en formato lista `[{ url, rol, linea, empresa, canal? }]`. TemplateReporteria filtra por empresas/líneas/canales permitidos e inyecta iframes según el reporte seleccionado.
 - **Importaciones:** Filtros por empresa/fechas → tabla de importaciones; edición/creación mediante ventanas modales y múltiples servicios (general, transacción, bodega, nacionalización, etc.); permisos por rol (ventas, bodega, jefatura) definen columnas y permisos.
 - **Registros bancarios (Cartera):** Filtros por empresa y fechas → carga de transacciones desde API nueva; permisos por recurso; recurso alternativo `contabilidad.registrosbancarios` permite el mismo componente.
 - **Comisiones Tecnicentro:** Reportes y categorías de productos; categorías usan API principal; permisos de edición por rol "jefatura" y empresas con AUTOLLANTA.

@@ -45,7 +45,7 @@ Este documento recoge la justificación de las tecnologías elegidas, alternativ
 ### 1.7 Permisos por recurso (notación de puntos)
 
 - **Uso:** Recursos como `importaciones.compras.reportes`, `cartera.registrosbancarios`. Herencia (acceso a recurso padre implica acceso a hijos); recursos bloqueados para restringir hijos.
-- **Justificación:** Un solo modelo de permisos para menú y rutas; empresas y líneas disponibles se calculan por recurso desde `user.CONTEXTOS`.
+- **Justificación:** Un solo modelo de permisos para menú y rutas; empresas, líneas y canales disponibles se calculan por recurso desde `user.CONTEXTOS` (ALCANCE.EMPRESAS, ALCANCE.LINEAS, ALCANCE.CANALES).
 - **Alternativa:** Permisos por rol sin jerarquía de recursos. La notación de puntos permite una jerarquía flexible sin hardcodear pantallas por rol.
 
 ---
@@ -65,7 +65,7 @@ Este documento recoge la justificación de las tecnologías elegidas, alternativ
 |------|----------|-----------|
 | Dos APIs | Mantener dos clientes Axios con URLs y cabeceras distintas. | Ventaja: separación clara por dominio y por backend. Desventaja: más configuración (env), más documentación y posible duplicación de lógica de errores. |
 | Administración sin restricción de recurso | En SimpleRouter, recurso `administracion` tiene acceso forzado (TODO para quitar cuando estén configurados permisos). | Ventaja: permite configurar permisos sin bloquear a los administradadores. Desventaja: riesgo de acceso amplio hasta que se configure el recurso en backend. |
-| Recursos alternativos | Rutas como Registros Bancarios accesibles por `cartera.registrosbancarios` o `contabilidad.registrosbancarios`. | Ventaja: mismo componente para dos contextos de negocio. Desventaja: lógica de permisos y empresas/líneas debe combinar ambos recursos. |
+| Recursos alternativos | Rutas como Registros Bancarios accesibles por `cartera.registrosbancarios` o `contabilidad.registrosbancarios`. | Ventaja: mismo componente para dos contextos de negocio. Desventaja: lógica de permisos y empresas/líneas/canales debe combinar ambos recursos. |
 | Build en carpeta `build/` | `vite.config.js` usa `outDir: "build"` (en lugar de `dist`). | Ventaja: compatibilidad con scripts o documentación que esperan `build/`. Desventaja: difiere del valor por defecto de Vite (`dist`). |
 | postbuild en Linux/nginx | Script postbuild copia a `/var/www/html/portalEmpresarial/` y recarga nginx. | Ventaja: despliegue directo en un servidor Linux con nginx. Desventaja: no portable a Windows/macOS; en entornos distintos hay que desactivar o adaptar el script. |
 | Interceptores Axios | Reintentos automáticos por timeout/red (hasta 3 veces). | Ventaja: mayor resiliencia ante fallos puntuales. Desventaja: no hay flujo estándar documentado para 401 (renovar sesión o redirigir a login); podría añadirse en el interceptor de axiosInstanceNew. |

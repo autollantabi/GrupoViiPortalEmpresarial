@@ -22,9 +22,9 @@ index.jsx
           → Rutas protegidas: ProtectedWrapper(recurso, recursosAlternativos)
               → ProtectedContent
                   → Verifica isAuthenticated, user, hasAccessToResource
-                  → Obtiene availableCompanies, availableLines (getAvailableCompanies/Lines)
+                  → Obtiene availableCompanies, availableLines, availableCanales (getAvailableCompanies/Lines/Canales)
                   → Calcula rolDelRecurso
-                  → React.cloneElement(children, { routeConfig, availableCompanies, availableLines })
+                  → React.cloneElement(children, { routeConfig, availableCompanies, availableLines, availableCanales })
               → LayoutContent → TemplatePaginas (Sidebar + Header + children)
                   → Página concreta (Importaciones, GestionCanjes, Reportería, etc.)
 ```
@@ -75,7 +75,7 @@ index.jsx
 | `components/common/` | FormComponents.jsx (formularios reutilizables). |
 | `components/UI/Components/` | ButtonUI, CardUI, SelectUI, InputUI, ModalUI, ModalConfirmacionUI, TablaInfoUI, TablaInputsUI, ExportarAExcelUI, TooltipUI, LoaderUI, ToastUI, ToggleThemeButtonUI, IconsUI, etc. |
 | `services/`       | authService, administracionService, appShell_Service, carteraService, carteraDesbloqueoClientesService, contabilidadService, creditosService, importacionesService, marketingService, recoveryService, transaccionesService, usuariosService; cartera/cargarTransferencias.js, cartera/ejecutarbancos.js. |
-| `utils/`           | permissionsValidator.js (hasAccessToResource, getAvailableCompanies, getAvailableLines), encryption.js (encrypt/decrypt para id-session), theme.js (lightTheme, darkTheme), colors.js, Utils.js (transformarDataAValueLabel, obtenerAniosDesde2020). |
+| `utils/`           | permissionsValidator.js (hasAccessToResource, getAvailableCompanies, getAvailableLines, getAvailableCanales), encryption.js (encrypt/decrypt para id-session), theme.js (lightTheme, darkTheme), colors.js, Utils.js (transformarDataAValueLabel, obtenerAniosDesde2020). |
 | `assets/`         | fonts, images (svg, webp_png_jpeg), styles (Loaders, StyledComponents). |
 
 ### 2.3 Áreas bajo pages/Areas
@@ -89,7 +89,7 @@ Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Rou
 - **Contabilidad:** ConversionArchivosBancos, FlujoDeCaja, Comisiones (Mayoristas, Tecnicentro, Lubricantes).
 - **MDM:** MDM_Crud (Master Data Management — CRUD de ítems por grupo, config-driven para múltiples líneas de negocio: LLANTAS, LLANTAS MOTO, LUBRICANTES).
 - **Marketing:** MK_ReporteInventario, ComercialMarketing, FacturacionMarketing, Marketing.5w2h.
-- **Reporteria:** TemplateReporteria y reportes por tipo (Comercial, Cobranzas, Tecnicentro, Coordenadas, Importaciones, etc.).
+- **Reporteria:** TemplateReporteria; reportes en formato lista (url, rol, linea, empresa, canal opcional); filtro por empresa/línea/canal según permisos (Comercial, Cobranzas, Tecnicentro, Coordenadas, Importaciones, etc.).
 - **RRHH:** Documentacion, Videos.
 
 ---
@@ -101,9 +101,9 @@ Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Rou
 - **Routes.js:** Fuente de verdad de la lista de rutas (path, title, icon, component, recurso, recursosAlternativos, public, rootOnly). No contiene lógica de permisos.
 - **SimpleRouter.jsx:** Genera el router de react-router-dom; para cada ruta protegida usa ProtectedContent que:
   - Verifica autenticación y acceso al recurso (y recursos alternativos) con `hasAccessToResource`.
-  - Obtiene empresas y líneas disponibles con `getAvailableCompanies` y `getAvailableLines`.
+  - Obtiene empresas, líneas y canales disponibles con `getAvailableCompanies`, `getAvailableLines` y `getAvailableCanales`.
   - Calcula `rolDelRecurso` a partir de user.CONTEXTOS y user.ROLES.
-  - Inyecta en el hijo: `routeConfig` (recurso, recursosAlternativos, rolDelRecurso, availableCompanies, availableLines), `availableCompanies`, `availableLines`.
+  - Inyecta en el hijo: `routeConfig` (recurso, recursosAlternativos, rolDelRecurso, availableCompanies, availableLines, availableCanales), `availableCompanies`, `availableLines`, `availableCanales`.
 - **getSidebarItems(userContexts):** Filtra rutas por recurso (y alternativos), agrupa por raíz y construye jerarquía anidada para el sidebar.
 
 ### 3.2 Autenticación y sesión
@@ -114,8 +114,8 @@ Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Rou
 
 ### 3.3 Permisos
 
-- **permissionsValidator.js:** Lógica pura de permisos: hasAccessToResource (notación de puntos, herencia, recursos bloqueados), getAvailableCompanies, getAvailableLines. No conoce React ni el router.
-- **SimpleRouter (ProtectedContent):** Usa permissionsValidator y user.CONTEXTOS para decidir si mostrar la ruta y qué empresas/líneas inyectar.
+- **permissionsValidator.js:** Lógica pura de permisos: hasAccessToResource (notación de puntos, herencia, recursos bloqueados), getAvailableCompanies, getAvailableLines, getAvailableCanales. No conoce React ni el router.
+- **SimpleRouter (ProtectedContent):** Usa permissionsValidator y user.CONTEXTOS para decidir si mostrar la ruta y qué empresas/líneas/canales inyectar.
 
 ### 3.4 Servicios HTTP
 
@@ -124,8 +124,8 @@ Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Rou
 
 ### 3.5 Páginas
 
-- Reciben por props `routeConfig`, `availableCompanies`, `availableLines` (inyectadas por SimpleRouter).
-- Usan servicios para cargar y guardar datos; pueden usar `routeConfig.rolDelRecurso` y empresas/líneas para filtros y permisos de edición (p. ej. TablaInputsUI con permisos E/C por empresa).
+- Reciben por props `routeConfig`, `availableCompanies`, `availableLines`, `availableCanales` (inyectadas por SimpleRouter).
+- Usan servicios para cargar y guardar datos; pueden usar `routeConfig.rolDelRecurso` y empresas/líneas/canales para filtros y permisos de edición (p. ej. TablaInputsUI con permisos E/C por empresa; Reportería filtra reportes por canal según alcance).
 
 ---
 
@@ -136,7 +136,7 @@ Cada área agrupa uno o más módulos/pantallas, alineados con el recurso en Rou
 | **Provider (Context)**   | AuthContext, ThemeProvider, SidebarProvider envuelven la aplicación o parte del árbol. |
 | **Configuración centralizada** | Routes.js como única fuente de rutas; env.js para variables de entorno; axiosConfig para instancias HTTP. |
 | **Composición**           | TemplatePaginas compone Sidebar + Header + children; las páginas componen componentes UI y layout. |
-| **Inyección de props**   | ProtectedContent inyecta routeConfig, availableCompanies, availableLines al hijo mediante cloneElement. |
+| **Inyección de props**   | ProtectedContent inyecta routeConfig, availableCompanies, availableLines, availableCanales al hijo mediante cloneElement. |
 | **Servicios por dominio**| services/ organizado por dominio (auth, cartera, appShell, importaciones, etc.) en lugar de un único cliente. |
 | **Múltiples instancias de cliente HTTP** | Dos Axios con bases y cabeceras distintas (API principal, API nueva con id-session). |
 | **Rutas protegidas**      | Wrapper que verifica autenticación y recurso antes de renderizar el contenido; en caso contrario redirección o mensaje. |
@@ -184,7 +184,7 @@ PortalEmpresarial/
 ### 6.1 Router y protección (`SimpleRouter.jsx`, `Routes.js`)
 
 - **Routes.js (RoutesConfig):** Fuente de verdad de rutas: `{ path?, title, icon, component, recurso, recursosAlternativos?, public?, rootOnly? }`. Path se deriva de `recurso` (puntos → barras) si no se indica.
-- **ProtectedContent:** Usa `user.CONTEXTOS`, `hasAccessToResource`, `getAvailableCompanies`, `getAvailableLines`; construye `routeConfig` e inyecta al hijo.
+- **ProtectedContent:** Usa `user.CONTEXTOS`, `hasAccessToResource`, `getAvailableCompanies`, `getAvailableLines`, `getAvailableCanales`; construye `routeConfig` e inyecta al hijo.
 - **getSidebarItems(userContexts):** Filtra por recurso (y alternativos), agrupa por raíz y construye jerarquía anidada para el sidebar.
 
 ### 6.2 Layout
@@ -204,14 +204,14 @@ PortalEmpresarial/
 | Contabilidad   | ConversionArchivosBancos, ReporteFlujoCaja, Comisiones (Mayoristas, Tecnicentro, Lubricantes) |
 | MDM            | MDM_Crud (gestión de grupos de ítems config-driven: LLANTAS, LLANTAS MOTO, LUBRICANTES) |
 | Marketing      | MK_ReporteInventario, ComercialMarketing, FacturacionMarketing, Marketing.5w2h |
-| Reportería     | TemplateReporteria; reportes por tipo (Comercial, Cobranzas, Tecnicentro, Coordenadas, etc.) |
+| Reportería     | TemplateReporteria; reportes en lista (rol, linea, empresa, canal); filtro por permisos empresa/línea/canal |
 | RRHH           | Documentacion, Videos |
 
 ### 6.4 Componentes UI y utilidades
 
 - **TablaInputsUI, TablaInfoUI:** Tablas con filtros, permisos por empresa (E/C).
 - **SelectUI, InputUI, ButtonUI, ModalUI, ModalConfirmacionUI, ExportarAExcelUI, TooltipUI, LoaderUI, ToastUI, IconsUI.**
-- **permissionsValidator.js:** `hasAccessToResource`, `getAvailableCompanies`, `getAvailableLines`.
+- **permissionsValidator.js:** `hasAccessToResource`, `getAvailableCompanies`, `getAvailableLines`, `getAvailableCanales`.
 - **encryption.js:** Encriptación/desencriptación del token de sesión (`VITE_ENCRYPTION_KEY`).
 - **Utils.js:** `transformarDataAValueLabel`, `obtenerAniosDesde2020`.
 
@@ -228,7 +228,7 @@ Resumen: API 1 (`VITE_API_URL`) — Cartera, Compras, Contabilidad, Importacione
 ## 8. Cómo añadir una nueva pantalla
 
 1. **Añadir entrada en la configuración de rutas** (`src/router/Routes.js`): `{ title, icon, component, recurso, recursosAlternativos? }`. Si no se especifica `path`, se genera desde `recurso` (puntos → barras).
-2. **El componente de página** debe recibir (inyectados por SimpleRouter): `routeConfig`, `availableCompanies`, `availableLines`. Opcionalmente usar `routeConfig.rolDelRecurso` y empresas/líneas para filtros y permisos (p. ej. edición vs consulta).
+2. **El componente de página** debe recibir (inyectados por SimpleRouter): `routeConfig`, `availableCompanies`, `availableLines`, `availableCanales`. Opcionalmente usar `routeConfig.rolDelRecurso` y empresas/líneas/canales para filtros y permisos (p. ej. edición vs consulta; Reportería filtra por canal).
 3. **Llamadas HTTP:** Reutilizar la instancia Axios adecuada desde `src/config/axiosConfig.js` y crear o ampliar un servicio en `src/services/` según la API que corresponda (ver [apis.md](apis.md)).
 
 ---

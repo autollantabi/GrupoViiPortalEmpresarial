@@ -30,7 +30,7 @@ La **autenticación** y la **autorización por recurso** (y por empresa/línea) 
 | Permisos por recurso | `src/utils/permissionsValidator.js`; se usan en SimpleRouter y en páginas que reciben `routeConfig`. |
 | Llamadas HTTP | `src/services/*`; 2 instancias en `src/config/axiosConfig.js`; variables de entorno en `src/config/env.js`. |
 | Layout | `src/components/layout/TemplatePaginas.jsx`, `Sidebar.jsx`, `Header.jsx`. |
-| Páginas | `src/pages/Areas/` por dominio; cada página recibe `routeConfig`, `availableCompanies`, `availableLines` (inyectadas por SimpleRouter). |
+| Páginas | `src/pages/Areas/` por dominio; cada página recibe `routeConfig`, `availableCompanies`, `availableLines`, `availableCanales` (inyectadas por SimpleRouter). |
 | Detalle de APIs | [apis.md](apis.md). |
 | Cómo añadir una pantalla | [arquitectura.md](arquitectura.md) — sección “Cómo añadir una nueva pantalla”. |
 
@@ -48,14 +48,14 @@ Detalle en [apis.md](apis.md).
 ## 5. Flujo típico al añadir una pantalla
 
 1. Añadir entrada en la configuración de rutas (`src/router/Routes.js`): path opcional, title, icon, component, recurso, recursosAlternativos si aplica.
-2. El componente de página debe recibir `routeConfig`, `availableCompanies`, `availableLines` y opcionalmente usar `routeConfig.rolDelRecurso` y empresas/líneas para permisos y datos.
+2. El componente de página debe recibir `routeConfig`, `availableCompanies`, `availableLines`, `availableCanales` y opcionalmente usar `routeConfig.rolDelRecurso` y empresas/líneas/canales para permisos y datos.
 3. Si se consumen APIs, reutilizar la instancia Axios adecuada desde `src/config/axiosConfig.js` y crear o ampliar un servicio en `src/services/`. Ver [apis.md](apis.md) y [arquitectura.md](arquitectura.md).
 
 ---
 
 ## 6. Decisiones históricas y código legado
 
-- **Permisos por recurso:** La fuente de verdad es CONTEXTOS desde `/auth/me`, `permissionsValidator.js` (hasAccessToResource, getAvailableCompanies/Lines) y `routeConfig` inyectado por SimpleRouter a cada página.
+- **Permisos por recurso:** La fuente de verdad es CONTEXTOS desde `/auth/me`, `permissionsValidator.js` (hasAccessToResource, getAvailableCompanies, getAvailableLines, getAvailableCanales) y `routeConfig` inyectado por SimpleRouter a cada página.
 - **Dos APIs:** Separación por responsabilidades (legacy vs auth/permisos/transacciones); no hay un único BFF.
 - **Administración temporal:** En SimpleRouter, el recurso `"administracion"` tiene acceso forzado (setPermissionState(true)) con comentario TODO para quitar cuando estén configurados permisos en backend.
 - **Rutas alternativas:** Ej. `cartera.registrosbancarios` y `contabilidad.registrosbancarios` permiten acceder al mismo componente.

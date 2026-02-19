@@ -9,7 +9,7 @@ Este documento recoge mejoras técnicas sugeridas, deuda técnica detectada y pa
 | Mejora | Descripción | Prioridad sugerida |
 |--------|-------------|---------------------|
 | Interceptor 401 en API nueva | Añadir en `axiosInstanceNew` un interceptor de respuesta que, ante 401, limpie sesión (logout), elimine token del localStorage y redirija a `/login`. Actualmente los reintentos son por timeout/red; no hay flujo estándar para sesión expirada. | Alta |
-| Tests automatizados | Introducir tests (p. ej. Vitest + React Testing Library) para: login, permissionsValidator (hasAccessToResource, getAvailableCompanies, getAvailableLines) y rutas protegidas. No hay tests visibles en el repositorio. | Alta |
+| Tests automatizados | Introducir tests (p. ej. Vitest + React Testing Library) para: login, permissionsValidator (hasAccessToResource, getAvailableCompanies, getAvailableLines, getAvailableCanales) y rutas protegidas. No hay tests visibles en el repositorio. | Alta |
 | Tipado estático | Valorar migración a TypeScript o al menos JSDoc en servicios y utils para contratos de API y reducción de errores en tiempo de desarrollo. | Media |
 | Virtualización o paginación en tablas grandes | TablaInputsUI e Importaciones pueden cargar muchos registros. Valorar virtualización (p. ej. react-window) o paginación en servidor para mejorar rendimiento. | Media |
 | Documentación de contratos de API | Mantener un documento o OpenAPI con los contratos de las dos APIs (endpoints, body, respuestas) para que frontend y backend estén alineados. | Baja |

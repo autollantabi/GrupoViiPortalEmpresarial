@@ -2,14 +2,14 @@
 
 ## Descripción general
 
-**Portal Empresarial** es una aplicación web (SPA) que centraliza el acceso a múltiples áreas de negocio del grupo empresarial: Cartera, Compras (Importaciones, Créditos, Anticipos), Contabilidad (Comisiones, Flujo de Caja, Conversión de archivos), Marketing (5W2H, Inventario, Comercial), Reportería (reportes por empresa/línea), RRHH (Documentación), Gobierno de Datos y Administración de Usuarios.
+**Portal Empresarial** es una aplicación web (SPA) que centraliza el acceso a múltiples áreas de negocio del grupo empresarial: Cartera, Compras (Importaciones, Créditos, Anticipos), Contabilidad (Comisiones, Flujo de Caja, Conversión de archivos), Marketing (5W2H, Inventario, Comercial), Reportería (reportes por empresa/línea/canal), RRHH (Documentación), Gobierno de Datos y Administración de Usuarios.
 
 La aplicación exige **autenticación** (login con correo/contraseña) y **autorización por recurso**: el menú y el acceso a cada pantalla dependen de los permisos del usuario, con notación de puntos (ej. `contabilidad.comisiones.tecnicentro`). Las empresas y líneas disponibles se calculan por recurso desde el backend.
 
 ## Problema que resuelve
 
 - **Fragmentación de sistemas:** Unifica en un solo portal el acceso a Cartera, Compras, Contabilidad, Marketing, Reportería, RRHH y Administración.
-- **Control de acceso:** Autorización por recurso y por alcance (empresas/líneas), sin exponer funcionalidad no permitida.
+- **Control de acceso:** Autorización por recurso y por alcance (empresas, líneas, canales), sin exponer funcionalidad no permitida.
 - **Experiencia unificada:** Un único login, tema claro/oscuro persistente y navegación por sidebar según permisos.
 
 ## Tipo de aplicación

@@ -1,11 +1,17 @@
 /**
  * Utilidades para validar permisos basados en recursos con notación de puntos
  * Ejemplo: "importaciones", "importaciones.compras", "importaciones.compras.reportes"
- * 
+ *
  * Lógica de permisos:
  * - Si tengo permiso a "importaciones", puedo acceder a "importaciones.*" (todo lo que empiece con "importaciones.")
  * - Si tengo permiso a "importaciones.compras", puedo acceder a "importaciones.compras.*"
  * - Los recursos bloqueados impiden el acceso incluso si tengo el permiso padre
+ *
+ * Funciones exportadas:
+ * - hasAccessToResource(userContexts, recurso)
+ * - getAvailableCompanies(userContexts, recurso, empresasGlobales?)
+ * - getAvailableLines(userContexts, recurso, lineasGlobales?)
+ * - getAvailableCanales(userContexts, recurso) — canales desde ALCANCE.CANALES (ej. TODOS, B2B, B2C)
  */
 
 /**
