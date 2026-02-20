@@ -43,6 +43,33 @@ const REPORTES = [
     empresa: "MAXXIMUNDO"
   },
   {
+    id: 41,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMTBkN2ZkOWUtYTllMi00OTYyLTk5ZGEtMDk1MGZlYmEwZGQ2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
+    titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA) TODOS",
+    rol: "jefatura",
+    linea: "LUBRICANTES",
+    empresa: "MAXXIMUNDO",
+    canal: "TODOS",
+  },
+  {
+    id: 42,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMmYyMWExZDEtODk4Ny00NzRjLTk5N2ItMTdlMDdhM2Y2OTdjIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
+    titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA) B2C",
+    rol: "jefatura",
+    linea: "LUBRICANTES",
+    empresa: "MAXXIMUNDO",
+    canal: "B2C",
+  },
+  {
+    id: 43,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMjZhYzIyNjQtNzVlNS00ODgzLTk4YmQtNWIzZjIwZThhN2MyIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
+    titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA) B2B",
+    rol: "jefatura",
+    linea: "LUBRICANTES",
+    empresa: "MAXXIMUNDO",
+    canal: "B2B",
+  },
+  {
     id: 5,
     url: "https://app.powerbi.com/view?r=eyJrIjoiYTU4MzU3NjQtM2VmYS00NDNlLWFhNGYtYTVkYjFhMDk0MWE5IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
     titulo: "Comercial V2 Herramientas - Ikonix",
