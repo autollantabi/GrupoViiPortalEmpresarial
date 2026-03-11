@@ -18,7 +18,7 @@ export default defineConfig({
     strictPort: true, // Activa el modo estricto para el puerto  
     port: 5000, // Mantén el mismo puerto si quieres,
     headers: securityHeaders,
-    proxy:{
+    proxy: {
       "/apid1": {
         target: "http://localhost:3002",
         changeOrigin: true,

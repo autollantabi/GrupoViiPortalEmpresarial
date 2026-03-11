@@ -228,7 +228,6 @@ export default function AS_GestionCanjes({
     useEffect(() => {
         appShellService_obtenerEstadosCanjes().then((res) => {
             if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-                console.log(res);
                 setEstadosCanjes(res.data);
             }
         });
@@ -242,6 +241,7 @@ export default function AS_GestionCanjes({
                 if (res.success && Array.isArray(res.data) && res.data.length > 0) {
                     const mapeados = res.data.map(mapCanjeApiToComponent);
                     setCanjes(mapeados);
+                    console.log(mapeados);
                 }
             })
             .finally(() => setLoadingCanjes(false));

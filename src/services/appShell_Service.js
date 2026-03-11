@@ -7,7 +7,6 @@ import { axiosInstanceNew } from "config/axiosConfig";
 export async function appShellService_obtenerEstadosCanjes() {
   try {
     const response = await axiosInstanceNew.get(`/club-shell-maxx/canjes/estados-canjes`);
-    console.log(response);
     return {
       success: true,
       data: response?.data?.data?.data ?? response?.data?.data ?? response?.data,
@@ -30,9 +29,8 @@ export async function appShellService_obtenerEstadosCanjes() {
 export async function appShellService_obtenerCanjesConEstados() {
   try {
     const response = await axiosInstanceNew.get(`/club-shell-maxx/canjes/todos-con-estados`);
-    console.log(response);
     const raw = response?.data?.data?.data ?? response?.data?.data ?? response?.data;
-    const canjes = raw ?? [];
+    const canjes = raw.canjes ?? [];
     return {
       success: true,
       data: Array.isArray(canjes) ? canjes : [],
@@ -218,7 +216,7 @@ export async function appShellService_crearVendedor(vendedorData) {
         : null,
     };
 
-      const response = await axiosInstanceNew.post(
+    const response = await axiosInstanceNew.post(
       `/club-shell-maxx/usuarios`,
       dataToSend
     );

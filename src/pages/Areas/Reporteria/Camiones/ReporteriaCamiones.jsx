@@ -8,7 +8,7 @@ const REPORTES = [
     titulo: "Reporte de Camiones",
     rol: "usuario",
     linea: null,
-    empresa: "AUTOLLANTA",
+    empresa: "GRUPOVII",
   },
 ];
 

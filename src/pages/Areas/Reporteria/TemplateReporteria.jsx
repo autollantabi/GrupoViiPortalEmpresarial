@@ -133,10 +133,10 @@ export const TemplateReporteria = ({
   // availableCompanies puede ser un objeto { "1": "AUTOLLANTA", ... } o un array [{ id, nombre }, ...]
   const empresasDisponiblesSet = useMemo(() => {
     if (Array.isArray(availableCompanies)) {
-      return new Set(availableCompanies.map(emp => emp.nombre));
+      return new Set(availableCompanies.map(emp => emp.nombre?.toUpperCase()));
     }
     // Si es un objeto, obtener los valores
-    return new Set(Object.values(availableCompanies));
+    return new Set(Object.values(availableCompanies).map(nombre => nombre?.toUpperCase()));
   }, [availableCompanies]);
 
   // Convertir availableLines a un Set de nombres de líneas para verificación rápida
@@ -215,8 +215,8 @@ export const TemplateReporteria = ({
   // Si el usuario no tiene canales en sus permisos, no puede ver reportes que tengan canal.
   const reportesFiltrados = useMemo(() => {
     return reportesLista.filter((r) => {
-      if (!empresasDisponiblesSet.has(r.empresa)) return false;
-      if (r.linea != null && !tieneAccesoALinea(r.linea)) return false;
+      if (!empresasDisponiblesSet.has((r.empresa || "").toUpperCase())) return false;
+      if (r.linea != null && !tieneAccesoALinea((r.linea || "").toUpperCase())) return false;
       if (r.canal != null) {
         if (canalesParaFiltrar.size === 0) return false;
         if (!canalesParaFiltrar.has(r.canal)) return false;
@@ -231,7 +231,7 @@ export const TemplateReporteria = ({
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState(null);
   const [canalSeleccionado, setCanalSeleccionado] = useState(null);
   const [reporteSeleccionado, setReporteSeleccionado] = useState(null);
-  
+
   // Ref para rastrear la empresa anterior y solo resetear el recurso cuando cambia
   const empresaAnteriorRef = useRef(null);
 
@@ -523,8 +523,8 @@ export const TemplateReporteria = ({
             value={
               tipoUsuarioSeleccionado
                 ? opcionesTiposUsuario.find(
-                    (opt) => opt.value === tipoUsuarioSeleccionado
-                  )
+                  (opt) => opt.value === tipoUsuarioSeleccionado
+                )
                 : null
             }
             onChange={handleTipoUsuarioChange}
@@ -539,8 +539,8 @@ export const TemplateReporteria = ({
           value={
             empresaSeleccionada
               ? opcionesEmpresas.find(
-                  (opt) => opt.value === empresaSeleccionada
-                )
+                (opt) => opt.value === empresaSeleccionada
+              )
               : null
           }
           onChange={handleEmpresaChange}
@@ -557,8 +557,8 @@ export const TemplateReporteria = ({
             value={
               recursoSeleccionado
                 ? opcionesRecursos.find(
-                    (opt) => opt.value === recursoSeleccionado
-                  )
+                  (opt) => opt.value === recursoSeleccionado
+                )
                 : null
             }
             onChange={handleRecursoChange}
