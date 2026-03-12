@@ -16,6 +16,9 @@ import { GestionCheques } from "pages/Areas/Cartera/GestionCheques/GestionCheque
 import { RegistrosBancariosHistorial } from "pages/Areas/Cartera/RegistrosBancariosHistorial/RegistrosBancariosHistorial";
 import { Cartera_CargarTransferencias } from "pages/Areas/Cartera/CargarTransferencias/Cartera_CargarTransferencias";
 
+// XCoin
+import XC_GestionCanjes from "pages/Areas/XCoin/XC_GestionCanjes/XC_GestionCanjes";
+
 // Compras
 import { Compras_Reportes } from "pages/Areas/Compras/Reportes/Compras_Reportes";
 import { Importaciones } from "pages/Areas/Compras/Importaciones/Importaciones";
@@ -206,6 +209,19 @@ export const RoutesConfig = [
     title: "Lubricantes",
     component: ComisionesLubricantes,
     recurso: "contabilidad.comisiones.lubricantes",
+  },
+  // ================================= XCOIN =================================
+  {
+    recurso: "xcoin",
+    title: "XCoin",
+    icon: "FaCoins",
+    rootOnly: true,
+  },
+  {
+    title: "Gestión de canjes",
+    component: XC_GestionCanjes,
+    recurso: "xcoin.gestioncanjes",
+    recursosAlternativos: ["xcoin.admin", "xcoin.viewer"],
   },
   // ================================= MARKETING =================================
   {

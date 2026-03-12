@@ -27,8 +27,6 @@ export function AuthContextProvider({ children }) {
     try {
       const response = await authService_me();
 
-      console.log("response", response.data.CONTEXTOS);
-      
       if (response.success) {
         // La nueva estructura tiene: USUARIO, EMPRESAS, LINEAS, PERMISOS, ROLES, CONTEXTOS
         // Guardar toda la información del usuario en el estado
@@ -37,7 +35,7 @@ export function AuthContextProvider({ children }) {
           ...response.data, // Guardar toda la estructura (USUARIO, EMPRESAS, LINEAS, PERMISOS, ROLES, CONTEXTOS)
           data: response.data.CONTEXTOS || [], // Mantener 'data' como array de contextos para compatibilidad
         });
-        
+
         return response.data.CONTEXTOS || [];
       } else {
         return null;
@@ -77,20 +75,20 @@ export function AuthContextProvider({ children }) {
   // Solo se ejecuta una vez al montar el componente, no cuando user cambia
   useEffect(() => {
     let isMounted = true;
-    
+
     const cargarDatosUsuario = async () => {
       setIsLoading(true);
-      
+
       // Intentar cargar idSession encriptado del localStorage
       const encryptedIdSession = localStorage.getItem(ID_SESSION_STORAGE_KEY);
       if (encryptedIdSession) {
         const encryptionKey = getEncryptionKey();
         const decryptedIdSession = decrypt(encryptedIdSession, encryptionKey);
-        
+
         if (decryptedIdSession) {
           setIdSession(decryptedIdSession);
           setAxiosIdSession(decryptedIdSession);
-          
+
           // Ahora que tenemos el idSession, consultar /auth/me
           try {
             const userData = await fetchUserMe();
@@ -112,14 +110,14 @@ export function AuthContextProvider({ children }) {
           clearSessionClient();
         }
       }
-      
+
       if (isMounted) {
         setIsLoading(false);
       }
     };
 
     cargarDatosUsuario();
-    
+
     return () => {
       isMounted = false;
     };
@@ -135,7 +133,7 @@ export function AuthContextProvider({ children }) {
       if (idSession) {
         setIdSession(idSession);
         setAxiosIdSession(idSession);
-        
+
         // Guardar idSession encriptado en localStorage
         const encryptionKey = getEncryptionKey();
         const encryptedIdSession = encrypt(idSession, encryptionKey);

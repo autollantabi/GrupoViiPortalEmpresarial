@@ -25,7 +25,7 @@ function isResourceBlocked(recursosBloqueados, recurso) {
   if (!recursosBloqueados || recursosBloqueados === "" || recursosBloqueados === "[]") {
     return false;
   }
-  
+
   // Si es un string, intentar parsearlo como JSON
   let bloqueadosArray = [];
   if (typeof recursosBloqueados === 'string') {
@@ -40,26 +40,26 @@ function isResourceBlocked(recursosBloqueados, recurso) {
   } else {
     return false;
   }
-  
+
   if (!Array.isArray(bloqueadosArray) || bloqueadosArray.length === 0) {
     return false;
   }
-  
+
   const targetResource = recurso?.toLowerCase()?.trim();
   if (!targetResource) return false;
-  
+
   return bloqueadosArray.some(
     (bloqueado) => {
       // Puede ser un objeto con .resource o directamente un string
-      const bloqueadoResource = (typeof bloqueado === 'string' 
-        ? bloqueado 
+      const bloqueadoResource = (typeof bloqueado === 'string'
+        ? bloqueado
         : bloqueado.resource)?.toLowerCase()?.trim();
-      
+
       if (!bloqueadoResource) return false;
-      
+
       // Si coincide exactamente o el recurso es un hijo del bloqueado
-      return bloqueadoResource === targetResource || 
-             targetResource.startsWith(bloqueadoResource + ".");
+      return bloqueadoResource === targetResource ||
+        targetResource.startsWith(bloqueadoResource + ".");
     }
   );
 }
@@ -89,7 +89,7 @@ export function hasAccessToResource(userContexts, recurso) {
     // Verificar si el recurso está bloqueado en este contexto
     // La nueva estructura usa BLOQUEADO (string JSON, string vacío, o null), la antigua usa RECURSOS_BLOQUEADOS (array)
     const recursosBloqueados = context.RECURSOS_BLOQUEADOS || context.BLOQUEADO || null;
-    
+
     if (isResourceBlocked(recursosBloqueados, targetResource)) {
       continue; // Este contexto tiene este recurso bloqueado, pasar al siguiente
     }
@@ -102,7 +102,7 @@ export function hasAccessToResource(userContexts, recurso) {
     // Si el recurso es un hijo del contexto (ej: tengo "importaciones" y quiero "importaciones.compras")
     // Verificar si HERENCIA está activa (siempre debería estar en el nuevo sistema, pero verificamos por si acaso)
     const hasInheritance = context.HERENCIA !== false; // Si HERENCIA no está definida o es true, está activa
-    
+
     if (hasInheritance && targetResource.startsWith(contextResource + ".")) {
       return true;
     }
@@ -141,7 +141,7 @@ export function getAvailableCompanies(userContexts, recurso, empresasGlobales = 
       // Agregar empresas del alcance
       // Usar empresasGlobales si están disponibles (nueva estructura), sino usar context.EMPRESAS (estructura antigua)
       const empresasMap = empresasGlobales || context.EMPRESAS || {};
-      
+
       if (context.ALCANCE?.EMPRESAS && Array.isArray(context.ALCANCE.EMPRESAS)) {
         context.ALCANCE.EMPRESAS.forEach((empresaId) => {
           const empresaNombre = empresasMap[empresaId.toString()];
@@ -189,7 +189,7 @@ export function getAvailableLines(userContexts, recurso, lineasGlobales = null) 
       // Agregar líneas del alcance
       // Usar lineasGlobales si están disponibles (nueva estructura), sino usar context.LINEAS (estructura antigua)
       const lineasMap = lineasGlobales || context.LINEAS || {};
-      
+
       if (context.ALCANCE?.LINEAS && Array.isArray(context.ALCANCE.LINEAS)) {
         context.ALCANCE.LINEAS.forEach((lineaId) => {
           const lineaNombre = lineasMap[lineaId.toString()];
@@ -217,7 +217,6 @@ export function getAvailableCanales(userContexts, recurso) {
   if (!userContexts || !Array.isArray(userContexts) || userContexts.length === 0) {
     return [];
   }
-  console.log("userContexts", userContexts);
 
   if (!recurso) return [];
 
