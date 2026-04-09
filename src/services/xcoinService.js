@@ -52,7 +52,7 @@ export async function ListarXCoinEstadosCanjes() {
  */
 export async function ActualizarXCoinEstadoCanje(idCanje, estadoData) {
   try {
-    const res = await axiosInstanceNew.patch(`/x-coin/canjes/estado/${idCanje}`, estadoData);
+    const res = await axiosInstanceNew.post(`/x-coin/canjes/estado/${idCanje}`, estadoData);
     return {
       success: true,
       data: res.data?.data || res.data || null,

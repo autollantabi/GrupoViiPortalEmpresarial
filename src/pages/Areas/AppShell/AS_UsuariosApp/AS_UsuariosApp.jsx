@@ -38,6 +38,32 @@ function mensajeAsociacionPendiente(rolNombreUsuario) {
   return "Asociación pendiente";
 }
 
+function formatearFechaNacimiento(value) {
+  if (!value) return "";
+
+  // Evita corrimientos por zona horaria cuando llega como "YYYY-MM-DD".
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      const [, year, month, day] = match;
+      const fechaLocal = new Date(Number(year), Number(month) - 1, Number(day));
+      return fechaLocal.toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+  }
+
+  const fecha = new Date(value);
+  if (Number.isNaN(fecha.getTime())) return "";
+  return fecha.toLocaleDateString("es-ES", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export default function AS_UsuariosApp() {
   const { theme } = useTheme();
   const [usuarios, setUsuarios] = useState([]);
@@ -294,11 +320,7 @@ export default function AS_UsuariosApp() {
                             Fecha de nacimiento
                           </TextUI>
                           <TextUI size="13px" color={theme?.colors?.text}>
-                            {new Date(fechaNac).toLocaleDateString("es-ES", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
+                            {formatearFechaNacimiento(fechaNac)}
                           </TextUI>
                         </div>
                       )}

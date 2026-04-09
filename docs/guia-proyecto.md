@@ -6,7 +6,7 @@ Este documento es el **resumen ejecutivo** para que un desarrollador nuevo entie
 
 ## 1. Qué es el proyecto
 
-Portal Empresarial es un **portal web interno** (SPA) que centraliza el acceso a Cartera, Compras (Importaciones, Créditos, Anticipos), Contabilidad (Comisiones, Flujo de Caja, Conversión), Marketing (5W2H, Inventario, Comercial), Reportería (varios reportes), RRHH, Gobierno de Datos y Administración.
+Portal Empresarial es un **portal web interno** (SPA) que centraliza el acceso a Cartera, Compras (Importaciones, Créditos, Anticipos), Contabilidad (Comisiones, Flujo de Caja, Conversión), Marketing (5W2H, Inventario, Comercial), XCoin (Canjes), Reportería (varios reportes), RRHH, Gobierno de Datos y Administración.
 
 La **autenticación** y la **autorización por recurso** (y por empresa/línea) son el núcleo del diseño: el menú y el acceso a cada pantalla dependen de los permisos del usuario.
 
@@ -39,7 +39,7 @@ La **autenticación** y la **autorización por recurso** (y por empresa/línea) 
 ## 4. Las dos APIs
 
 1. **VITE_API_URL** → Cartera, Compras, Contabilidad, Importaciones, Administración (parte), Recovery, Créditos, Transacciones (actualizar banco).
-2. **VITE_API_URL_NEW** → Login, `/auth/me`, 5W2H, Transacciones cartera, Desbloqueo, BAT bancos, Permisos/Roles/Usuarios-rol-contexto, Tipos de usuario, Club Shell Maxx (usuarios, canjes), Portal Mayorista (usuarios, permisos app-shell por email).
+2. **VITE_API_URL_NEW** → Login, `/auth/me`, 5W2H, Transacciones cartera, Desbloqueo, BAT bancos, Permisos/Roles/Usuarios-rol-contexto, Tipos de usuario, Club Shell Maxx (usuarios, canjes), Portal Mayorista (usuarios, permisos app-shell por email), XCoin (canjes).
 
 Detalle en [apis.md](apis.md).
 

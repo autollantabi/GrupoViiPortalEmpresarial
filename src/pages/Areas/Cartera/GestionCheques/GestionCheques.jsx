@@ -265,6 +265,7 @@ export const GestionCheques = ({
         { value: "RAMON ALEXANDRA", label: "RAMON ALEXANDRA" },
         { value: "PINO VERONICA", label: "PINO VERONICA" },
         { value: "MONTERO CRISTINA", label: "MONTERO CRISTINA" },
+        { value: "JANNETH BERMEO", label: "JANNETH BERMEO" },
       ],
       required: true,
     },
@@ -459,7 +460,7 @@ export const GestionCheques = ({
           nombreID={"ID"}
           permisos={empresasDisponibles}
           estadocondiciones={estadocondiciones}
-          // permisoagregar={correosAgregar}
+        // permisoagregar={correosAgregar}
         />
       ) : (
         <p>Cargando configuración, por favor espera...</p>

@@ -14,8 +14,8 @@ const StyledText = styled.span`
   
   &:hover {
     ${({ onClick, theme, color }) =>
-      onClick &&
-      `
+    onClick &&
+    `
       color: ${color || theme?.colors?.primary || "#3c3c3b"};
       opacity: 0.8;
     `}

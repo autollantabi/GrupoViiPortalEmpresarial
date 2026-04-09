@@ -1,4 +1,5 @@
 import { axiosInstance } from "config/axiosConfig";
+import { axiosInstanceNew } from "config/axiosConfig";
 
 export async function ListarEmpresas() {
   try {
@@ -214,7 +215,7 @@ export async function UpdateIngresoTransacciones({
       fecha_pago_total,
       etapa,
     });
-    
+
     return res;
   } catch (error) {
     return [];
@@ -229,7 +230,7 @@ export async function UpdatePermisosImportacion({
   per_MINSA,
   per_FAD,
   etapa,
-  
+
 }) {
   try {
     const res = await axiosInstance.post(
@@ -245,7 +246,7 @@ export async function UpdatePermisosImportacion({
         etapa,
       }
     );
-    
+
     return res;
   } catch (error) {
     return [];
@@ -257,7 +258,7 @@ export async function UpdateMovilizacion({
   fecha_estimada_bodega,
   transportista_asignado,
   etapa,
-  
+
 }) {
   try {
     const res = await axiosInstance.post(`/importaciones/movilizacion/`, {
@@ -267,7 +268,7 @@ export async function UpdateMovilizacion({
       transportista_asignado,
       etapa,
     });
-    
+
     return res;
   } catch (error) {
     return [];
@@ -281,7 +282,7 @@ export async function UpdateMercaderiaEnBodega({
   validacion_bodega_ventas,
   observacion_bodega,
   etapa,
-  
+
 }) {
   try {
     const res = await axiosInstance.post(`/importaciones/bodega/`, {
@@ -293,7 +294,7 @@ export async function UpdateMercaderiaEnBodega({
       observacion_bodega,
       etapa,
     });
-    
+
     return res;
   } catch (error) {
     return [];
@@ -312,7 +313,7 @@ export async function UpdateNacionalizacion({
   fechaLiberacion,
   nroDAI,
   etapa,
-  
+
 }) {
   try {
     const res = await axiosInstance.post(`/importaciones/nacionalizacion/`, {
@@ -329,7 +330,7 @@ export async function UpdateNacionalizacion({
       nroDAI,
       etapa,
     });
-    
+
     return res;
   } catch (error) {
     return [];
@@ -370,7 +371,7 @@ export async function InsertarIngresoFactProveedor({
       IMP,
       etapa,
     });
-    
+
     return res;
   } catch (error) {
     return [];
@@ -463,7 +464,7 @@ export async function RegistrarDocumentosProveedor({
         "Content-Type": "multipart/form-data",
       },
     });
-    
+
     return res;
   } catch (error) {
     return [];
@@ -477,7 +478,7 @@ export async function RegistrarDocumentosBodega({ id, archivos }) {
   for (const arch of archivos) {
     formData.append("archivos", arch);
   }
-  formData.append("id", id);  
+  formData.append("id", id);
   try {
     const res = await axiosInstance.post(
       `/importaciones/documentosBodegaBD/`,
@@ -496,7 +497,7 @@ export async function RegistrarDocumentosBodega({ id, archivos }) {
         "Content-Type": "multipart/form-data",
       },
     });
-    
+
     return res;
   } catch (error) {
     return [];
@@ -527,7 +528,7 @@ export async function RegistrarDocumentosPricing({ id, archivo, tipo }) {
         "Content-Type": "multipart/form-data",
       },
     });
-    
+
     return res;
   } catch (error) {
     return [];
@@ -774,5 +775,40 @@ export async function EnviarCorreoBodega({ idImportacion, destinatarios }) {
     }
   } catch (e) {
     return false;
+  }
+}
+
+export async function GenerarRegistroPedidosMensual({ mes, anio }) {
+  try {
+    const res = await axiosInstanceNew.post(
+      `/importaciones/registro-pedidos/generar-mensual`,
+      { mes, anio }
+    );
+    return res.data;
+  } catch (error) {
+    return error.response?.data || null;
+  }
+}
+
+export async function ListarRegistroPedidosMensual({ mes, anio }) {
+  try {
+    const res = await axiosInstanceNew.get(
+      `/importaciones/registro-pedidos?mes=${mes}&anio=${anio}`
+    );
+    return res.data;
+  } catch (error) {
+    return error.response?.data || null;
+  }
+}
+
+export async function ActualizarRegistroPedido(id, datos) {
+  try {
+    const res = await axiosInstanceNew.patch(
+      `/importaciones/registro-pedidos/${id}`,
+      datos
+    );
+    return res.data;
+  } catch (error) {
+    return error.response?.data || null;
   }
 }

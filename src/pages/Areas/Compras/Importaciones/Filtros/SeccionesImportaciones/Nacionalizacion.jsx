@@ -93,6 +93,7 @@ export const Nacionalizacion = ({
             { value: 1, name: "FISICO INTRUSIVO" },
             { value: 2, name: "RAYOS X" },
             { value: 3, name: "AUTOMÁTICO" },
+            { value: 4, name: "DOCUMENTAL" }
           ],
         };
       },
@@ -357,7 +358,7 @@ export const Nacionalizacion = ({
           estadoImportacion,
           tieneID,
           datosIniciales,
-          { 
+          {
             permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
             permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : [],
             permisosComprasGerencias: tieneRolJefatura ? [{ empresa: "ALL" }] : []
@@ -411,7 +412,7 @@ export const Nacionalizacion = ({
                   options: agentesAduana,
                 },
                 { datos, datosForm, setDatosForm, camposBloqueados },
-                { 
+                {
                   permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
                   permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
                 },
@@ -424,7 +425,7 @@ export const Nacionalizacion = ({
             return renderizarCampoConPermisos(
               campo,
               { datos, datosForm, setDatosForm, camposBloqueados },
-              { 
+              {
                 permisosCompras: tieneRolVentas ? [{ empresa: "ALL" }] : [],
                 permisosBodega: tieneRolBodega ? [{ empresa: "ALL" }] : []
               },

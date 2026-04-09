@@ -24,6 +24,15 @@ const MARCAS_LUBRICANTES = [
     { value: "PENNZOIL", label: "PENNZOIL" },
     { value: "AC DELCO", label: "AC DELCO" },
 ];
+const OPCIONES_EMPAQUE = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
+const OPCIONES_UNIDAD_LUB = ["L", "QT", "UGL", "KG", "LB"].map((v) => ({ value: v, label: v }));
+const OPCIONES_FAMILIA_LUB = [
+    "AC DELCO", "ADVANCE", "AEROSHELL", "ARGINA", "CAPRINUS",
+    "CORENA", "GADINIA", "GADUS", "HELIX", "HYDRAULIC",
+    "MORLINA", "MYSELLA", "NAUTILUS", "OMALA", "PENNZOIL",
+    "REFRIGERANTE", "RIM", "RIMULA", "ROTELLA", "SHELLZONE",
+    "SPIRAX", "TELLUS", "TONNA", "TURBO"
+].map((v) => ({ value: v, label: v }));
 
 // --- Marcas de llantas (value = marca referencial para descripción, marcaOriginal = para BD) ---
 const MARCAS_LLANTAS = [
@@ -146,7 +155,7 @@ const CAMPO_LABELS = {
     marcaLlanta: "Marca", categoria: "Categoría", segmento: "Segmento", aplicacion: "Aplicación", eje: "Eje",
     tipo: "Tipo", ancho: "Ancho", altura: "Altura/Serie", rin: "Rin",
     diseño: "Diseño", lona: "Lona/Robustez", carga: "Carga", velocidad: "Velocidad",
-    marca: "Marca", modelo: "Modelo", tipoLub: "Tipo", viscosidad: "Viscosidad", empaque: "Empaque",
+    marca: "Marca", familia: "Familia", tipoLub: "Tipo", viscosidad: "Viscosidad", empaqueLub: "Empaque", cantidadLub: "Cantidad", unidadLub: "Unidad",
 };
 
 const ID_BORRADOR = "draft";
@@ -282,39 +291,47 @@ function validarVelocidad(valor) {
 }
 
 // --- Validaciones LUBRICANTES ---
-function validarModelo(valor) {
+function validarFamilia(valor) {
     if (valor == null || String(valor).trim() === "") return "Requerido";
     if (!/^[A-Za-záéíóúñÁÉÍÓÚÑüÜ\s]+$/.test(String(valor).trim())) return "Solo caracteres alfabéticos";
     return null;
 }
 
 function validarViscosidad(valor) {
-    if (valor == null || String(valor).trim() === "") return null; // OPCIONAL
+    if (valor == null || String(valor).trim() === "") return null; // Opcional
     const s = String(valor).trim().toUpperCase();
-    if (!/^\d{1,2}W\d{1,2}$/.test(s)) return "Formato XWX (ej: 5W30, 10W40)";
+    if (!/^\d{1,3}(W\d{1,3})?$/.test(s)) return "Formato XWX o X (ej: 5W30, 50, 100W250)";
     return null;
 }
 
-function validarEmpaque(valor) {
+function validarSoloNumero(valor) {
+    if (valor == null || String(valor).trim() === "") return null; // No mostrar Requerido
+    if (!/^\d+$/.test(String(valor).trim())) return "Solo números";
+    return null;
+}
+
+function validarUnidad(valor) {
     if (valor == null || String(valor).trim() === "") return "Requerido";
-    const s = String(valor).trim();
-    if (!/^\d+\*\d+[A-Za-záéíóúñÁÉÍÓÚÑ]+$/.test(s)) return "Formato X*XM (ej: 1*4GAL)";
+    if (!/^[A-Za-z]+$/.test(String(valor).trim())) return "Solo letras";
     return null;
 }
 
-function buildDescripcionLubricantes(marca, modelo, tipoLub, viscosidad, empaque) {
-    return [marca, modelo, tipoLub, viscosidad, empaque]
-        .map((v) => (v != null ? String(v).trim() : ""))
+function buildDescripcionLubricantes(marca, familia, tipoLub, viscosidad, empaque, cantidad, unidad) {
+    const empaqueFinal = `${empaque}*${cantidad}${unidad}`;
+    // Si marca y familia son lo mismo, evitamos duplicar el nombre (ej. AC DELCO AC DELCO)
+    const nombreBase = marca === familia ? [marca] : [marca, familia];
+    return [...nombreBase, tipoLub, viscosidad, empaqueFinal]
+        .map((v) => (v != null ? String(v).trim().toUpperCase() : ""))
         .filter(Boolean)
         .join(" ");
 }
 
 function buildDescripcionConVariables(marcaRef, tipo, ancho, altura, rin, diseño, lona, carga, velocidad) {
-    const m = marcaRef != null ? String(marcaRef).trim() : "";
-    const r = rin != null && String(rin).trim() !== "" ? String(rin).trim() : "";
-    const d = diseño != null ? String(diseño).trim() : "";
-    const lo = lona != null && String(lona).trim() !== "" ? `${String(lona).trim()}PR` : "";
-    const c = carga != null ? String(carga).trim() : "";
+    const m = marcaRef != null ? String(marcaRef).trim().toUpperCase() : "";
+    const r = rin != null && String(rin).trim() !== "" ? String(rin).trim().toUpperCase() : "";
+    const d = diseño != null ? String(diseño).trim().toUpperCase() : "";
+    const lo = lona != null && String(lona).trim() !== "" ? `${String(lona).trim().toUpperCase()}PR` : "";
+    const c = carga != null ? String(carga).trim().toUpperCase() : "";
     const v = velocidad != null ? String(velocidad).trim().toUpperCase() : "";
     const part = `R-${r} ${d} ${lo} ${c}${v}`.trim();
     let desc = "";
@@ -359,10 +376,12 @@ export default function MDM_Crud() {
     const [eje, setEje] = useState(null);
     // Lubricantes
     const [marca, setMarca] = useState(null);
-    const [modelo, setModelo] = useState("");
+    const [familia, setFamilia] = useState(null);
     const [tipoLub, setTipoLub] = useState("");
     const [viscosidad, setViscosidad] = useState("");
-    const [empaque, setEmpaque] = useState("");
+    const [empaqueLub, setEmpaqueLub] = useState(null);
+    const [cantidadLub, setCantidadLub] = useState("");
+    const [unidadLub, setUnidadLub] = useState(null);
 
     const [touchedFields, setTouchedFields] = useState(() => new Set());
     const [mostrarFormularioNuevoItem, setMostrarFormularioNuevoItem] = useState(false);
@@ -408,33 +427,41 @@ export default function MDM_Crud() {
     }, [config, categoria, segmento, aplicacion]);
 
     const opcionesAncho = useMemo(() => {
-        if (!config || !tipo?.value) return [];
-        const cfg = config.ancho?.[tipo.value];
+        if (!esLlantas || !config?.ancho || !tipo?.value) return [];
+        const cfg = config.ancho[tipo.value];
         return cfg ? generarOpciones(cfg.min, cfg.max, cfg.step) : [];
-    }, [config, tipo]);
+    }, [esLlantas, config, tipo]);
 
     const opcionesAltura = useMemo(() => {
-        if (!config || !tipo?.value) return [];
-        const cfg = config.altura?.[tipo.value];
+        if (!esLlantas || !config?.altura || !tipo?.value) return [];
+        const cfg = config.altura[tipo.value];
         return cfg ? generarOpciones(cfg.min, cfg.max, cfg.step) : [];
-    }, [config, tipo]);
+    }, [esLlantas, config, tipo]);
 
     const opcionesRin = useMemo(() => {
-        if (!config) return [];
+        if (!esLlantas || !config?.rin) return [];
         return generarOpciones(config.rin.min, config.rin.max, config.rin.step);
-    }, [config]);
+    }, [esLlantas, config]);
 
     const opcionesLona = useMemo(() => {
-        if (!config) return [];
+        if (!esLlantas || !config?.lona) return [];
         return generarOpciones(config.lona.min, config.lona.max, config.lona.step);
-    }, [config]);
+    }, [esLlantas, config]);
 
     const opcionesCarga = useMemo(() => {
-        if (!config) return [];
+        if (!esLlantas || !config?.carga) return [];
         if (config.carga.tipo === "formato") return generarCargasFormato();
         if (config.carga.tipo === "rango") return generarOpciones(config.carga.min, config.carga.max, config.carga.step);
         return [];
-    }, [config]);
+    }, [esLlantas, config]);
+
+    const opcionesFamiliaLub = useMemo(() => {
+        if (!esLubricantes || !marca?.value) return [];
+        if (marca.value === "AC DELCO") return OPCIONES_FAMILIA_LUB.filter((f) => f.value === "AC DELCO");
+        if (marca.value === "PENNZOIL") return OPCIONES_FAMILIA_LUB.filter((f) => f.value === "PENNZOIL");
+        if (marca.value === "SHELL") return OPCIONES_FAMILIA_LUB.filter((f) => f.value !== "AC DELCO" && f.value !== "PENNZOIL");
+        return [];
+    }, [esLubricantes, marca]);
 
     const gruposGuardados = useMemo(() => groups.filter((g) => g.id !== ID_BORRADOR), [groups]);
 
@@ -450,7 +477,7 @@ export default function MDM_Crud() {
         setAncho(null); setAltura(null); setRin(null); setDiseño("");
         setLona(null); setCarga(null); setVelocidad(null);
         setMarcaLlanta(null); setCategoria(null); setSegmento(null); setAplicacion(null); setEje(null);
-        setMarca(null); setModelo(""); setTipoLub(""); setViscosidad(""); setEmpaque("");
+        setMarca(null); setFamilia(null); setTipoLub(""); setViscosidad(""); setEmpaqueLub(null); setCantidadLub(""); setUnidadLub(null);
         setTouchedFields(new Set());
         setMostrarFormularioNuevoItem(false);
         setSelectedItemIds(new Set());
@@ -475,7 +502,7 @@ export default function MDM_Crud() {
         // Clasificación llantas
         setMarcaLlanta(null); setCategoria(null); setSegmento(null); setAplicacion(null); setEje(null);
         // Lubricantes
-        setMarca(null); setModelo(""); setTipoLub(""); setViscosidad(""); setEmpaque("");
+        setMarca(null); setFamilia(null); setTipoLub(""); setViscosidad(""); setEmpaqueLub(null); setCantidadLub(""); setUnidadLub(null);
         // Común
         setTouchedFields(new Set());
     }, []);
@@ -484,10 +511,12 @@ export default function MDM_Crud() {
         if (esLubricantes) {
             return {
                 marca: validarRequerido(marca?.value),
-                modelo: validarModelo(modelo),
+                familia: validarRequerido(familia?.value),
                 tipoLub: validarRequerido(tipoLub),
                 viscosidad: validarViscosidad(viscosidad),
-                empaque: validarEmpaque(empaque),
+                empaqueLub: validarRequerido(empaqueLub?.value),
+                cantidadLub: validarSoloNumero(cantidadLub),
+                unidadLub: validarRequerido(unidadLub?.value),
             };
         }
         const tipoVal = tipo?.value;
@@ -506,23 +535,25 @@ export default function MDM_Crud() {
             carga: validarCarga(config, carga?.value),
             velocidad: validarVelocidad(velocidad?.value),
         };
-    }, [esLubricantes, config, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, modelo, tipoLub, viscosidad, empaque, marcaLlanta, categoria, segmento, aplicacion, eje]);
+    }, [esLubricantes, config, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, familia, tipoLub, viscosidad, empaqueLub, cantidadLub, unidadLub, marcaLlanta, categoria, segmento, aplicacion, eje]);
 
     const marcarTocado = useCallback((campo) => {
         setTouchedFields((prev) => new Set(prev).add(campo));
     }, []);
 
-    const renderCampo = (campo, label, { tipoComp = "select", placeholder, options, value, onChange, onChangeExtra } = {}) => (
+    const renderCampo = (campo, label, { tipoComp = "select", placeholder, options, value, onChange, onChangeExtra, ...rest } = {}) => (
         <div key={campo} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {tipoComp === "select" ? (
                 <SelectUI
                     label={label} placeholder={placeholder || "Seleccionar"} options={options || []}
                     value={value} onChange={(v) => { onChange(v); onChangeExtra?.(v); marcarTocado(campo); }} minWidth="100%"
+                    {...rest}
                 />
             ) : (
                 <InputUI
                     label={label} placeholder={placeholder || ""}
                     value={value} onChange={(v) => { onChange(v); onChangeExtra?.(v); marcarTocado(campo); }}
+                    {...rest}
                 />
             )}
             {touchedFields.has(campo) && errores[campo] && (
@@ -545,9 +576,9 @@ export default function MDM_Crud() {
         let item;
         if (esLubricantes) {
             item = {
-                id, marca: marca?.value, modelo, tipoLub,
-                viscosidad: viscosidad || null, empaque,
-                descripcionConVariables: buildDescripcionLubricantes(marca?.value, modelo, tipoLub, viscosidad, empaque),
+                id, marca: marca?.value, familia: familia?.value, tipoLub,
+                viscosidad: viscosidad || null, empaqueLub: empaqueLub?.value, cantidadLub, unidadLub: unidadLub?.value,
+                descripcionConVariables: buildDescripcionLubricantes(marca?.value, familia?.value, tipoLub, viscosidad, empaqueLub?.value, cantidadLub, unidadLub?.value),
             };
         } else {
             item = {
@@ -575,7 +606,7 @@ export default function MDM_Crud() {
         limpiarFormulario();
         setMostrarFormularioNuevoItem(false);
         toast.success("Item agregado");
-    }, [currentGroup, currentGroupId, errores, esLubricantes, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, modelo, tipoLub, viscosidad, empaque, marcaLlanta, categoria, segmento, aplicacion, eje, limpiarFormulario]);
+    }, [currentGroup, currentGroupId, errores, esLubricantes, tipo, ancho, altura, rin, diseño, lona, carga, velocidad, marca, familia, tipoLub, viscosidad, empaqueLub, cantidadLub, unidadLub, marcaLlanta, categoria, segmento, aplicacion, eje, limpiarFormulario]);
 
     const toggleSeleccionItem = useCallback((id) => {
         setSelectedItemIds((prev) => {
@@ -607,6 +638,7 @@ export default function MDM_Crud() {
             return;
         }
         const items = currentGroup.items.filter((i) => selectedItemIds.has(i.id));
+        const fecha = new Date(currentGroup.createdAt).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }).replace(/[/:]/g, "-");
         exportarItemsATxt(items, `MDM_SAP_${fecha}.txt`);
         toast.success("Exportados " + items.length + " ítem(s)");
     }, [currentGroup, selectedItemIds]);
@@ -867,17 +899,19 @@ export default function MDM_Crud() {
                                                         {renderCampo("ancho", "Ancho", { options: opcionesAncho, value: ancho, onChange: setAncho })}
                                                         {tipo?.value !== "Decimal" && renderCampo("altura", "Altura/Serie", { options: opcionesAltura, value: altura, onChange: setAltura })}
                                                         {renderCampo("rin", "Rin", { options: opcionesRin, value: rin, onChange: setRin })}
-                                                        {renderCampo("diseño", "Diseño", { tipoComp: "input", placeholder: "Alfanumérico", value: diseño, onChange: setDiseño })}
+                                                        {renderCampo("diseño", "Diseño", { tipoComp: "input", placeholder: "Alfanumérico", value: diseño, onChange: (v) => setDiseño(v.toUpperCase()) })}
                                                         {renderCampo("lona", "Lona/Robustez", { options: opcionesLona, value: lona, onChange: setLona })}
                                                         {renderCampo("carga", "Carga", { options: opcionesCarga, value: carga, onChange: setCarga })}
                                                         {renderCampo("velocidad", "Velocidad", { placeholder: "Letra", options: VELOCIDADES, value: velocidad, onChange: setVelocidad })}
                                                     </>)}
                                                     {esLubricantes && (<>
-                                                        {renderCampo("marca", "Marca", { options: MARCAS_LUBRICANTES, value: marca, onChange: setMarca })}
-                                                        {renderCampo("modelo", "Modelo", { tipoComp: "input", placeholder: "Caracteres alfabéticos", value: modelo, onChange: setModelo })}
-                                                        {renderCampo("tipoLub", "Tipo", { tipoComp: "input", placeholder: "Caracteres alfanuméricos", value: tipoLub, onChange: setTipoLub })}
-                                                        {renderCampo("viscosidad", "Viscosidad (opcional)", { tipoComp: "input", placeholder: "Ej: 5W30, 10W40", value: viscosidad, onChange: setViscosidad })}
-                                                        {renderCampo("empaque", "Empaque", { tipoComp: "input", placeholder: "Ej: 1*4GAL", value: empaque, onChange: setEmpaque })}
+                                                        {renderCampo("marca", "Marca", { options: MARCAS_LUBRICANTES, value: marca, onChange: (v) => { setMarca(v); setFamilia(null); } })}
+                                                        {renderCampo("familia", "Familia", { options: opcionesFamiliaLub, value: familia, onChange: setFamilia })}
+                                                        {renderCampo("tipoLub", "Tipo", { tipoComp: "input", placeholder: "Caracteres alfanuméricos", value: tipoLub, onChange: (v) => setTipoLub(v.toUpperCase()) })}
+                                                        {renderCampo("viscosidad", "Viscosidad", { tipoComp: "input", placeholder: "Ej: 5W30, 50", value: viscosidad, onChange: (v) => setViscosidad(v.toUpperCase().replace(/[^0-9W]/g, "")) })}
+                                                        {renderCampo("empaqueLub", "Empaque", { options: OPCIONES_EMPAQUE, value: empaqueLub, onChange: setEmpaqueLub })}
+                                                        {renderCampo("cantidadLub", "Cantidad", { tipoComp: "input", type: "number", inputMode: "numeric", placeholder: "Ej: 4", value: cantidadLub, onChange: (v) => setCantidadLub(v.replace(/\D/g, "")) })}
+                                                        {renderCampo("unidadLub", "Unidad", { options: OPCIONES_UNIDAD_LUB, value: unidadLub, onChange: setUnidadLub })}
                                                     </>)}
                                                 </div>
                                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>

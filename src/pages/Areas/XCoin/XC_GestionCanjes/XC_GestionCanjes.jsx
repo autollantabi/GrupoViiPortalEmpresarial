@@ -10,6 +10,8 @@ import { SelectUI } from "components/UI/Components/SelectUI";
 import { TooltipUI } from "components/UI/Components/TooltipUI";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
+import { toast } from "react-toastify";
+import { InputUI } from "components/UI/Components/InputUI";
 import {
     ListarXCoinCanjes,
     ListarXCoinEstadosCanjes,
@@ -24,7 +26,11 @@ import { hasAccessToResource } from "utils/permissionsValidator";
 function mapXCoinCanjeToComponent(apiCanje) {
     const usuario = apiCanje.USER;
     const producto = apiCanje.PRODUCT;
-    const estado = apiCanje.STATUS;
+    const historial = apiCanje.REDEEM_HISTORY || [];
+
+    // El estado actual puede venir en la raíz o ser el último registro del historial
+    const ultimoEstadoHistorial = historial.length > 0 ? historial[historial.length - 1]?.STATUS : null;
+    const estado = apiCanje.STATUS || ultimoEstadoHistorial;
 
     return {
         id: apiCanje.ID_REDEEM,
@@ -35,15 +41,32 @@ function mapXCoinCanjeToComponent(apiCanje) {
         puntosUsados: apiCanje.POINTS_USED,
         cantidad: apiCanje.QUANTITY,
         productoImagen: producto?.PRODUCT_IMAGE_URL,
+        marca: producto?.BRAND ?? "N/A",
+        empresa: producto?.ENTERPRISE ?? "N/A",
         estadoActualId: estado?.ID_STATUS,
         estadoActualNombre: estado?.STATUS_NAME,
+        historialEstados: historial.map(h => ({
+            estado: h.STATUS?.STATUS_NAME ?? "",
+            fecha: h.createdAt,
+            comentario: h.COMMENTS ?? null,
+        })),
     };
 }
 
-function formatearFecha(fecha) {
+function formatearFecha(fecha, incluirHora = false) {
     if (!fecha) return "—";
     const d = typeof fecha === "string" ? new Date(fecha) : fecha;
     if (isNaN(d.getTime())) return String(fecha);
+
+    if (incluirHora) {
+        return d.toLocaleDateString("es-CO", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    }
 
     const diaSemana = d.toLocaleDateString('es-ES', { weekday: 'long' });
     const dia = d.getDate();
@@ -84,6 +107,42 @@ function getColorEstado(nombreEstado) {
     const key = String(nombreEstado).toLowerCase().trim();
     return COLORS_ESTADO[key] ?? DEFAULT_COLOR_ESTADO;
 }
+
+const HistorialLista = styled.div`
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
+  margin-top: 8px;
+`;
+
+const HistorialFlecha = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  color: ${({ theme }) => theme?.colors?.textSecondary || "#94a3b8"};
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+`;
+
+const HistorialItem = styled.div`
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  min-width: 80px;
+  background-color: ${({ $colorBg }) => $colorBg || "#f1f5f9"};
+  border: 1px solid
+    ${({ $colorText }) => hexToRGBA({ hex: $colorText || "#475569", alpha: 0.3 })};
+  font-size: 12px;
+  color: ${({ $colorText }) => $colorText || "#475569"};
+  font-weight: 600;
+  text-align: center;
+`;
 
 const BadgeEstado = styled.span`
   display: inline-flex;
@@ -132,8 +191,9 @@ export default function XC_GestionCanjes() {
         siguienteEstadoId: null,
         siguienteEstadoNombre: null,
     });
-    const [filtroCliente, setFiltroCliente] = useState(null);
     const [filtroEstado, setFiltroEstado] = useState(null);
+    const [busquedaTexto, setBusquedaTexto] = useState("");
+    const [ambitoBusqueda, setAmbitoBusqueda] = useState(null);
 
     // Determinar si el usuario tiene permiso de administrador (modificar)
     const isAdmin = useMemo(() => {
@@ -174,6 +234,14 @@ export default function XC_GestionCanjes() {
         return null;
     };
 
+    const opcionesAmbito = [
+        { value: "all", label: "Todo" },
+        { value: "empresa", label: "Empresa" },
+        { value: "marca", label: "Marca" },
+        { value: "producto", label: "Producto" },
+        { value: "cliente", label: "Cliente" },
+    ];
+
     const abrirConfirmacion = (canjeId, siguienteEstado) => {
         if (!isAdmin || !siguienteEstado) return;
         setModalConfirmacion({
@@ -195,33 +263,39 @@ export default function XC_GestionCanjes() {
         const res = await ActualizarXCoinEstadoCanje(canjeId, { ID_STATUS: siguienteEstadoId });
 
         if (res.success) {
-            setCanjes(prev => prev.map(c => {
-                if (c.id === canjeId) {
-                    return {
-                        ...c,
-                        estadoActualId: siguienteEstadoId,
-                        estadoActualNombre: siguienteEstadoNombre,
-                    };
-                }
-                return c;
-            }));
+            toast.success(res.message);
+            const dataActualizada = res.data;
+            if (dataActualizada) {
+                // Mapeamos la data retornada por el API para actualizar el estado local de forma precisa
+                const canjeActualizado = mapXCoinCanjeToComponent(dataActualizada);
+                setCanjes(prev => prev.map(c => {
+                    if (c.id === canjeId) {
+                        return {
+                            ...c,
+                            ...canjeActualizado
+                        };
+                    }
+                    return c;
+                }));
+            } else {
+                // Fallback si no viene data
+                setCanjes(prev => prev.map(c => {
+                    if (c.id === canjeId) {
+                        return {
+                            ...c,
+                            estadoActualId: siguienteEstadoId,
+                            estadoActualNombre: siguienteEstadoNombre,
+                        };
+                    }
+                    return c;
+                }));
+            }
         } else {
             console.error("Error al actualizar estado:", res.message);
+            toast.error(res.message || "Error al actualizar el estado del canje");
         }
         cerrarConfirmacion();
     };
-
-    const opcionesClientes = useMemo(() => {
-        const seen = new Set();
-        const list = [];
-        canjes.forEach((c) => {
-            if (seen.has(c.nombreCliente)) return;
-            seen.add(c.nombreCliente);
-            list.push({ value: c.nombreCliente, label: c.nombreCliente });
-        });
-        list.sort((a, b) => a.label.localeCompare(b.label));
-        return [{ value: "", label: "Todos los clientes" }, ...list];
-    }, [canjes]);
 
     const opcionesEstado = useMemo(() => [
         { value: "", label: "Todos los estados" },
@@ -230,11 +304,31 @@ export default function XC_GestionCanjes() {
 
     const canjesFiltrados = useMemo(() => {
         return canjes.filter((c) => {
-            if (filtroCliente?.value && c.nombreCliente !== filtroCliente.value) return false;
+            // Filtro de Estado
             if (filtroEstado?.value && c.estadoActualNombre !== filtroEstado.value) return false;
+
+            // Filtro de Búsqueda por Texto
+            if (busquedaTexto.trim()) {
+                const query = busquedaTexto.toLowerCase().trim();
+                const scope = ambitoBusqueda?.value || "all";
+
+                const matchEmpresa = c.empresa?.toLowerCase().includes(query);
+                const matchMarca = c.marca?.toLowerCase().includes(query);
+                const matchProducto = c.nombreCanje?.toLowerCase().includes(query);
+                const matchCliente = c.nombreCliente?.toLowerCase().includes(query);
+
+                if (scope === "empresa") return matchEmpresa;
+                if (scope === "marca") return matchMarca;
+                if (scope === "producto") return matchProducto;
+                if (scope === "cliente") return matchCliente;
+
+                // "all" o por defecto
+                return matchEmpresa || matchMarca || matchProducto || matchCliente;
+            }
+
             return true;
         });
-    }, [canjes, filtroCliente, filtroEstado]);
+    }, [canjes, filtroEstado, busquedaTexto, ambitoBusqueda]);
 
     return (
         <ContainerUI
@@ -255,12 +349,21 @@ export default function XC_GestionCanjes() {
             ) : (
                 <>
                     <FiltrosBar theme={theme}>
+                        <div style={{ flex: 1, minWidth: "250px" }}>
+                            <InputUI
+                                label="Buscar"
+                                placeholder="Escribe para buscar..."
+                                value={busquedaTexto}
+                                onChange={setBusquedaTexto}
+                                icon="FaSearch"
+                            />
+                        </div>
                         <SelectUI
-                            label="Clientes"
-                            options={opcionesClientes}
-                            value={filtroCliente ?? opcionesClientes[0]}
-                            onChange={setFiltroCliente}
-                            minWidth="220px"
+                            label="Buscar en"
+                            options={opcionesAmbito}
+                            value={ambitoBusqueda ?? opcionesAmbito[0]}
+                            onChange={setAmbitoBusqueda}
+                            minWidth="160px"
                         />
                         <SelectUI
                             label="Estados"
@@ -269,8 +372,8 @@ export default function XC_GestionCanjes() {
                             onChange={setFiltroEstado}
                             minWidth="200px"
                         />
-                        {(filtroCliente?.value || filtroEstado?.value) && (
-                            <ButtonUI text="Limpiar" onClick={() => { setFiltroCliente(null); setFiltroEstado(null); }} variant="outlined" />
+                        {(busquedaTexto || ambitoBusqueda?.value !== "all" || filtroEstado?.value) && (
+                            <ButtonUI text="Limpiar" onClick={() => { setBusquedaTexto(""); setAmbitoBusqueda(opcionesAmbito[0]); setFiltroEstado(null); }} variant="outlined" />
                         )}
                         <ResultadosInfo style={{ marginLeft: "auto" }}>
                             Mostrando {canjesFiltrados.length} de {canjes.length} canjes
@@ -287,6 +390,44 @@ export default function XC_GestionCanjes() {
                                     key={canje.id}
                                     title={canje.nombreCanje}
                                     description={`Solicitado el ${formatearFecha(canje.fechaOrigen)} | Cantidad: ${canje.cantidad} | Puntos Canjeados: ${canje.puntosUsados}`}
+                                    body={
+                                        <div>
+                                            <div style={{ marginBottom: 12, display: "flex", flexWrap: "wrap", gap: "8px 16px" }}>
+                                                <TextUI size="13px">
+                                                    <strong style={{ opacity: 0.7 }}>Empresa:</strong> {canje.empresa}
+                                                </TextUI>
+                                                <TextUI size="13px">
+                                                    <strong style={{ opacity: 0.7 }}>Marca:</strong> {canje.marca}
+                                                </TextUI>
+                                            </div>
+                                            <TextUI size="14px" weight="600">Historial de estados</TextUI>
+                                            <HistorialLista theme={theme}>
+                                                {canje.historialEstados.length === 0 ? (
+                                                    <TextUI size="13px" color={theme?.colors?.textSecondary}>Sin historial</TextUI>
+                                                ) : (
+                                                    canje.historialEstados.map((h, i) => {
+                                                        const coloresH = getColorEstado(h.estado);
+                                                        return (
+                                                            <React.Fragment key={i}>
+                                                                {i > 0 && <HistorialFlecha theme={theme}>→</HistorialFlecha>}
+                                                                <HistorialItem
+                                                                    theme={theme}
+                                                                    $colorBg={coloresH.bg}
+                                                                    $colorText={coloresH.text}
+                                                                    title={h.comentario ? `${formatearFecha(h.fecha, true)} — ${h.comentario}` : formatearFecha(h.fecha, true)}
+                                                                >
+                                                                    <span style={{ whiteSpace: "nowrap" }}>{h.estado}</span>
+                                                                    <span style={{ fontSize: 10, opacity: 0.9, fontWeight: 500 }}>
+                                                                        {formatearFecha(h.fecha, true)}
+                                                                    </span>
+                                                                </HistorialItem>
+                                                            </React.Fragment>
+                                                        );
+                                                    })
+                                                )}
+                                            </HistorialLista>
+                                        </div>
+                                    }
                                     headerActions={
                                         <ContenedorFlex style={{ gap: 8 }}>
                                             <ChipCliente theme={theme}>{canje.nombreCliente}</ChipCliente>
@@ -305,6 +446,7 @@ export default function XC_GestionCanjes() {
                                             </TooltipUI>
                                         </ContenedorFlex>
                                     }
+                                    initialOpen={false}
                                 />
                             );
                         })}

@@ -94,6 +94,7 @@ export const InputUI = ({
   onKeyPress,
   onKeyDown,
   required,
+  disabled,
 }) => {
   const [inputValue, setInputValue] = useState(value ?? "");
   const themeContext = useTheme();
@@ -157,6 +158,7 @@ export const InputUI = ({
           min={min}
           max={max}
           required={required}
+          disabled={disabled}
         />
         {iconRight && (
           <div style={{ padding: "0 8px", display: "flex", alignItems: "center" }}>

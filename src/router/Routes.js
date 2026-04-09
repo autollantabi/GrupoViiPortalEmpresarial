@@ -19,9 +19,14 @@ import { Cartera_CargarTransferencias } from "pages/Areas/Cartera/CargarTransfer
 // XCoin
 import XC_GestionCanjes from "pages/Areas/XCoin/XC_GestionCanjes/XC_GestionCanjes";
 
+// Linea de Negocio
+import Vendedor from "pages/Areas/Negocio/Vendedor/Vendedor";
+import Linea from "pages/Areas/Negocio/Linea/Linea";
+
 // Compras
 import { Compras_Reportes } from "pages/Areas/Compras/Reportes/Compras_Reportes";
 import { Importaciones } from "pages/Areas/Compras/Importaciones/Importaciones";
+import { RegistroPedidos } from "pages/Areas/Compras/RegistroPedidos/RegistroPedidos";
 import { Creditos } from "pages/Areas/Compras/Creditos/Creditos";
 import { Anticipos } from "pages/Areas/Compras/Anticipos/Anticipos";
 
@@ -52,6 +57,8 @@ import { Marketing5w2h } from "pages/Areas/Marketing/Marketing.5w2h";
 import { ReporteriaTecnicentroComercial } from "pages/Areas/Reporteria/TecnicentroComercial/ReporteriaTecnicentroComercial";
 import { ReporteriaImportaciones } from "pages/Areas/Reporteria/Importaciones/ReporteriaImportaciones";
 import { ReporteriaGarantiasHerramientas } from "pages/Areas/Reporteria/Garantias/Herramientas/ReporteriaGarantiasHerramientas";
+import { ReporteriaCartera } from "pages/Areas/Reporteria/Cartera/ReporteriaCartera";
+import { ReporteriaLubricantes } from "pages/Areas/Reporteria/Lubricantes/ReporteriaLubricantes";
 import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import MDM_Crud from "pages/Areas/MDM/MDM_Crud/MDM_Crud";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
@@ -159,6 +166,11 @@ export const RoutesConfig = [
     recurso: "compras.graficas",
   },
   {
+    title: "Registro Pedidos",
+    component: RegistroPedidos,
+    recurso: "compras.registropedidos",
+  },
+  {
     title: "Importaciones",
     component: Importaciones,
     recurso: "compras.importaciones",
@@ -220,8 +232,25 @@ export const RoutesConfig = [
   {
     title: "Gestión de canjes",
     component: XC_GestionCanjes,
-    recurso: "xcoin.gestioncanjes",
-    recursosAlternativos: ["xcoin.admin", "xcoin.viewer"],
+    recurso: "xcoin.admin",
+    recursosAlternativos: ["xcoin.viewer"],
+  },
+  // ================================= LINEA DE NEGOCIO =================================
+  {
+    recurso: "negocio",
+    title: "Linea de negocio",
+    icon: "FaBriefcase",
+    rootOnly: true,
+  },
+  {
+    title: "Vendedor",
+    component: Vendedor,
+    recurso: "negocio.vendedor",
+  },
+  {
+    title: "Linea",
+    component: Linea,
+    recurso: "negocio.linea",
   },
   // ================================= MARKETING =================================
   {
@@ -328,6 +357,16 @@ export const RoutesConfig = [
     title: "Camiones",
     component: ReporteriaCamiones,
     recurso: "reportes.camiones",
+  },
+  {
+    title: "Casos Cartera",
+    component: ReporteriaCartera,
+    recurso: "reportes.cartera",
+  },
+  {
+    title: "Lubricantes",
+    component: ReporteriaLubricantes,
+    recurso: "reportes.lubricantes",
   },
   // ================================= 404 (debe ir al final) =================================
   {

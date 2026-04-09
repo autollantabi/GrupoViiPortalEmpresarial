@@ -15,9 +15,9 @@ const CustomDiv = styled.div`
 export const ContainerUI = ({
   style,
   children,
-  justifyContent = "row",
+  justifyContent = "center",
   alignItems = "center",
-  flexDirection = "center",
+  flexDirection = "row",
   height = "auto",
   width = "auto",
 }) => {
@@ -25,11 +25,11 @@ export const ContainerUI = ({
     <CustomDiv
       style={{
         ...style,
-        justifyContent: justifyContent,
-        alignItems: alignItems,
-        flexDirection: flexDirection,
-        height: height,
-        width: width,
+        justifyContent,
+        alignItems,
+        flexDirection,
+        height,
+        width,
       }}
     >
       {children}

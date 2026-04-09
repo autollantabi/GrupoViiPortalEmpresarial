@@ -28,6 +28,7 @@ function mapCanjeApiToComponent(apiCanje) {
         nombreCanje: producto?.NAME ?? producto?.name ?? "Canje",
         codigoCliente: usuario?.CARD_ID ?? usuario?.card_id ?? null,
         nombreCliente,
+        cantidad: apiCanje.QUANTITY ?? apiCanje.quantity ?? null,
         fechaOrigen: apiCanje.REDEMPTION_DATE ?? apiCanje.redemption_date ?? null,
         historialEstados: historialApi.map((h) => ({
             estado: (h.ESTADO_CANJE ?? h.estado_canje)?.NAME ?? (h.ESTADO_CANJE ?? h.estado_canje)?.name ?? "",
@@ -51,6 +52,10 @@ function getFechaOrigen(canje) {
     if (canje?.fechaOrigen) return canje.fechaOrigen;
     const historial = canje?.historialEstados || [];
     return historial.length > 0 ? historial[0].fecha : null;
+}
+
+function getCantidadCanje(canje) {
+    return canje?.cantidad ?? canje?.quantity ?? canje?.QUANTITY ?? null;
 }
 
 function getSiguienteEstado(estadoActual, listaNombresEstados) {
@@ -471,11 +476,13 @@ export default function AS_GestionCanjes({
                                 const historial = canje.historialEstados || [];
                                 const nombreCanje = getNombreCanje(canje);
                                 const fechaOrigen = getFechaOrigen(canje);
+                                const cantidadCanje = getCantidadCanje(canje);
                                 const nombreCliente = labelCliente(canje);
                                 const titulo = nombreCanje;
-                                const descripcion = fechaOrigen
-                                    ? `Fecha de solicitud: ${formatearFecha(fechaOrigen)}`
-                                    : "";
+                                const descripcion = [
+                                    fechaOrigen ? `Fecha de solicitud: ${formatearFecha(fechaOrigen)}` : null,
+                                    cantidadCanje != null ? `Cantidad: ${cantidadCanje}` : null,
+                                ].filter(Boolean).join(" | ");
 
                                 const body = (
                                     <div key={canje.id}>
