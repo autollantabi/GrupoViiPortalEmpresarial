@@ -265,6 +265,8 @@ export const GestionCheques = ({
         { value: "RAMON ALEXANDRA", label: "RAMON ALEXANDRA" },
         { value: "PINO VERONICA", label: "PINO VERONICA" },
         { value: "MONTERO CRISTINA", label: "MONTERO CRISTINA" },
+        { value: "JANNETH BERMEO", label: "JANNETH BERMEO" }
+
       ],
       required: true,
     },
