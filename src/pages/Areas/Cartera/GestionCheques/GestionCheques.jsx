@@ -59,39 +59,52 @@ export const GestionCheques = ({
   }, [availableCompanies]);
 
   const consultarEmpresas = async () => {
-    const consulta = await ListarEmpresasCartera(user.USUARIO.USUA_CORREO);
-    const consultaconPermisos = consulta.filter((item) =>
-      empresasDisponibles.some((permiso) => item.EMPRESA === permiso.empresa)
-    );
+    try {
+      const consulta = await ListarEmpresasCartera(user.USUARIO.USUA_CORREO);
+      
+      // Asegurarse de que 'consulta' sea un array antes de filtrar
+      const consultaArray = Array.isArray(consulta) ? consulta : [];
 
-    const consultaT = transformarDataAValueLabel({
-      data: consultaconPermisos,
-      valueField: "IDENTIFICADOR",
-      labelField: "EMPRESA",
-    });
-    return consultaT;
+      const consultaconPermisos = consultaArray.filter((item) =>
+        Array.isArray(empresasDisponibles) && 
+        empresasDisponibles.some((permiso) => item.EMPRESA === permiso.empresa)
+      );
+
+      const consultaT = transformarDataAValueLabel({
+        data: consultaconPermisos,
+        valueField: "IDENTIFICADOR",
+        labelField: "EMPRESA",
+      });
+      return consultaT;
+    } catch (error) {
+      console.error("Error en consultarEmpresas:", error);
+      return [];
+    }
   };
 
   const consultarCheques = async () => {
-    const consulta = await ListarChequesCartera();
-    let formattedData = [];
+    try {
+      const consulta = await ListarChequesCartera();
+      let formattedData = [];
 
-    if (consulta.length > 0) {
-      // Mapea los datos y transforma la columna FECHA
-      formattedData = consulta.map((item) => ({
-        ...item,
-        FECHA: formatDateToYYYYMMDD(item.FECHA), // Formatea la fecha a 'YYYY-MM-DD'
-      }));
+      if (Array.isArray(consulta) && consulta.length > 0) {
+        // Mapea los datos y transforma la columna FECHA
+        formattedData = consulta.map((item) => ({
+          ...item,
+          FECHA: formatDateToYYYYMMDD(item.FECHA), // Formatea la fecha a 'YYYY-MM-DD'
+        }));
+      }
+
+      setData(formattedData);
+    } catch (error) {
+      console.error("Error en consultarCheques:", error);
+      setData([]);
     }
-
-    // const formattedDataconPermisos = formattedData.filter(
-    //   (item) => permisos.some((permiso)=>item.EMPRESA === permiso.empresa
-    // ));
-
-    setData(formattedData);
   };
 
   const mergeUniqueValuesWithDefaults = (data, column, defaultOptions) => {
+    if (!Array.isArray(data)) return defaultOptions;
+
     // Extraer valores únicos de la columna especificada en la data
     const uniqueValuesFromData = Array.from(
       new Set(data.map((item) => item[column])).values()
@@ -266,7 +279,6 @@ export const GestionCheques = ({
         { value: "PINO VERONICA", label: "PINO VERONICA" },
         { value: "MONTERO CRISTINA", label: "MONTERO CRISTINA" },
         { value: "JANNETH BERMEO", label: "JANNETH BERMEO" }
-
       ],
       required: true,
     },
@@ -461,7 +473,7 @@ export const GestionCheques = ({
           nombreID={"ID"}
           permisos={empresasDisponibles}
           estadocondiciones={estadocondiciones}
-          // permisoagregar={correosAgregar}
+        // permisoagregar={correosAgregar}
         />
       ) : (
         <p>Cargando configuración, por favor espera...</p>
