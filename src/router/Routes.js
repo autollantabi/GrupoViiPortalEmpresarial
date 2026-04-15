@@ -59,6 +59,7 @@ import { ReporteriaImportaciones } from "pages/Areas/Reporteria/Importaciones/Re
 import { ReporteriaGarantiasHerramientas } from "pages/Areas/Reporteria/Garantias/Herramientas/ReporteriaGarantiasHerramientas";
 import { ReporteriaCartera } from "pages/Areas/Reporteria/Cartera/ReporteriaCartera";
 import { ReporteriaLubricantes } from "pages/Areas/Reporteria/Lubricantes/ReporteriaLubricantes";
+import { ReporteriaTalentoHumano } from "pages/Areas/Reporteria/TalentoHumano/ReporteriaTalentoHumano";
 import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import MDM_Crud from "pages/Areas/MDM/MDM_Crud/MDM_Crud";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
@@ -367,6 +368,11 @@ export const RoutesConfig = [
     title: "Lubricantes",
     component: ReporteriaLubricantes,
     recurso: "reportes.lubricantes",
+  },
+  {
+    title: "Talento Humano",
+    component: ReporteriaTalentoHumano,
+    recurso: "reportes.talentohumano",
   },
   // ================================= 404 (debe ir al final) =================================
   {
