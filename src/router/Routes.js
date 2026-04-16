@@ -37,6 +37,8 @@ import { ComisionesMayoristas } from "pages/Areas/Contabilidad/Comisiones/Mayori
 import { ComisionesTecnicentroContainer } from "pages/Areas/Contabilidad/Comisiones/Tecnicentro/ComisionesTecnicentro";
 import { ComisionesTecnicentroCategoriasContainer } from "pages/Areas/Contabilidad/Comisiones/Tecnicentro/ComisionesTecnicentroCategorias";
 import { ComisionesLubricantes } from "pages/Areas/Contabilidad/Comisiones/Lubricantes/ReporteComisionesLubricantes";
+import { CalculadoraPrecios } from "pages/Areas/Contabilidad/CalculadoraPrecios/CalculadoraPrecios";
+
 
 // Marketing
 import { MK_ReporteInventario } from "pages/Areas/Marketing/MK_ReporteInventario";
@@ -223,6 +225,12 @@ export const RoutesConfig = [
     component: ComisionesLubricantes,
     recurso: "contabilidad.comisiones.lubricantes",
   },
+  {
+    title: "Calculadora de precios",
+    component: CalculadoraPrecios,
+    recurso: "contabilidad.calculadoraprecios",
+  },
+
   // ================================= XCOIN =================================
   {
     recurso: "xcoin",

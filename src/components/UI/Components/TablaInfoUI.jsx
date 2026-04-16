@@ -107,6 +107,7 @@ export const TablaInfoUI = ({
   setIdModal,
   headerRightComponent = null, // Componente personalizado para renderizar arriba a la derecha
   onRowDoubleClick = null, // Función que se ejecuta al hacer doble click en una fila: (item, index) => {}
+  showFilters = true,
 }) => {
   const [filteredData, setFilteredData] = useState(data);
   const { theme } = useTheme();
@@ -500,33 +501,35 @@ export const TablaInfoUI = ({
 
   return (
     <ContenedorPrincipal>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "0 15px",
-        }}
-      >
-        <RenderFilters
-          columns={columns}
-          data={data}
-          defaultFilters={defaultFilters}
-          setFilteredData={setFilteredData}
-        />
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {headerRightComponent}
-          {excel && filteredData?.length > 0 && (
-            <ExportToExcelUI
-              filename={`Reporte_${filenameExcel}`}
-              habilitarBoton={false}
-              data={filteredData}
-              columnasOcultas={columnasOcultasExcel}
-              nombresPersonalizados={nombresColumnasPersonalizadosExcel}
-            />
-          )}
+      {showFilters && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "0 15px",
+          }}
+        >
+          <RenderFilters
+            columns={columns}
+            data={data}
+            defaultFilters={defaultFilters}
+            setFilteredData={setFilteredData}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {headerRightComponent}
+            {excel && filteredData?.length > 0 && (
+              <ExportToExcelUI
+                filename={`Reporte_${filenameExcel}`}
+                habilitarBoton={false}
+                data={filteredData}
+                columnasOcultas={columnasOcultasExcel}
+                nombresPersonalizados={nombresColumnasPersonalizadosExcel}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
       <div
         style={{
           width: "100%",
