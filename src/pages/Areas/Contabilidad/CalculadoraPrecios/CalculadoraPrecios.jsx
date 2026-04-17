@@ -10,6 +10,9 @@ import { useTheme } from "context/ThemeContext";
 import { getProductosCalculadora } from "services/calculadoraService";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import * as XLSX from "xlsx";
+import { useAuthContext } from "context/authContext";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export const CalculadoraPrecios = () => {
   const { theme } = useTheme();
@@ -18,8 +21,52 @@ export const CalculadoraPrecios = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchField, setSearchField] = useState("all");
+  const { user } = useAuthContext();
+  const [selectedEmpresa, setSelectedEmpresa] = useState(null);
   const [loading, setLoading] = useState(false);
   const [forceEditId, setForceEditId] = useState(null);
+
+  // Obtener opciones de empresas desde los contextos (usuario-rol-contexto) filtrando por el rol específico
+  const empresasOptions = useMemo(() => {
+    const contextos = user?.CONTEXTOS || user?.data || [];
+    const empresasGlobales = user?.EMPRESAS || {}; // Mapa global ID -> Nombre
+    const ROL_MODULO = "contabilidad.calculadoraprecios";
+
+    const allEmpresas = new Map();
+
+    // Solo procesar contextos que pertenezcan a este módulo específico
+    contextos
+      .filter(ctx => (ctx.RECURSO === ROL_MODULO) || (ctx.ROL === ROL_MODULO))
+      .forEach(ctx => {
+        // El alcance de empresas suele estar en ALCANCE.EMPRESAS o context.EMPRESAS
+        const emps = ctx.ALCANCE?.EMPRESAS || ctx.EMPRESAS || [];
+
+        if (Array.isArray(emps)) {
+          emps.forEach(id => {
+            const idStr = id.toString();
+            const nombre = empresasGlobales[idStr] || idStr;
+            if (!allEmpresas.has(idStr)) {
+              allEmpresas.set(idStr, { value: idStr, label: nombre });
+            }
+          });
+        } else if (typeof emps === 'object') {
+          Object.entries(emps).forEach(([id, nombre]) => {
+            if (!allEmpresas.has(id)) {
+              allEmpresas.set(id, { value: id, label: nombre });
+            }
+          });
+        }
+      });
+
+    return Array.from(allEmpresas.values());
+  }, [user]);
+
+  // Inicializar la empresa seleccionada si no hay una
+  useEffect(() => {
+    if (empresasOptions.length > 0 && !selectedEmpresa) {
+      setSelectedEmpresa(empresasOptions[0]);
+    }
+  }, [empresasOptions, selectedEmpresa]);
 
   // Opciones para el selector de filtro
   const searchOptions = [
@@ -29,12 +76,13 @@ export const CalculadoraPrecios = () => {
     { value: "identificadorItem", label: "Identificador" },
   ];
 
-  // Cargar productos al montar el componente
+  // Cargar productos al montar el componente o cuando cambie la empresa seleccionada
   useEffect(() => {
     const fetchProductos = async () => {
+      // if (!selectedEmpresa) return; // Esperar a tener empresa seleccionada
       setLoading(true);
       try {
-        const response = await getProductosCalculadora();
+        const response = await getProductosCalculadora(selectedEmpresa?.value);
         if (response.status === "Ok!") {
           setProductos(response.data || []);
         }
@@ -45,14 +93,25 @@ export const CalculadoraPrecios = () => {
       }
     };
     fetchProductos();
-  }, []);
+  }, [selectedEmpresa]);
 
-  // Filtrado de productos basado en el campo seleccionado y el query
+  // Filtrado de productos basado en la empresa, el campo seleccionado y el query
   const productosFiltrados = useMemo(() => {
-    if (!searchQuery) return productos;
+    let filtered = productos;
+
+    // 1. Filtrar primero por la empresa seleccionada
+    if (selectedEmpresa) {
+      filtered = filtered.filter(p =>
+        p.empresa === selectedEmpresa.label ||
+        p.NOMBRE_EMPRESA === selectedEmpresa.label ||
+        p.ID_EMPRESA?.toString() === selectedEmpresa.value?.toString()
+      );
+    }
+
+    if (!searchQuery) return filtered;
     const q = searchQuery.toLowerCase();
 
-    return productos.filter(p => {
+    return filtered.filter(p => {
       if (searchField === "all") {
         return (
           p.nombreItem?.toLowerCase().includes(q) ||
@@ -64,7 +123,7 @@ export const CalculadoraPrecios = () => {
       const valueToSearch = p[searchField]?.toString().toLowerCase() || "";
       return valueToSearch.includes(q);
     });
-  }, [productos, searchQuery, searchField]);
+  }, [productos, searchQuery, searchField, selectedEmpresa]);
 
   const getMargenStyle = (valor, onlyText = false) => {
     const v = parseFloat(valor);
@@ -108,8 +167,9 @@ export const CalculadoraPrecios = () => {
     let sumaCostos = 0;
 
     data.forEach(row => {
+      const cantidad = parseFloat(row.CANTIDAD) || 1;
       sumaTotales += parseFloat(row.TOTAL) || 0;
-      sumaCostos += parseFloat(row.COSTO_PROMEDIO) || 0;
+      sumaCostos += (parseFloat(row.COSTO_PROMEDIO) || 0) * cantidad;
     });
 
     if (sumaTotales === 0) return 0;
@@ -123,17 +183,18 @@ export const CalculadoraPrecios = () => {
     const d1 = parseFloat(row.DESCUENTO_1) || 0;
     const d2 = parseFloat(row.DESCUENTO_2) || 0;
     const d3 = parseFloat(row.DESCUENTO_3) || 0;
+    const cantidad = parseFloat(row.CANTIDAD) || 1;
 
-    // Aplicar descuentos en cascada
+    // Aplicar descuentos en cascada para obtener el precio unitario final
     const precioConD1 = precio * (1 - d1 / 100);
     const precioConD2 = precioConD1 * (1 - d2 / 100);
-    const precioFinal = precioConD2 * (1 - d3 / 100);
+    const precioUnitarioFinal = precioConD2 * (1 - d3 / 100);
 
-    const total = precioFinal.toFixed(2);
+    const total = (precioUnitarioFinal * cantidad).toFixed(2);
     let mb = 0;
-    if (precioFinal > 0) {
-      // MB = (Precio Final - costoPromedio) / Precio Final
-      mb = (((precioFinal - costo) / precioFinal) * 100).toFixed(2);
+    if (precioUnitarioFinal > 0) {
+      // MB = (Precio Unitario Final - costoPromedio) / Precio Unitario Final
+      mb = (((precioUnitarioFinal - costo) / precioUnitarioFinal) * 100).toFixed(2);
     }
 
     return {
@@ -151,8 +212,8 @@ export const CalculadoraPrecios = () => {
       "Identificador": item.IDENTIFICADOR,
       "Nombre": item.NOMBRE,
       "Stock": item.STOCK,
+      "Cant": parseFloat(item.CANTIDAD) || 0,
       "Precio Lista": parseFloat(item.PRECIO) || 0,
-      "Costo Promedio": parseFloat(item.COSTO_PROMEDIO) || 0,
       "Descuento 1 (%)": parseFloat(item.DESCUENTO_1) || 0,
       "Descuento 2 (%)": parseFloat(item.DESCUENTO_2) || 0,
       "Descuento 3 (%)": parseFloat(item.DESCUENTO_3) || 0,
@@ -170,8 +231,8 @@ export const CalculadoraPrecios = () => {
       { wch: 20 }, // Identificador
       { wch: 40 }, // Nombre
       { wch: 10 }, // Stock
+      { wch: 10 }, // Cant
       { wch: 15 }, // Precio Lista
-      { wch: 15 }, // Costo Promedio
       { wch: 15 }, // D1
       { wch: 15 }, // D2
       { wch: 15 }, // D3
@@ -183,11 +244,91 @@ export const CalculadoraPrecios = () => {
     XLSX.writeFile(workbook, `Calculadora_Precios_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  const handleExportPDF = () => {
+    if (data.length === 0) return;
+
+    const doc = new jsPDF();
+
+    // Título del PDF
+    doc.setFontSize(18);
+    doc.text("Resumen de Calculadora de Precios", 14, 20);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 14, 28);
+    if (selectedEmpresa) {
+      doc.text(`Empresa: ${selectedEmpresa.label}`, 14, 34);
+    }
+
+    // Preparar columnas y datos para AutoTable
+    const tableColumn = [
+      "Código",
+      "Nombre",
+      "Stock",
+      "Cant",
+      "Precio",
+      "D1 (%)",
+      "D2 (%)",
+      "D3 (%)",
+      "Total",
+      "MB (%)"
+    ];
+
+    const tableRows = data.map(item => [
+      item.ID_PRODUCTO || "",
+      item.NOMBRE || "",
+      item.STOCK || 0,
+      item.CANTIDAD || 0,
+      item.PRECIO ? parseFloat(item.PRECIO).toFixed(2) : "0.00",
+      item.DESCUENTO_1 || 0,
+      item.DESCUENTO_2 || 0,
+      item.DESCUENTO_3 || 0,
+      item.TOTAL ? parseFloat(item.TOTAL).toFixed(2) : "0.00",
+      item.MB ? parseFloat(item.MB).toFixed(2) : "0.00"
+    ]);
+
+    // Generar la tabla
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 40,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+      styles: { fontSize: 8, cellPadding: 2 },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 'auto' },
+        2: { halign: 'center' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        8: { halign: 'right', fontStyle: 'bold' },
+        9: { halign: 'center' }
+      }
+    });
+
+    // Agregar resumen del margen general
+    const lastY = doc.lastAutoTable.finalY + 10;
+    if (margenGeneral !== null) {
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.text(`MARGEN GENERAL: ${margenGeneral}%`, 14, lastY);
+    }
+
+    doc.save("Calculadora_Precios.pdf");
+  };
+
   const columnsConfig = [
+    { header: "Código", field: "ID_PRODUCTO", isEditable: false, width: "120px" },
     { header: "Nombre", field: "NOMBRE", isEditable: false, width: "300px" },
     { header: "Stock", field: "STOCK", isEditable: false, width: "100px" },
+    {
+      header: "Cantidad",
+      field: "CANTIDAD",
+      isEditable: true,
+      editType: "number",
+      min: 1,
+      width: "100px"
+    },
     { header: "Precio", field: "PRECIO", isEditable: false, format: "money", width: "140px" },
-    { header: "Costo promedio", field: "COSTO_PROMEDIO", isEditable: false, format: "money", width: "140px" },
     {
       header: "Descuento 1",
       field: "DESCUENTO_1",
@@ -218,7 +359,14 @@ export const CalculadoraPrecios = () => {
       step: 0.01,
       width: "110px"
     },
-    { header: "Total", field: "TOTAL", isEditable: false, format: "money", width: "140px" },
+    {
+      header: "Total",
+      field: "TOTAL",
+      isEditable: true,
+      editType: "number",
+      step: 0.01,
+      width: "140px"
+    },
     {
       header: "MB (%)",
       field: "MB",
@@ -229,10 +377,45 @@ export const CalculadoraPrecios = () => {
   ];
 
   const handleRowChange = (updatedRow) => {
-    const nuevosValores = calcularValores(updatedRow);
+    // Encontrar la fila anterior para detectar qué campo cambió
+    const prevRow = data.find(r => r.ID === updatedRow.ID);
+    let rowToProcess = { ...updatedRow };
+    let isTotalManual = false;
+
+    // Validación de cantidad mínima
+    const cantidadIngresada = parseFloat(updatedRow.CANTIDAD) || 0;
+
+    if (cantidadIngresada < 1) {
+      rowToProcess.CANTIDAD = 1;
+    }
+
+    // Si el usuario modificó manualmente el TOTAL
+    if (prevRow && parseFloat(prevRow.TOTAL || 0).toFixed(2) !== parseFloat(updatedRow.TOTAL || 0).toFixed(2)) {
+      isTotalManual = true;
+      const precio = parseFloat(updatedRow.PRECIO) || 0;
+      const d1 = parseFloat(updatedRow.DESCUENTO_1) || 0;
+      const d2 = parseFloat(updatedRow.DESCUENTO_2) || 0;
+      const totalManual = parseFloat(updatedRow.TOTAL) || 0;
+      const cantidad = parseFloat(rowToProcess.CANTIDAD) || 1;
+
+      // Calcular Base del Descuento 3: Precio * (1-D1) * (1-D2)
+      const base3 = precio * (1 - d1 / 100) * (1 - d2 / 100);
+
+      if (base3 > 0) {
+        // Despejando D3 considerando cantidad: total = (base3 * (1 - d3/100)) * cantidad
+        // total / cantidad = base3 * (1 - d3/100)
+        // (total / cantidad) / base3 = 1 - d3/100
+        // d3/100 = 1 - ((total / cantidad) / base3)
+        const nuevoD3 = (1 - ((totalManual / cantidad) / base3)) * 100;
+        rowToProcess.DESCUENTO_3 = nuevoD3.toFixed(2);
+      }
+    }
+
+    const nuevosValores = calcularValores(rowToProcess);
     const rowWithCalculated = {
-      ...updatedRow,
-      TOTAL: nuevosValores.TOTAL,
+      ...rowToProcess,
+      // Si el cambio fue manual, mantenemos el valor tal como lo escribió el usuario para no romper el input (ej. evitar que "1" se vuelva "1.00" mientras escribe)
+      TOTAL: isTotalManual ? updatedRow.TOTAL : nuevosValores.TOTAL,
       MB: nuevosValores.MB
     };
 
@@ -248,6 +431,7 @@ export const CalculadoraPrecios = () => {
       IDENTIFICADOR: producto.identificadorItem,
       NOMBRE: producto.nombreItem,
       STOCK: producto.stock,
+      CANTIDAD: 1,
       PRECIO: producto.listaPreciosA,
       COSTO_PROMEDIO: producto.costoPromedio,
       DESCUENTO_1: 0,
@@ -258,7 +442,8 @@ export const CalculadoraPrecios = () => {
         COSTO_PROMEDIO: producto.costoPromedio,
         DESCUENTO_1: 0,
         DESCUENTO_2: 0,
-        DESCUENTO_3: 0
+        DESCUENTO_3: 0,
+        CANTIDAD: 1
       })
     };
     setData([...data, nuevaFila]);
@@ -318,11 +503,11 @@ export const CalculadoraPrecios = () => {
               minWidth: "150px"
             }}
           >
-            <TextUI 
-              size="12px" 
-              weight="500" 
-              color={margenGeneral === null 
-                ? (theme.name === "dark" ? "#aaa" : "#666") 
+            <TextUI
+              size="12px"
+              weight="500"
+              color={margenGeneral === null
+                ? (theme.name === "dark" ? "#aaa" : "#666")
                 : (getMargenStyle(margenGeneral).color)}
             >
               MARGEN GENERAL
@@ -330,8 +515,8 @@ export const CalculadoraPrecios = () => {
             <TextUI
               size="22px"
               weight="800"
-              color={margenGeneral === null 
-                ? (theme.name === "dark" ? "#fff" : "#000") 
+              color={margenGeneral === null
+                ? (theme.name === "dark" ? "#fff" : "#000")
                 : (getMargenStyle(margenGeneral).color)}
             >
               {margenGeneral === null ? "S/D" : `${margenGeneral}%`}
@@ -357,14 +542,24 @@ export const CalculadoraPrecios = () => {
           oddRowColor={theme.name === "dark" ? "#111" : "#ffffff"}
           evenRowColor={theme.name === "dark" ? "#222" : "#f8f9fa"}
           extraHeaderContent={
-            <ButtonUI
-              text="Exportar a Excel"
-              iconLeft="FaFileExcel"
-              onClick={handleExportExcel}
-              pcolor="#27ae60"
-              style={{ padding: "5px 15px" }}
-              disabled={data.length === 0}
-            />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <ButtonUI
+                text="Exportar a PDF"
+                iconLeft="FaFilePdf"
+                onClick={handleExportPDF}
+                pcolor="#e74c3c"
+                style={{ padding: "5px 15px" }}
+                disabled={data.length === 0}
+              />
+              <ButtonUI
+                text="Exportar a Excel"
+                iconLeft="FaFileExcel"
+                onClick={handleExportExcel}
+                pcolor="#27ae60"
+                style={{ padding: "5px 15px" }}
+                disabled={data.length === 0}
+              />
+            </div>
           }
         />
       </ContainerUI>
@@ -378,26 +573,43 @@ export const CalculadoraPrecios = () => {
         noFooter
         noPadding
       >
-        <ContainerUI flexDirection="column" style={{ padding: "20px", gap: "15px", height: "70vh" }}>
-          <ContainerUI flexDirection="row" width="100%" style={{ gap: "0px", alignItems: "stretch" }}>
-            <div style={{ flex: 1 }}>
-              <InputUI
-                placeholder="Ingrese nombre, código o ID..."
-                value={searchQuery}
-                onChange={setSearchQuery}
-                iconLeft="FaSearch"
-                style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                autoFocus
-              />
-            </div>
-            <div style={{ width: "220px" }}>
-              <SelectUI
-                options={searchOptions}
-                value={searchOptions.find(opt => opt.value === searchField)}
-                onChange={(opt) => setSearchField(opt.value)}
-                style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
-              />
-            </div>
+        <ContainerUI flexDirection="column" style={{ padding: "20px", gap: "10px", height: "75vh" }}>
+          {/* Fila de Búsqueda y Filtros Consolidada */}
+          <ContainerUI flexDirection="column" width="100%" style={{ gap: "8px" }}>
+            <TextUI size="13px" weight="600" color={theme?.colors?.textSecondary}>Búsqueda y Filtros:</TextUI>
+            <ContainerUI flexDirection="row" width="100%" style={{ gap: "0px", alignItems: "stretch" }}>
+              <div style={{ flex: 1 }}>
+                <InputUI
+                  placeholder="Ingrese nombre, código o ID..."
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  iconLeft="FaSearch"
+                  style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+                  autoFocus
+                />
+              </div>
+              <div style={{ width: "160px" }}>
+                <SelectUI
+                  options={searchOptions}
+                  value={searchOptions.find(opt => opt.value === searchField)}
+                  onChange={(opt) => setSearchField(opt.value)}
+                  style={{ borderRadius: 0 }}
+                  placeholder="Campo"
+                />
+              </div>
+              {empresasOptions.length > 0 && (
+                <div style={{ width: "220px" }}>
+                  <SelectUI
+                    options={empresasOptions}
+                    value={selectedEmpresa}
+                    onChange={(opt) => setSelectedEmpresa(opt)}
+                    placeholder="Empresa"
+                    isSearchable={false}
+                    style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none" }}
+                  />
+                </div>
+              )}
+            </ContainerUI>
           </ContainerUI>
 
           <div style={{ flex: 1, overflow: "hidden", border: `1px solid ${theme?.colors?.border || "#dee2e6"}`, borderRadius: "8px" }}>

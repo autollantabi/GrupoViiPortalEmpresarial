@@ -56,11 +56,11 @@ const Tabla = styled.table`
     height: 30px;
 
     &:nth-child(odd) {
-      background-color: ${({ theme, oddColor }) => oddColor || theme.colors.backgroundCard || theme.colors.backgroundLight || "#fafafa"};
+      background-color: ${({ theme, $oddColor }) => $oddColor || theme.colors.backgroundCard || theme.colors.backgroundLight || "#fafafa"};
     }
 
     &:nth-child(even) {
-      background-color: ${({ theme, evenColor }) => evenColor || theme.colors.backgroundDark || theme.colors.background || "#f5f5f5"};
+      background-color: ${({ theme, $evenColor }) => $evenColor || theme.colors.backgroundDark || theme.colors.background || "#f5f5f5"};
     }
 
     &:last-child {
@@ -94,13 +94,13 @@ const Input = styled.input`
   border: solid 1px ${({ theme }) => theme.colors.border || "#dee2e6"};
   border-radius: 4px;
   border-color: ${({ theme }) => theme.colors.border || "#dee2e6"};
-  background-color: ${({ theme, transparent }) => transparent ? "transparent" : (theme.colors.inputBackground || theme.colors.backgroundCard || "#fafafa")};
+  background-color: ${({ theme, $transparent }) => $transparent ? "transparent" : (theme.colors.inputBackground || theme.colors.backgroundCard || "#fafafa")};
   color: ${({ theme }) => theme.colors.text || "#212529"};
   box-sizing: border-box;
   padding: 0 10px;
   font-size: 13px;
-  border-width: ${({ transparent }) => transparent ? "0 0 1px 0" : "1px"}; // Estilo sutil si es transparente
-  border-radius: ${({ transparent }) => transparent ? "0" : "4px"};
+  border-width: ${({ $transparent }) => $transparent ? "0 0 1px 0" : "1px"}; // Estilo sutil si es transparente
+  border-radius: ${({ $transparent }) => $transparent ? "0" : "4px"};
   &:focus {
     border-color: ${({ theme }) => theme.colors.inputFocus || theme.colors.primary || "#3c3c3b"};
     box-shadow: 0 0 0 1px ${({ theme }) => theme.colors.inputFocus || theme.colors.primary || "#3c3c3b"};
@@ -400,7 +400,7 @@ const RenderEditableRowHorizontal = React.memo(({
                 <DivFlex>
                   <Input
                     type={col.editType || "text"}
-                    transparent={alwaysEditable}
+                    $transparent={alwaysEditable}
                     value={col.editType === "date" ? formatToDateInput(editValues[col.field]) : editValues[col.field]}
                     onChange={(e) => handleEditComponent(col, { label: e.target.value, value: e.target.value })}
                     required={col.required}
@@ -1206,7 +1206,7 @@ export const TablaInputsUI = ({
         )}
       </div>
       <div style={{ overflowX: "auto", height: "100%", minHeight: "70vh" }}>
-        <Tabla oddColor={oddRowColor} evenColor={evenRowColor}>
+        <Tabla $oddColor={oddRowColor} $evenColor={evenRowColor}>
           <thead>
             <tr>
               {columns

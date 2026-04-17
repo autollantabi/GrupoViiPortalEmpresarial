@@ -201,6 +201,8 @@ const TitleBar = styled.div`
 
 const columnas = [
   { id: "REGI_MARCA", label: "MARCA", type: "text", width: "150px", disableEdit: true },
+  { id: "REGI_PROVEEDOR", label: "PROVEEDOR", type: "text", width: "200px", disableEdit: true },
+  { id: "REGI_PROCEDENCIA", label: "PAIS", type: "text", width: "120px", disableEdit: true },
   { id: "REGI_RESPONSABLE", label: "RESPONSABLE", type: "text", width: "150px", disableEdit: true },
   { id: "REGI_FECHALIMITE", label: "FECHA LIMITE", type: "text", width: "140px", disableEdit: true },
   { id: "REGI_ORDEN", label: "ORDEN", type: "text", width: "120px" },
@@ -276,6 +278,8 @@ export const RegistroPedidos = () => {
   const fetchDatosDesdeAPI = async (mes, anio, yaGenerado = false) => {
     try {
       const response = await ListarRegistroPedidosMensual({ mes, anio });
+
+      console.log(response);
 
       // Si la API retorna estado exitoso y existen datos
       if (response && response.status === "Ok!" && Array.isArray(response.data) && response.data.length > 0) {
