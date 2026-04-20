@@ -314,15 +314,19 @@ const RenderEditableRowHorizontal = React.memo(({
   }, [item, alwaysEditable]);
 
   useEffect(() => {
+    setEditColumns(columns);
+  }, [columns]);
+
+  useEffect(() => {
     const initialOptions = {};
-    columns.forEach((col) => {
+    editColumns.forEach((col) => {
       const maxoptions = col.maxoptions || 30;
       if (col.editType === "dropdown" || col.editType === "dropdown-text") {
         initialOptions[col.field] = (col.options || []).slice(0, maxoptions);
       }
     });
     setFilteredOptions(initialOptions);
-  }, [columns]);
+  }, [editColumns]);
 
   const handleEditComponent = async (col, option) => {
     if (!option) {
@@ -352,8 +356,18 @@ const RenderEditableRowHorizontal = React.memo(({
 
     if (col.onDependentLoad) {
       const dependentResult = await col.onDependentLoad(option);
-      if (dependentResult) {
-        // Actualizar opciones (simplificado para el refactor, se podría profundizar si es necesario)
+      if (dependentResult && Array.isArray(dependentResult)) {
+        setEditColumns((prevColumns) =>
+          prevColumns.map((column) => {
+            const update = dependentResult.find(
+              (res) => res.field === column.field
+            );
+            if (update) {
+              return { ...column, options: update.data };
+            }
+            return column;
+          })
+        );
       }
     }
   };

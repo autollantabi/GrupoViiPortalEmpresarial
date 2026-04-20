@@ -65,6 +65,7 @@ import { ReporteriaTalentoHumano } from "pages/Areas/Reporteria/TalentoHumano/Re
 import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import MDM_Crud from "pages/Areas/MDM/MDM_Crud/MDM_Crud";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
+import { VisitasJustificacion } from "pages/Areas/Visitas/Justificacion/VisitasJustificacion";
 
 // Configuración centralizada - Una sola fuente de verdad
 // Ahora usa recursos en lugar de módulos/secciones
@@ -381,6 +382,18 @@ export const RoutesConfig = [
     title: "Talento Humano",
     component: ReporteriaTalentoHumano,
     recurso: "reportes.talentohumano",
+  },
+  // ================================= VISITAS =================================
+  {
+    recurso: "visitas",
+    title: "Visitas",
+    icon: "FaPersonWalking",
+    rootOnly: true,
+  },
+  {
+    title: "Justificación",
+    component: VisitasJustificacion,
+    recurso: "visitas.justificacion",
   },
   // ================================= 404 (debe ir al final) =================================
   {
