@@ -1248,10 +1248,13 @@ export const TablaInputsUI = ({
           </thead>
           <tbody>
             {filteredData.length > 0 ? (
-              currentData.map((item, index) =>
-                (alwaysEditable || editingRow === item[nombreID]) ? (
+              currentData.map((item, index) => {
+                // Generar una key estable: si no hay ID, usamos un prefijo con el índice
+                const rowKey = item[nombreID] ? `row-${item[nombreID]}` : `idx-${index}`;
+                
+                return (alwaysEditable || editingRow === item[nombreID]) ? (
                   <RenderEditableRowHorizontal
-                    key={item[nombreID] || index}
+                    key={`${rowKey}-edit`}
                     item={item}
                     columns={columns}
                     lastRow={lastRow}
@@ -1268,7 +1271,7 @@ export const TablaInputsUI = ({
                   />
                 ) : (
                   <RenderRowHorizontal
-                    key={item[nombreID] || index}
+                    key={`${rowKey}-view`}
                     item={item}
                     columns={columns}
                     theme={theme}
@@ -1277,8 +1280,8 @@ export const TablaInputsUI = ({
                     handleDoubleClick={handleDoubleClick}
                     formatString={formatString}
                   />
-                )
-              )
+                );
+              })
             ) : (
               <tr>
                 <td colSpan={columns.length + 1} style={{ backgroundColor: theme?.colors?.backgroundCard || theme?.colors?.backgroundLight }}>

@@ -266,172 +266,162 @@ const TablaTransaccionesCompleto = ({
     setFilaSeleccionada(id === filaSeleccionada ? null : id);
   };
 
-  // Mostrar indicador de carga
-  if (cargando) {
-    return (
-      <ContainerUI
-        flexDirection="column"
-        width="100%"
-        style={{ flexShrink: 1, gap: "10px", overflow: "hidden" }}
-        translate="no"
-      >
-        <LoadingContainer>
-          <Spinner theme={theme} />
-          <LoadingText theme={theme}>Cargando transacciones bancarias...</LoadingText>
-        </LoadingContainer>
-      </ContainerUI>
-    );
-  }
-
   return (
     <ContainerUI
       flexDirection="column"
       width="100%"
       style={{
         gap: "10px",
-        overflow: "visible",
+        overflow: cargando ? "hidden" : "visible",
         height: "100%",
         display: "flex",
       }}
       translate="no"
     >
-      {/* Tabla con scroll */}
-      <TablaContainer>
-        <TablaCustom theme={theme}>
-          <thead className="cabecera-tabla">
-            <tr>
-              {columnasTablaTransacciones.map((columna) => (
-                <th
-                  key={columna.key}
-                  className={columna.className || ""}
-                  style={{ width: columna.width, minWidth: columna.width }}
-                >
-                  {columna.header}
-                </th>
-              ))}
-              <th className="uns" style={{ width: "20px" }}>
-                ...
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {datosPagina.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={columnasTablaTransacciones.length + 1}
-                  style={{
-                    textAlign: "center",
-                    padding: "40px 20px",
-                    fontSize: "14px",
-                    color: theme.colors.textSecondary,
-                    fontStyle: "italic",
-                  }}
-                >
-                  No existen datos con los filtros aplicados
-                </td>
-              </tr>
-            ) : (
-              datosPagina
-                .filter((transaccion) => transaccion != null)
-                .map((transaccion, index) => {
-                  const estadoNum = parseInt(transaccion.ESTADO);
-                  const claseEstado = clasesEstado[estadoNum] || "fila-default";
-                  const idFila =
-                    transaccion?.IDENTIFICADOR_VERSION ||
-                    transaccion?.IDENTIFICADOR;
-                  const estaSeleccionada = filaSeleccionada === idFila;
-
-                  return (
-                    <tr
-                      key={`${
-                        transaccion?.IDENTIFICADOR_VERSION || index
-                      }-${index}`}
-                      className={`filasTabla ${claseEstado} ${
-                        estaSeleccionada ? "fila-seleccionada" : ""
-                      }`}
-                      onClick={() => manejarClickFila(transaccion)}
+      {cargando ? (
+        <LoadingContainer key="loading-container">
+          <Spinner theme={theme} />
+          <LoadingText theme={theme}>Cargando transacciones bancarias...</LoadingText>
+        </LoadingContainer>
+      ) : (
+        <>
+          {/* Tabla con scroll */}
+          <TablaContainer key="table-container">
+            <TablaCustom theme={theme}>
+              <thead className="cabecera-tabla">
+                <tr>
+                  {columnasTablaTransacciones.map((columna) => (
+                    <th
+                      key={columna.key}
+                      className={columna.className || ""}
+                      style={{ width: columna.width, minWidth: columna.width }}
                     >
-                      {columnasTablaTransacciones.map((columna) => {
-                        const valor = transaccion[columna.key];
+                      {columna.header}
+                    </th>
+                  ))}
+                  <th className="uns" style={{ width: "20px" }}>
+                    ...
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {datosPagina.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={columnasTablaTransacciones.length + 1}
+                      style={{
+                        textAlign: "center",
+                        padding: "40px 20px",
+                        fontSize: "14px",
+                        color: theme.colors.textSecondary,
+                        fontStyle: "italic",
+                      }}
+                    >
+                      No existen datos con los filtros aplicados
+                    </td>
+                  </tr>
+                ) : (
+                  datosPagina
+                    .filter((transaccion) => transaccion != null)
+                    .map((transaccion, index) => {
+                      const estadoNum = parseInt(transaccion.ESTADO);
+                      const claseEstado = clasesEstado[estadoNum] || "fila-default";
+                      const idFila =
+                        transaccion?.IDENTIFICADOR_VERSION ||
+                        transaccion?.IDENTIFICADOR;
+                      const estaSeleccionada = filaSeleccionada === idFila;
 
-                        // Si es la columna de estado
-                        if (columna.isEstado) {
-                          const colorEstado = getColorEstado(estadoNum);
-                          return (
-                            <td
-                              key={columna.key}
-                              style={{
-                                width: columna.width,
-                                minWidth: columna.width,
-                              }}
-                            >
-                              <ChipEstado
-                                $bgColor={colorEstado.bg}
-                                $textColor={colorEstado.text}
+                      return (
+                        <tr
+                          key={`${transaccion?.IDENTIFICADOR_VERSION || idFila || index
+                            }-${index}`}
+                          className={`filasTabla ${claseEstado} ${estaSeleccionada ? "fila-seleccionada" : ""
+                            }`}
+                          onClick={() => manejarClickFila(transaccion)}
+                        >
+                          {columnasTablaTransacciones.map((columna) => {
+                            const valor = transaccion[columna.key];
+
+                            // Si es la columna de estado
+                            if (columna.isEstado) {
+                              const colorEstado = getColorEstado(estadoNum);
+                              return (
+                                <td
+                                  key={columna.key}
+                                  style={{
+                                    width: columna.width,
+                                    minWidth: columna.width,
+                                  }}
+                                >
+                                  <ChipEstado
+                                    $bgColor={colorEstado.bg}
+                                    $textColor={colorEstado.text}
+                                  >
+                                    <span>
+                                      {getNombreEstado(estadoNum)?.substring(0, 5)}
+                                    </span>
+                                  </ChipEstado>
+                                </td>
+                              );
+                            }
+
+                            // Si tiene función de formato
+                            if (columna.format) {
+                              return (
+                                <td
+                                  key={columna.key}
+                                  style={{
+                                    width: columna.width,
+                                    minWidth: columna.width,
+                                  }}
+                                >
+                                  {columna.format(valor, transaccion)}
+                                </td>
+                              );
+                            }
+
+                            // Valor normal
+                            return (
+                              <td
+                                key={columna.key}
+                                style={{
+                                  width: columna.width,
+                                  minWidth: columna.width,
+                                }}
                               >
-                                <span>
-                                  {getNombreEstado(estadoNum)?.substring(0, 5)}
-                                </span>
-                              </ChipEstado>
-                            </td>
-                          );
-                        }
+                                {valor || ""}
+                              </td>
+                            );
+                          })}
 
-                        // Si tiene función de formato
-                        if (columna.format) {
-                          return (
-                            <td
-                              key={columna.key}
-                              style={{
-                                width: columna.width,
-                                minWidth: columna.width,
-                              }}
-                            >
-                              {columna.format(valor, transaccion)}
-                            </td>
-                          );
-                        }
-
-                        // Valor normal
-                        return (
-                          <td
-                            key={columna.key}
-                            style={{
-                              width: columna.width,
-                              minWidth: columna.width,
-                            }}
-                          >
-                            {valor || ""}
+                          {/* Columna de acciones */}
+                          <td style={{ width: "20px" }}>
+                            <ButtonUI
+                              iconLeft="FaPenToSquare"
+                              onClick={() => onEdit(transaccion)}
+                              variant="text"
+                            />
                           </td>
-                        );
-                      })}
+                        </tr>
+                      );
+                    })
+                )}
+              </tbody>
+            </TablaCustom>
+          </TablaContainer>
 
-                      {/* Columna de acciones */}
-                      <td style={{ width: "20px" }}>
-                        <ButtonUI
-                          iconLeft="FaPenToSquare"
-                          onClick={() => onEdit(transaccion)}
-                          variant="text"
-                        />
-                      </td>
-                    </tr>
-                  );
-                })
-            )}
-          </tbody>
-        </TablaCustom>
-      </TablaContainer>
-
-      {/* Paginación con overflow visible */}
-      <PaginacionWrapper>
-        <PaginacionUnificada
-          currentPage={paginaActual}
-          pageCount={totalPaginas}
-          handlePageChange={cambiarPagina}
-          numberData={datosPagina.length}
-          totalData={datosOrdenados.length}
-        />
-      </PaginacionWrapper>
+          {/* Paginación con overflow visible */}
+          <PaginacionWrapper key="pagination-wrapper">
+            <PaginacionUnificada
+              currentPage={paginaActual}
+              pageCount={totalPaginas}
+              handlePageChange={cambiarPagina}
+              numberData={datosPagina.length}
+              totalData={datosOrdenados.length}
+            />
+          </PaginacionWrapper>
+        </>
+      )}
     </ContainerUI>
   );
 };
