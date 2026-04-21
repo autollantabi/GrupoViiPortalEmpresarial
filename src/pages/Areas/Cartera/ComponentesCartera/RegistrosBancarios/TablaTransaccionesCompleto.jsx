@@ -273,6 +273,7 @@ const TablaTransaccionesCompleto = ({
         flexDirection="column"
         width="100%"
         style={{ flexShrink: 1, gap: "10px", overflow: "hidden" }}
+        translate="no"
       >
         <LoadingContainer>
           <Spinner theme={theme} />
@@ -292,6 +293,7 @@ const TablaTransaccionesCompleto = ({
         height: "100%",
         display: "flex",
       }}
+      translate="no"
     >
       {/* Tabla con scroll */}
       <TablaContainer>

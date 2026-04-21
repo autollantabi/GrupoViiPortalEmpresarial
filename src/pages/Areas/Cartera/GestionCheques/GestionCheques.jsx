@@ -459,9 +459,10 @@ export const GestionCheques = ({
   }
 
   return (
-    <ContainerUI height="100%" width="100%">
+    <ContainerUI height="100%" width="100%" translate="no">
       {isConfigLoaded ? (
         <TablaInputsUI
+          key="tabla-cheques"
           data={data}
           newRow={newRow}
           columnsConfig={columnsConfig}
@@ -476,7 +477,7 @@ export const GestionCheques = ({
         // permisoagregar={correosAgregar}
         />
       ) : (
-        <p>Cargando configuración, por favor espera...</p>
+        <p key="loading-msg">Cargando configuración, por favor espera...</p>
       )}
     </ContainerUI>
   );

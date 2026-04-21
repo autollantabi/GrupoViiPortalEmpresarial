@@ -233,6 +233,7 @@ export const RegistrosBancarios = ({
         alignItems="center"
         width="100%"
         height="100%"
+        translate="no"
       >
         <div
           style={{
@@ -241,6 +242,7 @@ export const RegistrosBancarios = ({
             textAlign: "center",
             fontWeight: "500",
           }}
+          key="no-access-title"
         >
           No tienes permisos para acceder a los registros bancarios.
         </div>
@@ -251,6 +253,7 @@ export const RegistrosBancarios = ({
             textAlign: "center",
             marginTop: "8px",
           }}
+          key="no-access-subtitle"
         >
           Contacta al administrador para obtener acceso.
         </div>
@@ -264,6 +267,7 @@ export const RegistrosBancarios = ({
       width="100%"
       height="100%"
       justifyContent="flex-start"
+      translate="no"
     >
       <FiltrosUnificadosCartera
         empresasAcceso={empresasDisponibles}

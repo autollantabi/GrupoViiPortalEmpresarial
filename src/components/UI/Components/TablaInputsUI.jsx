@@ -474,6 +474,7 @@ export const TablaInputsUI = ({
   oddRowColor = null,
   evenRowColor = null,
   extraHeaderContent = null,
+  hideOptionalFilters = false,
 }) => {
   const { theme } = useTheme();
   const [copiaData, setCopiaData] = useState(data);
@@ -1085,20 +1086,21 @@ export const TablaInputsUI = ({
           {activeFiltersLabel.map((column) => renderFilterComponent(column))}
 
           {/* Botón para agregar filtros opcionales */}
-          <div style={{ minWidth: "100px", maxWidth: "225px" }}>
-            {/* <label style={{ fontSize: "13px" }}>Agregar Filtros</label> */}
-            <SelectUI
-              options={optionalFilters.map((column) => ({
-                value: column.field,
-                label: column.header,
-              }))}
-              onChange={handleAddFilter}
-              placeholder="Agregar Filtro"
-              isSearchable
-              minWidth="150px"
-              maxWidth="250px"
-            />
-          </div>
+          {!hideOptionalFilters && (
+            <div style={{ minWidth: "100px", maxWidth: "225px" }}>
+              <SelectUI
+                options={optionalFilters.map((column) => ({
+                  value: column.field,
+                  label: column.header,
+                }))}
+                onChange={handleAddFilter}
+                placeholder="Agregar Filtro"
+                isSearchable
+                minWidth="150px"
+                maxWidth="250px"
+              />
+            </div>
+          )}
 
           {/* Filtro global */}
           {/* <div style={{ minWidth: "100px", maxWidth: "150px" }}>
@@ -1187,15 +1189,22 @@ export const TablaInputsUI = ({
   };
 
   return (
-    <ContenedorPrincipal>
+    <ContenedorPrincipal translate="no">
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "0 15px",
+          justifyContent: "flex-start",
+          alignItems: "flex-end",
+          padding: "5px 15px",
+          gap: "20px",
+          width: "100%",
+          flexWrap: "wrap",
+          borderBottom: `1px solid ${theme?.colors?.border || "#dee2e6"}`,
+          paddingBottom: "15px",
+          marginBottom: "10px"
         }}
       >
+        {extraHeaderContent}
         {showFilters && (
           <RenderFilters
             columns={columns}
@@ -1204,18 +1213,14 @@ export const TablaInputsUI = ({
             setFilteredData={setFilteredData}
           />
         )}
-        {/* {renderFilters()} */}
-        {(mostrarAgregar() || extraHeaderContent) && (
+        {mostrarAgregar() && (
           <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
-            {extraHeaderContent}
-            {mostrarAgregar() && (
-              <ButtonUI
-                iconLeft={"FaPlus"}
-                text={addButtonText}
-                onClick={onAddRowClick || handleAddRow}
-                style={{ padding: "5px 15px" }}
-              />
-            )}
+            <ButtonUI
+              iconLeft={"FaPlus"}
+              text={addButtonText}
+              onClick={onAddRowClick || handleAddRow}
+              style={{ padding: "5px 15px" }}
+            />
           </div>
         )}
       </div>
