@@ -20,6 +20,7 @@ export const ContainerUI = ({
   flexDirection = "row",
   height = "auto",
   width = "auto",
+  ...props
 }) => {
   return (
     <CustomDiv
@@ -31,6 +32,7 @@ export const ContainerUI = ({
         height,
         width,
       }}
+      {...props}
     >
       {children}
     </CustomDiv>

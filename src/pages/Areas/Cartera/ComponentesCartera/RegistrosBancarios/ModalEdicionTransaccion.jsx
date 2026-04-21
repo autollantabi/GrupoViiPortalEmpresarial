@@ -332,8 +332,8 @@ export const ModalEdicionTransaccion = ({
   if (!isOpen || !transaccion) return null;
 
   return (
-    <ModalOverlay theme={theme} onClick={onClose}>
-      <ModalContainer theme={theme} onClick={(e) => e.stopPropagation()}>
+    <ModalOverlay theme={theme} onClick={onClose} translate="no" className="notranslate">
+      <ModalContainer theme={theme} onClick={(e) => e.stopPropagation()} translate="no" className="notranslate">
         <ModalHeader theme={theme}>
           <ModalTitle theme={theme}>Editar Transacción</ModalTitle>
           <ButtonUI iconLeft="FaXmark" onClick={onClose} variant="text" />

@@ -237,7 +237,8 @@ const RenderRowHorizontal = React.memo(({
 }) => {
   return (
     <tr
-      className="filasTabla"
+      className="filasTabla notranslate"
+      translate="no"
       onDoubleClick={() => handleDoubleClick(item)}
       style={{ cursor: "pointer" }}
     >
@@ -380,7 +381,7 @@ const RenderEditableRowHorizontal = React.memo(({
   };
 
   return (
-    <tr className="filasTabla">
+    <tr className="filasTabla notranslate" translate="no">
       {editColumns
         .filter((col) => col.visible !== false)
         .map((col) => {
@@ -1189,7 +1190,7 @@ export const TablaInputsUI = ({
   };
 
   return (
-    <ContenedorPrincipal translate="no">
+    <ContenedorPrincipal translate="no" className="notranslate">
       <div
         style={{
           display: "flex",

@@ -277,6 +277,7 @@ const TablaTransaccionesCompleto = ({
         display: "flex",
       }}
       translate="no"
+      className="notranslate"
     >
       {cargando ? (
         <LoadingContainer key="loading-container">
@@ -336,7 +337,8 @@ const TablaTransaccionesCompleto = ({
                           key={`${transaccion?.IDENTIFICADOR_VERSION || idFila || index
                             }-${index}`}
                           className={`filasTabla ${claseEstado} ${estaSeleccionada ? "fila-seleccionada" : ""
-                            }`}
+                            } notranslate`}
+                          translate="no"
                           onClick={() => manejarClickFila(transaccion)}
                         >
                           {columnasTablaTransacciones.map((columna) => {

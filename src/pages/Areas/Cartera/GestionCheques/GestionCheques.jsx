@@ -459,7 +459,7 @@ export const GestionCheques = ({
   }
 
   return (
-    <ContainerUI height="100%" width="100%" translate="no">
+    <ContainerUI height="100%" width="100%" translate="no" className="notranslate">
       {isConfigLoaded ? (
         <TablaInputsUI
           key="tabla-cheques"
