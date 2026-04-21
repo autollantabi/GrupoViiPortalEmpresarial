@@ -14,7 +14,7 @@ import { useAuthContext } from "context/authContext";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export const CalculadoraPrecios = () => {
+export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
   const { theme } = useTheme();
   const [data, setData] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -26,40 +26,13 @@ export const CalculadoraPrecios = () => {
   const [loading, setLoading] = useState(false);
   const [forceEditId, setForceEditId] = useState(null);
 
-  // Obtener opciones de empresas desde los contextos (usuario-rol-contexto) filtrando por el rol específico
+  // Obtener opciones de empresas desde las empresas disponibles pasadas por el router
   const empresasOptions = useMemo(() => {
-    const contextos = user?.CONTEXTOS || user?.data || [];
-    const empresasGlobales = user?.EMPRESAS || {}; // Mapa global ID -> Nombre
-    const ROL_MODULO = "contabilidad.calculadoraprecios";
-
-    const allEmpresas = new Map();
-
-    // Solo procesar contextos que pertenezcan a este módulo específico
-    contextos
-      .filter(ctx => (ctx.RECURSO === ROL_MODULO) || (ctx.ROL === ROL_MODULO))
-      .forEach(ctx => {
-        // El alcance de empresas suele estar en ALCANCE.EMPRESAS o context.EMPRESAS
-        const emps = ctx.ALCANCE?.EMPRESAS || ctx.EMPRESAS || [];
-
-        if (Array.isArray(emps)) {
-          emps.forEach(id => {
-            const idStr = id.toString();
-            const nombre = empresasGlobales[idStr] || idStr;
-            if (!allEmpresas.has(idStr)) {
-              allEmpresas.set(idStr, { value: idStr, label: nombre });
-            }
-          });
-        } else if (typeof emps === 'object') {
-          Object.entries(emps).forEach(([id, nombre]) => {
-            if (!allEmpresas.has(id)) {
-              allEmpresas.set(id, { value: id, label: nombre });
-            }
-          });
-        }
-      });
-
-    return Array.from(allEmpresas.values());
-  }, [user]);
+    return availableCompanies.map(emp => ({
+      value: emp.id.toString(),
+      label: emp.nombre
+    }));
+  }, [availableCompanies]);
 
   // Inicializar la empresa seleccionada si no hay una
   useEffect(() => {
@@ -76,13 +49,15 @@ export const CalculadoraPrecios = () => {
     { value: "identificadorItem", label: "Identificador" },
   ];
 
-  // Cargar productos al montar el componente o cuando cambie la empresa seleccionada
+  // Cargar productos cada vez que cambia la empresa seleccionada
   useEffect(() => {
     const fetchProductos = async () => {
-      // if (!selectedEmpresa) return; // Esperar a tener empresa seleccionada
+      // Necesitamos una empresa para buscar
+      if (!selectedEmpresa) return;
+
       setLoading(true);
       try {
-        const response = await getProductosCalculadora(selectedEmpresa?.value);
+        const response = await getProductosCalculadora(selectedEmpresa.value);
         if (response.status === "Ok!") {
           setProductos(response.data || []);
         }
@@ -99,7 +74,7 @@ export const CalculadoraPrecios = () => {
   const productosFiltrados = useMemo(() => {
     let filtered = productos;
 
-    // 1. Filtrar primero por la empresa seleccionada
+    // 1. Filtrar por la empresa seleccionada (ya filtrado por API, pero aseguramos consistencia)
     if (selectedEmpresa) {
       filtered = filtered.filter(p =>
         p.empresa === selectedEmpresa.label ||
@@ -575,41 +550,38 @@ export const CalculadoraPrecios = () => {
       >
         <ContainerUI flexDirection="column" style={{ padding: "20px", gap: "10px", height: "75vh" }}>
           {/* Fila de Búsqueda y Filtros Consolidada */}
-          <ContainerUI flexDirection="column" width="100%" style={{ gap: "8px" }}>
-            <TextUI size="13px" weight="600" color={theme?.colors?.textSecondary}>Búsqueda y Filtros:</TextUI>
-            <ContainerUI flexDirection="row" width="100%" style={{ gap: "0px", alignItems: "stretch" }}>
-              <div style={{ flex: 1 }}>
-                <InputUI
-                  placeholder="Ingrese nombre, código o ID..."
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  iconLeft="FaSearch"
-                  style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                  autoFocus
-                />
-              </div>
-              <div style={{ width: "160px" }}>
+          <ContainerUI flexDirection="row" width="100%" style={{ gap: "10px", alignItems: "flex-end" }}>
+            <div style={{ flex: 1 }}>
+              <TextUI size="13px" weight="600" color={theme?.colors?.textSecondary} style={{ marginBottom: "4px" }}>Búsqueda:</TextUI>
+              <InputUI
+                placeholder="Ingrese nombre, código o ID..."
+                value={searchQuery}
+                onChange={setSearchQuery}
+                iconLeft="FaSearch"
+                autoFocus
+              />
+            </div>
+            <div style={{ width: "180px" }}>
+              <TextUI size="13px" weight="600" color={theme?.colors?.textSecondary} style={{ marginBottom: "4px" }}>Campo:</TextUI>
+              <SelectUI
+                options={searchOptions}
+                value={searchOptions.find(opt => opt.value === searchField)}
+                onChange={(opt) => setSearchField(opt.value)}
+                placeholder="Seleccionar..."
+              />
+            </div>
+            {empresasOptions.length > 0 && (
+              <div style={{ width: "240px" }}>
+                <TextUI size="13px" weight="600" color={theme?.colors?.textSecondary} style={{ marginBottom: "4px" }}>Empresa:</TextUI>
                 <SelectUI
-                  options={searchOptions}
-                  value={searchOptions.find(opt => opt.value === searchField)}
-                  onChange={(opt) => setSearchField(opt.value)}
-                  style={{ borderRadius: 0 }}
-                  placeholder="Campo"
+                  options={empresasOptions}
+                  value={selectedEmpresa}
+                  onChange={(opt) => setSelectedEmpresa(opt)}
+                  placeholder="Seleccionar empresa..."
+                  isSearchable={true}
                 />
               </div>
-              {empresasOptions.length > 0 && (
-                <div style={{ width: "220px" }}>
-                  <SelectUI
-                    options={empresasOptions}
-                    value={selectedEmpresa}
-                    onChange={(opt) => setSelectedEmpresa(opt)}
-                    placeholder="Empresa"
-                    isSearchable={false}
-                    style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none" }}
-                  />
-                </div>
-              )}
-            </ContainerUI>
+            )}
           </ContainerUI>
 
           <div style={{ flex: 1, overflow: "hidden", border: `1px solid ${theme?.colors?.border || "#dee2e6"}`, borderRadius: "8px" }}>

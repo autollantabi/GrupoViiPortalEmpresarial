@@ -37,7 +37,7 @@ import { ComisionesMayoristas } from "pages/Areas/Contabilidad/Comisiones/Mayori
 import { ComisionesTecnicentroContainer } from "pages/Areas/Contabilidad/Comisiones/Tecnicentro/ComisionesTecnicentro";
 import { ComisionesTecnicentroCategoriasContainer } from "pages/Areas/Contabilidad/Comisiones/Tecnicentro/ComisionesTecnicentroCategorias";
 import { ComisionesLubricantes } from "pages/Areas/Contabilidad/Comisiones/Lubricantes/ReporteComisionesLubricantes";
-import { CalculadoraPrecios } from "pages/Areas/Contabilidad/CalculadoraPrecios/CalculadoraPrecios";
+import { CalculadoraPrecios } from "pages/Areas/Comercial/CalculadoraPrecios/CalculadoraPrecios";
 
 
 // Marketing
@@ -226,11 +226,6 @@ export const RoutesConfig = [
     component: ComisionesLubricantes,
     recurso: "contabilidad.comisiones.lubricantes",
   },
-  {
-    title: "Calculadora de precios",
-    component: CalculadoraPrecios,
-    recurso: "contabilidad.calculadoraprecios",
-  },
 
   // ================================= XCOIN =================================
   {
@@ -244,6 +239,18 @@ export const RoutesConfig = [
     component: XC_GestionCanjes,
     recurso: "xcoin.admin",
     recursosAlternativos: ["xcoin.viewer"],
+  },
+  // ================================= COMERCIAL =================================
+  {
+    recurso: "comercial",
+    title: "Comercial",
+    icon: "FaStore",
+    rootOnly: true,
+  },
+  {
+    title: "Calculadora de precios",
+    component: CalculadoraPrecios,
+    recurso: "comercial.calculadoraprecios",
   },
   // ================================= LINEA DE NEGOCIO =================================
   {
