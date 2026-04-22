@@ -28,6 +28,8 @@ export const SelectUI = ({
   menuWidth = "max-content",
   menuMaxWidth = "200px",
   menuMaxHeight = "300px",
+  menuPortalTarget = null,
+  ...props
 }) => {
   const themeContext = useTheme();
   // Obtener el tema de la misma forma que InputUI
@@ -268,6 +270,8 @@ export const SelectUI = ({
         menuPlacement={menuPlacement}
         isMulti={isMulti}
         controlWidth={controlWidth}
+        menuPortalTarget={menuPortalTarget}
+        {...props}
       />
     </div>
   );

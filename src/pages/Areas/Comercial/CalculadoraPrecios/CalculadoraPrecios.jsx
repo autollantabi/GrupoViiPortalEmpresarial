@@ -9,6 +9,7 @@ import { SelectUI } from "components/UI/Components/SelectUI";
 import { useTheme } from "context/ThemeContext";
 import { getProductosCalculadora } from "services/calculadoraService";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 import * as XLSX from "xlsx";
 import { useAuthContext } from "context/authContext";
 import jsPDF from "jspdf";
@@ -23,7 +24,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
   const [searchField, setSearchField] = useState("all");
   const { user } = useAuthContext();
   const [selectedEmpresa, setSelectedEmpresa] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [forceEditId, setForceEditId] = useState(null);
 
   // Obtener opciones de empresas desde las empresas disponibles pasadas por el router
@@ -49,26 +50,24 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     { value: "identificadorItem", label: "Identificador" },
   ];
 
-  // Cargar productos cada vez que cambia la empresa seleccionada
+  // Cargar todos los productos al montar el componente (eager loading)
   useEffect(() => {
     const fetchProductos = async () => {
-      // Necesitamos una empresa para buscar
-      if (!selectedEmpresa) return;
-
       setLoading(true);
       try {
-        const response = await getProductosCalculadora(selectedEmpresa.value);
+        // Llamamos a la API sin ID de empresa para intentar traer el catálogo completo
+        const response = await getProductosCalculadora(null);
         if (response.status === "Ok!") {
           setProductos(response.data || []);
         }
       } catch (error) {
-        console.error("Error al cargar productos", error);
+        console.error("Error al cargar el catálogo de productos", error);
       } finally {
         setLoading(false);
       }
     };
     fetchProductos();
-  }, [selectedEmpresa]);
+  }, []);
 
   // Filtrado de productos basado en la empresa, el campo seleccionado y el query
   const productosFiltrados = useMemo(() => {
@@ -584,15 +583,42 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
             )}
           </ContainerUI>
 
-          <div style={{ flex: 1, overflow: "hidden", border: `1px solid ${theme?.colors?.border || "#dee2e6"}`, borderRadius: "8px" }}>
-            <TablaInfoUI
-              data={productosFiltrados}
-              columns={modalColumns}
-              defaultFilters={[]}
-              onRowDoubleClick={(item) => handleAddProductFromModal(item)}
-              includeModal={false}
-              showFilters={false}
-            />
+          <div style={{ 
+            flex: 1, 
+            overflow: "hidden", 
+            border: `1px solid ${theme?.colors?.border || "#dee2e6"}`, 
+            borderRadius: "8px",
+            position: "relative",
+            display: "flex",
+            flexDirection: "column"
+          }}>
+            {loading ? (
+              <div style={{ 
+                display: "flex", 
+                flex: 1, 
+                alignItems: "center", 
+                justifyContent: "center",
+                flexDirection: "column",
+                gap: "15px",
+                background: theme.name === "dark" ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.5)",
+                backdropFilter: "blur(4px)"
+              }}>
+                <LoaderUI 
+                  text="Cargando catálogo de productos..." 
+                  size="50px" 
+                  primaryColor={theme?.colors?.primary} 
+                />
+              </div>
+            ) : (
+              <TablaInfoUI
+                data={productosFiltrados}
+                columns={modalColumns}
+                defaultFilters={[]}
+                onRowDoubleClick={(item) => handleAddProductFromModal(item)}
+                includeModal={false}
+                showFilters={false}
+              />
+            )}
           </div>
 
           <ContainerUI justifyContent="center">

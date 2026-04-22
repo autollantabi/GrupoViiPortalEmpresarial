@@ -105,6 +105,10 @@ const Input = styled.input`
     border-color: ${({ theme }) => theme.colors.inputFocus || theme.colors.primary || "#3c3c3b"};
     box-shadow: 0 0 0 1px ${({ theme }) => theme.colors.inputFocus || theme.colors.primary || "#3c3c3b"};
   }
+  &::-webkit-calendar-picker-indicator {
+    filter: ${({ theme }) => theme.name === "dark" ? "invert(1)" : "none"};
+    cursor: pointer;
+  }
 `;
 
 const TextAreaS = styled.textarea`
@@ -302,7 +306,9 @@ const RenderEditableRowHorizontal = React.memo(({
   handleSave,
   validationErrors,
   formatString,
-  formatToDateInput
+  formatToDateInput,
+  hideCancel,
+  saveIcon
 }) => {
   const [editValues, setEditValues] = useState(lastRow ? lastRow : item);
   const [editColumns, setEditColumns] = useState(columns);
@@ -411,6 +417,13 @@ const RenderEditableRowHorizontal = React.memo(({
                     minWidth="100%"
                   />
                 </DivFlex>
+              ) : col.editType === "custom" ? (
+                <DivFlex style={{ width: "100%" }}>
+                  {col.renderEditCell && col.renderEditCell({ 
+                    item: editValues, 
+                    onChange: (val) => handleEditComponent(col, typeof val === "object" ? val : { label: val, value: val }) 
+                  })}
+                </DivFlex>
               ) : (
                 <DivFlex>
                   <Input
@@ -418,9 +431,9 @@ const RenderEditableRowHorizontal = React.memo(({
                     $transparent={alwaysEditable}
                     value={col.editType === "date" ? formatToDateInput(editValues[col.field]) : editValues[col.field]}
                     onChange={(e) => handleEditComponent(col, { label: e.target.value, value: e.target.value })}
-                    required={col.required}
-                    min={col.min}
-                    max={col.max}
+                    required={typeof col.required === "function" ? col.required(editValues) : col.required}
+                    min={typeof col.min === "function" ? col.min(editValues) : col.min}
+                    max={typeof col.max === "function" ? col.max(editValues) : col.max}
                     step={col.step || "any"}
                   />
                 </DivFlex>
@@ -437,8 +450,24 @@ const RenderEditableRowHorizontal = React.memo(({
         <ContenedorFlex style={{ flexDirection: "row", justifyContent: "center", gap: "8px" }}>
           {!hideActions && (
             <>
-              <ButtonUI iconLeft="FaXmark" onClick={handleCancel} variant="outlined" pcolortext={theme?.colors?.error || "#dc3545"} style={{ padding: "2px 6px", minWidth: "auto" }} iconSize={14} />
-              <ButtonUI iconLeft="FaFloppyDisk" onClick={() => handleSave({ item: editValues })} isAsync={true} pcolor={theme?.colors?.success || "#28a745"} style={{ padding: "2px 6px", minWidth: "auto" }} iconSize={14} />
+              {!hideCancel && (
+                <ButtonUI
+                  iconLeft="FaXmark"
+                  onClick={handleCancel}
+                  variant="outlined"
+                  pcolortext={theme?.colors?.error || "#dc3545"}
+                  style={{ padding: "2px 6px", minWidth: "auto" }}
+                  iconSize={14}
+                />
+              )}
+              <ButtonUI
+                iconLeft={saveIcon || "FaFloppyDisk"}
+                onClick={() => handleSave({ item: editValues })}
+                isAsync={true}
+                pcolor={theme?.colors?.success || "#28a745"}
+                style={{ padding: "2px 6px", minWidth: "auto" }}
+                iconSize={14}
+              />
             </>
           )}
           {onDelete && (
@@ -475,7 +504,10 @@ export const TablaInputsUI = ({
   oddRowColor = null,
   evenRowColor = null,
   extraHeaderContent = null,
+  rightHeaderContent = null,
   hideOptionalFilters = false,
+  hideCancel = false,
+  saveIcon = "FaFloppyDisk",
 }) => {
   const { theme } = useTheme();
   const [copiaData, setCopiaData] = useState(data);
@@ -498,6 +530,12 @@ export const TablaInputsUI = ({
       setEditingRow(externalEditingRowId);
     }
   }, [externalEditingRowId]);
+
+  useEffect(() => {
+    if (columnsConfig && columnsConfig.length > 0) {
+      setColumns(columnsConfig);
+    }
+  }, [columnsConfig]);
 
   // Calcula el total de páginas
   const totalPages = Math.ceil(filteredData.length / pageSize);
@@ -709,11 +747,20 @@ export const TablaInputsUI = ({
 
     // Validar si los campos requeridos están completos
     columns.forEach((column) => {
-      if (column.required) {
+      const isRequired = typeof column.required === "function" ? column.required(item) : column.required;
+      if (isRequired) {
         // Verificar si el campo visible o el ID está vacío
         const value = item[column.field] || item[column.fieldID];
         if (!value) {
           errors[column.field] = `${column.header} es un campo obligatorio`;
+        }
+      }
+
+      // Validación personalizada por columna
+      if (column.validate && typeof column.validate === "function") {
+        const errorMsg = column.validate(item);
+        if (errorMsg) {
+          errors[column.field] = errorMsg;
         }
       }
     });
@@ -1214,14 +1261,17 @@ export const TablaInputsUI = ({
             setFilteredData={setFilteredData}
           />
         )}
-        {mostrarAgregar() && (
+        {(mostrarAgregar() || rightHeaderContent) && (
           <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
-            <ButtonUI
-              iconLeft={"FaPlus"}
-              text={addButtonText}
-              onClick={onAddRowClick || handleAddRow}
-              style={{ padding: "5px 15px" }}
-            />
+            {rightHeaderContent}
+            {mostrarAgregar() && (
+              <ButtonUI
+                iconLeft={"FaPlus"}
+                text={addButtonText}
+                onClick={onAddRowClick || handleAddRow}
+                style={{ padding: "5px 15px" }}
+              />
+            )}
           </div>
         )}
       </div>
@@ -1269,6 +1319,8 @@ export const TablaInputsUI = ({
                     validationErrors={validationErrors}
                     formatString={formatString}
                     formatToDateInput={formatToDateInput}
+                    hideCancel={hideCancel}
+                    saveIcon={saveIcon}
                   />
                 ) : (
                   <RenderRowHorizontal

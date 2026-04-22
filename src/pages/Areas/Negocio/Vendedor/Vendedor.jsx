@@ -426,6 +426,7 @@ export default function Vendedor() {
             value={searchParam}
             onChange={(val) => setSearchParam(val || opcionesSearchParam[0])}
             isSearchable={false}
+            menuPortalTarget={document.body}
           />
         </FilterItem>
 
@@ -437,6 +438,7 @@ export default function Vendedor() {
             value={empresaFiltro || opcionesEmpresas[0]}
             onChange={handleEmpresaChange}
             isSearchable
+            menuPortalTarget={document.body}
           />
         </FilterItem>
 
@@ -488,6 +490,7 @@ export default function Vendedor() {
                             onChange={(val) => handleChangeRowEmpresa(row.id, val)}
                             placeholder="Empresa..."
                             menuPlacement="auto"
+                            menuPortalTarget={document.body}
                           />
                         ) : (
                           <TextUI weight="500" size="13px">{row.EMPRESA}</TextUI>
@@ -503,6 +506,7 @@ export default function Vendedor() {
                             isDisabled={!row.EMPRESA}
                             menuPlacement="auto"
                             isSearchable
+                            menuPortalTarget={document.body}
                           />
                         ) : (
                           <>
@@ -520,6 +524,7 @@ export default function Vendedor() {
                             isDisabled={!row.CODIGOVENDEDOR}
                             menuPlacement="auto"
                             isSearchable
+                            menuPortalTarget={document.body}
                           />
                         ) : (
                           <TextUI size="13px">{row.linea}</TextUI>
@@ -535,6 +540,7 @@ export default function Vendedor() {
                             isDisabled={!row.linea}
                             menuPlacement="auto"
                             isSearchable
+                            menuPortalTarget={document.body}
                           />
                         ) : (
                           <TextUI size="13px">{row.categoria}</TextUI>
