@@ -66,6 +66,8 @@ import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import MDM_Crud from "pages/Areas/MDM/MDM_Crud/MDM_Crud";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
+import { VisitasAsignadas } from "pages/Areas/Visitas/Asignadas/VisitasAsignadas";
+
 
 // Configuración centralizada - Una sola fuente de verdad
 // Ahora usa recursos en lugar de módulos/secciones
@@ -401,6 +403,11 @@ export const RoutesConfig = [
     title: "Asignar",
     component: VisitasAsignar,
     recurso: "visitas.asignar",
+  },
+  {
+    title: "Asignadas",
+    component: VisitasAsignadas,
+    recurso: "visitas.asignadas",
   },
   // ================================= 404 (debe ir al final) =================================
   {

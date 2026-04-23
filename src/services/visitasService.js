@@ -38,3 +38,35 @@ export const CrearReemplazoVisita = async (data) => {
     return false;
   }
 };
+
+/**
+ * Obtiene las visitas de reemplazo para el día de hoy.
+ * @returns {Promise<Array>}
+ */
+export const ListarVisitasHoy = async () => {
+  try {
+    const response = await axiosInstanceNew.get("/reemplazo-vendedores-visita/visitas-hoy");
+    if (response.data && response.data.status === "Ok!") {
+      return response.data.data || [];
+    }
+    return [];
+  } catch (error) {
+    console.error("Error en ListarVisitasHoy:", error);
+    return [];
+  }
+};
+
+/**
+ * Guarda las visitas modificadas.
+ * @param {Array} data - Lista de visitas modificadas
+ * @returns {Promise<boolean>}
+ */
+export const GuardarVisitasModificadas = async (data) => {
+  try {
+    const response = await axiosInstanceNew.post("/reemplazo-vendedores-visita/visitas-modificadas-reemplazo", data);
+    return response.status === 200 || response.status === 201;
+  } catch (error) {
+    console.error("Error en GuardarVisitasModificadas:", error);
+    return false;
+  }
+};

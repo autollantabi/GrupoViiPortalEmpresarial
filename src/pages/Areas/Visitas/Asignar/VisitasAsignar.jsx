@@ -44,9 +44,9 @@ const EMPRESA_DICT = {
 };
 
 const LINEA_OPTIONS = [
-  { value: "LUBRICANTES", label: "Lubricantes" },
-  { value: "LLANTAS", label: "Llantas" },
-  { value: "LLANTAS MOTO", label: "Llantas Moto" }
+  { value: "LUBRICANTES", label: "LUBRICANTES" },
+  { value: "LLANTAS", label: "LLANTAS" },
+  { value: "LLANTAS MOTO", label: "LLANTAS MOTO" }
 ];
 
 const generateDateRange = (startDate, endDate) => {

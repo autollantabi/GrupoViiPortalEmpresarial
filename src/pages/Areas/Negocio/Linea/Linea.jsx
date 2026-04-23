@@ -8,7 +8,7 @@ import { useTheme } from "context/ThemeContext";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
 import styled from "styled-components";
-import { obtenerGruposOriginales, obtenerLineaNegocioParametros, actualizarNombreComercial } from "services/LineaNegocio";
+import { obtenerLineaNegocioParametros, actualizarNombreComercial } from "services/LineaNegocio";
 
 const StyledTable = styled.table`
   width: 100%;
@@ -106,31 +106,29 @@ export default function Linea() {
     setLoading(true);
     const response = await obtenerLineaNegocioParametros();
     if (response.success) {
-      const newRows = response.data.map(item => ({ 
+      const data = response.data || [];
+      const newRows = data.map(item => ({ 
         ...item, 
         isEditing: false,
         isInitialUnassigned: item.DLN_NOMBRE === "NO ASIGNADO"
       }));
       setTableRows(newRows);
+
+      // Extract distinct commercial names for the select in the table
+      const distinctNames = [...new Set(data.map(item => item.DLN_NOMBRE))];
+      const formatted = distinctNames
+        .filter(n => n && n !== "NO ASIGNADO")
+        .sort()
+        .map(n => ({ value: n, label: n }));
+      setGruposOriginales(formatted);
+
       updateFilteredIds(newRows, selectedOption);
     }
     setLoading(false);
   };
 
-  const fetchGrupos = async () => {
-    const response = await obtenerGruposOriginales();
-    if (response.success) {
-      const formatted = response.data.map(item => ({
-        value: item,
-        label: item
-      }));
-      setGruposOriginales(formatted);
-    }
-  };
-
   useEffect(() => {
     fetchData();
-    fetchGrupos();
   }, []);
 
   const options = useMemo(() => {
