@@ -107,8 +107,8 @@ export default function Linea() {
     const response = await obtenerLineaNegocioParametros();
     if (response.success) {
       const data = response.data || [];
-      const newRows = data.map(item => ({ 
-        ...item, 
+      const newRows = data.map(item => ({
+        ...item,
         isEditing: false,
         isInitialUnassigned: item.DLN_NOMBRE === "NO ASIGNADO"
       }));

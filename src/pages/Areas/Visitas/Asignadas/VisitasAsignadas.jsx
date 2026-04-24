@@ -5,7 +5,7 @@ import { ContenedorPadre } from "assets/styles/StyledComponents/ContenedorPadre"
 import { TextUI } from "components/UI/Components/TextUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
 import { InputUI } from "components/UI/Components/InputUI";
-import { ListarVisitasHoy, GuardarVisitasModificadas } from "services/visitasService";
+import { ListarVisitasHoy, GuardarVisitasModificadas, ListarVisitasModificadasHoy } from "services/visitasService";
 import { useTheme } from "context/ThemeContext";
 import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
@@ -121,6 +121,74 @@ const EmptyState = styled.div`
   }
 `;
 
+const CompletedVisitsSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: ${({ theme }) => theme.colors.container};
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  max-height: 400px;
+  overflow: hidden;
+`;
+
+const ScrollableList = styled.div`
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 8px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.border};
+    border-radius: 3px;
+  }
+`;
+
+const CompletedVisitCard = styled.div`
+  background: ${({ theme }) => theme.colors.background};
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr;
+  gap: 16px;
+  align-items: center;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: ${({ theme }) => theme.colors.primary}50;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+`;
+
+const ColumnInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const LabelSmall = styled.span`
+  font-size: 11px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
 export const VisitasAsignadas = () => {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -129,6 +197,7 @@ export const VisitasAsignadas = () => {
   const [selectedClient, setSelectedClient] = useState(null);
   const [observacion, setObservacion] = useState("");
   const [dynamicTimes, setDynamicTimes] = useState({ inicio: "", fin: "" });
+  const [completedVisits, setCompletedVisits] = useState([]);
 
   const formattedDate = useMemo(() => {
     const now = new Date();
@@ -140,18 +209,24 @@ export const VisitasAsignadas = () => {
     return `${capitalizedDay} ${dayNumber} de ${monthName}`;
   }, []);
 
+  const fetchData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    try {
+      const [visitasHoy, visitasCompletadas] = await Promise.all([
+        ListarVisitasHoy(),
+        ListarVisitasModificadasHoy()
+      ]);
+      setData(visitasHoy || []);
+      setCompletedVisits(visitasCompletadas || []);
+    } catch (error) {
+      console.error("Error al cargar las visitas:", error);
+      toast.error("Error al sincronizar los datos");
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const result = await ListarVisitasHoy();
-        setData(result);
-      } catch (error) {
-        toast.error("Error al cargar las visitas de hoy");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
@@ -242,7 +317,7 @@ export const VisitasAsignadas = () => {
         vmr_horacreacionBD: visitDetails.hvi_horacreacionBD,
         vmr_lineanegocio: visitDetails.hvi_lineanegocio,
         vmr_motivonogestion: "PORTAL",
-        vmr_observacion: observacion || ""
+        vmr_observaciones: observacion || ""
       }
     ];
 
@@ -251,8 +326,10 @@ export const VisitasAsignadas = () => {
       const success = await GuardarVisitasModificadas(payload);
       if (success) {
         toast.success("Visita guardada exitosamente");
+        setSelectedSeller(null);
         setSelectedClient(null);
         setObservacion("");
+        await fetchData(false); // Recargar datos sin mostrar el spinner global para mejor UX
       } else {
         toast.error("Error al guardar la visita");
       }
@@ -380,6 +457,48 @@ export const VisitasAsignadas = () => {
                 </TextUI>
               </EmptyState>
             )
+          )}
+
+          {completedVisits.length > 0 && (
+            <CompletedVisitsSection theme={theme}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  background: theme.colors.success + '15',
+                  padding: '8px',
+                  borderRadius: '8px',
+                  color: theme.colors.success,
+                  display: 'flex'
+                }}>
+                  <i className="fa-solid fa-clipboard-check" style={{ fontSize: '20px' }}></i>
+                </div>
+                <TextUI variant="h2" weight="bold" style={{ margin: 0, color: theme.colors.text }}>Visitas Completadas</TextUI>
+              </div>
+
+              <ScrollableList theme={theme}>
+                {completedVisits.map((visit, index) => (
+                  <CompletedVisitCard key={visit.vmr_codigo || index} theme={theme}>
+                    <ColumnInfo>
+                      <LabelSmall theme={theme}>Vendedor</LabelSmall>
+                      <TextUI variant="p" weight="medium" style={{ fontSize: '14px' }}>
+                        {visit.vmr_nombrevendedor}
+                      </TextUI>
+                    </ColumnInfo>
+                    <ColumnInfo>
+                      <LabelSmall theme={theme}>Cliente</LabelSmall>
+                      <TextUI variant="p" weight="medium" style={{ fontSize: '14px' }}>
+                        {visit.vmr_nombrecliente}
+                      </TextUI>
+                    </ColumnInfo>
+                    <ColumnInfo>
+                      <LabelSmall theme={theme}>Observación</LabelSmall>
+                      <TextUI variant="p" style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
+                        {visit.vmr_observaciones || "Sin observaciones"}
+                      </TextUI>
+                    </ColumnInfo>
+                  </CompletedVisitCard>
+                ))}
+              </ScrollableList>
+            </CompletedVisitsSection>
           )}
 
           {loading && (

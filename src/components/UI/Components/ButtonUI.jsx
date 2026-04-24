@@ -19,9 +19,9 @@ const StyledButton = styled.button`
   font-weight: 500;
   border: none;
   outline: none;
-  cursor: ${({ disabled, loading }) =>
-    disabled || loading ? "not-allowed" : "pointer"};
-  opacity: ${({ disabled, loading }) => (disabled || loading ? "0.5" : "1")};
+  cursor: ${({ disabled, $loading }) =>
+    disabled || $loading ? "not-allowed" : "pointer"};
+  opacity: ${({ disabled, $loading }) => (disabled || $loading ? "0.5" : "1")};
   box-sizing: border-box !important;
   background-color: ${({ theme, $variant, $pcolor }) =>
     $variant === "contained" ? $pcolor || theme.colors.primary : "transparent"};
@@ -38,14 +38,14 @@ const StyledButton = styled.button`
   min-height: 26px;
 
   &:hover {
-    filter: ${({ disabled, loading }) =>
-      !disabled && !loading ? "brightness(1.2)" : "none"};
-    background-color: ${({ theme, $variant, disabled, loading, $pcolor }) =>
-      !disabled && !loading && $variant === "contained"
+    filter: ${({ disabled, $loading }) =>
+      !disabled && !$loading ? "brightness(1.2)" : "none"};
+    background-color: ${({ theme, $variant, disabled, $loading, $pcolor }) =>
+      !disabled && !$loading && $variant === "contained"
         ? ($pcolor || theme.colors.primary)
         : "transparent"};
-    border-color: ${({ theme, $variant, disabled, loading, $pcolortext }) =>
-      !disabled && !loading && $variant === "outlined"
+    border-color: ${({ theme, $variant, disabled, $loading, $pcolortext }) =>
+      !disabled && !$loading && $variant === "outlined"
         ? ($pcolortext || theme.colors.primary)
         : "none"};
   }
@@ -109,6 +109,7 @@ export const ButtonUI = ({
       style={style}
       onClick={handleClick}
       disabled={disabled || loading}
+      $loading={loading}
       $variant={variant}
       $pcolor={pcolor}
       $pcolortext={pcolortext}

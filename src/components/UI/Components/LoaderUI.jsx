@@ -17,9 +17,9 @@ const LoaderContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  height: ${({ $fullScreen, height }) =>
-    $fullScreen ? "100vh" : height || "auto"};
-  width: ${({ width }) => width || "100%"};
+  height: ${({ $fullScreen, $height }) =>
+    $fullScreen ? "100vh" : $height || "auto"};
+  width: ${({ $width }) => $width || "100%"};
   flex-direction: ${({ $inline }) => ($inline ? "row" : "column")};
   gap: ${({ $inline }) => ($inline ? "0" : "15px")};
 `;
@@ -27,21 +27,21 @@ const LoaderContainer = styled.div`
 // Componente de spinner con propiedades personalizables
 const Spinner = styled.div`
   border: ${({ $borderSize }) => $borderSize || "4px"} solid
-    ${({ theme, borderColor }) =>
-      borderColor || theme.colors.borderLight || "#e8e8e8"};
+    ${({ theme, $borderColor }) =>
+      $borderColor || theme.colors.borderLight || "#e8e8e8"};
   border-top: ${({ $borderSize }) => $borderSize || "4px"} solid
-    ${({ theme, primaryColor }) =>
-      primaryColor || theme.colors.secondary || "#3498db"};
+    ${({ theme, $primaryColor }) =>
+      $primaryColor || theme.colors.secondary || "#3498db"};
   border-radius: 50%;
-  width: ${({ size }) => size || "40px"};
-  height: ${({ size }) => size || "40px"};
-  animation: ${spin} ${({ speed }) => speed || "1s"} linear infinite;
+  width: ${({ $size }) => $size || "40px"};
+  height: ${({ $size }) => $size || "40px"};
+  animation: ${spin} ${({ $speed }) => $speed || "1s"} linear infinite;
 `;
 
 // Texto opcional para el loader
 const LoaderText = styled.div`
-  font-size: ${({ fontSize }) => fontSize || "14px"};
-  color: ${({ theme, textColor }) => textColor || theme.colors.text || "#333"};
+  font-size: ${({ $fontSize }) => $fontSize || "14px"};
+  color: ${({ theme, $textColor }) => $textColor || theme.colors.text || "#333"};
   text-align: center;
 `;
 
@@ -60,16 +60,16 @@ export const LoaderUI = ({
   inline = false, // Si debe renderizarse inline (sin flex-direction column)
 }) => {
   return (
-    <LoaderContainer $fullScreen={fullScreen} height={height} width={width} $inline={inline}>
+    <LoaderContainer $fullScreen={fullScreen} $height={height} $width={width} $inline={inline}>
       <Spinner
-        size={size}
+        $size={size}
         $borderSize={borderSize}
-        primaryColor={primaryColor}
-        borderColor={borderColor}
-        speed={speed}
+        $primaryColor={primaryColor}
+        $borderColor={borderColor}
+        $speed={speed}
       />
       {text && (
-        <LoaderText fontSize={fontSize} textColor={textColor}>
+        <LoaderText $fontSize={fontSize} $textColor={textColor}>
           {text}
         </LoaderText>
       )}

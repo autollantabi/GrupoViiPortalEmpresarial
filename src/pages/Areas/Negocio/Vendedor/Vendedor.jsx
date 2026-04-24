@@ -8,7 +8,7 @@ import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
-import { obtenerVendedoresParametros, crearLineaNegocio } from "services/LineaNegocio";
+import { obtenerVendedoresParametros, crearLineaNegocio, obtenerLineaNegocioParametros } from "services/LineaNegocio";
 import { toast } from "react-toastify";
 
 const FilterBar = styled.div`
@@ -131,13 +131,13 @@ export default function Vendedor() {
 
   const [listaCompleta, setListaCompleta] = useState([]);
   const [maestroParametros, setMaestroParametros] = useState([]);
+  const [lineasComerciales, setLineasComerciales] = useState([]);
   const [loadingAPI, setLoadingAPI] = useState(false);
 
   // Opciones derivadas del maestro
   const opcionesLineas = useMemo(() => {
-    const unique = [...new Set(maestroParametros.map(item => item.LINEANEGOCIO).filter(l => l && l !== "UF"))];
-    return unique.sort().map(l => ({ value: l, label: l }));
-  }, [maestroParametros]);
+    return lineasComerciales.map(l => ({ value: l, label: l }));
+  }, [lineasComerciales]);
 
   const opcionesCategoriasMaestro = useMemo(() => {
     const unique = [...new Set(maestroParametros.map(item => item.CATEGORIA).filter(c => c && c !== "UF"))];
@@ -172,10 +172,22 @@ export default function Vendedor() {
   // Cargar datos
   const fetchMaster = async () => {
     setLoadingAPI(true);
-    const res = await obtenerVendedoresParametros();
-    if (res.success) {
-      setMaestroParametros(res.data);
-      const convertidas = res.data.map((item, idx) => ({
+    const [resVendedores, resLineas] = await Promise.all([
+      obtenerVendedoresParametros(),
+      obtenerLineaNegocioParametros()
+    ]);
+
+    if (resLineas.success) {
+      const distinctNames = [...new Set((resLineas.data || []).map(item => item.DLN_NOMBRE))];
+      const formatted = distinctNames
+        .filter(n => n && n !== "NO ASIGNADO")
+        .sort();
+      setLineasComerciales(formatted);
+    }
+
+    if (resVendedores.success) {
+      setMaestroParametros(resVendedores.data);
+      const convertidas = resVendedores.data.map((item, idx) => ({
         id: item.IDENTIFICADOR_PARAMETROS || `api_${item.CODIGOVENDEDOR}_${idx}`,
         EMPRESA: item.EMPRESA || "",
         VENDEDOR: item.VENDEDOR || "",

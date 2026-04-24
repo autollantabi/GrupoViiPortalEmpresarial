@@ -90,57 +90,57 @@ export const VisitasAsignar = () => {
 
   const isMaxximundo = selectedEmpresa?.label?.toUpperCase() === "MAXXIMUNDO";
 
+  const cargarDatos = async () => {
+    // Validar si se deben mostrar datos
+    const readyToLoad = isMaxximundo
+      ? (selectedEmpresa && selectedLinea)
+      : !!selectedEmpresa;
+
+    if (!readyToLoad) {
+      setData([]);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const idEmpresaApi = EMPRESA_DICT[selectedEmpresa.label.toUpperCase()] || selectedEmpresa.value;
+      const result = await ListarVendedoresReemplazosVisitas(idEmpresaApi);
+
+      let reemplazosOptions = [];
+      if (isMaxximundo) {
+        // Filtrar reemplazos por línea de negocio para Maxximundo (case-insensitive)
+        reemplazosOptions = result.reemplazos
+          .filter(r => r.lineaNegocio?.toUpperCase() === selectedLinea.value.toUpperCase())
+          .map(r => ({ value: r.nombre, label: r.nombre }));
+      } else {
+        // Para otras empresas, todos los reemplazos
+        reemplazosOptions = result.reemplazos.map(r => ({ value: r.nombre, label: r.nombre }));
+      }
+      setUsuarios(reemplazosOptions);
+
+      // Transformar vendedores en filas de la tabla
+      const initialRows = result.vendedores.map((v, index) => ({
+        id: v.codigo || index,
+        vendedor: v.nombre,
+        asignado: "",
+        asignadoID: null,
+        motivo: "",
+        motivoID: null,
+        justificacion: "",
+        fecha_desde: "",
+        fecha_hasta: ""
+      }));
+      setData(initialRows);
+    } catch (error) {
+      console.error("Error cargando vendedores y reemplazos:", error);
+      toast.error("Error al cargar los datos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Efecto para cargar datos cuando cambian los filtros
   useEffect(() => {
-    const cargarDatos = async () => {
-      // Validar si se deben mostrar datos
-      const readyToLoad = isMaxximundo
-        ? (selectedEmpresa && selectedLinea)
-        : !!selectedEmpresa;
-
-      if (!readyToLoad) {
-        setData([]);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const idEmpresaApi = EMPRESA_DICT[selectedEmpresa.label.toUpperCase()] || selectedEmpresa.value;
-        const result = await ListarVendedoresReemplazosVisitas(idEmpresaApi);
-
-        let reemplazosOptions = [];
-        if (isMaxximundo) {
-          // Filtrar reemplazos por línea de negocio para Maxximundo (case-insensitive)
-          reemplazosOptions = result.reemplazos
-            .filter(r => r.lineaNegocio?.toUpperCase() === selectedLinea.value.toUpperCase())
-            .map(r => ({ value: r.nombre, label: r.nombre }));
-        } else {
-          // Para otras empresas, todos los reemplazos
-          reemplazosOptions = result.reemplazos.map(r => ({ value: r.nombre, label: r.nombre }));
-        }
-        setUsuarios(reemplazosOptions);
-
-        // Transformar vendedores en filas de la tabla
-        const initialRows = result.vendedores.map((v, index) => ({
-          id: v.codigo || index,
-          vendedor: v.nombre,
-          asignado: "",
-          asignadoID: null,
-          motivo: "",
-          motivoID: null,
-          justificacion: "",
-          fecha_desde: "",
-          fecha_hasta: ""
-        }));
-        setData(initialRows);
-      } catch (error) {
-        console.error("Error cargando vendedores y reemplazos:", error);
-        toast.error("Error al cargar los datos");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     cargarDatos();
   }, [selectedEmpresa, selectedLinea, isMaxximundo]);
 
@@ -187,8 +187,10 @@ export const VisitasAsignar = () => {
     if (successCount === rowsToSave.length) {
       setHasChanges(false);
       toast.success("Todos los cambios se guardaron correctamente");
+      await cargarDatos();
     } else if (successCount > 0) {
       toast.warning(`Se guardaron ${successCount} de ${rowsToSave.length} registros`);
+      await cargarDatos();
     } else {
       toast.error("Error al guardar los cambios");
     }
@@ -219,6 +221,7 @@ export const VisitasAsignar = () => {
     const success = await CrearReemplazoVisita(payload);
     if (success) {
       toast.success(`Asignación para ${row.vendedor} guardada`);
+      await cargarDatos();
       return { res: true, id: row.id };
     } else {
       toast.error(`Error al guardar la asignación de ${row.vendedor}`);

@@ -8,6 +8,7 @@ import { axiosInstanceNew } from "config/axiosConfig";
 export const ListarVendedoresReemplazosVisitas = async (idEmpresa) => {
   try {
     const response = await axiosInstanceNew.get(`/reemplazo-vendedores-visita/vendedores/${idEmpresa}`);
+    console.log(response.data);
 
     if (response.data && response.data.status === "Ok!") {
       return {
@@ -29,9 +30,7 @@ export const ListarVendedoresReemplazosVisitas = async (idEmpresa) => {
  */
 export const CrearReemplazoVisita = async (data) => {
   try {
-    console.log("SE ENVIA: " + JSON.stringify(data));
     const response = await axiosInstanceNew.post("/reemplazo-vendedores-visita", data);
-    console.log(response.data);
     return response.data && response.status === 201 || response.status === 200;
   } catch (error) {
     console.error("Error en CrearReemplazoVisita:", error);
@@ -68,5 +67,21 @@ export const GuardarVisitasModificadas = async (data) => {
   } catch (error) {
     console.error("Error en GuardarVisitasModificadas:", error);
     return false;
+  }
+};
+/**
+ * Obtiene las visitas modificadas de reemplazo para el día de hoy.
+ * @returns {Promise<Array>}
+ */
+export const ListarVisitasModificadasHoy = async () => {
+  try {
+    const response = await axiosInstanceNew.get("/reemplazo-vendedores-visita/visitas-modificadas-hoy");
+    if (response.data && response.data.status === "Ok!") {
+      return response.data.data.visitas || [];
+    }
+    return [];
+  } catch (error) {
+    console.error("Error en ListarVisitasModificadasHoy:", error);
+    return [];
   }
 };

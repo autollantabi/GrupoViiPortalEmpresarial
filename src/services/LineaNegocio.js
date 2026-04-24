@@ -8,6 +8,8 @@ export const obtenerVendedoresParametros = async () => {
   try {
     const response = await axiosInstanceNew.get("/dwh-postgres/vendedores-parametros");
 
+    console.log(response.data);
+
     return {
       success: true,
       data: response.data.data || [],
