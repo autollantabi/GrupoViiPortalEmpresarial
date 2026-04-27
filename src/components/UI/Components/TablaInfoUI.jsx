@@ -3,6 +3,8 @@ import styled from "styled-components";
 import { hexToRGBA } from "utils/colors";
 import { useTheme } from "context/ThemeContext";
 import { SelectUI } from "./SelectUI";
+import { CheckboxUI } from "./CheckboxUI";
+
 
 import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 import { ExportToExcelUI } from "./ExportarAExcelUI"
@@ -108,6 +110,10 @@ export const TablaInfoUI = ({
   headerRightComponent = null, // Componente personalizado para renderizar arriba a la derecha
   onRowDoubleClick = null, // Función que se ejecuta al hacer doble click en una fila: (item, index) => {}
   showFilters = true,
+  selectionMode = null, // "multiple" or "single"
+  selectedItems = [],
+  onSelectionChange = null,
+  uniqueKey = "ID",
 }) => {
   const [filteredData, setFilteredData] = useState(data);
   const { theme } = useTheme();
@@ -158,9 +164,35 @@ export const TablaInfoUI = ({
 
   // Manejar doble click en fila (ejecuta función externa si existe)
   const handleRowDoubleClick = (item, index) => {
+    if (selectionMode === "multiple") {
+      handleSelectItem(item);
+    }
     if (onRowDoubleClick) {
       onRowDoubleClick(item, index);
     }
+  };
+
+  const handleSelectAll = (name, checked) => {
+    if (!onSelectionChange) return;
+    if (checked) {
+      onSelectionChange(filteredData);
+    } else {
+      onSelectionChange([]);
+    }
+  };
+
+  const handleSelectItem = (item) => {
+    if (!onSelectionChange) return;
+    const isSelected = selectedItems.some((i) => i[uniqueKey] === item[uniqueKey]);
+    if (isSelected) {
+      onSelectionChange(selectedItems.filter((i) => i[uniqueKey] !== item[uniqueKey]));
+    } else {
+      onSelectionChange([...selectedItems, item]);
+    }
+  };
+
+  const isItemSelected = (item) => {
+    return selectedItems.some((i) => i[uniqueKey] === item[uniqueKey]);
   };
 
   const handleSort = (column) => {
@@ -557,6 +589,25 @@ export const TablaInfoUI = ({
             }}
           >
             <tr>
+              {selectionMode === "multiple" && (
+                <th
+                  style={{
+                    width: "40px",
+                    backgroundColor: theme?.name === "dark" 
+                      ? (theme?.colors?.backgroundCard || theme?.colors?.backgroundLight)
+                      : (theme?.colors?.secondary || "#3c3c3b"),
+                    borderRight: `1px solid ${hexToRGBA({ hex: theme?.colors?.border || "#656565", alpha: 0.45 })}`,
+                    padding: "8px 10px",
+                    textAlign: "center",
+                  }}
+                >
+                  <CheckboxUI
+                    checked={filteredData.length > 0 && selectedItems.length === filteredData.length}
+                    onChange={handleSelectAll}
+                    style={{ marginBottom: 0, justifyContent: "center" }}
+                  />
+                </th>
+              )}
               {columns
                 .filter((col) => col.visible !== false)
                 .map((col, index) => (
@@ -601,7 +652,10 @@ export const TablaInfoUI = ({
           <tbody>
             {filteredData?.length > 0 ? (
               filteredData.map((item, index) => {
-                const isSelected = isRowSelected(index);
+                const isSelectedInternal = isRowSelected(index);
+                const isSelectedMulti = selectionMode === "multiple" && isItemSelected(item);
+                const isSelected = isSelectedInternal || isSelectedMulti;
+
                 return (
                   <tr
                     key={index}
@@ -610,16 +664,20 @@ export const TablaInfoUI = ({
                     style={{
                       minHeight: "30px",
                       fontSize: "12px",
-                      backgroundColor: isSelected
-                        ? hexToRGBA({ hex: theme?.colors?.primary || "#007bff", alpha: 0.2 })
-                        : index % 2 === 0 
-                          ? (theme?.colors?.backgroundCard || theme?.colors?.backgroundLight || "#fafafa")
-                          : (theme?.colors?.backgroundDark || theme?.colors?.background || "#f5f5f5"),
-                      cursor: onRowDoubleClick ? "pointer" : "default",
-                      transition: "background-color 0.2s ease",
-                      borderLeft: isSelected 
-                        ? `3px solid ${theme?.colors?.primary || "#007bff"}`
-                        : "3px solid transparent",
+                      backgroundColor: isSelectedMulti
+                        ? hexToRGBA({ hex: theme?.colors?.primary || "#007bff", alpha: 0.15 })
+                        : isSelectedInternal
+                          ? hexToRGBA({ hex: theme?.colors?.primary || "#007bff", alpha: 0.1 })
+                          : index % 2 === 0 
+                            ? (theme?.colors?.backgroundCard || theme?.colors?.backgroundLight || "#fafafa")
+                            : (theme?.colors?.backgroundDark || theme?.colors?.background || "#f5f5f5"),
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      borderLeft: isSelectedMulti
+                        ? `4px solid ${theme?.colors?.primary || "#007bff"}`
+                        : isSelectedInternal
+                          ? `4px solid ${hexToRGBA({ hex: theme?.colors?.primary || "#007bff", alpha: 0.5 })}`
+                          : "4px solid transparent",
                     }}
                     onMouseEnter={(e) => {
                       if (!isSelected) {
@@ -637,6 +695,23 @@ export const TablaInfoUI = ({
                       }
                     }}
                   >
+                    {selectionMode === "multiple" && (
+                      <td
+                        style={{
+                          width: "40px",
+                          textAlign: "center",
+                          padding: "10px",
+                          borderRight: `1px solid ${hexToRGBA({ hex: theme?.colors?.border || "#656565", alpha: 0.45 })}`,
+                          borderBottom: `1px solid ${hexToRGBA({ hex: theme?.colors?.border || "#656565", alpha: 0.45 })}`,
+                        }}
+                      >
+                        <CheckboxUI
+                          checked={isItemSelected(item)}
+                          onChange={() => handleSelectItem(item)}
+                          style={{ marginBottom: 0, justifyContent: "center" }}
+                        />
+                      </td>
+                    )}
                   {columns
                     .filter((col) => col.visible !== false)
                     .map((col, index) => (
@@ -675,7 +750,7 @@ export const TablaInfoUI = ({
               })
             ) : (
               <tr className="filasTabla">
-                <td colSpan={columns.length} style={{ backgroundColor: theme?.colors?.backgroundCard || theme?.colors?.backgroundLight }}>
+                <td colSpan={columns.length + (selectionMode === "multiple" ? 1 : 0)} style={{ backgroundColor: theme?.colors?.backgroundCard || theme?.colors?.backgroundLight }}>
                   <span style={{ fontSize: "14px", color: theme?.colors?.textSecondary || "#6c757d", display: "flex", alignItems: "center", gap: "8px" }}>
                     <IconUI name="FaDatabase" size={16} color={theme?.colors?.textSecondary || "#6c757d"} /> No hay
                     existencia de registros

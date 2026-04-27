@@ -26,6 +26,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
   const [selectedEmpresa, setSelectedEmpresa] = useState(null);
   const [loading, setLoading] = useState(true);
   const [forceEditId, setForceEditId] = useState(null);
+  const [selectedProductos, setSelectedProductos] = useState([]);
 
   // Obtener opciones de empresas desde las empresas disponibles pasadas por el router
   const empresasOptions = useMemo(() => {
@@ -172,6 +173,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     }
 
     return {
+      PRECIO_UNITARIO: precioUnitarioFinal.toFixed(2),
       TOTAL: total,
       MB: mb
     };
@@ -191,6 +193,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       "Descuento 1 (%)": parseFloat(item.DESCUENTO_1) || 0,
       "Descuento 2 (%)": parseFloat(item.DESCUENTO_2) || 0,
       "Descuento 3 (%)": parseFloat(item.DESCUENTO_3) || 0,
+      "P. Unitario": parseFloat(item.PRECIO_UNITARIO) || 0,
       "Total": parseFloat(item.TOTAL) || 0,
       "MB (%)": parseFloat(item.MB) || 0
     }));
@@ -210,6 +213,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       { wch: 15 }, // D1
       { wch: 15 }, // D2
       { wch: 15 }, // D3
+      { wch: 15 }, // P. Unitario
       { wch: 15 }, // Total
       { wch: 10 }, // MB
     ];
@@ -243,6 +247,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       "D1 (%)",
       "D2 (%)",
       "D3 (%)",
+      "P. Unitario",
       "Total",
       "MB (%)"
     ];
@@ -256,6 +261,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       item.DESCUENTO_1 || 0,
       item.DESCUENTO_2 || 0,
       item.DESCUENTO_3 || 0,
+      item.PRECIO_UNITARIO ? parseFloat(item.PRECIO_UNITARIO).toFixed(2) : "0.00",
       item.TOTAL ? parseFloat(item.TOTAL).toFixed(2) : "0.00",
       item.MB ? parseFloat(item.MB).toFixed(2) : "0.00"
     ]);
@@ -274,8 +280,9 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
         2: { halign: 'center' },
         3: { halign: 'right' },
         4: { halign: 'right' },
-        8: { halign: 'right', fontStyle: 'bold' },
-        9: { halign: 'center' }
+        8: { halign: 'right' },
+        9: { halign: 'right', fontStyle: 'bold' },
+        10: { halign: 'center' }
       }
     });
 
@@ -334,6 +341,13 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       width: "110px"
     },
     {
+      header: "P. Unitario",
+      field: "PRECIO_UNITARIO",
+      isEditable: false,
+      format: "money",
+      width: "140px"
+    },
+    {
       header: "Total",
       field: "TOTAL",
       isEditable: true,
@@ -389,6 +403,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     const rowWithCalculated = {
       ...rowToProcess,
       // Si el cambio fue manual, mantenemos el valor tal como lo escribió el usuario para no romper el input (ej. evitar que "1" se vuelva "1.00" mientras escribe)
+      PRECIO_UNITARIO: nuevosValores.PRECIO_UNITARIO,
       TOTAL: isTotalManual ? updatedRow.TOTAL : nuevosValores.TOTAL,
       MB: nuevosValores.MB
     };
@@ -422,11 +437,48 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     };
     setData([...data, nuevaFila]);
     setIsModalOpen(false);
+    setSelectedProductos([]);
     setSearchQuery("");
     setSearchField("all");
 
     setForceEditId(newId);
     setTimeout(() => setForceEditId(null), 100);
+  };
+
+  const handleAddMultipleProducts = () => {
+    if (selectedProductos.length === 0) return;
+    
+    const baseId = Date.now();
+    const nuevasFilas = selectedProductos.map((producto, index) => {
+      const newId = baseId + index;
+      return {
+        ID: newId,
+        ID_PRODUCTO: producto.codigoItem,
+        IDENTIFICADOR: producto.identificadorItem,
+        NOMBRE: producto.nombreItem,
+        STOCK: producto.stock,
+        CANTIDAD: 1,
+        PRECIO: producto.listaPreciosA,
+        COSTO_PROMEDIO: producto.costoPromedio,
+        DESCUENTO_1: 0,
+        DESCUENTO_2: 0,
+        DESCUENTO_3: 0,
+        ...calcularValores({
+          PRECIO: producto.listaPreciosA,
+          COSTO_PROMEDIO: producto.costoPromedio,
+          DESCUENTO_1: 0,
+          DESCUENTO_2: 0,
+          DESCUENTO_3: 0,
+          CANTIDAD: 1
+        })
+      };
+    });
+
+    setData([...data, ...nuevasFilas]);
+    setIsModalOpen(false);
+    setSelectedProductos([]);
+    setSearchQuery("");
+    setSearchField("all");
   };
 
   const handleDelete = (item) => {
@@ -540,12 +592,26 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
 
       <ModalUI
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedProductos([]);
+        }}
         title="Búsqueda de Productos"
         maxWidth="1000px"
         width="95%"
-        noFooter
+        noFooter={selectedProductos.length === 0}
         noPadding
+        footer={
+          <ContainerUI justifyContent="flex-end" width="100%" style={{ padding: "10px 20px" }}>
+            <ButtonUI
+              text={`Agregar ${selectedProductos.length} productos`}
+              onClick={handleAddMultipleProducts}
+              pcolor={theme?.colors?.primary}
+              iconLeft="FaPlus"
+              disabled={selectedProductos.length === 0}
+            />
+          </ContainerUI>
+        }
       >
         <ContainerUI flexDirection="column" style={{ padding: "20px", gap: "10px", height: "75vh" }}>
           {/* Fila de Búsqueda y Filtros Consolidada */}
@@ -614,16 +680,19 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
                 data={productosFiltrados}
                 columns={modalColumns}
                 defaultFilters={[]}
-                onRowDoubleClick={(item) => handleAddProductFromModal(item)}
                 includeModal={false}
                 showFilters={false}
+                selectionMode="multiple"
+                selectedItems={selectedProductos}
+                onSelectionChange={setSelectedProductos}
+                uniqueKey="codigoItem"
               />
             )}
           </div>
 
           <ContainerUI justifyContent="center">
             <TextUI size="13px" color={theme?.colors?.textSecondary}>
-              Doble clic para seleccionar producto
+              Doble clic sobre una fila para marcar/desmarcar producto
             </TextUI>
           </ContainerUI>
         </ContainerUI>
