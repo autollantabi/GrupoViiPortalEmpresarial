@@ -52,14 +52,20 @@ const LINEA_OPTIONS = [
 const generateDateRange = (startDate, endDate) => {
   if (!startDate || !endDate) return [];
   const dates = [];
-  let current = new Date(startDate);
-  const last = new Date(endDate);
-  // Reset time to avoid issues with daylight savings or hour offsets
-  current.setHours(12, 0, 0, 0);
-  last.setHours(12, 0, 0, 0);
+  
+  // Usar split para evitar problemas de zona horaria al crear el objeto Date
+  const [startYear, startMonth, startDay] = startDate.split('-');
+  const [endYear, endMonth, endDay] = endDate.split('-');
+  
+  let current = new Date(startYear, startMonth - 1, startDay, 12, 0, 0);
+  const last = new Date(endYear, endMonth - 1, endDay, 12, 0, 0);
 
   while (current <= last) {
-    dates.push(current.toISOString().split('T')[0]);
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, '0');
+    const day = String(current.getDate()).padStart(2, '0');
+    
+    dates.push(`${year}-${month}-${day}`);
     current.setDate(current.getDate() + 1);
   }
   return dates;

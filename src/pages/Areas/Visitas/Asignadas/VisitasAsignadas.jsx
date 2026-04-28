@@ -114,6 +114,7 @@ const EmptyState = styled.div`
   justify-content: center;
   gap: 16px;
   transition: all 0.3s ease;
+  flex: 1;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary}50;
@@ -130,8 +131,10 @@ const CompletedVisitsSection = styled.div`
   border-radius: 16px;
   border: 1px solid ${({ theme }) => theme.colors.border};
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  max-height: 400px;
+  max-height: ${({ $isExpanded }) => ($isExpanded ? '500px' : '200px')};
   overflow: hidden;
+  flex-shrink: 0;
+  transition: max-height 0.3s ease;
 `;
 
 const ScrollableList = styled.div`
@@ -460,7 +463,7 @@ export const VisitasAsignadas = () => {
           )}
 
           {completedVisits.length > 0 && (
-            <CompletedVisitsSection theme={theme}>
+            <CompletedVisitsSection theme={theme} $isExpanded={!visitDetails}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
                   background: theme.colors.success + '15',

@@ -8,8 +8,6 @@ import { axiosInstanceNew } from "config/axiosConfig";
 export const ListarVendedoresReemplazosVisitas = async (idEmpresa) => {
   try {
     const response = await axiosInstanceNew.get(`/reemplazo-vendedores-visita/vendedores/${idEmpresa}`);
-    console.log(response.data);
-
     if (response.data && response.data.status === "Ok!") {
       return {
         vendedores: response.data.data.vendedores || [],
@@ -33,7 +31,6 @@ export const CrearReemplazoVisita = async (data) => {
     const response = await axiosInstanceNew.post("/reemplazo-vendedores-visita", data);
     return response.data && response.status === 201 || response.status === 200;
   } catch (error) {
-    console.error("Error en CrearReemplazoVisita:", error);
     return false;
   }
 };
@@ -45,12 +42,12 @@ export const CrearReemplazoVisita = async (data) => {
 export const ListarVisitasHoy = async () => {
   try {
     const response = await axiosInstanceNew.get("/reemplazo-vendedores-visita/visitas-hoy");
+
     if (response.data && response.data.status === "Ok!") {
       return response.data.data || [];
     }
     return [];
   } catch (error) {
-    console.error("Error en ListarVisitasHoy:", error);
     return [];
   }
 };
