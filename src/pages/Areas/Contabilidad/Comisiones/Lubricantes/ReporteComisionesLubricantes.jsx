@@ -47,7 +47,7 @@ export const ComisionesLubricantes = ({
   availableLines = [],
 }) => {
   const { theme } = useTheme();
-  
+
   // Convertir availableCompanies de { id, nombre } a { idempresa, empresa } para compatibilidad
   const empresasDisponibles = useMemo(() => {
     if (!availableCompanies || availableCompanies.length === 0) {
@@ -231,11 +231,59 @@ export const ComisionesLubricantes = ({
 
   // Estado que mantiene los datos de la tabla
   const [data, setData] = useState([]);
+  const [filteredDataForTotals, setFilteredDataForTotals] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [empresaSl, setEmpresasSl] = useState("");
   const [anio, setAnio] = useState("");
   const [anioSl, setAnioSl] = useState("");
   const [mes, setMes] = useState("");
+
+  const footerData = useMemo(() => {
+    if (data.length === 0) return null;
+
+    const sourceData = filteredDataForTotals.length > 0 ? filteredDataForTotals : data;
+
+    const totals = {
+      VENDEDOR: "TOTAL",
+      CONV_PRESUPUESTO_LITROS: 0,
+      CONV_LITROS_VENDIDOS: 0,
+      PREM_PRESUPUESTO_LITROS: 0,
+      PREM_LITROS_VENDIDOS: 0,
+      REF_PRESUPUESTO_LITROS: 0,
+      REF_LITROS_VENDIDOS: 0,
+      TOTAL_PRESUPUESTO_LITROS: 0,
+      TOTAL_LITROS_VENDIDOS: 0,
+      TOTAL_TOTAL_VENTA: 0,
+    };
+
+    sourceData.forEach((item) => {
+      totals.CONV_PRESUPUESTO_LITROS += Number(item.CONV_PRESUPUESTO_LITROS) || 0;
+      totals.CONV_LITROS_VENDIDOS += Number(item.CONV_LITROS_VENDIDOS) || 0;
+      totals.PREM_PRESUPUESTO_LITROS += Number(item.PREM_PRESUPUESTO_LITROS) || 0;
+      totals.PREM_LITROS_VENDIDOS += Number(item.PREM_LITROS_VENDIDOS) || 0;
+      totals.REF_PRESUPUESTO_LITROS += Number(item.REF_PRESUPUESTO_LITROS) || 0;
+      totals.REF_LITROS_VENDIDOS += Number(item.REF_LITROS_VENDIDOS) || 0;
+      totals.TOTAL_PRESUPUESTO_LITROS += Number(item.TOTAL_PRESUPUESTO_LITROS) || 0;
+      totals.TOTAL_LITROS_VENDIDOS += Number(item.TOTAL_LITROS_VENDIDOS) || 0;
+      totals.TOTAL_TOTAL_VENTA += Number(item.TOTAL_TOTAL_VENTA) || 0;
+    });
+
+    // Recalcular porcentajes
+    totals.CONV_PORCENTAJE_CUMPLIMIENTO = totals.CONV_PRESUPUESTO_LITROS > 0
+      ? (totals.CONV_LITROS_VENDIDOS / totals.CONV_PRESUPUESTO_LITROS) * 100
+      : 0;
+    totals.PREM_PORCENTAJE_CUMPLIMIENTO = totals.PREM_PRESUPUESTO_LITROS > 0
+      ? (totals.PREM_LITROS_VENDIDOS / totals.PREM_PRESUPUESTO_LITROS) * 100
+      : 0;
+    totals.REF_PORCENTAJE_CUMPLIMIENTO = totals.REF_PRESUPUESTO_LITROS > 0
+      ? (totals.REF_LITROS_VENDIDOS / totals.REF_PRESUPUESTO_LITROS) * 100
+      : 0;
+    totals.TOTAL_PORCENTAJE_CUMPLIMIENTO = totals.TOTAL_PRESUPUESTO_LITROS > 0
+      ? (totals.TOTAL_LITROS_VENDIDOS / totals.TOTAL_PRESUPUESTO_LITROS) * 100
+      : 0;
+
+    return totals;
+  }, [data, filteredDataForTotals]);
 
   const datosIniciales = async () => {
     const getEmpresasporPermiso = empresasDisponibles || [];
@@ -279,9 +327,8 @@ export const ComisionesLubricantes = ({
     }
 
     // Crear el nombre del archivo
-    const nombreArchivo = `Comisiones_Lubricantes_${empresaSl?.label || ""}_${
-      mes?.label || ""
-    }_${anioSl?.label || ""}`;
+    const nombreArchivo = `Comisiones_Lubricantes_${empresaSl?.label || ""}_${mes?.label || ""
+      }_${anioSl?.label || ""}`;
 
     // Función para exportar a Excel usando la librería xlsx
     const exportToExcel = () => {
@@ -439,11 +486,12 @@ export const ComisionesLubricantes = ({
           defaultFilters={["VENDEDOR"]}
           sortedInitial={{ column: "ID", direction: "asc" }}
           onFilterChange={handleSort}
+          onFilteredDataChange={setFilteredDataForTotals}
+          footerData={footerData}
           decimales={2}
           excel={tienePermiso.exportar}
-          filenameExcel={`Comisiones_Lubricantes_${empresaSl?.label || ""}_${
-            mes?.label || ""
-          }_${anioSl?.label || ""}`}
+          filenameExcel={`Comisiones_Lubricantes_${empresaSl?.label || ""}_${mes?.label || ""
+            }_${anioSl?.label || ""}`}
           nombresColumnasPersonalizadosExcel={nombresPersonalizados}
           columnasOcultasExcel={[
             "ID",

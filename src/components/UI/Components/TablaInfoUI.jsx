@@ -113,7 +113,9 @@ export const TablaInfoUI = ({
   selectionMode = null, // "multiple" or "single"
   selectedItems = [],
   onSelectionChange = null,
+  onFilteredDataChange = null,
   uniqueKey = "ID",
+  footerData = null,
 }) => {
   const [filteredData, setFilteredData] = useState(data);
   const { theme } = useTheme();
@@ -150,6 +152,12 @@ export const TablaInfoUI = ({
       setFilteredData([]);
     }
   }, [data]);
+
+  useEffect(() => {
+    if (onFilteredDataChange) {
+      onFilteredDataChange(filteredData);
+    }
+  }, [filteredData]);
 
   // Función para determinar si una fila está seleccionada (manejo interno)
   const isRowSelected = (index) => {
@@ -554,7 +562,7 @@ export const TablaInfoUI = ({
               <ExportToExcelUI
                 filename={`Reporte_${filenameExcel}`}
                 habilitarBoton={false}
-                data={filteredData}
+                data={footerData ? [...filteredData, { ...footerData, [columns.find(c => c.visible !== false)?.field || "ID"]: "TOTAL" }] : filteredData}
                 columnasOcultas={columnasOcultasExcel}
                 nombresPersonalizados={nombresColumnasPersonalizadosExcel}
               />
@@ -759,6 +767,56 @@ export const TablaInfoUI = ({
               </tr>
             )}
           </tbody>
+          {footerData && (
+            <tfoot
+              style={{
+                position: "sticky",
+                bottom: 0,
+                zIndex: 1,
+                fontSize: "12px",
+                backgroundColor: theme?.name === "dark" 
+                  ? (theme?.colors?.backgroundCard || theme?.colors?.backgroundLight)
+                  : (theme?.colors?.backgroundCard || "#fafafa"),
+              }}
+            >
+              <tr>
+                {selectionMode === "multiple" && (
+                  <td style={{
+                    borderRight: `1px solid ${hexToRGBA({ hex: theme?.colors?.border || "#656565", alpha: 0.45 })}`,
+                    borderTop: `2px solid ${theme?.colors?.border || "#dee2e6"}`,
+                  }}></td>
+                )}
+                {columns
+                  .filter((col) => col.visible !== false)
+                  .map((col, index) => (
+                    <td
+                      key={index}
+                      style={{
+                        width: col.width || "auto",
+                        minWidth: col.width || "auto",
+                        maxWidth: col.width || "none",
+                        fontWeight: "bold",
+                        padding: "10px",
+                        borderRight: `1px solid ${hexToRGBA({ hex: theme?.colors?.border || "#656565", alpha: 0.45 })}`,
+                        borderTop: `2px solid ${theme?.colors?.border || "#dee2e6"}`,
+                        textAlign: "center",
+                        color: theme?.colors?.text || "#212529",
+                        backgroundColor: theme?.name === "dark" 
+                          ? (theme?.colors?.backgroundCard || theme?.colors?.backgroundLight)
+                          : (theme?.colors?.backgroundCard || "#fafafa"),
+                      }}
+                    >
+                      {footerData[col.field] !== undefined ? formatString(col.format, footerData[col.field]) : ""}
+                    </td>
+                  ))}
+                {includeModal && (
+                  <td style={{
+                    borderTop: `2px solid ${theme?.colors?.border || "#dee2e6"}`,
+                  }}></td>
+                )}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
       <span style={{ fontSize: "12px", color: theme?.colors?.textSecondary || "#6c757d" }}>
