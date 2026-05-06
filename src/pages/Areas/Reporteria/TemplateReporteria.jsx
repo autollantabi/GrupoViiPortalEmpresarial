@@ -311,10 +311,10 @@ export const TemplateReporteria = ({
     }
   }, [opcionesEmpresas, tipoUsuarioSeleccionado, empresaSeleccionada]);
 
-  // ¿Hay al menos un reporte con línea definida? (muestra select Recurso)
+  // ¿Hay al menos un reporte con línea definida para la empresa seleccionada? (muestra select Recurso)
   const tieneRecursos = useMemo(
-    () => reportesFiltrados.some((r) => r.linea != null),
-    [reportesFiltrados]
+    () => reportesFiltrados.some((r) => r.empresa === empresaSeleccionada && r.linea != null),
+    [reportesFiltrados, empresaSeleccionada]
   );
 
   // Recurso a usar cuando no hay select de recursos: "null" para buscar reportes sin línea
@@ -549,10 +549,10 @@ export const TemplateReporteria = ({
           minWidth="200px"
         />
 
-        {/* Solo mostrar el select de Recurso si hay recursos */}
+        {/* Solo mostrar el select de Línea si hay líneas */}
         {tieneRecursos && (
           <SelectUI
-            label="Recurso"
+            label="Línea"
             options={opcionesRecursos}
             value={
               recursoSeleccionado
@@ -562,7 +562,7 @@ export const TemplateReporteria = ({
                 : null
             }
             onChange={handleRecursoChange}
-            placeholder="Selecciona un recurso..."
+            placeholder="Selecciona una línea..."
             isDisabled={!empresaSeleccionada || opcionesRecursos.length === 0}
             minWidth="200px"
           />

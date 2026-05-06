@@ -1513,7 +1513,7 @@ export default function MDM_Crud() {
                                             // Subir imágenes si existen
                                             if (item.imagenPng || item.imagenWebp) {
                                                 try {
-                                                    await uploadItemImages(item.marca, item.diseño, item.imagenPng, item.imagenWebp);
+                                                    await uploadItemImages(item.ID, item.marca, item.diseño, item.imagenPng, item.imagenWebp);
                                                 } catch (uploadError) {
                                                     console.error(`Error al subir imágenes para el ítem ${item.ID}:`, uploadError);
                                                     toast.error(`Error al subir imágenes para ${item.marca} ${item.diseño}`);

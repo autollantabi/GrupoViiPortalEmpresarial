@@ -147,25 +147,21 @@ export const rejectItemPhase = async (itemId, payload) => {
 
 /**
  * Sube imágenes PNG y WebP a un ítem.
+ * @param {number|string} id - ID del ítem
  * @param {string} marca - Marca del ítem
  * @param {string} diseño - Diseño del ítem
  * @param {File} imagenPng - Archivo de imagen PNG
  * @param {File} imagenWebp - Archivo de imagen WebP
  * @returns {Promise<any>}
  */
-export const uploadItemImages = async (marca, diseño, imagenPng, imagenWebp) => {
+export const uploadItemImages = async (id, marca, diseño, imagenPng, imagenWebp) => {
     try {
         const formData = new FormData();
+        formData.append("ID", id);
         formData.append("MARCA", marca);
         formData.append("DISENIO", diseño);
         if (imagenPng) formData.append("imagenPng", imagenPng);
         if (imagenWebp) formData.append("imagenWebp", imagenWebp);
-
-        // Mostrar contenido del FormData para depuración
-        console.log("--- Contenido del FormData ---");
-        for (let [key, value] of formData.entries()) {
-            console.log(`${key}:`, value);
-        }
 
         // Replicamos la configuración de uploadToCloudflare que ya funciona en este proyecto
         const response = await axiosInstanceNew.post("/mdm/items/upload-images", formData, {
