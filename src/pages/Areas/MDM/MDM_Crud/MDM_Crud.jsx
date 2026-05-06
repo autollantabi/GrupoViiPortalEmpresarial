@@ -9,7 +9,8 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, uploadToCloudflare } from "services/mdmService";
+import { parseLlantas, uploadToCloudflare, getItemsByRole, saveItems, processItemAction, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages } from "services/mdmService";
+import { ListarEmpresasAdmin } from "services/administracionService";
 
 const LINEAS_NEGOCIO = [
     { value: "LLANTAS", label: "LLANTAS" },
@@ -22,33 +23,6 @@ const TIPOS_LLANTAS = [
     { value: "Decimal", label: "Decimal" },
 ];
 const VELOCIDADES = "Y G R H L Q W F J M P V S I K T N".split(" ").map((v) => ({ value: v, label: v }));
-const MARCAS_LUBRICANTES = [
-    { value: "SHELL", label: "SHELL" },
-    { value: "PENNZOIL", label: "PENNZOIL" },
-    { value: "AC DELCO", label: "AC DELCO" },
-];
-const OPCIONES_EMPAQUE = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
-const OPCIONES_UNIDAD_LUB = ["L", "QT", "UGL", "KG", "LB"].map((v) => ({ value: v, label: v }));
-const OPCIONES_FAMILIA_LUB = [
-    "AC DELCO", "ADVANCE", "AEROSHELL", "ARGINA", "CAPRINUS",
-    "CORENA", "GADINIA", "GADUS", "HELIX", "HYDRAULIC",
-    "MORLINA", "MYSELLA", "NAUTILUS", "OMALA", "PENNZOIL",
-    "REFRIGERANTE", "RIM", "RIMULA", "ROTELLA", "SHELLZONE",
-    "SPIRAX", "TELLUS", "TONNA", "TURBO"
-].map((v) => ({ value: v, label: v }));
-
-// --- Marcas de llantas (value = marca referencial para descripción, marcaOriginal = para BD) ---
-const MARCAS_LLANTAS = [
-    { value: "APLUS", label: "APLUS", marcaOriginal: "APLUS" },
-    { value: "ANSU", label: "ANSU", marcaOriginal: "WONDERLAND" },
-    { value: "CST", label: "CST", marcaOriginal: "CST" },
-    { value: "FARROAD BRAND", label: "FARROAD BRAND", marcaOriginal: "FARROAD BRAND" },
-    { value: "FORTUNE", label: "FORTUNE", marcaOriginal: "FORTUNE" },
-    { value: "HAOHUA", label: "HAOHUA", marcaOriginal: "HAOHUA" },
-    { value: "MAXTREK", label: "MAXTREK", marcaOriginal: "MAXTREK" },
-    { value: "MAXXIS", label: "MAXXIS", marcaOriginal: "MAXXIS" },
-    { value: "WONDERLAND", label: "WONDERLAND", marcaOriginal: "WONDERLAND" },
-];
 
 // --- Jerarquía CATEGORIA → SEGMENTO → APLICACION → EJE (llantas) ---
 const CATEGORIAS_LLANTAS = {
@@ -140,78 +114,6 @@ const CATEGORIAS_LLANTAS = {
     },
 };
 
-const EMPRESAS_POR_LINEA = {
-    LLANTAS: [
-        { value: "AUTOLLANTA", label: "AUTOLLANTA" },
-        { value: "MAXXIMUNDO", label: "MAXXIMUNDO" },
-        { value: "STOX", label: "STOX" },
-        { value: "AUTOMAX", label: "AUTOMAX" },
-    ],
-    "LLANTAS MOTO": [
-        { value: "MAXXIMUNDO", label: "MAXXIMUNDO" },
-    ],
-    LUBRICANTES: [
-        { value: "MAXXIMUNDO", label: "MAXXIMUNDO" },
-    ],
-};
-const CAMPO_LABELS = {
-    marcaLlanta: "Marca", categoria: "Categoría", segmento: "Segmento", aplicacion: "Aplicación", eje: "Eje",
-    tipo: "Tipo", ancho: "Ancho", altura: "Altura/Serie", rin: "Rin",
-    diseño: "Diseño", lona: "Lona/Robustez", carga: "Carga", velocidad: "Velocidad",
-    marca: "Marca", familia: "Familia", tipoLub: "Tipo", viscosidad: "Viscosidad", empaqueLub: "Empaque", cantidadLub: "Cantidad", unidadLub: "Unidad",
-    descripcionHerramienta: "Descripción",
-};
-
-const ID_BORRADOR = "draft";
-
-// --- Configuración por línea de negocio ---
-const LINEA_CONFIG = {
-    LLANTAS: {
-        formType: "llantas",
-        marcas: MARCAS_LLANTAS,
-        categorias: CATEGORIAS_LLANTAS,
-        ancho: {
-            Americana: { min: 8, max: 13, step: 0.5 },
-            Milimetrica: { min: 55, max: 385, step: 5 },
-            Decimal: { min: 2.5, max: 14, step: 0.5 },
-        },
-        altura: {
-            Americana: { min: 18, max: 38, step: 1 },
-            Milimetrica: { min: 35, max: 100, step: 5 },
-        },
-        rin: { min: 10, max: 24.5, step: 0.5 },
-        lona: { min: 6, max: 24, step: 1 },
-        carga: { tipo: "formato" },
-    },
-    LUBRICANTES: {
-        formType: "lubricantes",
-    },
-    HERRAMIENTAS: {
-        formType: "herramientas",
-    },
-};
-
-function generarOpciones(min, max, step) {
-    const arr = [];
-    const factor = 10000;
-    const minI = Math.round(min * factor);
-    const maxI = Math.round(max * factor);
-    const stepI = Math.round(step * factor);
-    for (let i = minI; i <= maxI; i += stepI) {
-        const v = i / factor;
-        const s = Number.isInteger(v) ? String(v) : parseFloat(v.toFixed(2)).toString();
-        arr.push({ value: s, label: s });
-    }
-    return arr;
-}
-
-function generarCargasFormato() {
-    const arr = [];
-    for (let i = 2; i <= 30; i++) arr.push({ value: String(i), label: String(i) });
-    for (let i = 4; i <= 30; i += 2) arr.push({ value: `${i}/${i - 2}`, label: `${i}/${i - 2}` });
-    return arr;
-}
-
 function validarRequerido(valor) {
     if (valor == null || String(valor).trim() === "") return "Requerido";
     return null;
@@ -223,55 +125,6 @@ function validarEnRango(valor, min, max) {
     const n = parseFloat(String(valor).replace(",", "."));
     if (Number.isNaN(n)) return "Debe ser número";
     if (n < min || n > max) return `Entre ${min} y ${max}`;
-    return null;
-}
-
-function validarAncho(config, tipo, valor) {
-    if (!config || !tipo) return validarRequerido(valor);
-    const cfg = config.ancho?.[tipo];
-    if (!cfg) return validarRequerido(valor);
-    return validarEnRango(valor, cfg.min, cfg.max);
-}
-
-function validarAltura(config, tipo, valor) {
-    if (tipo === "Decimal") return null;
-    if (!config || !tipo) return validarRequerido(valor);
-    const cfg = config.altura?.[tipo];
-    if (!cfg) return validarRequerido(valor);
-    return validarEnRango(valor, cfg.min, cfg.max);
-}
-
-function validarRin(config, valor) {
-    if (!config) return validarRequerido(valor);
-    return validarEnRango(valor, config.rin.min, config.rin.max);
-}
-
-function validarDiseño(valor) {
-    if (valor == null || String(valor).trim() === "") return "Requerido";
-    return null;
-}
-
-function validarLona(config, valor) {
-    if (!config) return validarRequerido(valor);
-    return validarEnRango(valor, config.lona.min, config.lona.max);
-}
-
-function validarCarga(config, valor) {
-    const err = validarRequerido(valor);
-    if (err) return err;
-    if (!config) return null;
-    if (config.carga.tipo === "formato") {
-        const s = String(valor).trim();
-        if (/^\d+$/.test(s)) return null;
-        if (/^\d+\/\d+$/.test(s)) return null;
-        return "Formato X o X/X";
-    }
-    if (config.carga.tipo === "rango") {
-        const n = parseInt(String(valor), 10);
-        if (Number.isNaN(n) || n < config.carga.min || n > config.carga.max)
-            return `Entero entre ${config.carga.min} y ${config.carga.max}`;
-        return null;
-    }
     return null;
 }
 
@@ -357,6 +210,15 @@ export default function MDM_Crud() {
         return v;
     };
 
+    const handleOneDecimalInput = (value) => {
+        let v = value.replace(/[^0-9.]/g, "");
+        if (v.startsWith(".")) v = "0" + v;
+        const parts = v.split(".");
+        if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
+        if (parts.length === 2 && parts[1].length > 1) v = parts[0] + "." + parts[1].substring(0, 1);
+        return v;
+    };
+
     const handleCargaInput = (value) => {
         let v = value.replace(/[^0-9/]/g, "");
         if (v.includes("/")) {
@@ -389,12 +251,25 @@ export default function MDM_Crud() {
     let opcionesLineasPermitidas = [];
     let opcionesEmpresasPermitidas = [];
 
-    const DICCIONARIO_EMPRESAS = {
-        1: 'AUTOLLANTA',
-        2: 'MAXXIMUNDO',
-        3: 'STOX',
-        4: 'IKONIX'
-    };
+    const [diccionarioEmpresas, setDiccionarioEmpresas] = useState({});
+
+    useEffect(() => {
+        const fetchEmpresas = async () => {
+            try {
+                const resp = await ListarEmpresasAdmin();
+                const dict = {};
+                resp.forEach(emp => {
+                    dict[emp.ID] = emp.NOMBRE;
+                });
+                setDiccionarioEmpresas(dict);
+            } catch (error) {
+                console.error("Error fetching empresas:", error);
+            }
+        };
+        fetchEmpresas();
+    }, []);
+
+
 
     if (user?.CONTEXTOS && Array.isArray(user.CONTEXTOS)) {
         const contextoMDM = user.CONTEXTOS.find(ctx => ctx.RECURSO === 'mdm.crud');
@@ -412,7 +287,7 @@ export default function MDM_Crud() {
             }
             if (contextoMDM.ALCANCE && Array.isArray(contextoMDM.ALCANCE.EMPRESAS)) {
                 opcionesEmpresasPermitidas = contextoMDM.ALCANCE.EMPRESAS
-                    .map(id => ({ value: id, label: DICCIONARIO_EMPRESAS[id] }))
+                    .map(id => ({ value: id, label: diccionarioEmpresas[id] }))
                     .filter(opt => opt.label);
             }
         }
@@ -438,179 +313,144 @@ export default function MDM_Crud() {
     const esHerramientas = lineaSeleccionada?.value === "HERRAMIENTAS";
 
     useEffect(() => {
-        const fetchLlantas = async () => {
-            if (idRolPrincipal === 3 && lineaSeleccionada) {
+        const fetchItems = async () => {
+            if (idRolPrincipal && lineaSeleccionada) {
                 try {
-                    const data = await parseLlantas([
-                        "MAXXIS LT265/70 R-17 MT754 6PR 112/109Q OWL"
-                    ]);
+                    const data = await getItemsByRole(idRolPrincipal, lineaSeleccionada.value);
+                    if (data) {
+                        let processedItems = data;
+                        if (idRolPrincipal === 3) {
+                            const filtered = data.filter(it =>
+                                it.FASE_ACTUAL === 2 ||
+                                (it.FASES && it.FASES.some(f => f.FASE === 2 && f.RECHAZO))
+                            );
 
-                    if (data && data.length > 0) {
-                        const parsedItems = data.map((itemData, index) => {
-                            let nomenclaturaMap = "";
-                            if (itemData.tipo_medida === "MILIMETRICA") nomenclaturaMap = "Milimetrica";
-                            else if (itemData.tipo_medida === "AMERICANA") nomenclaturaMap = "Americana";
-                            else if (itemData.tipo_medida === "DECIMAL") nomenclaturaMap = "Decimal";
+                            const descripciones = filtered.map(it => it.DESCRIPCION || "");
+                            let parsedResults = [];
+                            if (descripciones.length > 0) {
+                                try {
+                                    parsedResults = await parseLlantas(descripciones);
+                                } catch (err) {
+                                    console.error("Error parsing llantas:", err);
+                                }
+                            }
 
-                            return {
-                                id: `item-parsed-${index}-${Date.now()}`,
-                                linea: lineaSeleccionada.value,
-                                descripcion: itemData.descripcion_original,
-                                diseño: itemData.diseno,
-                                rin: itemData.rin,
-                                serie: itemData.serie,
-                                lonas: itemData.lonas,
-                                ancho: itemData.ancho,
-                                nomenclatura: nomenclaturaMap,
-                                carga: itemData.carga,
-                                velocidad: itemData.velocidad,
-                            };
-                        });
-                        setItems(parsedItems);
-                    }
-                } catch (error) {
-                    console.error("Error al obtener parse-llantas:", error);
-                    toast.error("Error al cargar la información de llantas.");
-                }
-            }
+                            processedItems = filtered.map((it, index) => {
+                                const fase2 = it.FASES?.find(f => f.FASE === 2);
+                                const parsed = parsedResults[index] || {};
+                                return {
+                                    ...it,
+                                    id: it.ID,
+                                    linea: lineaSeleccionada.value,
+                                    diseño: it.DISENIO || parsed.diseno || "",
+                                    rin: it.RIN || parsed.rin || "",
+                                    serie: it.SERIE || parsed.serie || "",
+                                    lonas: it.LONAS || parsed.lonas || "",
+                                    ancho: it.ANCHO || parsed.ancho || "",
+                                    nomenclatura: it.NOMENCLATURA || parsed.tipo_medida || "",
+                                    carga: it.CARGA || parsed.carga || "",
+                                    velocidad: it.VELOCIDAD || parsed.velocidad || "",
+                                    categoria: it.CATEGORIA || "",
+                                    segmento: it.SEGMENTO || "",
+                                    aplicacion: it.APLICACION || parsed.Aplicacion || "",
+                                    eje: it.EJE || "",
+                                    comentarios: it.OBSERVACIONES || "",
+                                    descripcion: it.DESCRIPCION || "",
+                                    marca: it.MARCA || parsed.marca || "",
+                                    fueRechazado: fase2 ? fase2.RECHAZO : false,
+                                    motivoRechazo: fase2 ? fase2.MOTIVO_RECHAZO : ""
+                                };
+                            });
+                        } else if (idRolPrincipal === 4) {
+                            processedItems = data.filter(it =>
+                                it.FASE_ACTUAL === 3 ||
+                                (it.FASES && it.FASES.some(f => f.FASE === 3 && f.RECHAZO))
+                            ).map(it => {
+                                const fase3 = it.FASES?.find(f => f.FASE === 3);
+                                return {
+                                    ...it,
+                                    id: it.ID,
+                                    linea: lineaSeleccionada.value,
+                                    codigo: it.CODIGO_BARRAS || "",
+                                    marca: it.MARCA || "",
+                                    diseño: it.DISENIO || "",
+                                    descripcion: it.DESCRIPCION || "",
+                                    comentarios: it.OBSERVACIONES || "",
+                                    fueRechazado: fase3 ? fase3.RECHAZO : false,
+                                    motivoRechazo: fase3 ? fase3.MOTIVO_RECHAZO : ""
+                                };
+                            });
+                        } else if (idRolPrincipal === 5) {
+                            processedItems = data.filter(it =>
+                                it.FASES?.some(f => f.FASE === 1 && f.RECHAZO)
+                            ).map(it => {
+                                const fase1 = it.FASES?.find(f => f.FASE === 1);
+                                return {
+                                    ...it,
+                                    id: it.ID,
+                                    linea: lineaSeleccionada.value,
+                                    idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
+                                    codigo: it.CODIGO_BARRAS || "",
+                                    codigoSap: it.CODIGO_SAP || "",
+                                    descripcionRol5: it.DESCRIPCION || "",
+                                    descripcion: it.DESCRIPCION || "",
+                                    codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                    cubicaje: it.CUBICAJE || "",
+                                    nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
+                                    partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                    marca: it.MARCA || "",
+                                    comentarios: it.OBSERVACIONES || "",
+                                    fueRechazado: fase1 ? fase1.RECHAZO : false,
+                                    motivoRechazo: fase1 ? fase1.MOTIVO_RECHAZO : ""
+                                };
+                            });
+                        } else if (idRolPrincipal === 1) {
+                            processedItems = data.filter(it => it.FASE_ACTUAL === 4 && (!it.FASES || !it.FASES.some(f => f.RECHAZO))).map(it => {
+                                const f1 = it.FASES?.find(f => f.FASE === 1);
+                                const f2 = it.FASES?.find(f => f.FASE === 2);
+                                const f3 = it.FASES?.find(f => f.FASE === 3);
 
-            if (idRolPrincipal === 4 && lineaSeleccionada) {
-                try {
-                    // Simulación de endpoint para rol 4 (Coordinadora)
-                    // Los items llegarán en un endpoint con descripcion, codigo, diseño y marca
-                    const data = [
-                    ];
-
-                    if (data && data.length > 0) {
-                        const parsedItems = data.map((itemData, index) => {
-                            const cleanMarca = itemData.marca ? itemData.marca.toLowerCase().replace(/\s+/g, '') : "marca";
-                            const cleanDiseno = itemData.diseño ? itemData.diseño.toLowerCase().replace(/\s+/g, '') : "diseno";
-                            return {
-                                id: `item-rol4-${index}-${Date.now()}`,
-                                linea: lineaSeleccionada.value,
-                                descripcion: itemData.descripcion,
-                                codigo: itemData.codigo,
-                                diseño: itemData.diseño,
-                                marca: itemData.marca,
-                                imagenPng: null,
-                                imagenWebp: null,
-                                pathWebp: `/imagenesautomax/${cleanMarca}/${cleanDiseno}.webp`
-                            };
-                        });
-                        setItems(parsedItems);
-                    }
-                } catch (error) {
-                    console.error("Error al obtener items para rol 4:", error);
-                    toast.error("Error al cargar la información para rol 4.");
-                }
-            }
-            if (idRolPrincipal === 1 && lineaSeleccionada) {
-                try {
-                    // Mock de endpoint para rol 1 (Aprobador Final)
-                    const data = [
-                        {
-                            descripcion: "LLANTA MAXXIS 205/55R16 MT754",
-                            diseño: "MT754",
-                            marca: "MAXXIS",
-                            partidaArancelaria: "4011.10.10.00",
-                            medida: "205/55R16",
-                            robustez: "Normal",
-                            rin: "16",
-                            serie: "55",
-                            lonas: "6",
-                            ancho: "205",
-                            nomenclatura: "Milimetrica",
-                            carga: "91",
-                            velocidad: "V",
-                            categoria: "Auto",
-                            segmento: "Pasajero",
-                            aplicacion: "HT",
-                            eje: "Ambos",
-                            idEmpresa: 1,
-                            codigo: "1000123",
-                            codigoSap: "5000123",
-                            codigoProveedor: "MAXX-882",
-                            cubicaje: "0.085",
-                            nombreExtranjero: "MAXXIS RADIAL TIRE",
-                            imagenUrl: "https://via.placeholder.com/400x400.png?text=Llanta+MAXXIS"
-                        },
-                        {
-                            descripcion: "LLANTA APLUS 195/65R15 A607",
-                            diseño: "A607",
-                            marca: "APLUS",
-                            partidaArancelaria: "4011.20.10.00",
-                            medida: "195/65R15",
-                            robustez: "Reforzada",
-                            rin: "15",
-                            serie: "65",
-                            lonas: "8",
-                            ancho: "195",
-                            nomenclatura: "Milimetrica",
-                            carga: "95",
-                            velocidad: "H",
-                            categoria: "Auto",
-                            segmento: "Pasajero",
-                            aplicacion: "AT",
-                            eje: "Ambos",
-                            idEmpresa: 2,
-                            codigo: "1000567",
-                            codigoSap: "5000567",
-                            codigoProveedor: "APL-771",
-                            cubicaje: "0.072",
-                            nombreExtranjero: "APLUS COMFORT TIRE",
-                            imagenUrl: "https://via.placeholder.com/400x400.png?text=Llanta+APLUS"
+                                return {
+                                    ...it,
+                                    id: it.ID,
+                                    linea: lineaSeleccionada.value,
+                                    codigo: it.CODIGO_BARRAS || "",
+                                    marca: it.MARCA || "",
+                                    diseño: it.DISENIO || "",
+                                    descripcion: it.DESCRIPCION || "",
+                                    codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                    cubicaje: it.CUBICAJE || "",
+                                    nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
+                                    partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                    rin: it.RIN || "",
+                                    serie: it.SERIE || "",
+                                    lonas: it.LONAS || "",
+                                    ancho: it.ANCHO || "",
+                                    nomenclatura: it.NOMENCLATURA || "",
+                                    carga: it.CARGA || "",
+                                    velocidad: it.VELOCIDAD || "",
+                                    categoria: it.CATEGORIA || "",
+                                    segmento: it.SEGMENTO || "",
+                                    aplicacion: it.APLICACION || "",
+                                    eje: it.EJE || "",
+                                    comentariosRol5: f1?.OBSERVACIONES || "",
+                                    comentariosRol3: f2?.OBSERVACIONES || "",
+                                    comentariosRol4: f3?.OBSERVACIONES || "",
+                                    comentarioActual: it.OBSERVACIONES || ""
+                                };
+                            });
                         }
-                    ];
-                    const parsedItems = data.map((d, index) => ({
-                        id: `item-rol1-${index}-${Date.now()}`,
-                        linea: lineaSeleccionada.value,
-                        ...d
-                    }));
-                    setItems(parsedItems);
-                    setCurrentItemIndex(0);
-                } catch (error) {
-                    console.error("Error al obtener items para rol 1:", error);
-                }
-            }
-            if (idRolPrincipal === 5 && lineaSeleccionada) {
-                // Mock para rol 5 (Usuario)
-                const data = [
-                    {
-                        id: `item-rech-1-${Date.now()}`,
-                        linea: lineaSeleccionada.value,
-                        codigo: "1000888",
-                        codigoSap: "5000123",
-                        marca: "TOYO",
-                        diseño: "PROXES",
-                        descripcionRol5: "LLANTA TOYO 225/45R17",
-                        codigoProveedor: "TOYO-123",
-                        cubicaje: "0.095",
-                        nombreExtranjero: "TOYO PROXES T1R",
-                        partidaArancelaria: "4011.10.10.00",
-                        fueRechazado: true,
-                        motivoRechazo: "La descripción comercial no cumple con el formato estándar. Por favor incluir el índice de carga y código de velocidad."
-                    },
-                    {
-                        id: `item-norm-1-${Date.now()}`,
-                        linea: lineaSeleccionada.value,
-                        codigo: "1000999",
-                        codigoSap: "5000456",
-                        marca: "BRIDGESTONE",
-                        diseño: "TURANZA",
-                        descripcionRol5: "LLANTA BRIDGESTONE 205/55R16",
-                        codigoProveedor: "BS-456",
-                        cubicaje: "0.082",
-                        nombreExtranjero: "BRIDGESTONE TURANZA T005",
-                        partidaArancelaria: "4011.10.10.00",
-                        fueRechazado: false
+                        setItems(processedItems);
+                        if (idRolPrincipal === 1) setCurrentItemIndex(0);
                     }
-                ];
-                setItems(data);
+                } catch (error) {
+                    console.error("Error al obtener items:", error);
+                    toast.error("Error al cargar los ítems pendientes.");
+                }
             }
         };
-
-        fetchLlantas();
-    }, [lineaSeleccionada, idRolPrincipal]);
+        fetchItems();
+    }, [idRolPrincipal, lineaSeleccionada]);
 
 
 
@@ -618,15 +458,42 @@ export default function MDM_Crud() {
         setItems(prev => prev.filter(i => i.id !== id));
     };
 
-    const handleActionRol1 = (itemId) => {
-        setItems(prev => prev.filter(i => i.id !== itemId));
-        setCurrentItemIndex(prev => {
-            const currentLineItems = items.filter(i => i.linea === lineaSeleccionada?.value);
-            if (prev >= currentLineItems.length - 1) {
-                return Math.max(0, currentLineItems.length - 2);
+    const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
+        try {
+            if (action === "reject") {
+                // Mapeo Rol -> Fase
+                const roleToPhase = {
+                    5: 1,
+                    3: 2,
+                    4: 3
+                };
+
+                for (const roleId of rolesRechazo) {
+                    const phase = roleToPhase[roleId];
+                    if (phase) {
+                        const motivo = observaciones[roleId] || "Rechazado por Jefatura";
+                        await rejectItemPhase(itemId, {
+                            FASE: phase,
+                            RECHAZO: true,
+                            MOTIVO_RECHAZO: motivo
+                        });
+                    }
+                }
+            } else {
+                await processItemAction({
+                    itemId,
+                    action,
+                    rolesRechazo,
+                    observaciones
+                });
             }
-            return prev;
-        });
+            setItems(prev => prev.filter(i => i.id !== itemId));
+            // Si era el último ítem, retroceder el índice
+            setCurrentItemIndex(prev => Math.max(0, prev - 1));
+        } catch (error) {
+            console.error("Error al procesar acción:", error);
+            toast.error("Error al procesar la acción.");
+        }
     };
 
     const actualizarCampoFila = (id, campo, valor) => {
@@ -681,14 +548,15 @@ export default function MDM_Crud() {
                             iconLeft="FaSearch"
                             variant="primary"
                             disabled={!lineaSeleccionada}
-                            onClick={() => {
-                                // Mock data for items to review
-                                setItemsToReview([
-                                    { id: 'ext-1', descripcion: 'LLANTA PIRELLI 225/45R17 P7', marca: 'PIRELLI', diseño: 'P7' },
-                                    { id: 'ext-2', descripcion: 'LLANTA MICHELIN 205/55R16 PS4', marca: 'MICHELIN', diseño: 'PILOT SPORT 4' },
-                                    { id: 'ext-3', descripcion: 'LLANTA CONTINENTAL 215/60R16 UC6', marca: 'CONTINENTAL', diseño: 'UC6' }
-                                ]);
-                                setIsReviewModalOpen(true);
+                            onClick={async () => {
+                                try {
+                                    // Aquí se podría pasar un término de búsqueda si existiera el input
+                                    const data = await getItemsByRole(0, lineaSeleccionada.value); // Usamos rol 0 para 'externos' o similar
+                                    setItemsToReview(data);
+                                    setIsReviewModalOpen(true);
+                                } catch (error) {
+                                    toast.error("Error al buscar ítems externos.");
+                                }
                             }}
                         />
                     )}
@@ -751,8 +619,28 @@ export default function MDM_Crud() {
 
                                         <div style={{ flex: '1 1 60%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                             <div style={{ borderBottom: `1px solid ${theme?.colors?.border || '#eee'}`, paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                <div>
-                                                    <TextUI size="20px" weight="600">{item.descripcion}</TextUI>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <TextUI size="20px" weight="600" style={{ wordBreak: 'break-word' }}>{item.descripcion}</TextUI>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '10px' }}>
+                                                        {item.comentariosRol3 && (
+                                                            <div style={{ display: 'flex', gap: '5px', alignItems: 'flex-start' }}>
+                                                                <TextUI size="11px" weight="800" color={isDark ? '#f97316' : '#2563eb'} style={{ textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{DICCIONARIO_ROLES[3]}:</TextUI>
+                                                                <TextUI size="11px" color={theme?.colors?.textSecondary} style={{ wordBreak: 'break-word', flex: 1 }}>{item.comentariosRol3}</TextUI>
+                                                            </div>
+                                                        )}
+                                                        {item.comentariosRol4 && (
+                                                            <div style={{ display: 'flex', gap: '5px', alignItems: 'flex-start' }}>
+                                                                <TextUI size="11px" weight="800" color={isDark ? '#94a3b8' : '#ea580c'} style={{ textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{DICCIONARIO_ROLES[4]}:</TextUI>
+                                                                <TextUI size="11px" color={theme?.colors?.textSecondary} style={{ wordBreak: 'break-word', flex: 1 }}>{item.comentariosRol4}</TextUI>
+                                                            </div>
+                                                        )}
+                                                        {item.comentariosRol5 && (
+                                                            <div style={{ display: 'flex', gap: '5px', alignItems: 'flex-start' }}>
+                                                                <TextUI size="11px" weight="800" color={isDark ? '#3b82f6' : '#16a34a'} style={{ textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{DICCIONARIO_ROLES[5]}:</TextUI>
+                                                                <TextUI size="11px" color={theme?.colors?.textSecondary} style={{ wordBreak: 'break-word', flex: 1 }}>{item.comentariosRol5}</TextUI>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div style={{ display: 'flex', gap: '10px', flexDirection: 'column', alignItems: 'flex-end' }}>
                                                     <TextUI size="10px" weight="600" color={theme?.colors?.textSecondary} style={{ textTransform: 'uppercase', marginBottom: '2px' }}>Leyenda de Roles</TextUI>
@@ -774,7 +662,7 @@ export default function MDM_Crud() {
                                             </div>
 
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', overflow: 'auto', paddingRight: '8px' }}>
-                                                {Object.entries(item).filter(([k, v]) => !['id', 'linea', 'imagenUrl', 'descripcion'].includes(k)).map(([key, value]) => {
+                                                {Object.entries(item).filter(([k, v]) => !['id', 'ID', 'linea', 'imagenUrl', 'descripcion', 'comentarios', 'comentariosRol3', 'comentariosRol4', 'comentariosRol5', 'FASES', 'createdAt', 'updatedAt', 'FASE_ACTUAL', 'RUTA_IMAGEN_PNG', 'RUTA_IMAGEN_WEBP', 'NOMBRE', 'ID_USUARIO', 'OBSERVACIONES', 'fueRechazado', 'motivoRechazo', 'comentarioActual'].includes(k) && typeof v !== 'object').map(([key, value]) => {
                                                     const role3Fields = ['medida', 'diseño', 'marca', 'rin', 'serie', 'lonas', 'ancho', 'nomenclatura', 'carga', 'velocidad', 'categoria', 'segmento', 'aplicacion', 'eje', 'robustez'];
                                                     const role5Fields = ['idEmpresa', 'codigo', 'codigoSap', 'descripcionRol5', 'codigoProveedor', 'cubicaje', 'nombreExtranjero', 'partidaArancelaria'];
 
@@ -830,7 +718,7 @@ export default function MDM_Crud() {
                                                         }}>
                                                             <TextUI size="11px" color={isDark ? '#cbd5e1' : theme?.colors?.textSecondary} style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{labels[key] || key}</TextUI>
                                                             <TextUI size="14px" weight="600" color={isDark ? '#ffffff' : theme?.colors?.text}>
-                                                                {key === 'idEmpresa' ? (DICCIONARIO_EMPRESAS[value] || value || '-') : (value || '-')}
+                                                                {key === 'idEmpresa' ? (diccionarioEmpresas[value] || value || '-') : (value || '-')}
                                                             </TextUI>
                                                         </div>
                                                     );
@@ -875,7 +763,7 @@ export default function MDM_Crud() {
                                             pcolor={theme?.colors?.success || '#28a745'}
                                             onClick={() => {
                                                 toast.success(`Ítem ${item.codigo || item.diseño} aceptado exitosamente`);
-                                                handleActionRol1(item.id);
+                                                handleActionRol1(item.id, "approve");
                                             }}
                                         />
                                     </div>
@@ -929,6 +817,8 @@ export default function MDM_Crud() {
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px" }}>Segmento</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px" }}>Aplicación</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px" }}>Eje</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: 100, color: theme?.colors?.text }}>Acciones</th>
                                                 </>
                                             )}
                                             {idRolPrincipal === 4 && (
@@ -939,6 +829,8 @@ export default function MDM_Crud() {
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "250px" }}>Descripción</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Imagen PNG</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Imagen WebP</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: 100, color: theme?.colors?.text }}>Acciones</th>
                                                 </>
                                             )}
                                             {idRolPrincipal === 5 && (
@@ -952,6 +844,7 @@ export default function MDM_Crud() {
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Cubicaje</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre Extranjero</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Partida Arancelaria</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: 100, color: theme?.colors?.text }}>Acciones</th>
                                                 </>
                                             )}
@@ -960,7 +853,7 @@ export default function MDM_Crud() {
                                     <tbody>
                                         {itemsFiltrados.length === 0 ? (
                                             <tr>
-                                                <td colSpan={idRolPrincipal === 3 ? 15 : (idRolPrincipal === 5 ? 11 : (idRolPrincipal === 4 ? 8 : 8))} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                                <td colSpan={idRolPrincipal === 3 ? 17 : (idRolPrincipal === 5 ? 12 : (idRolPrincipal === 4 ? 10 : 8))} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                     No hay ítems de Llantas
                                                 </td>
                                             </tr>
@@ -993,16 +886,14 @@ export default function MDM_Crud() {
                                                     <>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                                MAXXIS LT265/70 R-17 MT754 6PR 112/109Q OWL
-
-
+                                                                {item.descripcion || "-"}
                                                             </div>
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.rin || ""} formatValue={handleRinSerieAncho} onChange={(v) => actualizarCampoFila(item.id, "rin", handleRinSerieAncho(v))} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.serie || ""} formatValue={handleRinSerieAncho} onChange={(v) => actualizarCampoFila(item.id, "serie", handleRinSerieAncho(v))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.rin || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "rin", handleNumericInput(v))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.serie || ""} formatValue={handleOneDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "serie", handleOneDecimalInput(v))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.lonas || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "lonas", handleNumericInput(v))} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.ancho || ""} formatValue={handleRinSerieAncho} onChange={(v) => actualizarCampoFila(item.id, "ancho", handleRinSerieAncho(v))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.ancho || ""} formatValue={handleOneDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "ancho", handleOneDecimalInput(v))} /></td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
                                                                 options={TIPOS_LLANTAS}
@@ -1063,6 +954,26 @@ export default function MDM_Crud() {
                                                                 minWidth="140px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                                 disabled={!item.aplicacion}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <InputUI
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                value={item.comentarios || ""}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <ButtonUI
+                                                                text="Motivo de rechazo"
+                                                                variant="outlined"
+                                                                pcolor={theme?.colors?.warning || "#ffc107"}
+                                                                style={{ padding: "4px 8px", fontSize: "11px", minWidth: "auto" }}
+                                                                disabled={!item.fueRechazado}
+                                                                onClick={() => {
+                                                                    setSelectedRejectionReason(item.motivoRechazo);
+                                                                    setIsViewReasonModalOpen(true);
+                                                                }}
                                                             />
                                                         </td>
                                                     </>
@@ -1143,6 +1054,26 @@ export default function MDM_Crud() {
                                                                 </span>
                                                             </div>
                                                         </td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <InputUI
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                value={item.comentarios || ""}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <ButtonUI
+                                                                text="Motivo de rechazo"
+                                                                variant="outlined"
+                                                                pcolor={theme?.colors?.warning || "#ffc107"}
+                                                                style={{ padding: "4px 8px", fontSize: "11px", minWidth: "auto" }}
+                                                                disabled={!item.fueRechazado}
+                                                                onClick={() => {
+                                                                    setSelectedRejectionReason(item.motivoRechazo);
+                                                                    setIsViewReasonModalOpen(true);
+                                                                }}
+                                                            />
+                                                        </td>
                                                     </>
                                                 )}
                                                 {idRolPrincipal === 5 && (
@@ -1150,7 +1081,7 @@ export default function MDM_Crud() {
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
                                                                 options={opcionesEmpresasPermitidas}
-                                                                value={item.idEmpresa ? { value: item.idEmpresa, label: DICCIONARIO_EMPRESAS[item.idEmpresa] } : null}
+                                                                value={item.idEmpresa ? { value: item.idEmpresa, label: diccionarioEmpresas[item.idEmpresa] } : null}
                                                                 onChange={(v) => actualizarCampoFila(item.id, "idEmpresa", v?.value)}
                                                                 minWidth="130px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
@@ -1180,6 +1111,13 @@ export default function MDM_Crud() {
                                                                 onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
                                                                 minWidth="140px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <InputUI
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                value={item.comentarios || ""}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
                                                             />
                                                         </td>
                                                     </>
@@ -1233,6 +1171,7 @@ export default function MDM_Crud() {
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Viscosidad</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Presentación</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
                                                 </>
                                             )}
                                             {idRolPrincipal === 5 && (
@@ -1245,6 +1184,7 @@ export default function MDM_Crud() {
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Cubicaje</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre Extranjero</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Partida Arancelaria</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
                                                 </>
                                             )}
                                             <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: 100, color: theme?.colors?.text }}>Acciones</th>
@@ -1253,7 +1193,7 @@ export default function MDM_Crud() {
                                     <tbody>
                                         {itemsFiltrados.length === 0 ? (
                                             <tr>
-                                                <td colSpan={idRolPrincipal === 5 ? 10 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                                <td colSpan={idRolPrincipal === 5 ? 11 : 8} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                     No hay ítems de Lubricantes
                                                 </td>
                                             </tr>
@@ -1279,6 +1219,15 @@ export default function MDM_Crud() {
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.viscosidad || ""} onChange={(v) => actualizarCampoFila(item.id, "viscosidad", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.presentacion || ""} onChange={(v) => actualizarCampoFila(item.id, "presentacion", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.descripcionConVariables || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionConVariables", v)} /></td>
+                                                        {(idRolPrincipal === 3 || idRolPrincipal === 4) && (
+                                                            <td style={{ padding: "4px 8px" }}>
+                                                                <InputUI
+                                                                    style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                    value={item.comentarios || ""}
+                                                                    onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
+                                                                />
+                                                            </td>
+                                                        )}
                                                     </>
                                                 )}
                                                 {idRolPrincipal === 5 && (
@@ -1286,7 +1235,7 @@ export default function MDM_Crud() {
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
                                                                 options={opcionesEmpresasPermitidas}
-                                                                value={item.idEmpresa ? { value: item.idEmpresa, label: DICCIONARIO_EMPRESAS[item.idEmpresa] } : null}
+                                                                value={item.idEmpresa ? { value: item.idEmpresa, label: diccionarioEmpresas[item.idEmpresa] } : null}
                                                                 onChange={(v) => actualizarCampoFila(item.id, "idEmpresa", v?.value)}
                                                                 minWidth="130px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
@@ -1306,12 +1255,18 @@ export default function MDM_Crud() {
                                                                     { value: "4011.10.10.00", label: "4011.10.10.00" },
                                                                     { value: "4011.80.00.12", label: "4011.80.00.12" },
                                                                     { value: "4011.10.90.00", label: "4011.10.90.00" },
-
                                                                 ]}
                                                                 value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
                                                                 onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
                                                                 minWidth="140px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <InputUI
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                value={item.comentarios || ""}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
                                                             />
                                                         </td>
                                                     </>
@@ -1359,7 +1314,10 @@ export default function MDM_Crud() {
                                                 />
                                             </th>
                                             {idRolPrincipal !== 5 && (
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                                <>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
+                                                </>
                                             )}
                                             {idRolPrincipal === 5 && (
                                                 <>
@@ -1371,6 +1329,7 @@ export default function MDM_Crud() {
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Cubicaje</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre Extranjero</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Partida Arancelaria</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
                                                 </>
                                             )}
                                             <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: 100, color: theme?.colors?.text }}>Acciones</th>
@@ -1379,7 +1338,7 @@ export default function MDM_Crud() {
                                     <tbody>
                                         {itemsFiltrados.length === 0 ? (
                                             <tr>
-                                                <td colSpan={idRolPrincipal === 5 ? 10 : 3} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                                <td colSpan={idRolPrincipal === 5 ? 11 : 4} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                     No hay ítems de Herramientas
                                                 </td>
                                             </tr>
@@ -1399,14 +1358,25 @@ export default function MDM_Crud() {
                                                     />
                                                 </td>
                                                 {idRolPrincipal !== 5 && (
-                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.descripcionConVariables || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionConVariables", v)} /></td>
+                                                    <>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.descripcionConVariables || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionConVariables", v)} /></td>
+                                                        {(idRolPrincipal === 3 || idRolPrincipal === 4) && (
+                                                            <td style={{ padding: "4px 8px" }}>
+                                                                <InputUI
+                                                                    style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                    value={item.comentarios || ""}
+                                                                    onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
+                                                                />
+                                                            </td>
+                                                        )}
+                                                    </>
                                                 )}
                                                 {idRolPrincipal === 5 && (
                                                     <>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
                                                                 options={opcionesEmpresasPermitidas}
-                                                                value={item.idEmpresa ? { value: item.idEmpresa, label: DICCIONARIO_EMPRESAS[item.idEmpresa] } : null}
+                                                                value={item.idEmpresa ? { value: item.idEmpresa, label: diccionarioEmpresas[item.idEmpresa] } : null}
                                                                 onChange={(v) => actualizarCampoFila(item.id, "idEmpresa", v?.value)}
                                                                 minWidth="130px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
@@ -1432,6 +1402,13 @@ export default function MDM_Crud() {
                                                                 onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
                                                                 minWidth="140px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <InputUI
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                value={item.comentarios || ""}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
                                                             />
                                                         </td>
                                                     </>
@@ -1469,38 +1446,98 @@ export default function MDM_Crud() {
                             disabled={items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
                             onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
-
                                 if (currentItems.length === 0) return;
 
-                                // Subida a Cloudflare para Rol 4 antes de enviar
-                                if (idRolPrincipal === 4) {
-                                    let uploadedCount = 0;
-                                    for (const item of currentItems) {
-                                        if (item.imagenWebp) {
-                                            try {
-                                                const cleanMarca = item.marca ? item.marca.toLowerCase().replace(/\s+/g, '') : "marca";
-                                                const cleanDiseno = item.diseño ? item.diseño.toLowerCase().replace(/\s+/g, '') : "diseno";
-                                                await uploadToCloudflare(item.imagenWebp, cleanMarca, cleanDiseno);
-                                                uploadedCount++;
-                                            } catch (error) {
-                                                toast.error(`Error al subir imagen WebP del diseño ${item.diseño} a Cloudflare.`);
+                                try {
+
+
+                                    if (idRolPrincipal === 5) {
+                                        for (const item of currentItems) {
+                                            if (item.fueRechazado) {
+                                                const payload = {
+                                                    ID: item.id,
+                                                    EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
+                                                    CODIGO_BARRAS: item.codigo || "",
+                                                    DESCRIPCION: item.descripcionRol5 || item.descripcion || "",
+                                                    CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                                                    CUBICAJE: item.cubicaje || "",
+                                                    NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
+                                                    PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                                                    MARCA: item.marca || "",
+                                                    CODIGO_SAP: String(item.codigoSap) || "0",
+                                                    OBSERVACIONES: item.comentarios || "",
+                                                    RECHAZO: false,
+                                                    FASE: 1
+                                                };
+                                                await patchItemRole3(payload);
+                                            } else {
+                                                const payload = {
+                                                    EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
+                                                    CODIGO_BARRAS: item.codigo || "",
+                                                    DESCRIPCION: item.descripcionRol5 || item.descripcion || "",
+                                                    CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                                                    CUBICAJE: item.cubicaje || "",
+                                                    NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
+                                                    PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                                                    MARCA: item.marca || "",
+                                                    CODIGO_SAP: String(item.codigoSap) || "0",
+                                                    OBSERVACIONES: item.comentarios || ""
+                                                };
+                                                await saveItemRole5(payload);
                                             }
                                         }
+                                    } else if (idRolPrincipal === 3) {
+                                        for (const item of currentItems) {
+                                            const payload = {
+                                                ID: item.ID,
+                                                DISENIO: item.diseño || "",
+                                                ANCHO: item.ancho || "",
+                                                LONAS: item.lonas || "",
+                                                NOMENCLATURA: item.nomenclatura || "",
+                                                CARGA: item.carga || "",
+                                                VELOCIDAD: item.velocidad || "",
+                                                RIN: item.rin || "",
+                                                SERIE: item.serie || "",
+                                                OBSERVACIONES: item.comentarios || "",
+                                                FASE: 2,
+                                                CATEGORIA: item.categoria || "",
+                                                SEGMENTO: item.segmento || "",
+                                                APLICACION: item.aplicacion || "",
+                                                EJE: item.eje || "",
+                                                ...(item.fueRechazado && { RECHAZO: false })
+                                            };
+                                            await patchItemRole3(payload);
+                                        }
+                                    } else if (idRolPrincipal === 4) {
+                                        for (const item of currentItems) {
+                                            // Subir imágenes si existen
+                                            if (item.imagenPng || item.imagenWebp) {
+                                                try {
+                                                    await uploadItemImages(item.marca, item.diseño, item.imagenPng, item.imagenWebp);
+                                                } catch (uploadError) {
+                                                    console.error(`Error al subir imágenes para el ítem ${item.ID}:`, uploadError);
+                                                    toast.error(`Error al subir imágenes para ${item.marca} ${item.diseño}`);
+                                                }
+                                            }
+
+                                            await patchItemRole3({
+                                                ID: item.ID,
+                                                FASE: 3,
+                                                OBSERVACIONES: item.comentarios || "",
+                                                ...(item.fueRechazado && { RECHAZO: false })
+                                            });
+                                        }
+                                    } else {
+                                        await saveItems(currentItems);
                                     }
-                                    if (uploadedCount > 0) {
-                                        toast.success(`Se subieron ${uploadedCount} imágenes WebP a Cloudflare.`);
-                                    }
+
+                                    toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
+                                    setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))));
+                                    setSelectedItemIds(new Set());
+                                } catch (error) {
+                                    console.error("Error al enviar a revisión:", error);
+                                    toast.error("Error al enviar los ítems a revisión.");
                                 }
-
-                                const cantidad = currentItems.length;
-                                toast.success(`Se enviaron a revisión ${cantidad} ítems seleccionados de ${lineaSeleccionada.label}`);
-
-                                setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))));
-                                setSelectedItemIds(prev => {
-                                    const newSet = new Set(prev);
-                                    currentItems.forEach(i => newSet.delete(i.id));
-                                    return newSet;
-                                });
                             }}
                             pcolor={theme?.colors?.primary}
                         />
@@ -1533,7 +1570,7 @@ export default function MDM_Crud() {
 
                     const rolesText = Array.from(rejectTargetRoles).map(r => DICCIONARIO_ROLES[r]).join(", ");
                     toast.error(`Ítem ${itemToReject?.codigo || itemToReject?.diseño} rechazado hacia: ${rolesText}.`);
-                    handleActionRol1(itemToReject.id);
+                    handleActionRol1(itemToReject.id, "reject", Array.from(rejectTargetRoles), rejectObservations);
                     setIsRejectModalOpen(false);
                     setRejectTargetRoles(new Set());
                     setRejectObservations({});
