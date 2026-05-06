@@ -9,6 +9,8 @@ import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { obtenerLineaNegocioParametros, actualizarNombreComercial } from "services/LineaNegocio";
+import { useAuthContext } from "context/authContext";
+
 
 const StyledTable = styled.table`
   width: 100%;
@@ -92,6 +94,25 @@ export default function Linea() {
   const [loading, setLoading] = useState(false);
   const [gruposOriginales, setGruposOriginales] = useState([]);
   const [appliedFilterIds, setAppliedFilterIds] = useState(null);
+  const [manualEditMode, setManualEditMode] = useState(false);
+  const { user } = useAuthContext();
+
+  const canEdit = useMemo(() => {
+    const contextos = user?.CONTEXTOS || user?.data || [];
+    const contextoNegocioLinea = contextos.find(ctx => ctx.RECURSO === "negocio.linea");
+    if (!contextoNegocioLinea) return false;
+
+    const permisos = contextoNegocioLinea.SOBRE_ESCRIBIR_PERMISOS;
+    if (!permisos) return false;
+
+    try {
+      const parsedPermisos = typeof permisos === "string" ? JSON.parse(permisos) : permisos;
+      return (Array.isArray(parsedPermisos) && parsedPermisos.includes(2)) || permisos.toString().includes("2");
+    } catch (error) {
+      return permisos.toString().includes("2");
+    }
+  }, [user]);
+
 
   const updateFilteredIds = (currentRows, currentFilter) => {
     if (!currentFilter || currentFilter.value === "TODOS") {
@@ -186,7 +207,7 @@ export default function Linea() {
 
   return (
     <ContainerUI width="100%" height="100%" padding="25px" flexDirection="column" style={{ overflow: "hidden", background: theme?.colors?.background }}>
-      <div style={{ width: "100%", position: "relative", display: "flex", alignItems: "center", marginBottom: "30px", zIndex: 10 }}>
+      <div style={{ width: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "30px", zIndex: 10 }}>
         <TextUI size="24px" weight="600">Monitoreo de Líneas</TextUI>
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", width: "400px" }}>
           <SelectUI
@@ -198,7 +219,16 @@ export default function Linea() {
             isSearchable
           />
         </div>
+        {canEdit && (
+          <ButtonUI
+            text={manualEditMode ? "Deshabilitar edición manual" : "Habilitar editar"}
+            iconLeft={manualEditMode ? "FaLock" : "FaPen"}
+            pcolor={manualEditMode ? theme?.colors?.secondary : theme?.colors?.primary}
+            onClick={() => setManualEditMode(!manualEditMode)}
+          />
+        )}
       </div>
+
 
       <div style={{ flex: 1, overflow: "auto", border: `1px solid ${theme?.colors?.border || "#dee2e6"}`, borderRadius: "5px" }}>
         <StyledTable theme={theme}>
@@ -245,6 +275,13 @@ export default function Linea() {
                           value={row.DLN_NOMBRE}
                           placeholder="Nombre Comercial..."
                         />
+                      ) : manualEditMode && row.isInitialUnassigned ? (
+                        <CleanInput
+                          theme={theme}
+                          value={row.DLN_NOMBRE === "NO ASIGNADO" ? "" : row.DLN_NOMBRE}
+                          onChange={(e) => handleInputChange(row.DLN_CODIGO, e.target.value)}
+                          placeholder="Escriba el nombre comercial..."
+                        />
                       ) : (
                         <SelectUI
                           options={gruposOriginales}
@@ -256,6 +293,7 @@ export default function Linea() {
                         />
                       )}
                     </td>
+
                     <td>
                       <ContenedorFlex $gap="8px" $justifyContent="center">
                         {isEditingMode ? (
