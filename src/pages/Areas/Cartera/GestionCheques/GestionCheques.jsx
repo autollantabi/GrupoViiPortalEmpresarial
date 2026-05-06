@@ -27,6 +27,13 @@ const defaultOptionsTransporte = [
   { value: "LAAR COURIER", label: "LAAR COURIER" },
   { value: "NATIONAL CARGO", label: "NATIONAL CARGO" },
 ];
+const DICCIONARIO_EMPRESAS = {
+  1: "AUTOLLANTA",
+  2: "MAXXIMUNDO",
+  3: "STOX",
+  4: "IKONIX",
+};
+
 const formatDateToYYYYMMDD = (dateString) => {
   if (!dateString) return null;
   const date = new Date(dateString);
@@ -49,9 +56,9 @@ export const GestionCheques = ({
   // Convertir availableCompanies al formato esperado
   const empresasDisponibles = useMemo(() => {
     if (availableCompanies && availableCompanies.length > 0) {
-      // Convertir { id, nombre } a { empresa: nombre, idempresa: id } para compatibilidad
+      // Usar el diccionario para mapear el ID al nombre esperado por el backend de cartera
       return availableCompanies.map(emp => ({
-        empresa: emp.nombre,
+        empresa: DICCIONARIO_EMPRESAS[emp.id] || emp.nombre,
         idempresa: emp.id,
       }));
     }
@@ -140,15 +147,18 @@ export const GestionCheques = ({
       // Al seleccionar una empresa, actualiza el select de Asesor
       onDependentLoad: async (option) => {
         if (option.value) {
-          // Consulta de asesores usando el ID (option.value)
+          // Obtenemos el nombre del diccionario usando el ID (option.value)
+          const nombreEmpresaQuery = DICCIONARIO_EMPRESAS[option.value] || option.label;
+
+          // Consulta de asesores usando el nombre del diccionario
           const asesoresData = await ListarVendedoresPorEmpresaCartera({
-            empresaId: option.value,
+            empresaId: nombreEmpresaQuery,
           });
 
-          // Consulta de clientes usando el ID (option.value)
+          // Consulta de clientes usando el nombre del diccionario
           const clientesData = await ListarClientesPorEmpresaCartera({
             correo: user.USUARIO.USUA_CORREO,
-            empresaId: option.value,
+            empresaId: nombreEmpresaQuery,
           });
 
           // Devuelve un arreglo con los datos para actualizar varias columnas
