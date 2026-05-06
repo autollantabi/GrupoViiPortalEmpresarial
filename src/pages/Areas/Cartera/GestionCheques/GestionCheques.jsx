@@ -60,20 +60,12 @@ export const GestionCheques = ({
 
   const consultarEmpresas = async () => {
     try {
-      const consulta = await ListarEmpresasCartera(user.USUARIO.USUA_CORREO);
-      
-      // Asegurarse de que 'consulta' sea un array antes de filtrar
-      const consultaArray = Array.isArray(consulta) ? consulta : [];
-
-      const consultaconPermisos = consultaArray.filter((item) =>
-        Array.isArray(empresasDisponibles) && 
-        empresasDisponibles.some((permiso) => item.EMPRESA === permiso.empresa)
-      );
-
+      // Usamos directamente las empresas permitidas para este recurso (vienen de availableCompanies)
+      // Esto evita disparidades de nombres entre el API de empresas y los permisos.
       const consultaT = transformarDataAValueLabel({
-        data: consultaconPermisos,
-        valueField: "IDENTIFICADOR",
-        labelField: "EMPRESA",
+        data: empresasDisponibles,
+        valueField: "idempresa",
+        labelField: "empresa",
       });
       return consultaT;
     } catch (error) {
@@ -147,16 +139,16 @@ export const GestionCheques = ({
       columnsRelated: ["ASESOR", "CODIGO_ASESOR", "CLIENTE", "CODIGO_CLIENTE"],
       // Al seleccionar una empresa, actualiza el select de Asesor
       onDependentLoad: async (option) => {
-        if (option.label) {
-          // Consulta de asesores
+        if (option.value) {
+          // Consulta de asesores usando el ID (option.value)
           const asesoresData = await ListarVendedoresPorEmpresaCartera({
-            empresaId: option.label,
+            empresaId: option.value,
           });
 
-          // Consulta de clientes
+          // Consulta de clientes usando el ID (option.value)
           const clientesData = await ListarClientesPorEmpresaCartera({
             correo: user.USUARIO.USUA_CORREO,
-            empresaId: option.label,
+            empresaId: option.value,
           });
 
           // Devuelve un arreglo con los datos para actualizar varias columnas

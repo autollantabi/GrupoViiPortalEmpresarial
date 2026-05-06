@@ -6,7 +6,6 @@ export async function ListarEmpresasCartera(correo) {
       `/usuario/datos/empresa/${correo}`
     );
 
-    console.log(res.data);
 
     if (res.status === 200) {
       return res.data;
@@ -34,7 +33,6 @@ export async function ListarVendedoresPorEmpresaCartera({ empresaId }) {
   try {
     const res = await axiosInstance.get(`/vendedor/${empresaId}`);
 
-    console.log(res.data);
     if (res.status === 200) {
       return res.data;
     }
