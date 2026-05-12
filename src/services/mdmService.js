@@ -10,7 +10,7 @@ export const parseLlantas = async (descripciones) => {
         const response = await axiosInstanceNew.post("/mdm/parse-llantas", {
             descripciones
         });
-
+        console.log(response.data);
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }

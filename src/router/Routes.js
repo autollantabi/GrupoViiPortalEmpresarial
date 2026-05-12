@@ -96,13 +96,6 @@ export const RoutesConfig = [
     component: Portal,
     recurso: null, // No requiere recurso, solo autenticación
   },
-  {
-    title: "Pricing",
-    component: ReporteriaPricing,
-    recurso: "reportes.pricing",
-    icon: "FaTags",
-    path: "/reportes/pricing",
-  },
   // ================================= ADMINISTRACION =================================
   {
     title: "Administración",
@@ -336,10 +329,14 @@ export const RoutesConfig = [
   },
 
   {
+    title: "Pricing",
+    component: ReporteriaPricing,
+    recurso: "reportes.pricing",
+  },
+  {
     title: "Comercial",
     component: ReporteriaComercial,
     recurso: "reportes.comercial",
-    recursosAlternativos: ["reportes.pricing"],
   },
   {
     title: "Tecni. Comercial",
