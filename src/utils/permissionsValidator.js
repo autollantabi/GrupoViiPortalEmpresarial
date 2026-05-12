@@ -144,8 +144,9 @@ export function getAvailableCompanies(userContexts, recurso, empresasGlobales = 
 
       if (context.ALCANCE?.EMPRESAS && Array.isArray(context.ALCANCE.EMPRESAS)) {
         context.ALCANCE.EMPRESAS.forEach((empresaId) => {
-          const empresaNombre = empresasMap[empresaId.toString()];
-          if (empresaNombre && !companies.has(empresaId)) {
+          if (!companies.has(empresaId)) {
+            // Buscar el nombre en el mapa, si no existe dejar nombre vacío (se mostrará igual)
+            const empresaNombre = empresasMap[empresaId.toString()] || "";
             companies.set(empresaId, {
               id: empresaId,
               nombre: empresaNombre,
@@ -192,8 +193,9 @@ export function getAvailableLines(userContexts, recurso, lineasGlobales = null) 
 
       if (context.ALCANCE?.LINEAS && Array.isArray(context.ALCANCE.LINEAS)) {
         context.ALCANCE.LINEAS.forEach((lineaId) => {
-          const lineaNombre = lineasMap[lineaId.toString()];
-          if (lineaNombre && !lines.has(lineaId)) {
+          if (!lines.has(lineaId)) {
+            // Buscar el nombre en el mapa, si no existe dejar nombre vacío (se mostrará igual)
+            const lineaNombre = lineasMap[lineaId.toString()] || "";
             lines.set(lineaId, {
               id: lineaId,
               nombre: lineaNombre,
@@ -245,4 +247,69 @@ export function getAvailableCanales(userContexts, recurso) {
   }
 
   return Array.from(canales);
+}
+
+/**
+ * Función de DEBUG - Inspecciona qué contextos y empresas se están usando para un recurso
+ * Úsalo en la consola: debugPermissions(user.CONTEXTOS, "reportes.coordenadas", user.EMPRESAS)
+ * @param {Array} userContexts - Array de contextos del usuario
+ * @param {string} recurso - Recurso a verificar
+ * @param {Object} empresasGlobales - Mapa de empresas globales
+ * @returns {Object} Info de debug
+ */
+export function debugPermissions(userContexts, recurso, empresasGlobales = null) {
+  console.log("=== DEBUG PERMISSIONS ===");
+  console.log("Recurso buscado:", recurso);
+  console.log("EmpresasGlobales:", empresasGlobales);
+  
+  const targetResource = recurso.toLowerCase().trim();
+  const debug = {
+    recurso,
+    targetResource,
+    contextos_totales: userContexts.length,
+    contextos_procesados: [],
+    empresas_encontradas: [],
+  };
+
+  for (const context of userContexts) {
+    const contextResource = context.RECURSO?.toLowerCase()?.trim();
+    const hasAccess = contextResource === targetResource || targetResource.startsWith(contextResource + ".");
+    const isBlocked = isResourceBlocked(context.RECURSOS_BLOQUEADOS || context.BLOQUEADO, targetResource);
+
+    console.log(`\n--- Contexto: ${context.RECURSO} ---`);
+    console.log("  HERENCIA:", context.HERENCIA);
+    console.log("  hasAccess:", hasAccess);
+    console.log("  isBlocked:", isBlocked);
+    console.log("  ALCANCE:", context.ALCANCE);
+    console.log("  context.EMPRESAS:", context.EMPRESAS);
+
+    if (hasAccess && !isBlocked) {
+      const empresasMap = empresasGlobales || context.EMPRESAS || {};
+      console.log("  empresasMap:", empresasMap);
+
+      if (context.ALCANCE?.EMPRESAS && Array.isArray(context.ALCANCE.EMPRESAS)) {
+        context.ALCANCE.EMPRESAS.forEach((empresaId) => {
+          const empresaNombre = empresasMap[empresaId.toString()];
+          console.log(`    Empresa ${empresaId}: nombre="${empresaNombre}" (encontrado: ${!!empresaNombre})`);
+          debug.empresas_encontradas.push({
+            id: empresaId,
+            nombre: empresaNombre || `(ID: ${empresaId})`,
+            nombreEncontrado: !!empresaNombre,
+          });
+        });
+      } else {
+        console.log("  ⚠️ No tiene ALCANCE.EMPRESAS o no es array");
+      }
+
+      debug.contextos_procesados.push({
+        recurso: context.RECURSO,
+        hasAccess,
+        alcanceEmpresas: context.ALCANCE?.EMPRESAS,
+      });
+    }
+  }
+
+  console.log("\n=== RESULTADO ===");
+  console.log(debug);
+  return debug;
 }

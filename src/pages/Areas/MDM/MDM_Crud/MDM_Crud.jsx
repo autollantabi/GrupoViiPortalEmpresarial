@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import { useTheme } from "context/ThemeContext";
 import { useAuthContext } from "context/authContext";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
@@ -9,7 +10,7 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, uploadToCloudflare, getItemsByRole, saveItems, processItemAction, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages } from "services/mdmService";
+import { parseLlantas, uploadToCloudflare, getItemsByRole, saveItems, processItemAction, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, getItemsDWHByLinea, createItemFromDWH, approveItemMDM } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 
 const LINEAS_NEGOCIO = [
@@ -246,6 +247,29 @@ export default function MDM_Crud() {
         18: 'LLANTAS MOTO'
     };
 
+    const DICCIONARIO_COLOR_LETRA_CODIGO = {
+        "00": "OWL",
+        "01": "LN",
+        "02": "OBL",
+        "03": "OOL",
+        "04": "RBL"
+    };
+
+    const OPTIONS_COLOR_LETRA = [
+        { value: "00", label: "00" },
+        { value: "01", label: "01" },
+        { value: "02", label: "02" },
+        { value: "03", label: "03" },
+        { value: "04", label: "04" },
+    ];
+
+    const calcularNombreSistemaFinal = (nombreBase, colorCod) => {
+        if (!nombreBase) return "";
+        const codigo = DICCIONARIO_COLOR_LETRA_CODIGO[colorCod];
+        if (!codigo) return nombreBase;
+        return `${nombreBase} ${codigo}`.trim();
+    };
+
     let rolPrincipal = null;
     let idRolPrincipal = null;
     let opcionesLineasPermitidas = [];
@@ -294,6 +318,93 @@ export default function MDM_Crud() {
     }
 
     const [items, setItems] = useState([]);
+    const fileInputRef = useRef(null);
+    const debounceTimeouts = useRef({});
+
+    const handleDownloadTemplate = () => {
+        if (!lineaSeleccionada) return;
+        const headers = ["DISENIO", "LETRA_DISENIO", "COLOR_LETRA", "DESCRIPCION", "EMPRESA", "CODIGO_PROVEEDOR", "NOMBRE_EXTRANJERO", "PARTIDA_ARANCELARIA"];
+        const ws = XLSX.utils.aoa_to_sheet([headers]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
+        const fileName = `plantilla_importacion_${lineaSeleccionada.label.toLowerCase().replace(/\s+/g, '_')}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+    };
+
+    const handleImportExcel = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const data = XLSX.utils.sheet_to_json(ws);
+
+                if (data.length === 0) {
+                    toast.info("El archivo Excel está vacío.");
+                    return;
+                }
+
+                const baseItems = data.map(row => {
+                    // Buscar el ID de la empresa por nombre (insensible a mayúsculas/minúsculas)
+                    const nombreEmpresa = String(row.EMPRESA || "").trim().toUpperCase();
+                    const idEmpresa = Object.keys(diccionarioEmpresas).find(
+                        key => diccionarioEmpresas[key].trim().toUpperCase() === nombreEmpresa
+                    ) || "";
+
+                    return {
+                        id: Date.now() + Math.random(),
+                        linea: lineaSeleccionada.value,
+                        idEmpresa: idEmpresa,
+                        descripcionRol5: String(row.DESCRIPCION || "").trim().toUpperCase(),
+                        descripcion: String(row.DESCRIPCION || "").trim().toUpperCase(),
+                        codigoProveedor: String(row.CODIGO_PROVEEDOR || "").trim().toUpperCase(),
+                        nombreExtranjero: String(row.NOMBRE_EXTRANJERO || "").trim().toUpperCase(),
+                        partidaArancelaria: String(row.PARTIDA_ARANCELARIA || "").trim().toUpperCase(),
+                        diseño: String(row.DISENIO || "").trim().toUpperCase().slice(0, 4),
+                        letraDiseño: String(row.LETRA_DISENIO || "").trim().toUpperCase(),
+                        colorLetra: String(row.COLOR_LETRA || "").trim().toUpperCase(),
+                        codigo: "", // Código de barras
+                        cubicaje: "",
+                        marca: "",
+                        comentarios: ""
+                    };
+                });
+
+                // Ejecutar parseLlantas para los ítems importados
+                const descripciones = baseItems.map(it => it.descripcion);
+                let parsedResults = [];
+                if (descripciones.length > 0) {
+                    try {
+                        parsedResults = await parseLlantas(descripciones);
+                    } catch (err) {
+                        console.error("Error parsing llantas on import:", err);
+                    }
+                }
+
+                const newItems = baseItems.map((it, index) => {
+                    const baseName = parsedResults[index]?.NOMBRE || it.descripcion;
+                    return {
+                        ...it,
+                        nombreSistemaBase: baseName,
+                        nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra)
+                    };
+                });
+
+                setItems(prev => [...prev, ...newItems]);
+                toast.success(`${newItems.length} ítems importados correctamente.`);
+            } catch (error) {
+                console.error("Error importando Excel:", error);
+                toast.error("Error al leer el archivo Excel.");
+            }
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        };
+        reader.readAsBinaryString(file);
+    };
     const [selectedItemIds, setSelectedItemIds] = useState(new Set());
     const [currentItemIndex, setCurrentItemIndex] = useState(0); // Para visualización Rol 1
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -305,6 +416,18 @@ export default function MDM_Crud() {
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [itemsToReview, setItemsToReview] = useState([]);
     const [selectedItemsToReviewIds, setSelectedItemsToReviewIds] = useState(new Set());
+    const [searchTermReview, setSearchTermReview] = useState("");
+
+    const filteredItemsToReview = useMemo(() => {
+        if (!searchTermReview) return itemsToReview;
+        const lowSearch = searchTermReview.toLowerCase();
+        return itemsToReview.filter(item =>
+            String(item.DIT_NOMBRE || "").toLowerCase().includes(lowSearch) ||
+            String(item.DIT_CODIGO || "").toLowerCase().includes(lowSearch) ||
+            String(item.DIT_DISENIO || "").toLowerCase().includes(lowSearch) ||
+            String(item.DIT_NOMBREFABRICANTE || "").toLowerCase().includes(lowSearch)
+        );
+    }, [itemsToReview, searchTermReview]);
 
     // Selector global para el nuevo ítem
     const [lineaSeleccionada, setLineaSeleccionada] = useState(null);
@@ -312,145 +435,167 @@ export default function MDM_Crud() {
     const esLubricantes = lineaSeleccionada?.value === "LUBRICANTES";
     const esHerramientas = lineaSeleccionada?.value === "HERRAMIENTAS";
 
-    useEffect(() => {
-        const fetchItems = async () => {
-            if (idRolPrincipal && lineaSeleccionada) {
-                try {
-                    const data = await getItemsByRole(idRolPrincipal, lineaSeleccionada.value);
-                    if (data) {
-                        let processedItems = data;
-                        if (idRolPrincipal === 3) {
-                            const filtered = data.filter(it =>
-                                it.FASE_ACTUAL === 2 ||
-                                (it.FASES && it.FASES.some(f => f.FASE === 2 && f.RECHAZO))
-                            );
+    const fetchItems = useCallback(async () => {
+        if (idRolPrincipal && lineaSeleccionada) {
+            try {
+                const rawData = await getItemsByRole(idRolPrincipal, lineaSeleccionada.value);
+                if (rawData) {
+                    const data = rawData.filter(it => it.LINEA_NEGOCIO === lineaSeleccionada.value);
+                    let processedItems = data;
+                    if (idRolPrincipal === 3) {
+                        const filtered = data.filter(it =>
+                            it.FASE_ACTUAL === 2 ||
+                            (it.FASES && it.FASES.some(f => f.FASE === 2 && f.RECHAZO))
+                        );
 
+                        let parsedResults = [];
+                        if (esLlantas && filtered.length > 0) {
                             const descripciones = filtered.map(it => it.DESCRIPCION || "");
-                            let parsedResults = [];
-                            if (descripciones.length > 0) {
-                                try {
-                                    parsedResults = await parseLlantas(descripciones);
-                                } catch (err) {
-                                    console.error("Error parsing llantas:", err);
-                                }
+                            try {
+                                parsedResults = await parseLlantas(descripciones);
+                            } catch (err) {
+                                console.error("Error parsing llantas:", err);
                             }
-
-                            processedItems = filtered.map((it, index) => {
-                                const fase2 = it.FASES?.find(f => f.FASE === 2);
-                                const parsed = parsedResults[index] || {};
-                                return {
-                                    ...it,
-                                    id: it.ID,
-                                    linea: lineaSeleccionada.value,
-                                    diseño: it.DISENIO || parsed.diseno || "",
-                                    rin: it.RIN || parsed.rin || "",
-                                    serie: it.SERIE || parsed.serie || "",
-                                    lonas: it.LONAS || parsed.lonas || "",
-                                    ancho: it.ANCHO || parsed.ancho || "",
-                                    nomenclatura: it.NOMENCLATURA || parsed.tipo_medida || "",
-                                    carga: it.CARGA || parsed.carga || "",
-                                    velocidad: it.VELOCIDAD || parsed.velocidad || "",
-                                    categoria: it.CATEGORIA || "",
-                                    segmento: it.SEGMENTO || "",
-                                    aplicacion: it.APLICACION || parsed.Aplicacion || "",
-                                    eje: it.EJE || "",
-                                    comentarios: it.OBSERVACIONES || "",
-                                    descripcion: it.DESCRIPCION || "",
-                                    marca: it.MARCA || parsed.marca || "",
-                                    fueRechazado: fase2 ? fase2.RECHAZO : false,
-                                    motivoRechazo: fase2 ? fase2.MOTIVO_RECHAZO : ""
-                                };
-                            });
-                        } else if (idRolPrincipal === 4) {
-                            processedItems = data.filter(it =>
-                                it.FASE_ACTUAL === 3 ||
-                                (it.FASES && it.FASES.some(f => f.FASE === 3 && f.RECHAZO))
-                            ).map(it => {
-                                const fase3 = it.FASES?.find(f => f.FASE === 3);
-                                return {
-                                    ...it,
-                                    id: it.ID,
-                                    linea: lineaSeleccionada.value,
-                                    codigo: it.CODIGO_BARRAS || "",
-                                    marca: it.MARCA || "",
-                                    diseño: it.DISENIO || "",
-                                    descripcion: it.DESCRIPCION || "",
-                                    comentarios: it.OBSERVACIONES || "",
-                                    fueRechazado: fase3 ? fase3.RECHAZO : false,
-                                    motivoRechazo: fase3 ? fase3.MOTIVO_RECHAZO : ""
-                                };
-                            });
-                        } else if (idRolPrincipal === 5) {
-                            processedItems = data.filter(it =>
-                                it.FASES?.some(f => f.FASE === 1 && f.RECHAZO)
-                            ).map(it => {
-                                const fase1 = it.FASES?.find(f => f.FASE === 1);
-                                return {
-                                    ...it,
-                                    id: it.ID,
-                                    linea: lineaSeleccionada.value,
-                                    idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
-                                    codigo: it.CODIGO_BARRAS || "",
-                                    codigoSap: it.CODIGO_SAP || "",
-                                    descripcionRol5: it.DESCRIPCION || "",
-                                    descripcion: it.DESCRIPCION || "",
-                                    codigoProveedor: it.CODIGO_PROVEEDOR || "",
-                                    cubicaje: it.CUBICAJE || "",
-                                    nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
-                                    partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
-                                    marca: it.MARCA || "",
-                                    comentarios: it.OBSERVACIONES || "",
-                                    fueRechazado: fase1 ? fase1.RECHAZO : false,
-                                    motivoRechazo: fase1 ? fase1.MOTIVO_RECHAZO : ""
-                                };
-                            });
-                        } else if (idRolPrincipal === 1) {
-                            processedItems = data.filter(it => it.FASE_ACTUAL === 4 && (!it.FASES || !it.FASES.some(f => f.RECHAZO))).map(it => {
-                                const f1 = it.FASES?.find(f => f.FASE === 1);
-                                const f2 = it.FASES?.find(f => f.FASE === 2);
-                                const f3 = it.FASES?.find(f => f.FASE === 3);
-
-                                return {
-                                    ...it,
-                                    id: it.ID,
-                                    linea: lineaSeleccionada.value,
-                                    codigo: it.CODIGO_BARRAS || "",
-                                    marca: it.MARCA || "",
-                                    diseño: it.DISENIO || "",
-                                    descripcion: it.DESCRIPCION || "",
-                                    codigoProveedor: it.CODIGO_PROVEEDOR || "",
-                                    cubicaje: it.CUBICAJE || "",
-                                    nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
-                                    partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
-                                    rin: it.RIN || "",
-                                    serie: it.SERIE || "",
-                                    lonas: it.LONAS || "",
-                                    ancho: it.ANCHO || "",
-                                    nomenclatura: it.NOMENCLATURA || "",
-                                    carga: it.CARGA || "",
-                                    velocidad: it.VELOCIDAD || "",
-                                    categoria: it.CATEGORIA || "",
-                                    segmento: it.SEGMENTO || "",
-                                    aplicacion: it.APLICACION || "",
-                                    eje: it.EJE || "",
-                                    comentariosRol5: f1?.OBSERVACIONES || "",
-                                    comentariosRol3: f2?.OBSERVACIONES || "",
-                                    comentariosRol4: f3?.OBSERVACIONES || "",
-                                    comentarioActual: it.OBSERVACIONES || ""
-                                };
-                            });
                         }
-                        setItems(processedItems);
-                        if (idRolPrincipal === 1) setCurrentItemIndex(0);
+
+                        processedItems = filtered.map((it, index) => {
+                            const fase2 = it.FASES?.find(f => f.FASE === 2);
+                            const parsed = parsedResults[index] || {};
+                            return {
+                                ...it,
+                                id: it.ID,
+                                linea: lineaSeleccionada.value,
+                                diseño: parsed.diseno || it.DISENIO || "",
+                                rin: parsed.rin || it.RIN || "",
+                                serie: parsed.serie || it.SERIE || "",
+                                lonas: parsed.lonas || it.LONAS || "",
+                                ancho: parsed.ancho || it.ANCHO || "",
+                                nomenclatura: parsed.tipo_medida || it.NOMENCLATURA || "",
+                                carga: parsed.carga || it.CARGA || "",
+                                velocidad: parsed.velocidad || it.VELOCIDAD || "",
+                                categoria: it.CATEGORIA || "",
+                                segmento: it.SEGMENTO || "",
+                                aplicacion: parsed.Aplicacion || it.APLICACION || "",
+                                eje: it.EJE || "",
+                                comentarios: it.OBSERVACIONES || "",
+                                descripcion: it.DESCRIPCION || "",
+                                marca: parsed.marca || it.MARCA || "",
+                                fueRechazado: fase2 ? fase2.RECHAZO : false,
+                                motivoRechazo: fase2 ? fase2.MOTIVO_RECHAZO : ""
+                            };
+                        });
+                    } else if (idRolPrincipal === 4) {
+                        processedItems = data.filter(it =>
+                            it.FASE_ACTUAL === 3 ||
+                            (it.FASES && it.FASES.some(f => f.FASE === 3 && f.RECHAZO))
+                        ).map(it => {
+                            const fase3 = it.FASES?.find(f => f.FASE === 3);
+                            return {
+                                ...it,
+                                id: it.ID,
+                                linea: lineaSeleccionada.value,
+                                codigo: it.CODIGO_BARRAS || "",
+                                marca: it.MARCA || "",
+                                diseño: it.DISENIO || "",
+                                descripcion: it.DESCRIPCION || "",
+                                comentarios: it.OBSERVACIONES || "",
+                                fueRechazado: fase3 ? fase3.RECHAZO : false,
+                                motivoRechazo: fase3 ? fase3.MOTIVO_RECHAZO : ""
+                            };
+                        });
+                    } else if (idRolPrincipal === 5) {
+                        const filtered = data.filter(it =>
+                            it.FASES?.some(f => f.FASE === 1 && f.RECHAZO)
+                        );
+
+                        const descripciones = filtered.map(it => it.DESCRIPCION || "");
+                        let parsedResults = [];
+                        if (descripciones.length > 0) {
+                            try {
+                                parsedResults = await parseLlantas(descripciones);
+                            } catch (err) {
+                                console.error("Error parsing llantas (Rol 5):", err);
+                            }
+                        }
+
+                        processedItems = filtered.map((it, index) => {
+                            const fase1 = it.FASES?.find(f => f.FASE === 1);
+                            const parsed = parsedResults[index] || {};
+                            return {
+                                ...it,
+                                id: it.ID,
+                                linea: lineaSeleccionada.value,
+                                idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
+                                codigo: it.CODIGO_BARRAS || "",
+                                descripcionRol5: it.DESCRIPCION || "",
+                                descripcion: it.DESCRIPCION || "",
+                                nombreSistemaBase: parsed.NOMBRE || it.DESCRIPCION || "",
+                                nombreSistema: calcularNombreSistemaFinal(parsed.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || ""),
+                                codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                cubicaje: it.CUBICAJE || "",
+                                nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
+                                partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                marca: it.MARCA || "",
+                                diseño: it.DISENIO || "",
+                                letraDiseño: it.LETRA_DISENIO || "",
+                                colorLetra: it.COLOR_LETRA || "",
+                                comentarios: it.OBSERVACIONES || "",
+                                fueRechazado: fase1 ? fase1.RECHAZO : false,
+                                motivoRechazo: fase1 ? fase1.MOTIVO_RECHAZO : ""
+                            };
+                        });
+                    } else if (idRolPrincipal === 1) {
+                        processedItems = data.filter(it => it.FASE_ACTUAL === 4 && (!it.FASES || !it.FASES.some(f => f.RECHAZO))).map(it => {
+                            const f1 = it.FASES?.find(f => f.FASE === 1);
+                            const f2 = it.FASES?.find(f => f.FASE === 2);
+                            const f3 = it.FASES?.find(f => f.FASE === 3);
+
+                            return {
+                                ...it,
+                                id: it.ID,
+                                linea: lineaSeleccionada.value,
+                                idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || it.EMPRESA || "",
+                                codigo: it.CODIGO_BARRAS || "",
+                                marca: it.MARCA || "",
+                                diseño: it.DISENIO || "",
+                                descripcion: it.DESCRIPCION || "",
+                                descripcionRol5: it.DESCRIPCION || "",
+                                codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                cubicaje: it.CUBICAJE || "",
+                                nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
+                                partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                rin: it.RIN || "",
+                                serie: it.SERIE || "",
+                                lonas: it.LONAS || "",
+                                ancho: it.ANCHO || "",
+                                nomenclatura: it.NOMENCLATURA || "",
+                                carga: it.CARGA || "",
+                                velocidad: it.VELOCIDAD || "",
+                                categoria: it.CATEGORIA || "",
+                                segmento: it.SEGMENTO || "",
+                                aplicacion: it.APLICACION || "",
+                                eje: it.EJE || "",
+                                imagenUrl: it.RUTA_IMAGEN_WEBP || it.RUTA_IMAGEN_PNG || "",
+                                comentariosRol5: f1?.OBSERVACIONES || "",
+                                comentariosRol3: f2?.OBSERVACIONES || "",
+                                comentariosRol4: f3?.OBSERVACIONES || "",
+                                comentarioActual: it.OBSERVACIONES || ""
+                            };
+                        });
                     }
-                } catch (error) {
-                    console.error("Error al obtener items:", error);
-                    toast.error("Error al cargar los ítems pendientes.");
+                    setItems(processedItems);
+                    if (idRolPrincipal === 1) setCurrentItemIndex(0);
                 }
+            } catch (error) {
+                console.error("Error al obtener items:", error);
+                toast.error("Error al cargar los ítems pendientes.");
             }
-        };
+        }
+    }, [idRolPrincipal, lineaSeleccionada, diccionarioEmpresas]);
+
+    useEffect(() => {
         fetchItems();
-    }, [idRolPrincipal, lineaSeleccionada]);
+    }, [fetchItems]);
 
 
 
@@ -479,6 +624,9 @@ export default function MDM_Crud() {
                         });
                     }
                 }
+            } else if (action === "approve") {
+                await approveItemMDM(itemId);
+                toast.success("Ítem aprobado correctamente.");
             } else {
                 await processItemAction({
                     itemId,
@@ -499,9 +647,7 @@ export default function MDM_Crud() {
     const actualizarCampoFila = (id, campo, valor) => {
         let val = typeof valor === 'string' ? valor.toUpperCase() : valor;
         if (idRolPrincipal === 5) {
-            if (campo === "codigoSap") {
-                val = valor.replace(/[^0-9]/g, "");
-            } else if (campo === "cubicaje") {
+            if (campo === "cubicaje") {
                 val = valor.replace(/[^0-9.]/g, "");
                 if (val.startsWith(".")) val = "0" + val;
                 const parts = val.split(".");
@@ -518,7 +664,50 @@ export default function MDM_Crud() {
                 val = handleVelocidadInput(valor);
             }
         }
-        setItems(prev => prev.map(it => it.id === id ? { ...it, [campo]: val } : it));
+        if (idRolPrincipal === 5 && campo === "descripcionRol5") {
+            setItems(prev => prev.map(it => it.id === id ? { ...it, [campo]: val } : it));
+
+            if (debounceTimeouts.current[id]) clearTimeout(debounceTimeouts.current[id]);
+            debounceTimeouts.current[id] = setTimeout(async () => {
+                if (!val) return;
+                try {
+                    const result = await parseLlantas([val]);
+                    if (result && result[0]) {
+                        const parsedName = result[0].NOMBRE || val;
+                        setItems(prev => prev.map(it => {
+                            if (it.id === id) {
+                                return {
+                                    ...it,
+                                    nombreSistemaBase: parsedName,
+                                    nombreSistema: calcularNombreSistemaFinal(parsedName, it.colorLetra)
+                                };
+                            }
+                            return it;
+                        }));
+                    }
+                } catch (error) {
+                    console.error("Error updating nombre sistema dynamically:", error);
+                }
+                delete debounceTimeouts.current[id];
+            }, 800);
+            return;
+        }
+
+        if (idRolPrincipal === 5 && campo === "colorLetra") {
+            setItems(prev => prev.map(it => {
+                if (it.id === id) {
+                    const baseName = it.nombreSistemaBase || it.nombreSistema || "";
+                    return {
+                        ...it,
+                        [campo]: val,
+                        nombreSistema: calcularNombreSistemaFinal(baseName, val)
+                    };
+                }
+                return it;
+            }));
+        } else {
+            setItems(prev => prev.map(it => it.id === id ? { ...it, [campo]: val } : it));
+        }
     };
 
     if (!rolPrincipal) {
@@ -550,29 +739,56 @@ export default function MDM_Crud() {
                             disabled={!lineaSeleccionada}
                             onClick={async () => {
                                 try {
-                                    // Aquí se podría pasar un término de búsqueda si existiera el input
-                                    const data = await getItemsByRole(0, lineaSeleccionada.value); // Usamos rol 0 para 'externos' o similar
+                                    const data = await getItemsDWHByLinea(lineaSeleccionada.value);
                                     setItemsToReview(data);
                                     setIsReviewModalOpen(true);
                                 } catch (error) {
-                                    toast.error("Error al buscar ítems externos.");
+                                    toast.error("Error al buscar ítems en el DWH.");
                                 }
                             }}
                         />
                     )}
                     {idRolPrincipal !== 1 && idRolPrincipal !== 3 && idRolPrincipal !== 4 && (
-                        <ButtonUI
-                            text="Agregar ítem"
-                            iconLeft="FaPlus"
-                            disabled={!lineaSeleccionada}
-                            onClick={() => {
-                                setItems(prev => [...prev, {
-                                    id: Date.now(),
-                                    linea: lineaSeleccionada.value
-                                }]);
-                            }}
-                            pcolor={theme?.colors?.primary}
-                        />
+                        <div style={{ display: "flex", gap: 12 }}>
+                            <ButtonUI
+                                text="Agregar ítem"
+                                iconLeft="FaPlus"
+                                disabled={!lineaSeleccionada}
+                                onClick={() => {
+                                    setItems(prev => [...prev, {
+                                        id: Date.now(),
+                                        linea: lineaSeleccionada.value,
+                                        diseño: "",
+                                        letraDiseño: "",
+                                        colorLetra: ""
+                                    }]);
+                                }}
+                                pcolor={theme?.colors?.primary}
+                            />
+                            <input
+                                type="file"
+                                accept=".xlsx, .xls"
+                                style={{ display: "none" }}
+                                ref={fileInputRef}
+                                onChange={handleImportExcel}
+                            />
+                            <ButtonUI
+                                text="Importar desde Excel"
+                                iconLeft="FaFileExcel"
+                                variant="outlined"
+                                disabled={!lineaSeleccionada}
+                                onClick={() => fileInputRef.current?.click()}
+                                pcolor={theme?.colors?.success || "#28a745"}
+                            />
+                            <ButtonUI
+                                text="Descargar plantilla"
+                                iconLeft="FaDownload"
+                                variant="outlined"
+                                disabled={!lineaSeleccionada}
+                                onClick={handleDownloadTemplate}
+                                pcolor={theme?.colors?.info || "#17a2b8"}
+                            />
+                        </div>
                     )}
                 </div>
             </div>
@@ -608,9 +824,19 @@ export default function MDM_Crud() {
                                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px', gap: '20px' }}>
                                     <div style={{ display: 'flex', gap: '24px', flex: 1, overflow: 'auto' }}>
                                         <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column' }}>
-                                            <div style={{ backgroundColor: theme?.colors?.backgroundCard || '#fafafa', padding: '20px', borderRadius: '8px', border: `1px solid ${theme?.colors?.border || '#eee'}`, display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '300px' }}>
+                                            <div style={{
+                                                backgroundColor: isDark ? '#1f2937' : '#fff3e0',
+                                                padding: '20px',
+                                                borderRadius: '8px',
+                                                border: `1px solid ${isDark ? '#374151' : '#fde68a'}`,
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                height: '100%',
+                                                minHeight: '300px'
+                                            }}>
                                                 {item.imagenUrl ? (
-                                                    <img src={item.imagenUrl} alt={item.descripcion} style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }} />
+                                                    <img src={item.imagenUrl} alt={item.descripcion} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                                 ) : (
                                                     <TextUI color={theme?.colors?.textSecondary}>Sin Imagen</TextUI>
                                                 )}
@@ -662,49 +888,42 @@ export default function MDM_Crud() {
                                             </div>
 
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', overflow: 'auto', paddingRight: '8px' }}>
-                                                {Object.entries(item).filter(([k, v]) => !['id', 'ID', 'linea', 'imagenUrl', 'descripcion', 'comentarios', 'comentariosRol3', 'comentariosRol4', 'comentariosRol5', 'FASES', 'createdAt', 'updatedAt', 'FASE_ACTUAL', 'RUTA_IMAGEN_PNG', 'RUTA_IMAGEN_WEBP', 'NOMBRE', 'ID_USUARIO', 'OBSERVACIONES', 'fueRechazado', 'motivoRechazo', 'comentarioActual'].includes(k) && typeof v !== 'object').map(([key, value]) => {
-                                                    const role3Fields = ['medida', 'diseño', 'marca', 'rin', 'serie', 'lonas', 'ancho', 'nomenclatura', 'carga', 'velocidad', 'categoria', 'segmento', 'aplicacion', 'eje', 'robustez'];
-                                                    const role5Fields = ['idEmpresa', 'codigo', 'codigoSap', 'descripcionRol5', 'codigoProveedor', 'cubicaje', 'nombreExtranjero', 'partidaArancelaria'];
-
+                                                {[
+                                                    { key: 'codigo', label: "Código Barras", role: 5 },
+                                                    { key: 'idEmpresa', label: "Empresa", role: 5 },
+                                                    { key: 'codigoProveedor', label: "Cód. Proveedor", role: 5 },
+                                                    { key: 'cubicaje', label: "Cubicaje", role: 5 },
+                                                    { key: 'descripcionRol5', label: "Desc. Comercial", role: 5 },
+                                                    { key: 'nombreExtranjero', label: "Nombre Extranjero", role: 5 },
+                                                    { key: 'partidaArancelaria', label: "Posición Arancelaria", role: 5 },
+                                                    { key: 'marca', label: "Marca", role: 5 },
+                                                    { key: 'diseño', label: "Diseño", role: 3 },
+                                                    { key: 'rin', label: "Rin", role: 3 },
+                                                    { key: 'serie', label: "Serie", role: 3 },
+                                                    { key: 'lonas', label: "Lonas", role: 3 },
+                                                    { key: 'ancho', label: "Ancho", role: 3 },
+                                                    { key: 'nomenclatura', label: "Nomenclatura", role: 3 },
+                                                    { key: 'carga', label: "Carga", role: 3 },
+                                                    { key: 'velocidad', label: "Velocidad", role: 3 },
+                                                    { key: 'categoria', label: "Categoría", role: 3 },
+                                                    { key: 'segmento', label: "Segmento", role: 3 },
+                                                    { key: 'aplicacion', label: "Aplicación", role: 3 },
+                                                    { key: 'eje', label: "Eje", role: 3 },
+                                                ].map(({ key, label, role }) => {
+                                                    const value = item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
                                                     let borderColor = isDark ? '#1f2937' : '#eee';
 
-                                                    if (role3Fields.includes(key)) {
-                                                        bgColor = isDark ? '#7c2d12' : '#e3f2fd'; // Anaranjado oscuro / Azul claro
+                                                    if (role === 3) {
+                                                        bgColor = isDark ? '#7c2d12' : '#e3f2fd'; // Azul claro
                                                         borderColor = isDark ? '#9a3412' : '#bfdbfe';
-                                                    } else if (role5Fields.includes(key)) {
-                                                        bgColor = isDark ? '#172554' : '#e8f5e9'; // Azul marino / Verde claro
+                                                    } else if (role === 5) {
+                                                        bgColor = isDark ? '#172554' : '#e8f5e9'; // Verde claro
                                                         borderColor = isDark ? '#1e3a8a' : '#a7f3d0';
-                                                    } else {
-                                                        bgColor = isDark ? '#1f2937' : '#fff3e0'; // Gris oscuro / Naranja claro
+                                                    } else if (role === 4) {
+                                                        bgColor = isDark ? '#1f2937' : '#fff3e0'; // Naranja claro
                                                         borderColor = isDark ? '#374151' : '#fde68a';
                                                     }
-
-                                                    const labels = {
-                                                        idEmpresa: "Empresa",
-                                                        codigo: "Código Barras",
-                                                        codigoSap: "Código SAP",
-                                                        diseño: "Diseño",
-                                                        marca: "Marca",
-                                                        medida: "Medida",
-                                                        rin: "Rin",
-                                                        serie: "Serie",
-                                                        lonas: "Lonas",
-                                                        ancho: "Ancho",
-                                                        nomenclatura: "Nomenclatura",
-                                                        carga: "Carga",
-                                                        velocidad: "Velocidad",
-                                                        categoria: "Categoría",
-                                                        segmento: "Segmento",
-                                                        aplicacion: "Aplicación",
-                                                        eje: "Eje",
-                                                        robustez: "Robustez",
-                                                        partidaArancelaria: "Posición Arancelaria",
-                                                        codigoProveedor: "Cód. Proveedor",
-                                                        cubicaje: "Cubicaje",
-                                                        nombreExtranjero: "Nombre Extranjero",
-                                                        descripcionRol5: "Desc. Comercial"
-                                                    };
 
                                                     return (
                                                         <div key={key} style={{
@@ -716,7 +935,7 @@ export default function MDM_Crud() {
                                                             flexDirection: 'column',
                                                             gap: '6px'
                                                         }}>
-                                                            <TextUI size="11px" color={isDark ? '#cbd5e1' : theme?.colors?.textSecondary} style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{labels[key] || key}</TextUI>
+                                                            <TextUI size="11px" color={isDark ? '#cbd5e1' : theme?.colors?.textSecondary} style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</TextUI>
                                                             <TextUI size="14px" weight="600" color={isDark ? '#ffffff' : theme?.colors?.text}>
                                                                 {key === 'idEmpresa' ? (diccionarioEmpresas[value] || value || '-') : (value || '-')}
                                                             </TextUI>
@@ -823,7 +1042,6 @@ export default function MDM_Crud() {
                                             )}
                                             {idRolPrincipal === 4 && (
                                                 <>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Marca</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Diseño</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "250px" }}>Descripción</th>
@@ -836,16 +1054,18 @@ export default function MDM_Crud() {
                                             {idRolPrincipal === 5 && (
                                                 <>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código Barras</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Marca</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px" }}>Descripción</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Diseño</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Letra Diseño</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Color Letra</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "300px" }}>Código Barras</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código Proveedor</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Cubicaje</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre Extranjero</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Partida Arancelaria</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px" }}>Nombre Del Sistema</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: 100, color: theme?.colors?.text }}>Acciones</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: 100, color: theme?.colors?.text, minWidth: "100px" }}>Acciones</th>
                                                 </>
                                             )}
                                         </tr>
@@ -853,7 +1073,7 @@ export default function MDM_Crud() {
                                     <tbody>
                                         {itemsFiltrados.length === 0 ? (
                                             <tr>
-                                                <td colSpan={idRolPrincipal === 3 ? 17 : (idRolPrincipal === 5 ? 12 : (idRolPrincipal === 4 ? 10 : 8))} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                                <td colSpan={idRolPrincipal === 3 ? 17 : (idRolPrincipal === 5 ? 14 : (idRolPrincipal === 4 ? 10 : 8))} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                     No hay ítems de Llantas
                                                 </td>
                                             </tr>
@@ -877,7 +1097,7 @@ export default function MDM_Crud() {
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.marcaRef || ""} onChange={(v) => actualizarCampoFila(item.id, "marcaRef", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.medida || ""} onChange={(v) => actualizarCampoFila(item.id, "medida", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.robustez || ""} onChange={(v) => actualizarCampoFila(item.id, "robustez", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.descripcionConVariables || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionConVariables", v)} /></td>
                                                     </>
@@ -889,7 +1109,7 @@ export default function MDM_Crud() {
                                                                 {item.descripcion || "-"}
                                                             </div>
                                                         </td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.rin || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "rin", handleNumericInput(v))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.serie || ""} formatValue={handleOneDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "serie", handleOneDecimalInput(v))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.lonas || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "lonas", handleNumericInput(v))} /></td>
@@ -1087,10 +1307,19 @@ export default function MDM_Crud() {
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoSap || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "codigoSap", handleNumericInput(v))} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.marca || ""} onChange={(v) => actualizarCampoFila(item.id, "marca", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <SelectUI
+                                                                options={OPTIONS_COLOR_LETRA}
+                                                                value={item.colorLetra ? { value: item.colorLetra, label: item.colorLetra } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "colorLetra", v?.value)}
+                                                                minWidth="100px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></td>
@@ -1113,6 +1342,7 @@ export default function MDM_Crud() {
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
+                                                        <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <InputUI
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
@@ -1177,13 +1407,16 @@ export default function MDM_Crud() {
                                             {idRolPrincipal === 5 && (
                                                 <>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código Barras</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px" }}>Descripción</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Diseño</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Letra Diseño</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Color Letra</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "300px" }}>Código Barras</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Cód. Proveedor</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Cubicaje</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre Extranjero</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Partida Arancelaria</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px" }}>Nombre Del Sistema</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
                                                 </>
                                             )}
@@ -1193,7 +1426,7 @@ export default function MDM_Crud() {
                                     <tbody>
                                         {itemsFiltrados.length === 0 ? (
                                             <tr>
-                                                <td colSpan={idRolPrincipal === 5 ? 11 : 8} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                                <td colSpan={idRolPrincipal === 5 ? 14 : 8} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                     No hay ítems de Lubricantes
                                                 </td>
                                             </tr>
@@ -1241,9 +1474,19 @@ export default function MDM_Crud() {
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoSap || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "codigoSap", handleNumericInput(v))} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <SelectUI
+                                                                options={OPTIONS_COLOR_LETRA}
+                                                                value={item.colorLetra ? { value: item.colorLetra, label: item.colorLetra } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "colorLetra", v?.value)}
+                                                                minWidth="100px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></td>
@@ -1262,6 +1505,7 @@ export default function MDM_Crud() {
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
+                                                        <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <InputUI
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
@@ -1322,13 +1566,16 @@ export default function MDM_Crud() {
                                             {idRolPrincipal === 5 && (
                                                 <>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código Barras</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px" }}>Descripción</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Diseño</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Letra Diseño</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Color Letra</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "300px" }}>Código Barras</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Cód. Proveedor</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Cubicaje</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre Extranjero</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Partida Arancelaria</th>
+                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px" }}>Nombre Del Sistema</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px" }}>Comentarios</th>
                                                 </>
                                             )}
@@ -1338,7 +1585,7 @@ export default function MDM_Crud() {
                                     <tbody>
                                         {itemsFiltrados.length === 0 ? (
                                             <tr>
-                                                <td colSpan={idRolPrincipal === 5 ? 11 : 4} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                                <td colSpan={idRolPrincipal === 5 ? 14 : 4} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                     No hay ítems de Herramientas
                                                 </td>
                                             </tr>
@@ -1382,9 +1629,19 @@ export default function MDM_Crud() {
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoSap || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "codigoSap", handleNumericInput(v))} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <SelectUI
+                                                                options={OPTIONS_COLOR_LETRA}
+                                                                value={item.colorLetra ? { value: item.colorLetra, label: item.colorLetra } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "colorLetra", v?.value)}
+                                                                minWidth="100px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></td>
@@ -1401,9 +1658,10 @@ export default function MDM_Crud() {
                                                                 value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
                                                                 onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
                                                                 minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
+                                                        <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <InputUI
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
@@ -1464,7 +1722,9 @@ export default function MDM_Crud() {
                                                     NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                                                     PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                                                     MARCA: item.marca || "",
-                                                    CODIGO_SAP: String(item.codigoSap) || "0",
+                                                    DISENIO: item.diseño || "",
+                                                    LETRA_DISENIO: item.letraDiseño || "",
+                                                    COLOR_LETRA: item.colorLetra || "",
                                                     OBSERVACIONES: item.comentarios || "",
                                                     RECHAZO: false,
                                                     FASE: 1
@@ -1480,7 +1740,9 @@ export default function MDM_Crud() {
                                                     NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                                                     PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                                                     MARCA: item.marca || "",
-                                                    CODIGO_SAP: String(item.codigoSap) || "0",
+                                                    DISENIO: item.diseño || "",
+                                                    LETRA_DISENIO: item.letraDiseño || "",
+                                                    COLOR_LETRA: item.colorLetra || "",
                                                     OBSERVACIONES: item.comentarios || ""
                                                 };
                                                 await saveItemRole5(payload);
@@ -1641,46 +1903,54 @@ export default function MDM_Crud() {
                 width="800px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    <InputUI
+                        placeholder="Buscar por código, nombre, diseño o fabricante..."
+                        value={searchTermReview}
+                        onChange={(v) => setSearchTermReview(v)}
+                        iconLeft="FaSearch"
+                    />
                     <div style={{ maxHeight: "400px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
                             <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0 }}>
                                 <tr>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "40px" }}>
                                         <CheckboxUI
-                                            checked={itemsToReview.length > 0 && itemsToReview.every(i => selectedItemsToReviewIds.has(i.id))}
+                                            checked={filteredItemsToReview.length > 0 && filteredItemsToReview.every(i => selectedItemsToReviewIds.has(i.DIT_CODIGO))}
                                             onChange={(_, checked) => {
                                                 if (checked) {
-                                                    setSelectedItemsToReviewIds(new Set(itemsToReview.map(i => i.id)));
+                                                    setSelectedItemsToReviewIds(new Set(filteredItemsToReview.map(i => i.DIT_CODIGO)));
                                                 } else {
                                                     setSelectedItemsToReviewIds(new Set());
                                                 }
                                             }}
                                         />
                                     </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Marca</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Codigo</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre</th>
                                     <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Diseño</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Fabricante</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {itemsToReview.map(item => (
-                                    <tr key={item.id} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                {filteredItemsToReview.map(item => (
+                                    <tr key={item.DIT_CODIGO} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
                                         <td style={{ padding: "10px", textAlign: "center" }}>
                                             <CheckboxUI
-                                                checked={selectedItemsToReviewIds.has(item.id)}
+                                                checked={selectedItemsToReviewIds.has(item.DIT_CODIGO)}
                                                 onChange={(_, checked) => {
                                                     setSelectedItemsToReviewIds(prev => {
                                                         const newSet = new Set(prev);
-                                                        if (checked) newSet.add(item.id);
-                                                        else newSet.delete(item.id);
+                                                        if (checked) newSet.add(item.DIT_CODIGO);
+                                                        else newSet.delete(item.DIT_CODIGO);
                                                         return newSet;
                                                     });
                                                 }}
                                             />
                                         </td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.descripcion}</td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.marca}</td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.diseño}</td>
+                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_CODIGO}</td>
+                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_NOMBRE}</td>
+                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_DISENIO}</td>
+                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_NOMBREFABRICANTE}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -1700,23 +1970,42 @@ export default function MDM_Crud() {
                             text={`Agregar (${selectedItemsToReviewIds.size})`}
                             variant="primary"
                             disabled={selectedItemsToReviewIds.size === 0}
-                            onClick={() => {
-                                const selectedItems = itemsToReview.filter(i => selectedItemsToReviewIds.has(i.id));
-                                // Transform items to match the expected structure if necessary
-                                const formattedItems = selectedItems.map(i => ({
-                                    ...i,
-                                    linea: lineaSeleccionada?.value,
-                                    // Default values for fields to avoid undefined errors in detail view
-                                    medida: '-', rin: '-', serie: '-', lonas: '-', ancho: '-', nomenclatura: '-',
-                                    carga: '-', velocidad: '-', categoria: '-', segmento: '-', aplicacion: '-', eje: '-', robustez: '-',
-                                    codigo: 'N/A', codigoSap: 'N/A', descripcionRol5: i.descripcion, codigoProveedor: '-',
-                                    cubicaje: '-', nombreExtranjero: '-', partidaArancelaria: '-'
-                                }));
+                            onClick={async () => {
+                                try {
+                                    const selectedIds = Array.from(selectedItemsToReviewIds);
 
-                                setItems(prev => [...prev, ...formattedItems]);
-                                setIsReviewModalOpen(false);
-                                setSelectedItemsToReviewIds(new Set());
-                                toast.success(`${selectedItemsToReviewIds.size} items agregados a revisión`);
+                                    // Crear ítems uno por uno en el backend
+                                    const promises = selectedIds.map(id => createItemFromDWH(id));
+                                    const responses = await Promise.all(promises);
+
+                                    let addedCount = 0;
+                                    let skippedCount = 0;
+
+                                    responses.forEach(resp => {
+                                        if (resp && resp.action === "skipped") {
+                                            skippedCount++;
+                                        } else {
+                                            addedCount++;
+                                        }
+                                    });
+
+                                    if (addedCount > 0) {
+                                        toast.success(`${addedCount} items creados desde DWH correctamente`);
+                                    }
+                                    if (skippedCount > 0) {
+                                        toast.info(`${skippedCount} items ya existían y fueron omitidos`);
+                                    }
+
+                                    setIsReviewModalOpen(false);
+                                    setSelectedItemsToReviewIds(new Set());
+                                    setSearchTermReview("");
+
+                                    // Recargar la lista principal para ver los nuevos ítems en Fase 4
+                                    fetchItems();
+                                } catch (error) {
+                                    console.error("Error al crear ítems desde DWH:", error);
+                                    toast.error("Error al procesar algunos ítems.");
+                                }
                             }}
                         />
                     </div>

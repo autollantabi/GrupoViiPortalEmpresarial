@@ -90,6 +90,7 @@ export const InputUI = ({
   label,
   min,
   max,
+  maxLength,
   theme: themeProp,
   onKeyPress,
   onKeyDown,
@@ -106,6 +107,7 @@ export const InputUI = ({
 
   const handleChange = (e) => {
     const originalValue = e.target.value;
+    if (maxLength && originalValue.length > maxLength) return;
     setInputValue(originalValue);
     if (onChange) onChange(originalValue);
   };
@@ -157,6 +159,7 @@ export const InputUI = ({
           theme={theme}
           min={min}
           max={max}
+          maxLength={maxLength}
           required={required}
           disabled={disabled}
         />

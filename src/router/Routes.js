@@ -55,6 +55,7 @@ import { ReporteriaGestionGerentes } from "pages/Areas/Reporteria/GestionGerente
 import { ReporteriaCamiones } from "pages/Areas/Reporteria/Camiones/ReporteriaCamiones";
 import { ReporteriaComercialFlashdeVentas } from "pages/Areas/Reporteria/ComercialFlashdeVentas/ReporteriaComercialFlashdeVentas";
 import { ReporteriaCoordenadas } from "pages/Areas/Reporteria/Coordenadas/ReporteriaCoordenadas";
+import { ReporteriaPricing } from "pages/Areas/Reporteria/Pricing/ReporteriaPricing";
 import { Marketing5w2h } from "pages/Areas/Marketing/Marketing.5w2h";
 import { ReporteriaTecnicentroComercial } from "pages/Areas/Reporteria/TecnicentroComercial/ReporteriaTecnicentroComercial";
 import { ReporteriaImportaciones } from "pages/Areas/Reporteria/Importaciones/ReporteriaImportaciones";
@@ -94,6 +95,13 @@ export const RoutesConfig = [
     icon: "FaHouse",
     component: Portal,
     recurso: null, // No requiere recurso, solo autenticación
+  },
+  {
+    title: "Pricing",
+    component: ReporteriaPricing,
+    recurso: "reportes.pricing",
+    icon: "FaTags",
+    path: "/reportes/pricing",
   },
   // ================================= ADMINISTRACION =================================
   {
@@ -331,6 +339,7 @@ export const RoutesConfig = [
     title: "Comercial",
     component: ReporteriaComercial,
     recurso: "reportes.comercial",
+    recursosAlternativos: ["reportes.pricing"],
   },
   {
     title: "Tecni. Comercial",

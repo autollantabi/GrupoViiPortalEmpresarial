@@ -10,6 +10,7 @@ export const parseLlantas = async (descripciones) => {
         const response = await axiosInstanceNew.post("/mdm/parse-llantas", {
             descripciones
         });
+
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
@@ -80,7 +81,6 @@ export const processItemAction = async (payload) => {
 export const saveItemRole5 = async (item) => {
     try {
         const response = await axiosInstanceNew.post("/mdm/items", item);
-        console.log(item);
         return response.data;
     } catch (error) {
         console.error("Error en saveItemRole5:", error);
@@ -172,6 +172,56 @@ export const uploadItemImages = async (id, marca, diseño, imagenPng, imagenWebp
         return response.data;
     } catch (error) {
         console.error("Error en uploadItemImages:", error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene los ítems del DWH por línea de negocio.
+ * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LUBRICANTES, etc)
+ * @returns {Promise<Array>}
+ */
+export const getItemsDWHByLinea = async (lineaNegocio) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/itemsDWH/linea-negocio/${lineaNegocio}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getItemsDWHByLinea:", error);
+        throw error;
+    }
+};
+
+/**
+ * Crea un ítem a partir de la data del DWH.
+ * @param {number|string} codigoItem - El DIT_CODIGO del ítem en DWH
+ * @returns {Promise<any>}
+ */
+export const createItemFromDWH = async (codigoItem) => {
+    try {
+        const response = await axiosInstanceNew.post(`/mdm/items/from-dwh/${codigoItem}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error en createItemFromDWH:", error);
+        throw error;
+    }
+};
+
+/**
+ * Aprueba un ítem en el MDM (específico para Rol 1).
+ * @param {number|string} id - ID del ítem
+ * @returns {Promise<any>}
+ */
+export const approveItemMDM = async (id) => {
+    try {
+        const response = await axiosInstanceNew.patch(`/mdm/items/${id}/aprobado-mdm`, {
+            APROBADO_MDM: true
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error en approveItemMDM:", error);
         throw error;
     }
 };
