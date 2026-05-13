@@ -10,7 +10,6 @@ export const parseLlantas = async (descripciones) => {
         const response = await axiosInstanceNew.post("/mdm/parse-llantas", {
             descripciones
         });
-        console.log(response.data);
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
@@ -32,7 +31,6 @@ export const getItemsByRole = async (idRolPrincipal, linea) => {
         const response = await axiosInstanceNew.get("/mdm/items", {
             params: { idRolPrincipal, linea }
         });
-
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
@@ -43,35 +41,6 @@ export const getItemsByRole = async (idRolPrincipal, linea) => {
     }
 };
 
-/**
- * Guarda o actualiza una lista de ítems (utilizado por roles 3, 4, 5).
- * @param {Array} items - Lista de ítems a guardar
- * @returns {Promise<any>}
- */
-export const saveItems = async (items) => {
-    try {
-        const response = await axiosInstanceNew.post("/mdm/items/save", { items });
-        return response.data;
-    } catch (error) {
-        console.error("Error en saveItems:", error);
-        throw error;
-    }
-};
-
-/**
- * Procesa la acción de un aprobador (aceptar o rechazar).
- * @param {Object} payload - { itemId, action, rolesRechazo, observaciones }
- * @returns {Promise<any>}
- */
-export const processItemAction = async (payload) => {
-    try {
-        const response = await axiosInstanceNew.post("/mdm/items/action", payload);
-        return response.data;
-    } catch (error) {
-        console.error("Error en processItemAction:", error);
-        throw error;
-    }
-};
 
 /**
  * Crea un ítem nuevo (específico para Rol 5).
