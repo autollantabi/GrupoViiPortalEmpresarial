@@ -34,12 +34,8 @@ const SelectSection = styled.div`
 
 const InfoGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
-  
-  @media (max-width: 1024px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
   
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -54,13 +50,13 @@ const DetailsContainer = styled.div`
     ${({ theme }) => theme.colors.container} 95%,
     ${({ theme }) => theme.colors.primary}08 100%
   );
-  padding: 32px;
+  padding: 24px;
   border-radius: 16px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
   border: 1px solid ${({ theme }) => theme.colors.border};
   position: relative;
   overflow-y: auto;
-  flex: 1;
+  width: 100%;
 
   /* Estilo para el scrollbar */
   &::-webkit-scrollbar {
@@ -94,6 +90,13 @@ const FieldWrapper = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+`;
+
+const ActionSection = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  width: 100%;
 `;
 
 const Label = styled.label`
@@ -162,7 +165,7 @@ const CompletedVisitCard = styled.div`
   border-radius: 12px;
   border: 1px solid ${({ theme }) => theme.colors.border};
   display: grid;
-  grid-template-columns: 1fr 1fr 1.5fr;
+  grid-template-columns: 1fr 2fr;
   gap: 16px;
   align-items: center;
   transition: transform 0.2s ease;
@@ -320,7 +323,8 @@ export const VisitasAsignadas = () => {
         vmr_horacreacionBD: visitDetails.hvi_horacreacionBD,
         vmr_lineanegocio: visitDetails.hvi_lineanegocio,
         vmr_motivonogestion: "PORTAL",
-        vmr_observaciones: observacion || ""
+        vmr_observaciones: observacion || "",
+        vmr_celular: visitDetails.hvi_celular
       }
     ];
 
@@ -407,35 +411,31 @@ export const VisitasAsignadas = () => {
                 <TextUI variant="h2" weight="bold" style={{ margin: 0, color: theme.colors.text }}>Detalles de la Visita</TextUI>
               </div>
               <InfoGrid>
-                {renderField("Hora Inicio", dynamicTimes.inicio)}
-                {renderField("Hora Fin", dynamicTimes.fin)}
+                {renderField("Celular", visitDetails.hvi_celular)}
                 
-                {renderField("Tipo Visita", "VISITA PRESENCIAL")}
-                {renderField("Resultado", "NO_GESTION")}
-                {renderField("Motivo No Gestión", "PORTAL")}
-
                 <FieldWrapper>
-                  <Label theme={theme}>Observación</Label>
+                  <Label theme={theme}>Comentario</Label>
                   <InputUI
-                    placeholder="Ingrese una observación..."
+                    placeholder="Ingrese un comentario..."
                     value={observacion}
                     onChange={(val) => setObservacion(val)}
                     fullWidth
                   />
                 </FieldWrapper>
-
-                <FieldWrapper style={{ gridColumn: '2' }}>
-                  <ButtonUI
-                    text="Aceptar"
-                    onClick={handleAccept}
-                    variant="primary"
-                    fullWidth
-                    iconLeft="FaCheck"
-                    isLoading={loading}
-                    disabled={loading}
-                  />
-                </FieldWrapper>
               </InfoGrid>
+
+              <ActionSection>
+                <ButtonUI
+                  text="Aceptar"
+                  onClick={handleAccept}
+                  variant="primary"
+                  style={{ maxWidth: '300px' }}
+                  fullWidth
+                  iconLeft="FaCheck"
+                  isLoading={loading}
+                  disabled={loading}
+                />
+              </ActionSection>
             </DetailsContainer>
           ) : (
             !loading && (
@@ -481,21 +481,15 @@ export const VisitasAsignadas = () => {
                 {completedVisits.map((visit, index) => (
                   <CompletedVisitCard key={visit.vmr_codigo || index} theme={theme}>
                     <ColumnInfo>
-                      <LabelSmall theme={theme}>Vendedor</LabelSmall>
+                      <LabelSmall theme={theme}>Celular</LabelSmall>
                       <TextUI variant="p" weight="medium" style={{ fontSize: '14px' }}>
-                        {visit.vmr_nombrevendedor}
+                        {visit.vmr_celular || "N/A"}
                       </TextUI>
                     </ColumnInfo>
                     <ColumnInfo>
-                      <LabelSmall theme={theme}>Cliente</LabelSmall>
-                      <TextUI variant="p" weight="medium" style={{ fontSize: '14px' }}>
-                        {visit.vmr_nombrecliente}
-                      </TextUI>
-                    </ColumnInfo>
-                    <ColumnInfo>
-                      <LabelSmall theme={theme}>Observación</LabelSmall>
+                      <LabelSmall theme={theme}>Comentario</LabelSmall>
                       <TextUI variant="p" style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
-                        {visit.vmr_observaciones || "Sin observaciones"}
+                        {visit.vmr_observaciones || "Sin comentarios"}
                       </TextUI>
                     </ColumnInfo>
                   </CompletedVisitCard>

@@ -12,6 +12,7 @@ import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
 import { parseLlantas, uploadToCloudflare, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, getItemsDWHByLinea, createItemFromDWH, approveItemMDM } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
+import { generateSAPExport } from "assets/templates/mdmTemplate";
 
 const LINEAS_NEGOCIO = [
     { value: "LLANTAS", label: "LLANTAS" },
@@ -493,6 +494,8 @@ function MDM_Crud() {
     const [itemsToReview, setItemsToReview] = useState([]);
     const [selectedItemsToReviewIds, setSelectedItemsToReviewIds] = useState(new Set());
     const [searchTermReview, setSearchTermReview] = useState("");
+    const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
+    const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
 
     const filteredItemsToReview = useMemo(() => {
         if (!searchTermReview) return itemsToReview;
@@ -676,6 +679,92 @@ function MDM_Crud() {
     useEffect(() => {
         fetchItems();
     }, [fetchItems]);
+
+    const handleFinalSubmit = async (currentItems) => {
+        try {
+            if (idRolPrincipal === 5) {
+                for (const item of currentItems) {
+                    if (item.fueRechazado) {
+                        const payload = {
+                            ID: item.id,
+                            EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
+                            CODIGO_BARRAS: item.codigo || "",
+                            DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
+                            CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            CUBICAJE: item.cubicaje || "",
+                            NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
+                            PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                            MARCA: item.marca || "",
+                            OBSERVACIONES: item.comentarios || "",
+                            RECHAZO: false,
+                            FASE: 1
+                        };
+                        await patchItemRole3(payload);
+                    } else {
+                        const payload = {
+                            EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
+                            CODIGO_BARRAS: item.codigo || "",
+                            DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
+                            CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            CUBICAJE: item.cubicaje || "",
+                            NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
+                            PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                            MARCA: item.marca || "",
+                            OBSERVACIONES: item.comentarios || ""
+                        };
+                        await saveItemRole5(payload);
+                    }
+                }
+            } else if (idRolPrincipal === 3) {
+                for (const item of currentItems) {
+                    const payload = {
+                        ID: item.ID,
+                        DISENIO: item.diseño || "",
+                        ANCHO: item.ancho || "",
+                        LONAS: item.lonas || "",
+                        NOMENCLATURA: item.nomenclatura || "",
+                        CARGA: item.carga || "",
+                        VELOCIDAD: item.velocidad || "",
+                        RIN: item.rin || "",
+                        SERIE: item.serie || "",
+                        OBSERVACIONES: item.comentarios || "",
+                        FASE: 2,
+                        CATEGORIA: item.categoria || "",
+                        SEGMENTO: item.segmento || "",
+                        APLICACION: item.aplicacion || "",
+                        EJE: item.eje || "",
+                        ...(item.fueRechazado && { RECHAZO: false })
+                    };
+                    await patchItemRole3(payload);
+                }
+            } else if (idRolPrincipal === 4) {
+                for (const item of currentItems) {
+                    if (item.imagenPng || item.imagenWebp) {
+                        try {
+                            await uploadItemImages(item.ID, item.marca, item.diseño, item.imagenPng, item.imagenWebp);
+                        } catch (uploadError) {
+                            console.error(`Error al subir imágenes para el ítem ${item.ID}:`, uploadError);
+                            toast.error(`Error al subir imágenes para ${item.marca} ${item.diseño}`);
+                        }
+                    }
+                    await patchItemRole3({
+                        ID: item.ID,
+                        FASE: 3,
+                        OBSERVACIONES: item.comentarios || "",
+                        ...(item.fueRechazado && { RECHAZO: false })
+                    });
+                }
+            }
+
+            toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
+            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))));
+            setSelectedItemIds(new Set());
+            setIsSAPModalOpen(false);
+        } catch (error) {
+            console.error("Error al enviar a revisión:", error);
+            toast.error("Error al enviar los ítems a revisión.");
+        }
+    };
 
 
 
@@ -1787,92 +1876,20 @@ function MDM_Crud() {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
 
-                                try {
-
-
-                                    if (idRolPrincipal === 5) {
-                                        for (const item of currentItems) {
-                                            if (item.fueRechazado) {
-                                                const payload = {
-                                                    ID: item.id,
-                                                    EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
-                                                    CODIGO_BARRAS: item.codigo || "",
-                                                    DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
-                                                    CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                                                    CUBICAJE: item.cubicaje || "",
-                                                    NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
-                                                    PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
-                                                    MARCA: item.marca || "",
-                                                    OBSERVACIONES: item.comentarios || "",
-                                                    RECHAZO: false,
-                                                    FASE: 1
-                                                };
-                                                await patchItemRole3(payload);
-                                            } else {
-                                                const payload = {
-                                                    EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
-                                                    CODIGO_BARRAS: item.codigo || "",
-                                                    DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
-                                                    CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                                                    CUBICAJE: item.cubicaje || "",
-                                                    NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
-                                                    PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
-                                                    MARCA: item.marca || "",
-                                                    OBSERVACIONES: item.comentarios || ""
-                                                };
-                                                await saveItemRole5(payload);
-                                            }
-                                        }
-                                    } else if (idRolPrincipal === 3) {
-                                        for (const item of currentItems) {
-                                            const payload = {
-                                                ID: item.ID,
-                                                DISENIO: item.diseño || "",
-                                                ANCHO: item.ancho || "",
-                                                LONAS: item.lonas || "",
-                                                NOMENCLATURA: item.nomenclatura || "",
-                                                CARGA: item.carga || "",
-                                                VELOCIDAD: item.velocidad || "",
-                                                RIN: item.rin || "",
-                                                SERIE: item.serie || "",
-                                                OBSERVACIONES: item.comentarios || "",
-                                                FASE: 2,
-                                                CATEGORIA: item.categoria || "",
-                                                SEGMENTO: item.segmento || "",
-                                                APLICACION: item.aplicacion || "",
-                                                EJE: item.eje || "",
-                                                ...(item.fueRechazado && { RECHAZO: false })
-                                            };
-                                            await patchItemRole3(payload);
-                                        }
-                                    } else if (idRolPrincipal === 4) {
-                                        for (const item of currentItems) {
-                                            // Subir imágenes si existen
-                                            if (item.imagenPng || item.imagenWebp) {
-                                                try {
-                                                    await uploadItemImages(item.ID, item.marca, item.diseño, item.imagenPng, item.imagenWebp);
-                                                } catch (uploadError) {
-                                                    console.error(`Error al subir imágenes para el ítem ${item.ID}:`, uploadError);
-                                                    toast.error(`Error al subir imágenes para ${item.marca} ${item.diseño}`);
-                                                }
-                                            }
-
-                                            await patchItemRole3({
-                                                ID: item.ID,
-                                                FASE: 3,
-                                                OBSERVACIONES: item.comentarios || "",
-                                                ...(item.fueRechazado && { RECHAZO: false })
-                                            });
-                                        }
-                                    }
-
-                                    toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
-                                    setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))));
-                                    setSelectedItemIds(new Set());
-                                } catch (error) {
-                                    console.error("Error al enviar a revisión:", error);
-                                    toast.error("Error al enviar los ítems a revisión.");
+                                if (idRolPrincipal === 5) {
+                                    // Agrupar items por empresa para el modal de SAP
+                                    const grouped = {};
+                                    currentItems.forEach(item => {
+                                        const companyName = diccionarioEmpresas[item.idEmpresa] || "SIN EMPRESA";
+                                        if (!grouped[companyName]) grouped[companyName] = [];
+                                        grouped[companyName].push(item);
+                                    });
+                                    setGroupedItemsByCompany(grouped);
+                                    setIsSAPModalOpen(true);
+                                    return;
                                 }
+
+                                await handleFinalSubmit(currentItems);
                             }}
                             pcolor={theme?.colors?.primary}
                         />
@@ -2079,6 +2096,42 @@ function MDM_Crud() {
                                     console.error("Error al crear ítems desde DWH:", error);
                                     toast.error("Error al procesar algunos ítems.");
                                 }
+                            }}
+                        />
+                    </div>
+                </div>
+            </ModalUI>
+
+            <ModalUI
+                isOpen={isSAPModalOpen}
+                onClose={() => setIsSAPModalOpen(false)}
+                title="Descargar datos para subir a SAP"
+                width="500px"
+            >
+                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                    <TextUI text="Se han generado los siguientes archivos por empresa. Por favor descargue cada uno para subir a SAP antes de continuar." variant="small" />
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
+                        {Object.keys(groupedItemsByCompany).map(companyName => (
+                            <ButtonUI
+                                key={companyName}
+                                text={`Descargar ${companyName}`}
+                                iconLeft="FaDownload"
+                                onClick={() => generateSAPExport(companyName, groupedItemsByCompany[companyName])}
+                            />
+                        ))}
+                    </div>
+                    <div style={{ borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, paddingTop: "16px", marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                        <ButtonUI
+                            text="Cancelar"
+                            variant="outlined"
+                            onClick={() => setIsSAPModalOpen(false)}
+                        />
+                        <ButtonUI
+                            text="Continuar con el envío"
+                            pcolor={theme?.colors?.primary}
+                            onClick={() => {
+                                const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
+                                handleFinalSubmit(currentItems);
                             }}
                         />
                     </div>
