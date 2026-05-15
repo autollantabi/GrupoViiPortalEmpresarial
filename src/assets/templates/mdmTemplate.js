@@ -91,7 +91,7 @@ const DEFAULT_VALUES = {
     "NOMENCLATURA": "",
     "CATEGORIA": "",
     "SEGMENTO": "",
-    "APLICACIÓN": "",
+    "APLICACION": "",
     "EJE": "",
     "LONAS": "",
     "VELOCIDAD": "",
@@ -201,6 +201,11 @@ const MAIN_HEADERS = {
     "FRM_CODE": "FRM_CODE",
     "U_MA_CARGA": "U_MA_CARGA"
 };
+const NOMENCLATURA_MAPPING = {
+    "MILIMETRICA": "3",
+    "DECIMAL": "2",
+    "AMERICANA": "1"
+};
 
 /**
  * Genera y descarga la plantilla de Excel.
@@ -240,9 +245,19 @@ export const generateMDMTemplate = (lineaNombre, userValues = {}) => {
  * Genera y descarga un archivo Excel para SAP con múltiples ítems.
  * @param {string} companyName - Nombre de la empresa para el nombre del archivo.
  * @param {Array} items - Lista de ítems a exportar.
+ * @param {Object} mappingData - Datos de mapeo dinámicos (CATEGORIAS, SEGMENTOS, APLICACIONES, EJES).
  */
-export const generateSAPExport = (companyName, items) => {
+export const generateSAPExport = (companyName, items, mappingData = {}) => {
     const headers = Object.keys(DEFAULT_VALUES);
+
+    // Preparar funciones de mapeo dinámico
+    const getCode = (listName, name) => {
+        if (!mappingData[listName] || !name) return "";
+        const mappingItem = mappingData[listName].find(
+            (it) => String(it.name).trim().toUpperCase() === String(name).trim().toUpperCase()
+        );
+        return mappingItem ? mappingItem.code : "";
+    };
 
     // Primera fila: Encabezados descriptivos (de SAP)
     const mainHeaderRow = headers.map(header => MAIN_HEADERS[header] || "");
@@ -252,16 +267,29 @@ export const generateSAPExport = (companyName, items) => {
         // Mapeo específico solicitado por el usuario
         const ecovalor = item.linea === "LLANTAS" ? "1" : item.linea === "LLANTAS MOTO" ? "2" : "";
         const userValues = {
-            "FRM_CODE": item.marca || "",
-            "ItemName": item.nombreSistema || "",
-            "DISEÑO": item.diseño || "",
-            "CodeBars": item.codigo || "",
-            "SuppCatNum": item.codigoProveedor || "",
-            "U_MA_CUBICAJE": item.cubicaje || "",
-            "FrgnName": item.nombreExtranjero || "",
-            "U_MA_PRT_ARA": item.partidaArancelaria || "",
-            "U_MA_ECOVALOR": ecovalor
+            "ItemCode": item.CODIGO_SAP || item.codigoSap || "",
+            "ItemName": item.DESCRIPCION || item.descripcion || item.descripcionRol5 || "",
+            "FrgnName": item.NOMBRE_EXTRANJERO || item.nombreExtranjero || "",
+            "SuppCatNum": item.CODIGO_PROVEEDOR || item.codigoProveedor || "",
+            "CodeBars": item.CODIGO_BARRAS || item.codigo || "",
+            "U_MA_ECOVALOR": ecovalor,
+            "DISEÑO": item.DISENIO || item.diseño || "",
+            "RIN": item.RIN || item.rin || "",
+            "SERIE": item.SERIE || item.serie || "",
+            "ANCHO": item.ANCHO || item.ancho || "",
+            "NOMENCLATURA": NOMENCLATURA_MAPPING[item.NOMENCLATURA || item.nomenclatura] || "",
+            "CATEGORIA": getCode("CATEGORIAS", item.CATEGORIA || item.categoria),
+            "SEGMENTO": getCode("SEGMENTOS", item.SEGMENTO || item.segmento),
+            "APLICACION": getCode("APLICACIONES", item.APLICACION || item.aplicacion),
+            "EJE": getCode("EJES", item.EJE || item.eje),
+            "LONAS": item.LONAS || item.lonas || "",
+            "VELOCIDAD": item.VELOCIDAD || item.velocidad || "",
+            "U_MA_PRT_ARA": item.PARTIDA_ARANCELARIA || item.partidaArancelaria || "",
+            "U_MA_CUBICAJE": item.CUBICAJE || item.cubicaje || "",
+            "FRM_CODE": item.MARCA || item.marca || "",
+            "U_MA_CARGA": item.CARGA || item.carga || ""
         };
+
 
         return headers.map(header => {
             return userValues[header] !== undefined ? userValues[header] : DEFAULT_VALUES[header];
@@ -284,10 +312,15 @@ export const generateSAPExport = (companyName, items) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `${companyName}_${new Date()}.txt`);
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, "0");
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const yyyy = today.getFullYear();
+    const fechaActual = `${dd}-${mm}-${yyyy}`;
+
+    link.setAttribute("download", `${companyName}_${fechaActual}.txt`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 };
-

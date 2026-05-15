@@ -10,7 +10,7 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, uploadToCloudflare, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, getItemsDWHByLinea, createItemFromDWH, approveItemMDM } from "services/mdmService";
+import { parseLlantas, uploadToCloudflare, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
 
@@ -34,7 +34,7 @@ const CATEGORIAS_LLANTAS = {
                 aplicaciones: {
                     "PASAJERO": ["P(PASSENGER)", "HP (HIGH PERFORMANCE)", "UHP (ULTRA HIGH PERFORMANCE)"],
                     "TAXI": ["TAXI"],
-                    "RUN FLAT": ["RUN FLAT"],
+                    "RUN FLAT": ["RUN FLAT"], //Cambiar eje
                 },
             },
             "COMPETENCIA": {
@@ -202,46 +202,6 @@ const DICCIONARIO_LINEAS = {
     9: 'HERRAMIENTAS',
     18: 'LLANTAS MOTO'
 };
-
-const MAPEO_MARCA_CODIGO = [
-    { marca: "KEYSTONE", valor: "LMK", partida: "4011.40.00.00" },
-    { marca: "FORTUNE", valor: "LQFR", partida: "4011.20.10.00" },
-    { marca: "FARROAD", valor: "LPFD", partida: "4011.10.10.00" },
-    { marca: "FORTUNE", valor: "LQFL", partida: "4011.10.90.00" },
-    { marca: "CST", valor: "LNCC", partida: "4011.20.90.00" },
-    { marca: "APLUS", valor: "LOAQ", partida: "4011.20.90.00" },
-    { marca: "APLUS", valor: "LOAQ", partida: "4011.20.10.00" },
-    { marca: "HAOHUA", valor: "LOHC", partida: "4011.20.10.00" },
-    { marca: "APLUS", valor: "LOAP", partida: "4011.10.10.00" },
-    { marca: "ANTARES", valor: "LTAN", partida: "4011.10.90.00" },
-    { marca: "ROADWING", valor: "LRWR", partida: "4011.20.10.00" },
-    { marca: "HAOHUA", valor: "LOHC", partida: "4011.20.90.00" },
-    { marca: "ANTARES", valor: "LTAN", partida: "4011.10.10.00" },
-    { marca: "BYCROSS", valor: "LSBY", partida: "4011.20.90.00" },
-    { marca: "BAYI", valor: "LSBC", partida: "4011.20.10.00" },
-    { marca: "ROADWING", valor: "LRWR", partida: "4011.20.90.00" },
-    { marca: "CST", valor: "LNMC", partida: "4011.40.00.00" },
-    { marca: "ANSU", valor: "LSAC", partida: "4011.20.10.00" },
-    { marca: "CST", valor: "LNC", partida: "4011.10.90.00" },
-    { marca: "ANSU", valor: "LSAC", partida: "4011.20.90.00" },
-    { marca: "ROADCRUZA", valor: "LRDL", partida: "4011.10.90.00" },
-    { marca: "MAXTREK", valor: "LOMT", partida: "4011.10.90.00" },
-    { marca: "APLUS", valor: "LOAP", partida: "4011.10.90.00" },
-    { marca: "BYCROSS", valor: "LSBY", partida: "4011.20.10.00" },
-    { marca: "WONDERLAN", valor: "LSWC", partida: "4011.20.90.00" },
-    { marca: "ROADWING", valor: "LRWL", partida: "4011.10.90.00" },
-    { marca: "MAXTREK", valor: "LOMT", partida: "4011.10.10.00" },
-    { marca: "FARROAD", valor: "LPFD", partida: "4011.10.90.00" },
-    { marca: "ROADCRUZA", valor: "LRDL", partida: "4011.10.10.00" },
-    { marca: "BAYI", valor: "LSBC", partida: "4011.20.90.00" },
-    { marca: "CST", valor: "LNC", partida: "4011.10.10.00" },
-    { marca: "FORTUNE", valor: "LQFL", partida: "4011.10.10.00" },
-    { marca: "ROADWING", valor: "LRWL", partida: "4011.10.10.00" },
-    { marca: "WONDERLAN", valor: "LSWC", partida: "4011.20.10.00" },
-    { marca: "FORTUNE", valor: "LQFR", partida: "4011.20.90.00" },
-    { marca: "CST", valor: "LNCC", partida: "4011.20.10.00" }
-];
-
 const DICCIONARIO_COLOR_LETRA_CODIGO = {
     "00": "OWL",
     "01": "LN",
@@ -267,37 +227,67 @@ const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {
     return isNew ? `NEW ${res}` : res;
 };
 
-const calcularCodigoBarras = (item) => {
-    if (!item) return "";
-    const mapping = MAPEO_MARCA_CODIGO.find(m =>
-        m.marca.toUpperCase() === String(item.marca || "").toUpperCase() &&
-        m.partida === item.partidaArancelaria
-    );
-    const codMarca = mapping ? mapping.valor : "00";
-    const parsed = item.parsedData || {};
-    const rin = String(parsed.rin || "00");
-    const ancho = String(parsed.ancho || "00");
-    const alto = String(parsed.serie || "00");
-    const lonas = String(parsed.lonas || "00");
-    const firstChar = String(item.diseño || "").charAt(0);
-    let designNum = "00";
-    if (firstChar) {
-        const c = firstChar.toUpperCase();
-        if (c >= 'A' && c <= 'Z') {
-            designNum = (c.charCodeAt(0) - 64).toString().padStart(2, '0');
-        }
-    }
-    const diseño = String(item.diseño || "");
-    const letraDiseño = String(item.letraDiseño || "");
-    const colorLetra = String(item.colorLetra || "");
-    const carga = String(parsed.carga || "00");
-    const velocidad = String(parsed.velocidad || "00");
-    return `${codMarca}${rin}${ancho}${alto}${lonas}${designNum}${diseño}${letraDiseño}${colorLetra}${carga}${velocidad}`.toUpperCase().replace(/\s+/g, '');
-};
+// Se movió calcularCodigoBarras dentro del componente para usar el estado dinámico
 
 function MDM_Crud() {
     const { theme } = useTheme();
     const { user } = useAuthContext();
+    const [mapeoMarcas, setMapeoMarcas] = useState([]);
+    const [caracteristicasMDM, setCaracteristicasMDM] = useState({});
+
+
+    useEffect(() => {
+        const fetchMapeo = async () => {
+            try {
+                const data = await getNeumaticosDWH();
+                setMapeoMarcas(data || []);
+            } catch (error) {
+                console.error("Error fetching mapeo marcas:", error);
+            }
+        };
+        fetchMapeo();
+    }, []);
+
+    useEffect(() => {
+        const fetchCaracteristicas = async () => {
+            try {
+                const data = await getItemsCaracteristicas();
+                setCaracteristicasMDM(data || {});
+            } catch (error) {
+                console.error("Error fetching caracteristicas:", error);
+            }
+        };
+        fetchCaracteristicas();
+    }, []);
+
+
+    const calcularCodigoBarras = useCallback((item) => {
+        if (!item) return "";
+        const mapping = mapeoMarcas.find(m =>
+            String(m.marca || "").toUpperCase() === String(item.marca || "").toUpperCase() &&
+            String(m.partida_arancelaria || "").toUpperCase() === String(item.partidaArancelaria || "").toUpperCase()
+        );
+        const codMarca = mapping ? mapping.valor : "00";
+        const parsed = item.parsedData || {};
+        const rin = String(parsed.rin || "00");
+        const ancho = String(parsed.ancho || "00");
+        const alto = String(parsed.serie || "00");
+        const lonas = String(parsed.lonas || "00");
+        const firstChar = String(item.diseño || "").charAt(0);
+        let designNum = "00";
+        if (firstChar) {
+            const c = firstChar.toUpperCase();
+            if (c >= 'A' && c <= 'Z') {
+                designNum = (c.charCodeAt(0) - 64).toString().padStart(2, '0');
+            }
+        }
+        const diseño = String(item.diseño || "");
+        const letraDiseño = String(item.letraDiseño || "");
+        const colorLetra = String(item.colorLetra || "");
+        const carga = String(parsed.carga || "00");
+        const velocidad = String(parsed.velocidad || "00");
+        return `${codMarca}${rin}${ancho}${alto}${lonas}${designNum}${diseño}${letraDiseño}${colorLetra}${carga}${velocidad}`.toUpperCase().replace(/\s+/g, '');
+    }, [mapeoMarcas]);
     const isDark = theme?.name === 'dark';
 
     const handleNumericInput = (value) => value.replace(/[^0-9]/g, "");
@@ -496,6 +486,10 @@ function MDM_Crud() {
     const [searchTermReview, setSearchTermReview] = useState("");
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
     const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
+    const [approvedItems, setApprovedItems] = useState([]);
+    const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
+    const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
+    const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
 
     const filteredItemsToReview = useMemo(() => {
         if (!searchTermReview) return itemsToReview;
@@ -519,10 +513,11 @@ function MDM_Crud() {
             try {
                 const rawData = await getItemsByRole(idRolPrincipal, lineaSeleccionada.value);
                 if (rawData) {
-                    const data = rawData;
+                    const data = rawData.filter(it => it.LINEA_NEGOCIO === lineaSeleccionada.value);
                     let processedItems = data;
                     if (idRolPrincipal === 3) {
                         const filtered = data.filter(it =>
+                            it.APROBADO_MDM ||
                             it.FASE_ACTUAL == 2 ||
                             (it.FASES && Array.isArray(it.FASES) && it.FASES.some(f => f.FASE == 2 && f.RECHAZO))
                         );
@@ -543,7 +538,7 @@ function MDM_Crud() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: lineaSeleccionada.value,
+                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 diseño: parsed.diseno || it.DISENIO || "",
                                 rin: parsed.rin || it.RIN || "",
                                 serie: parsed.serie || it.SERIE || "",
@@ -565,6 +560,7 @@ function MDM_Crud() {
                         });
                     } else if (idRolPrincipal === 4) {
                         processedItems = data.filter(it =>
+                            it.APROBADO_MDM ||
                             it.FASE_ACTUAL === 3 ||
                             (it.FASES && it.FASES.some(f => f.FASE === 3 && f.RECHAZO))
                         ).map(it => {
@@ -572,7 +568,7 @@ function MDM_Crud() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: lineaSeleccionada.value,
+                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 codigo: it.CODIGO_BARRAS || "",
                                 marca: it.MARCA || "",
                                 diseño: it.DISENIO || "",
@@ -584,6 +580,7 @@ function MDM_Crud() {
                         });
                     } else if (idRolPrincipal === 5) {
                         const filtered = data.filter(it =>
+                            it.APROBADO_MDM ||
                             it.FASES?.some(f => f.FASE === 1 && f.RECHAZO)
                         );
 
@@ -603,7 +600,7 @@ function MDM_Crud() {
                             const itemWithBase = {
                                 ...it,
                                 id: it.ID,
-                                linea: lineaSeleccionada.value,
+                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
                                 descripcionRol5: it.DESCRIPCION || "",
                                 descripcion: it.DESCRIPCION || "",
@@ -636,7 +633,7 @@ function MDM_Crud() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: lineaSeleccionada.value,
+                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || it.EMPRESA || "",
                                 codigo: it.CODIGO_BARRAS || "",
                                 marca: it.MARCA || "",
@@ -666,7 +663,17 @@ function MDM_Crud() {
                             };
                         });
                     }
-                    setItems(processedItems);
+                    if (idRolPrincipal === 1) {
+                        const approved = data.filter(it => it.APROBADO_MDM === true);
+                        setApprovedItemsForExport(approved.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
+                    }
+
+                    const pendingItems = processedItems.filter(it => !it.APROBADO_MDM);
+                    const approvedList = processedItems.filter(it => it.APROBADO_MDM);
+
+                    setItems(pendingItems);
+                    setApprovedItems(approvedList);
+
                     if (idRolPrincipal === 1) setCurrentItemIndex(0);
                 }
             } catch (error) {
@@ -696,6 +703,7 @@ function MDM_Crud() {
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
+                            LINEA_NEGOCIO: lineaSeleccionada.value,
                             RECHAZO: false,
                             FASE: 1
                         };
@@ -710,7 +718,8 @@ function MDM_Crud() {
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                             MARCA: item.marca || "",
-                            OBSERVACIONES: item.comentarios || ""
+                            OBSERVACIONES: item.comentarios || "",
+                            LINEA_NEGOCIO: lineaSeleccionada.value
                         };
                         await saveItemRole5(payload);
                     }
@@ -900,21 +909,31 @@ function MDM_Crud() {
                         minWidth="200px"
                     />
                     {idRolPrincipal === 1 && (
-                        <ButtonUI
-                            text="Revisar Items"
-                            iconLeft="FaSearch"
-                            variant="primary"
-                            disabled={!lineaSeleccionada}
-                            onClick={async () => {
-                                try {
-                                    const data = await getItemsDWHByLinea(lineaSeleccionada.value);
-                                    setItemsToReview(data);
-                                    setIsReviewModalOpen(true);
-                                } catch (error) {
-                                    toast.error("Error al buscar ítems en el DWH.");
-                                }
-                            }}
-                        />
+                        <>
+                            <ButtonUI
+                                text="Revisar Items"
+                                iconLeft="FaSearch"
+                                variant="primary"
+                                disabled={!lineaSeleccionada}
+                                onClick={async () => {
+                                    try {
+                                        const data = await getItemsDWHByLinea(lineaSeleccionada.value);
+                                        setItemsToReview(data);
+                                        setIsReviewModalOpen(true);
+                                    } catch (error) {
+                                        toast.error("Error al buscar ítems en el DWH.");
+                                    }
+                                }}
+                            />
+                            <ButtonUI
+                                text="Exportar a SAP"
+                                iconLeft="FaFileExport"
+                                variant="outlined"
+                                disabled={!lineaSeleccionada}
+                                onClick={() => setIsSAPExportModalOpen(true)}
+                                pcolor={theme?.colors?.info || "#17a2b8"}
+                            />
+                        </>
                     )}
                     {idRolPrincipal !== 1 && idRolPrincipal !== 3 && idRolPrincipal !== 4 && (
                         <div style={{ display: "flex", gap: 12 }}>
@@ -961,7 +980,7 @@ function MDM_Crud() {
                 </div>
             </div>
 
-            <div style={{ flex: 1, backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: "0 0 100%", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <TextUI size="14px" weight="600">
                         Ítems {lineaSeleccionada ? `de ${lineaSeleccionada.label}` : ""} ({items.filter(i => lineaSeleccionada ? i.linea === lineaSeleccionada.value : true).length})
@@ -1897,6 +1916,43 @@ function MDM_Crud() {
                 )}
             </div>
 
+            {/* Sección de Aprobados */}
+            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && approvedItems.filter(i => i.linea === lineaSeleccionada.value).length > 0 && (
+                <div style={{ marginTop: "200px", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 100%", marginBottom: "80px" }}>
+                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.success + "11", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <TextUI size="14px" weight="600" color={theme?.colors?.success}>
+                            Aprobados {lineaSeleccionada ? `de ${lineaSeleccionada.label}` : ""} ({approvedItems.filter(i => i.linea === lineaSeleccionada.value).length})
+                        </TextUI>
+                    </div>
+                    <div style={{ flex: 1, overflow: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                                <tr>
+                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Empresa</th>
+                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código SAP</th>
+                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "250px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de barras</th>
+                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "350px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripción</th>
+                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
+                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Diseño</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {approvedItems.filter(i => i.linea === lineaSeleccionada.value).map(item => (
+                                    <tr key={item.id} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, opacity: 0.8 }}>
+                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{diccionarioEmpresas[item.idEmpresa] || item.EMPRESA || "-"}</TextUI></td>
+                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></td>
+                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></td>
+                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></td>
+                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.marca || "-"}</TextUI></td>
+                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.diseño || item.DISENIO || "-"}</TextUI></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
             <ModalUI
                 isOpen={isRejectModalOpen}
                 onClose={() => {
@@ -2116,7 +2172,7 @@ function MDM_Crud() {
                                 key={companyName}
                                 text={`Descargar ${companyName}`}
                                 iconLeft="FaDownload"
-                                onClick={() => generateSAPExport(companyName, groupedItemsByCompany[companyName])}
+                                onClick={() => generateSAPExport(companyName, groupedItemsByCompany[companyName], caracteristicasMDM)}
                             />
                         ))}
                     </div>
@@ -2134,6 +2190,91 @@ function MDM_Crud() {
                                 handleFinalSubmit(currentItems);
                             }}
                         />
+                    </div>
+                </div>
+            </ModalUI>
+
+            <ModalUI
+                isOpen={isSAPExportModalOpen}
+                onClose={() => setIsSAPExportModalOpen(false)}
+                title="Exportar ítems aprobados a SAP"
+                width="1000px"
+            >
+                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    <TextUI size="14px" color={theme?.colors?.textSecondary}>
+                        Se muestran todos los ítems aprobados ordenados por fecha de actualización.
+                    </TextUI>
+                    <div style={{ maxHeight: "500px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>
+                                <tr>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "50px" }}>
+                                        <CheckboxUI
+                                            checked={approvedItemsForExport.length > 0 && approvedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
+                                            onChange={(_, checked) => {
+                                                if (checked) setSelectedApprovedItemIds(new Set(approvedItemsForExport.map(i => i.ID)));
+                                                else setSelectedApprovedItemIds(new Set());
+                                            }}
+                                        />
+                                    </th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Aprobado el</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {approvedItemsForExport.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados para exportar.</td>
+                                    </tr>
+                                ) : (
+                                    approvedItemsForExport.map(item => (
+                                        <tr key={item.ID} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                            <td style={{ padding: "10px", textAlign: "center" }}>
+                                                <CheckboxUI
+                                                    checked={selectedApprovedItemIds.has(item.ID)}
+                                                    onChange={(_, checked) => {
+                                                        setSelectedApprovedItemIds(prev => {
+                                                            const newSet = new Set(prev);
+                                                            if (checked) newSet.add(item.ID);
+                                                            else newSet.delete(item.ID);
+                                                            return newSet;
+                                                        });
+                                                    }}
+                                                />
+                                            </td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.EMPRESA}</td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text, fontSize: "12px" }}>{item.DESCRIPCION}</td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.textSecondary, fontSize: "11px" }}>{new Date(item.updatedAt).toLocaleString()}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
+                        {Object.entries(
+                            approvedItemsForExport
+                                .filter(it => selectedApprovedItemIds.has(it.ID))
+                                .reduce((acc, it) => {
+                                    if (!acc[it.EMPRESA]) acc[it.EMPRESA] = [];
+                                    acc[it.EMPRESA].push({
+                                        ...it,
+                                        linea: lineaSeleccionada?.value // Necesario para el ecovalor
+                                    });
+                                    return acc;
+                                }, {})
+                        ).map(([empresa, items]) => (
+                            <ButtonUI
+                                key={empresa}
+                                text={`Exportar ${empresa} (${items.length})`}
+                                iconLeft="FaDownload"
+                                onClick={() => generateSAPExport(empresa, items, caracteristicasMDM)}
+                                pcolor={theme?.colors?.success || "#28a745"}
+                            />
+                        ))}
                     </div>
                 </div>
             </ModalUI>

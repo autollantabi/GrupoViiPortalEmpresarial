@@ -194,3 +194,37 @@ export const approveItemMDM = async (id) => {
         throw error;
     }
 };
+
+/**
+ * Obtiene el mapeo de marcas y partidas arancelarias desde el DWH.
+ * @returns {Promise<Array>}
+ */
+export const getNeumaticosDWH = async () => {
+    try {
+        const response = await axiosInstanceNew.get("/dwh-postgres/neumaticos");
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getNeumaticosDWH:", error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene las características de los ítems (categorías, segmentos, aplicaciones, ejes).
+ * @returns {Promise<Object>}
+ */
+export const getItemsCaracteristicas = async () => {
+    try {
+        const response = await axiosInstanceNew.get("/mdm/items-caracteristicas");
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return {};
+    } catch (error) {
+        console.error("Error en getItemsCaracteristicas:", error);
+        throw error;
+    }
+};
