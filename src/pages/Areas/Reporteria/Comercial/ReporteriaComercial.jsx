@@ -119,7 +119,7 @@ const REPORTES = [
   },
   {
     id: 11,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiODZjMjE0MTctODc2OS00YjlhLThmMzUtOTk5OTViOGYyMmUyIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=dd58a1f1a4fe654f1300",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiN2RkZjE3NzktNDg1MC00ZGViLTk2NjAtYjUzZTlkNDMzODJlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=dd58a1f1a4fe654f1300",
     titulo: "Comercial V2 Neumáticos - Automax (JEFATURA)",
     rol: "jefatura",
     linea: "LLANTAS",
