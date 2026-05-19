@@ -116,6 +116,12 @@ const CATEGORIAS_LLANTAS = {
     },
 };
 
+const MARCAS_POR_EMPRESA = {
+    "AUTOLLANTA": ["FORTUNE", "MAXTREK", "ROADWING"],
+    "STOX": ["CST", "FARROAD BRAND", "ANSU", "BAYI", "BYCROSS", "WONDERLAND", "ANTARES"],
+    "MAXXIMUNDO": ["MAXXIS", "APLUS", "ROADCRUZA", "HAOHUA"],
+};
+
 function validarRequerido(valor) {
     if (valor == null || String(valor).trim() === "") return "Requerido";
     return null;
@@ -393,6 +399,10 @@ function MDM_Crud() {
     };
 
     const handleImportExcel = (e) => {
+        if (!lineaSeleccionada) {
+            toast.error("Por favor, seleccione una línea de negocio primero.");
+            return;
+        }
         const file = e.target.files[0];
         if (!file) return;
 
@@ -411,11 +421,28 @@ function MDM_Crud() {
                 }
 
                 const baseItems = data.map(row => {
-                    // Buscar el ID de la empresa por nombre (insensible a mayúsculas/minúsculas)
                     const nombreEmpresa = String(row.EMPRESA || "").trim().toUpperCase();
-                    const idEmpresa = Object.keys(diccionarioEmpresas).find(
+                    let idEmpresa = Object.keys(diccionarioEmpresas).find(
                         key => diccionarioEmpresas[key].trim().toUpperCase() === nombreEmpresa
                     ) || "";
+
+                    let marcaImportada = String(row.MARCA || "").trim().toUpperCase();
+
+                    if (idEmpresa) {
+                        const companyName = String(diccionarioEmpresas[idEmpresa]).trim().toUpperCase();
+                        const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key => 
+                            companyName === key || companyName.includes(key) || key.includes(companyName)
+                        );
+                        const allowedMarcas = matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
+                        const marcaEsValida = allowedMarcas.some(b => b.toUpperCase() === marcaImportada);
+                        
+                        if (!marcaEsValida) {
+                            marcaImportada = "";
+                        }
+                    } else {
+                        idEmpresa = "";
+                        marcaImportada = "";
+                    }
 
                     return {
                         id: Date.now() + Math.random(),
@@ -431,7 +458,7 @@ function MDM_Crud() {
                         colorLetra: String(row.COLOR_LETRA || "").trim().toUpperCase(),
                         codigo: "", // Código de barras
                         cubicaje: "",
-                        marca: String(row.MARCA || "").trim().toUpperCase(),
+                        marca: marcaImportada,
                         comentarios: ""
                     };
                 });
@@ -815,6 +842,25 @@ function MDM_Crud() {
         }
     };
 
+    const getMarcasForEmpresa = useCallback((idEmp) => {
+        if (!idEmp || !diccionarioEmpresas[idEmp]) return [];
+        const companyName = String(diccionarioEmpresas[idEmp]).trim().toUpperCase();
+        const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key => 
+            companyName === key || companyName.includes(key) || key.includes(companyName)
+        );
+        return matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
+    }, [diccionarioEmpresas]);
+
+    const getBrandOptions = useCallback((idEmp) => {
+        const brands = getMarcasForEmpresa(idEmp);
+        if (brands.length > 0) {
+            return brands.map(b => ({ value: b, label: b }));
+        }
+        const allBrands = Object.values(MARCAS_POR_EMPRESA).flat();
+        const uniqueBrands = Array.from(new Set(allBrands));
+        return uniqueBrands.map(b => ({ value: b, label: b }));
+    }, [getMarcasForEmpresa]);
+
     const actualizarCampoFila = (id, campo, valor) => {
         let val = typeof valor === 'string' ? valor.toUpperCase() : valor;
 
@@ -828,6 +874,53 @@ function MDM_Crud() {
             else if (campo === "lonas") val = handleNumericInput(valor);
             else if (campo === "carga") val = handleCargaInput(valor);
             else if (campo === "velocidad") val = handleVelocidadInput(valor);
+        }
+
+        if (idRolPrincipal === 5 && campo === "idEmpresa") {
+            setItems(prev => prev.map(it => {
+                if (it.id === id) {
+                    const baseItem = { ...it, idEmpresa: val };
+                    const allowedMarcas = getMarcasForEmpresa(val);
+                    const brandIsAllowed = allowedMarcas.some(b => String(b).trim().toUpperCase() === String(it.marca).trim().toUpperCase());
+                    if (it.marca && !brandIsAllowed) {
+                        baseItem.marca = "";
+                        baseItem.codigo = calcularCodigoBarras(baseItem);
+                    }
+                    return baseItem;
+                }
+                return it;
+            }));
+            return;
+        }
+
+        if (idRolPrincipal === 5 && campo === "marca") {
+            setItems(prev => prev.map(it => {
+                if (it.id === id) {
+                    const baseItem = { ...it, marca: val };
+                    
+                    const brandName = String(val).trim().toUpperCase();
+                    let companyKey = null;
+                    for (const [comp, brands] of Object.entries(MARCAS_POR_EMPRESA)) {
+                        if (brands.some(b => b.toUpperCase() === brandName)) {
+                            companyKey = comp;
+                            break;
+                        }
+                    }
+                    if (companyKey) {
+                        const companyId = Object.keys(diccionarioEmpresas).find(
+                            k => String(diccionarioEmpresas[k]).trim().toUpperCase() === companyKey
+                        );
+                        if (companyId) {
+                            baseItem.idEmpresa = companyId;
+                        }
+                    }
+                    
+                    baseItem.codigo = calcularCodigoBarras(baseItem);
+                    return baseItem;
+                }
+                return it;
+            }));
+            return;
         }
 
         if (idRolPrincipal === 5 && campo === "descripcionRol5") {
@@ -865,7 +958,7 @@ function MDM_Crud() {
         }
 
         if (idRolPrincipal === 5) {
-            const barcodeFields = ["marca", "partidaArancelaria", "diseño", "letraDiseño", "colorLetra"];
+            const barcodeFields = ["partidaArancelaria", "diseño", "letraDiseño", "colorLetra"];
             if (barcodeFields.includes(campo)) {
                 setItems(prev => prev.map(it => {
                     if (it.id === id) {
@@ -1491,7 +1584,15 @@ function MDM_Crud() {
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "200px" }} value={item.marca || ""} onChange={(v) => actualizarCampoFila(item.id, "marca", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <SelectUI
+                                                                options={getBrandOptions(item.idEmpresa)}
+                                                                value={item.marca ? { value: item.marca, label: item.marca } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "marca", v?.value)}
+                                                                minWidth="200px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>
@@ -1660,7 +1761,15 @@ function MDM_Crud() {
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "200px" }} value={item.marca || ""} onChange={(v) => actualizarCampoFila(item.id, "marca", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <SelectUI
+                                                                options={getBrandOptions(item.idEmpresa)}
+                                                                value={item.marca ? { value: item.marca, label: item.marca } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "marca", v?.value)}
+                                                                minWidth="200px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>
@@ -1817,7 +1926,15 @@ function MDM_Crud() {
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "200px" }} value={item.marca || ""} onChange={(v) => actualizarCampoFila(item.id, "marca", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}>
+                                                            <SelectUI
+                                                                options={getBrandOptions(item.idEmpresa)}
+                                                                value={item.marca ? { value: item.marca, label: item.marca } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "marca", v?.value)}
+                                                                minWidth="200px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>

@@ -158,6 +158,30 @@ const REPORTES = [
     linea: "LLANTAS",
     empresa: "STOX",
   },
+  {
+    id: 20,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiODZjMjE0MTctODc2OS00YjlhLThmMzUtOTk5OTViOGYyMmUyIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
+    titulo: "Flash de Ventas - Grupo VII (Coordinador)",
+    rol: "coordinadora",
+    linea: "LLANTAS",
+    empresa: "AUTOMAX",
+  },
+  {
+    id: 21,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiODZjMjE0MTctODc2OS00YjlhLThmMzUtOTk5OTViOGYyMmUyIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
+    titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
+    rol: "jefatura",
+    linea: "LLANTAS",
+    empresa: "AUTOMAX",
+  },
+  {
+    id: 22,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiODZjMjE0MTctODc2OS00YjlhLThmMzUtOTk5OTViOGYyMmUyIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
+    titulo: "Flash de Ventas - Grupo VII (Supervisor)",
+    rol: "supervisor",
+    linea: "LLANTAS",
+    empresa: "AUTOMAX",
+  },
 ];
 
 export const ReporteriaComercialFlashdeVentas = ({
