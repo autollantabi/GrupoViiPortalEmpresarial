@@ -235,3 +235,67 @@ export async function appShellService_crearVendedor(vendedorData) {
     };
   }
 }
+
+/**
+ * Obtener todos los influencers
+ * @returns {Promise<Object>} { success, data: [], message }
+ */
+export async function appShellService_obtenerInfluencers() {
+  try {
+    const response = await axiosInstanceNew.get(`/club-shell-maxx/influencers`);
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message || "Influencers obtenidos exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error.response?.data?.message || "Error al obtener los influencers",
+    };
+  }
+}
+
+/**
+ * Obtener el catálogo de dinámicas para influencers
+ * @returns {Promise<Object>} { success, data: [], message }
+ */
+export async function appShellService_obtenerCatalogoTrivias() {
+  try {
+    const response = await axiosInstanceNew.get(`/club-shell-maxx/dinamica-influencers/catalogo`);
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message || "Catálogo obtenido exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error.response?.data?.message || "Error al obtener el catálogo",
+    };
+  }
+}
+
+/**
+ * Asignar resultados de dinámica a un influencer
+ * @param {Object} data { influencerId, dynamicId, completedCount, extraPoints }
+ * @returns {Promise<Object>} { success, data, message }
+ */
+export async function appShellService_asignarPuntosInfluencer(data) {
+  try {
+    const response = await axiosInstanceNew.post(`/club-shell-maxx/dinamica-influencers/resultados`, data);
+    return {
+      success: true,
+      data: response.data.data || response.data,
+      message: response.data.message || "Puntos asignados exitosamente",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error.response?.data?.message || "Error al asignar los puntos",
+    };
+  }
+}

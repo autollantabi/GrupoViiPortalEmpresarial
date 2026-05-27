@@ -64,8 +64,10 @@ import { ReporteriaCartera } from "pages/Areas/Reporteria/Cartera/ReporteriaCart
 import { ReporteriaLubricantes } from "pages/Areas/Reporteria/Lubricantes/ReporteriaLubricantes";
 import { ReporteriaTalentoHumano } from "pages/Areas/Reporteria/TalentoHumano/ReporteriaTalentoHumano";
 import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
-import MDM_Crud from "pages/Areas/MDM/MDM_Crud/MDM_Crud";
+import Llantas from "pages/Areas/MDM/MDM_Crud/Llantas";
+import Lubricantes from "pages/Areas/MDM/MDM_Crud/Lubricantes";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
+import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
 import { VisitasAsignadas } from "pages/Areas/Visitas/Asignadas/VisitasAsignadas";
 
@@ -125,6 +127,11 @@ export const RoutesConfig = [
     title: "Hab Shell Form",
     component: AS_HabShellForm,
     recurso: "appshell.habshellform",
+  },
+  {
+    title: "Puntos Extras",
+    component: AS_PuntosExtras,
+    recurso: "appshell.puntosextra",
   },
   // ================================= CARTERA =================================
   {
@@ -302,9 +309,14 @@ export const RoutesConfig = [
     rootOnly: true,
   },
   {
-    title: "Crud",
-    component: MDM_Crud,
-    recurso: "mdm.crud",
+    title: "Llantas",
+    component: Llantas,
+    recurso: "mdm.llantas",
+  },
+  {
+    title: "Lubricantes",
+    component: Lubricantes,
+    recurso: "mdm.lubricantes",
   },
   // ================================= RRHH =================================
   {

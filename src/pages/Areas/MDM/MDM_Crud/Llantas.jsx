@@ -235,7 +235,7 @@ const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {
 
 // Se movió calcularCodigoBarras dentro del componente para usar el estado dinámico
 
-function MDM_Crud() {
+function Llantas() {
     const { theme } = useTheme();
     const { user } = useAuthContext();
     const [mapeoMarcas, setMapeoMarcas] = useState([]);
@@ -363,7 +363,7 @@ function MDM_Crud() {
 
 
     if (user?.CONTEXTOS && Array.isArray(user.CONTEXTOS)) {
-        const contextoMDM = user.CONTEXTOS.find(ctx => ctx.RECURSO === 'mdm.crud');
+        const contextoMDM = user.CONTEXTOS.find(ctx => ctx.RECURSO === 'mdm.llantas');
         if (contextoMDM && contextoMDM.ID_ROL) {
             const nombreRol = DICCIONARIO_ROLES[contextoMDM.ID_ROL];
             if (nombreRol) {
@@ -430,12 +430,12 @@ function MDM_Crud() {
 
                     if (idEmpresa) {
                         const companyName = String(diccionarioEmpresas[idEmpresa]).trim().toUpperCase();
-                        const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key => 
+                        const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key =>
                             companyName === key || companyName.includes(key) || key.includes(companyName)
                         );
                         const allowedMarcas = matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
                         const marcaEsValida = allowedMarcas.some(b => b.toUpperCase() === marcaImportada);
-                        
+
                         if (!marcaEsValida) {
                             marcaImportada = "";
                         }
@@ -468,7 +468,7 @@ function MDM_Crud() {
                 let parsedResults = [];
                 if (descripciones.length > 0) {
                     try {
-                        parsedResults = await parseLlantas(descripciones);
+                        parsedResults = await parseLlantas(descripciones, lineaSeleccionada.value === 'LLANTAS' ? lineaSeleccionada.value : 'LLANTAS_MOTO');
                     } catch (err) {
                         console.error("Error parsing llantas on import:", err);
                     }
@@ -553,7 +553,7 @@ function MDM_Crud() {
                         if (esLlantas && filtered.length > 0) {
                             const descripciones = filtered.map(it => it.DESCRIPCION || "");
                             try {
-                                parsedResults = await parseLlantas(descripciones);
+                                parsedResults = await parseLlantas(descripciones, lineaSeleccionada.value === 'LLANTAS' ? lineaSeleccionada.value : 'LLANTAS_MOTO');
                             } catch (err) {
                                 console.error("Error parsing llantas:", err);
                             }
@@ -615,7 +615,7 @@ function MDM_Crud() {
                         let parsedResults = [];
                         if (descripciones.length > 0) {
                             try {
-                                parsedResults = await parseLlantas(descripciones);
+                                parsedResults = await parseLlantas(descripciones, lineaSeleccionada.value === 'LLANTAS' ? lineaSeleccionada.value : 'LLANTAS_MOTO');
                             } catch (err) {
                                 console.error("Error parsing llantas (Rol 5):", err);
                             }
@@ -845,7 +845,7 @@ function MDM_Crud() {
     const getMarcasForEmpresa = useCallback((idEmp) => {
         if (!idEmp || !diccionarioEmpresas[idEmp]) return [];
         const companyName = String(diccionarioEmpresas[idEmp]).trim().toUpperCase();
-        const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key => 
+        const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key =>
             companyName === key || companyName.includes(key) || key.includes(companyName)
         );
         return matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
@@ -897,7 +897,7 @@ function MDM_Crud() {
             setItems(prev => prev.map(it => {
                 if (it.id === id) {
                     const baseItem = { ...it, marca: val };
-                    
+
                     const brandName = String(val).trim().toUpperCase();
                     let companyKey = null;
                     for (const [comp, brands] of Object.entries(MARCAS_POR_EMPRESA)) {
@@ -914,7 +914,7 @@ function MDM_Crud() {
                             baseItem.idEmpresa = companyId;
                         }
                     }
-                    
+
                     baseItem.codigo = calcularCodigoBarras(baseItem);
                     return baseItem;
                 }
@@ -929,7 +929,7 @@ function MDM_Crud() {
             debounceTimeouts.current[id] = setTimeout(async () => {
                 if (!val) return;
                 try {
-                    const result = await parseLlantas([val]);
+                    const result = await parseLlantas([val], lineaSeleccionada.value === 'LLANTAS' ? lineaSeleccionada.value : 'LLANTAS_MOTO');
                     if (result && result[0]) {
                         const parsed = result[0];
                         const parsedName = parsed.NOMBRE || val;
@@ -2399,4 +2399,4 @@ function MDM_Crud() {
     );
 }
 
-export default MDM_Crud;
+export default Llantas;

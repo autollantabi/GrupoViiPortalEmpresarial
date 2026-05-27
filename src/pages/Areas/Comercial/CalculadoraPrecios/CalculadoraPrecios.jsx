@@ -164,6 +164,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     const precioConD1 = precio * (1 - d1 / 100);
     const precioConD2 = precioConD1 * (1 - d2 / 100);
     const precioUnitarioFinal = precioConD2 * (1 - d3 / 100);
+    const precioUnitarioImpuestos = (precioUnitarioFinal * 1.15) + 1;
 
     const total = (precioUnitarioFinal * cantidad).toFixed(2);
     let mb = 0;
@@ -174,6 +175,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
 
     return {
       PRECIO_UNITARIO: precioUnitarioFinal.toFixed(2),
+      PRECIO_UNITARIO_IMPUESTOS: precioUnitarioImpuestos.toFixed(2),
       TOTAL: total,
       MB: mb
     };
@@ -194,6 +196,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       "Descuento 2 (%)": parseFloat(item.DESCUENTO_2) || 0,
       "Descuento 3 (%)": parseFloat(item.DESCUENTO_3) || 0,
       "P. Unitario": parseFloat(item.PRECIO_UNITARIO) || 0,
+      "P.U. + Impuestos y Eco": parseFloat(item.PRECIO_UNITARIO_IMPUESTOS) || 0,
       "Total": parseFloat(item.TOTAL) || 0,
       "MB (%)": parseFloat(item.MB) || 0
     }));
@@ -214,6 +217,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       { wch: 15 }, // D2
       { wch: 15 }, // D3
       { wch: 15 }, // P. Unitario
+      { wch: 22 }, // P.U. + Impuestos y Eco
       { wch: 15 }, // Total
       { wch: 10 }, // MB
     ];
@@ -248,6 +252,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       "D2 (%)",
       "D3 (%)",
       "P. Unitario",
+      "P.U. + Imp y Eco",
       "Total",
       "MB (%)"
     ];
@@ -262,6 +267,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       item.DESCUENTO_2 || 0,
       item.DESCUENTO_3 || 0,
       item.PRECIO_UNITARIO ? parseFloat(item.PRECIO_UNITARIO).toFixed(2) : "0.00",
+      item.PRECIO_UNITARIO_IMPUESTOS ? parseFloat(item.PRECIO_UNITARIO_IMPUESTOS).toFixed(2) : "0.00",
       item.TOTAL ? parseFloat(item.TOTAL).toFixed(2) : "0.00",
       item.MB ? parseFloat(item.MB).toFixed(2) : "0.00"
     ]);
@@ -281,8 +287,9 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
         3: { halign: 'right' },
         4: { halign: 'right' },
         8: { halign: 'right' },
-        9: { halign: 'right', fontStyle: 'bold' },
-        10: { halign: 'center' }
+        9: { halign: 'right' },
+        10: { halign: 'right', fontStyle: 'bold' },
+        11: { halign: 'center' }
       }
     });
 
@@ -299,7 +306,16 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
 
   const columnsConfig = [
     { header: "Código", field: "ID_PRODUCTO", isEditable: false, width: "120px" },
-    { header: "Nombre", field: "NOMBRE", isEditable: false, width: "300px" },
+    { 
+      header: "Nombre", 
+      field: "NOMBRE", 
+      isEditable: false, 
+      width: "300px",
+      style: (row) => {
+        const costo = parseFloat(row.COSTO_PROMEDIO) || 0;
+        return costo === 0 ? { color: "#e74c3c", fontWeight: "bold" } : {};
+      }
+    },
     { header: "Stock", field: "STOCK", isEditable: false, width: "100px" },
     {
       header: "Cantidad",
@@ -346,6 +362,13 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       isEditable: false,
       format: "money",
       width: "140px"
+    },
+    {
+      header: "P. U. + Imp y Eco",
+      field: "PRECIO_UNITARIO_IMPUESTOS",
+      isEditable: false,
+      format: "money",
+      width: "160px"
     },
     {
       header: "Total",
@@ -404,6 +427,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       ...rowToProcess,
       // Si el cambio fue manual, mantenemos el valor tal como lo escribió el usuario para no romper el input (ej. evitar que "1" se vuelva "1.00" mientras escribe)
       PRECIO_UNITARIO: nuevosValores.PRECIO_UNITARIO,
+      PRECIO_UNITARIO_IMPUESTOS: nuevosValores.PRECIO_UNITARIO_IMPUESTOS,
       TOTAL: isTotalManual ? updatedRow.TOTAL : nuevosValores.TOTAL,
       MB: nuevosValores.MB
     };

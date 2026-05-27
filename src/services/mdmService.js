@@ -5,11 +5,14 @@ import { axiosInstanceNew } from "config/axiosConfig";
  * @param {Array<string>} descripciones - Arreglo de descripciones a procesar
  * @returns {Promise<Array>} - Arreglo con la data procesada
  */
-export const parseLlantas = async (descripciones) => {
+export const parseLlantas = async (descripciones, lineaNegocio) => {
     try {
-        const response = await axiosInstanceNew.post("/mdm/parse-llantas", {
+
+        const response = await axiosInstanceNew.post(`/mdm/parse-llantas/${lineaNegocio}`, {
             descripciones
         });
+
+        console.log(response.data);
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
