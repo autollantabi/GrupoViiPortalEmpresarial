@@ -164,7 +164,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     const precioConD1 = precio * (1 - d1 / 100);
     const precioConD2 = precioConD1 * (1 - d2 / 100);
     const precioUnitarioFinal = precioConD2 * (1 - d3 / 100);
-    const precioUnitarioImpuestos = (precioUnitarioFinal * 1.15) + 1;
+    const precioUnitarioImpuestos = (precioUnitarioFinal + 1) * 1.15;
 
     const total = (precioUnitarioFinal * cantidad).toFixed(2);
     let mb = 0;
@@ -306,10 +306,10 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
 
   const columnsConfig = [
     { header: "Código", field: "ID_PRODUCTO", isEditable: false, width: "120px" },
-    { 
-      header: "Nombre", 
-      field: "NOMBRE", 
-      isEditable: false, 
+    {
+      header: "Nombre",
+      field: "NOMBRE",
+      isEditable: false,
       width: "300px",
       style: (row) => {
         const costo = parseFloat(row.COSTO_PROMEDIO) || 0;
@@ -471,7 +471,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
 
   const handleAddMultipleProducts = () => {
     if (selectedProductos.length === 0) return;
-    
+
     const baseId = Date.now();
     const nuevasFilas = selectedProductos.map((producto, index) => {
       const newId = baseId + index;
@@ -673,30 +673,30 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
             )}
           </ContainerUI>
 
-          <div style={{ 
-            flex: 1, 
-            overflow: "hidden", 
-            border: `1px solid ${theme?.colors?.border || "#dee2e6"}`, 
+          <div style={{
+            flex: 1,
+            overflow: "hidden",
+            border: `1px solid ${theme?.colors?.border || "#dee2e6"}`,
             borderRadius: "8px",
             position: "relative",
             display: "flex",
             flexDirection: "column"
           }}>
             {loading ? (
-              <div style={{ 
-                display: "flex", 
-                flex: 1, 
-                alignItems: "center", 
+              <div style={{
+                display: "flex",
+                flex: 1,
+                alignItems: "center",
                 justifyContent: "center",
                 flexDirection: "column",
                 gap: "15px",
                 background: theme.name === "dark" ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.5)",
                 backdropFilter: "blur(4px)"
               }}>
-                <LoaderUI 
-                  text="Cargando catálogo de productos..." 
-                  size="50px" 
-                  primaryColor={theme?.colors?.primary} 
+                <LoaderUI
+                  text="Cargando catálogo de productos..."
+                  size="50px"
+                  primaryColor={theme?.colors?.primary}
                 />
               </div>
             ) : (

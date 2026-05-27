@@ -540,7 +540,7 @@ function Llantas() {
             try {
                 const rawData = await getItemsByRole(idRolPrincipal, lineaSeleccionada.value);
                 if (rawData) {
-                    const data = rawData.filter(it => it.LINEA_NEGOCIO === lineaSeleccionada.value);
+                    const data = rawData;
                     let processedItems = data;
                     if (idRolPrincipal === 3) {
                         const filtered = data.filter(it =>
@@ -769,6 +769,7 @@ function Llantas() {
                         SEGMENTO: item.segmento || "",
                         APLICACION: item.aplicacion || "",
                         EJE: item.eje || "",
+                        LINEA_NEGOCIO: lineaSeleccionada.value,
                         ...(item.fueRechazado && { RECHAZO: false })
                     };
                     await patchItemRole3(payload);
@@ -787,6 +788,7 @@ function Llantas() {
                         ID: item.ID,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
+                        LINEA_NEGOCIO: lineaSeleccionada.value,
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
                 }
@@ -822,7 +824,7 @@ function Llantas() {
                     const phase = roleToPhase[roleId];
                     if (phase) {
                         const motivo = observaciones[roleId] || "Rechazado por Jefatura";
-                        await rejectItemPhase(itemId, {
+                        await rejectItemPhase(itemId, lineaSeleccionada.value, {
                             FASE: phase,
                             RECHAZO: true,
                             MOTIVO_RECHAZO: motivo
@@ -830,7 +832,7 @@ function Llantas() {
                     }
                 }
             } else if (action === "approve") {
-                await approveItemMDM(itemId);
+                await approveItemMDM(itemId, lineaSeleccionada.value);
                 toast.success("Ítem aprobado correctamente.");
             }
             setItems(prev => prev.filter(i => i.id !== itemId));

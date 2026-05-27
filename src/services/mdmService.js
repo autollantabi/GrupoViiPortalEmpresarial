@@ -12,7 +12,6 @@ export const parseLlantas = async (descripciones, lineaNegocio) => {
             descripciones
         });
 
-        console.log(response.data);
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
@@ -31,8 +30,8 @@ export const parseLlantas = async (descripciones, lineaNegocio) => {
  */
 export const getItemsByRole = async (idRolPrincipal, linea) => {
     try {
-        const response = await axiosInstanceNew.get("/mdm/items", {
-            params: { idRolPrincipal, linea }
+        const response = await axiosInstanceNew.get(`/mdm/items/${linea}`, {
+            params: { idRolPrincipal }
         });
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
@@ -107,9 +106,9 @@ export const uploadToCloudflare = async (file, marca, diseño) => {
  * @param {Object} payload - { FASE, RECHAZO, MOTIVO_RECHAZO }
  * @returns {Promise<any>}
  */
-export const rejectItemPhase = async (itemId, payload) => {
+export const rejectItemPhase = async (itemId, linea, payload) => {
     try {
-        const response = await axiosInstanceNew.patch(`/mdm/items/${itemId}/fases/rechazo`, payload);
+        const response = await axiosInstanceNew.patch(`/mdm/items/${linea}/${itemId}/fases/rechazo`, payload);
         return response.data;
     } catch (error) {
         console.error("Error en rejectItemPhase:", error);
@@ -186,9 +185,9 @@ export const createItemFromDWH = async (codigoItem) => {
  * @param {number|string} id - ID del ítem
  * @returns {Promise<any>}
  */
-export const approveItemMDM = async (id) => {
+export const approveItemMDM = async (id, linea) => {
     try {
-        const response = await axiosInstanceNew.patch(`/mdm/items/${id}/aprobado-mdm`, {
+        const response = await axiosInstanceNew.patch(`/mdm/items/${linea}/${id}/aprobado-mdm`, {
             APROBADO_MDM: true
         });
         return response.data;

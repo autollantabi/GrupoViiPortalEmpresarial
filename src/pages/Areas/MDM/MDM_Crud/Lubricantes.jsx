@@ -591,7 +591,7 @@ function Lubricantes() {
             try {
                 const rawData = await getItemsByRole(idRolPrincipal, lineaSeleccionada.value);
                 if (rawData) {
-                    const data = rawData.filter(it => it.LINEA_NEGOCIO === lineaSeleccionada.value);
+                    const data = rawData;
                     let processedItems = data;
                     if (idRolPrincipal === 3) {
                         const filtered = data.filter(it =>
@@ -603,7 +603,7 @@ function Lubricantes() {
                         let parsedResults = [];
                         if (filtered.length > 0) {
                             const descripciones = filtered.map(it => {
-                                const desc = it.DESCRIPCION || "";
+                                const desc = it.NOMBRE || it.DESCRIPCION || "";
                                 return desc.replace(/\bNEW\b/gi, "").trim().replace(/\s{2,}/g, " ");
                             });
                             try {
@@ -620,25 +620,35 @@ function Lubricantes() {
                                 ...it,
                                 id: it.ID,
                                 linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
-                                diseño: parsed.diseno || it.DISENIO || "",
-                                rin: parsed.rin || it.RIN || "",
-                                serie: parsed.serie || it.SERIE || "",
-                                lonas: parsed.lonas || it.LONAS || "",
-                                ancho: parsed.ancho || it.ANCHO || "",
-                                nomenclatura: parsed.tipo_medida || it.NOMENCLATURA || "",
-                                carga: parsed.carga || it.CARGA || "",
-                                velocidad: parsed.velocidad || parsed.Velocidad || it.VELOCIDAD || "",
-                                categoria: it.CATEGORIA || "",
-                                segmento: it.SEGMENTO || "",
-                                aplicacion: parsed.Aplicacion || it.APLICACION || "",
-                                eje: it.EJE || "",
-                                comentarios: it.OBSERVACIONES || "",
-                                descripcion: it.DESCRIPCION || "",
+
+                                descripcion: it.NOMBRE || it.DESCRIPCION || "",
+                                codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                codigoShell: it.CODIGO_SHELL || "",
                                 marca: parsed.Marca || parsed.marca || it.MARCA || "",
+                                nombreExtranjero: it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO || "",
+                                estrategia: it.ESTRATEGIA || "",
+                                origen: it.ORIGEN || "",
                                 empaque: parsed.Empaque || it.EMPAQUE || "",
-                                unidades: parsed.Unidades || it.UNIDADES || "",
-                                viscosidad: parsed.Viscosidad || it.VISCOSIDAD || "",
+                                codigo: it.CODIGO_BARRAS || "",
+
                                 familia: parsed.Familia || it.FAMILIA || "",
+                                viscosidad: parsed.Viscosidad || it.VISCOSIDAD || "",
+                                clase: it.CLASE || "",
+                                sae: it.SAE || "",
+                                isovg: it.ISOVG || "",
+                                api: it.API || "",
+                                acea: it.ACEA || "",
+                                jaso: it.JASO || "",
+                                isoDin: it.ISO_DIN || "",
+                                presentacion: it.PRESENTACION || "",
+                                unidadesPallet: it.UNIDADES_POR_PALLET || "",
+                                unidadesCaja: it.UNIDADES_POR_CAJA || "",
+                                aplicacion: parsed.Aplicacion || it.APLICACION || "",
+                                gradoGrasa: it.GRADO_DE_LA_GRASA || "",
+                                pesoMaterialBruto: it.PESO_MATERIAL_BRUTO || "",
+                                clasificacion: it.CLASIFICACION || "",
+
+                                comentarios: it.OBSERVACIONES || "",
                                 fueRechazado: fase2 ? fase2.RECHAZO : false,
                                 motivoRechazo: fase2 ? fase2.MOTIVO_RECHAZO : ""
                             };
@@ -656,8 +666,7 @@ function Lubricantes() {
                                 linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 codigo: it.CODIGO_BARRAS || "",
                                 marca: it.MARCA || "",
-                                diseño: it.DISENIO || "",
-                                descripcion: it.DESCRIPCION || "",
+                                descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 comentarios: it.OBSERVACIONES || "",
                                 fueRechazado: fase3 ? fase3.RECHAZO : false,
                                 motivoRechazo: fase3 ? fase3.MOTIVO_RECHAZO : ""
@@ -669,7 +678,7 @@ function Lubricantes() {
                             it.FASES?.some(f => f.FASE === 1 && f.RECHAZO)
                         );
 
-                        const descripciones = filtered.map(it => it.DESCRIPCION || "");
+                        const descripciones = filtered.map(it => it.NOMBRE || it.DESCRIPCION || "");
                         let parsedResults = [];
                         if (descripciones.length > 0) {
                             try {
@@ -687,16 +696,20 @@ function Lubricantes() {
                                 id: it.ID,
                                 linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
-                                descripcionRol5: it.DESCRIPCION || "",
-                                descripcion: it.DESCRIPCION || "",
+                                descripcionRol5: it.NOMBRE || it.DESCRIPCION || "",
+                                descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 parsedData: parsed,
-                                nombreSistemaBase: parsed["Posible Descripcion"] || it.DESCRIPCION || "",
-                                nombreSistema: calcularNombreSistemaFinal(parsed["Posible Descripcion"] || it.DESCRIPCION || "", it.COLOR_LETRA || "", false),
+                                nombreSistemaBase: parsed["Posible Descripcion"] || it.NOMBRE || it.DESCRIPCION || "",
+                                nombreSistema: calcularNombreSistemaFinal(parsed["Posible Descripcion"] || it.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", false),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
-                                cubicaje: it.CUBICAJE || "",
-                                nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
-                                partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                codigoShell: it.CODIGO_SHELL || "",
                                 marca: it.MARCA || "",
+                                nombreExtranjero: it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO || "",
+                                estrategia: it.ESTRATEGIA || "",
+                                origen: it.ORIGEN || "",
+                                empaque: it.EMPAQUE || "",
+                                cubicaje: it.CUBICAJE || "",
+                                partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
                                 diseño: it.DISENIO || "",
                                 letraDiseño: it.LETRA_DISENIO || "",
                                 colorLetra: it.COLOR_LETRA || "",
@@ -722,24 +735,34 @@ function Lubricantes() {
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || it.EMPRESA || "",
                                 codigo: it.CODIGO_BARRAS || "",
                                 marca: it.MARCA || "",
-                                diseño: it.DISENIO || "",
-                                descripcion: it.DESCRIPCION || "",
-                                descripcionRol5: it.DESCRIPCION || "",
+                                descripcion: it.NOMBRE || it.DESCRIPCION || "",
+                                descripcionRol5: it.NOMBRE || it.DESCRIPCION || "",
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                codigoShell: it.CODIGO_SHELL || "",
+                                nombreExtranjero: it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO || "",
+                                estrategia: it.ESTRATEGIA || "",
+                                origen: it.ORIGEN || "",
+                                empaque: it.EMPAQUE || "",
                                 cubicaje: it.CUBICAJE || "",
-                                nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
-                                rin: it.RIN || "",
-                                serie: it.SERIE || "",
-                                lonas: it.LONAS || "",
-                                ancho: it.ANCHO || "",
-                                nomenclatura: it.NOMENCLATURA || "",
-                                carga: it.CARGA || "",
-                                velocidad: it.VELOCIDAD || "",
-                                categoria: it.CATEGORIA || "",
-                                segmento: it.SEGMENTO || "",
+
+                                familia: it.FAMILIA || "",
+                                viscosidad: it.VISCOSIDAD || "",
+                                clase: it.CLASE || "",
+                                sae: it.SAE || "",
+                                isovg: it.ISOVG || "",
+                                api: it.API || "",
+                                acea: it.ACEA || "",
+                                jaso: it.JASO || "",
+                                isoDin: it.ISO_DIN || "",
+                                presentacion: it.PRESENTACION || "",
+                                unidadesPallet: it.UNIDADES_POR_PALLET || "",
+                                unidadesCaja: it.UNIDADES_POR_CAJA || "",
                                 aplicacion: it.APLICACION || "",
-                                eje: it.EJE || "",
+                                gradoGrasa: it.GRADO_DE_LA_GRASA || "",
+                                pesoMaterialBruto: it.PESO_MATERIAL_BRUTO || "",
+                                clasificacion: it.CLASIFICACION || "",
+
                                 imagenUrl: it.RUTA_IMAGEN_WEBP || it.RUTA_IMAGEN_PNG || "",
                                 comentariosRol5: f1?.OBSERVACIONES || "",
                                 comentariosRol3: f2?.OBSERVACIONES || "",
@@ -779,32 +802,35 @@ function Lubricantes() {
                     if (item.fueRechazado) {
                         const payload = {
                             ID: item.id,
-                            EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
-                            CODIGO_BARRAS: item.codigo || "",
-                            DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
-                            CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                            CUBICAJE: item.cubicaje || "",
-                            NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
-                            PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
-                            MARCA: item.marca || "",
-                            OBSERVACIONES: item.comentarios || "",
                             LINEA_NEGOCIO: lineaSeleccionada.value,
+                            NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
+                            CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            CODIGO_SHELL: item.codigoShell || "",
+                            MARCA: item.marca || "",
+                            NOMBRE_FORANEO: item.nombreExtranjero || "",
+                            ESTRATEGIA: item.estrategia || "",
+                            ORIGEN: item.origen || "",
+                            EMPAQUE: item.empaque || "",
+                            CODIGO_BARRAS: item.codigo || "",
+                            EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
+                            OBSERVACIONES: item.comentarios || "",
                             RECHAZO: false,
                             FASE: 1
                         };
                         await patchItemRole3(payload);
                     } else {
                         const payload = {
-                            EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
-                            CODIGO_BARRAS: item.codigo || "",
-                            DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
+                            LINEA_NEGOCIO: lineaSeleccionada.value,
+                            NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                            CUBICAJE: item.cubicaje || "",
-                            NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
-                            PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                            CODIGO_SHELL: item.codigoShell || "",
                             MARCA: item.marca || "",
-                            OBSERVACIONES: item.comentarios || "",
-                            LINEA_NEGOCIO: lineaSeleccionada.value
+                            NOMBRE_FORANEO: item.nombreExtranjero || "",
+                            ESTRATEGIA: item.estrategia || "",
+                            ORIGEN: item.origen || "",
+                            EMPAQUE: item.empaque || "",
+                            EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
+                            OBSERVACIONES: item.comentarios || ""
                         };
                         await saveItemRole5(payload);
                     }
@@ -813,20 +839,25 @@ function Lubricantes() {
                 for (const item of currentItems) {
                     const payload = {
                         ID: item.ID,
-                        DISENIO: item.diseño || "",
-                        ANCHO: item.ancho || "",
-                        LONAS: item.lonas || "",
-                        NOMENCLATURA: item.nomenclatura || "",
-                        CARGA: item.carga || "",
-                        VELOCIDAD: item.velocidad || "",
-                        RIN: item.rin || "",
-                        SERIE: item.serie || "",
+                        LINEA_NEGOCIO: lineaSeleccionada.value,
+                        FAMILIA: item.familia || "",
+                        VISCOSIDAD: item.viscosidad || "",
+                        CLASE: item.clase || "",
+                        SAE: item.sae || "",
+                        ISOVG: item.isovg || "",
+                        API: item.api || "",
+                        ACEA: item.acea || "",
+                        JASO: item.jaso || "",
+                        ISO_DIN: item.isoDin || item.iso_din || "",
+                        PRESENTACION: item.presentacion || "",
+                        UNIDADES_POR_PALLET: item.unidades_por_pallet || item.unidadesPallet || "",
+                        UNIDADES_POR_CAJA: item.unidades_por_caja || item.unidadesCaja || "",
+                        APLICACION: item.aplicacion || "",
+                        GRADO_DE_LA_GRASA: item.grado_de_la_grasa || item.gradoGrasa || "",
+                        PESO_MATERIAL_BRUTO: item.pesoMaterialBruto || item.peso_material_bruto || item.pesoBruto || "",
+                        CLASIFICACION: item.clasificacion || "",
                         OBSERVACIONES: item.comentarios || "",
                         FASE: 2,
-                        CATEGORIA: item.categoria || "",
-                        SEGMENTO: item.segmento || "",
-                        APLICACION: item.aplicacion || "",
-                        EJE: item.eje || "",
                         ...(item.fueRechazado && { RECHAZO: false })
                     };
                     await patchItemRole3(payload);
@@ -845,6 +876,7 @@ function Lubricantes() {
                         ID: item.ID,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
+                        LINEA_NEGOCIO: lineaSeleccionada.value,
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
                 }
@@ -880,7 +912,7 @@ function Lubricantes() {
                     const phase = roleToPhase[roleId];
                     if (phase) {
                         const motivo = observaciones[roleId] || "Rechazado por Jefatura";
-                        await rejectItemPhase(itemId, {
+                        await rejectItemPhase(itemId, lineaSeleccionada.value, {
                             FASE: phase,
                             RECHAZO: true,
                             MOTIVO_RECHAZO: motivo
@@ -888,7 +920,20 @@ function Lubricantes() {
                     }
                 }
             } else if (action === "approve") {
-                await approveItemMDM(itemId);
+                const item = items.find(i => i.id === itemId);
+                if (!item || !item.codigo || item.codigo.trim() === "") {
+                    toast.error("Debe digitar el código de barras antes de aprobar el ítem.");
+                    return;
+                }
+
+                await patchItemRole3({
+                    ID: itemId,
+                    CODIGO_BARRAS: item.codigo,
+                    LINEA_NEGOCIO: lineaSeleccionada.value,
+                    FASE: 2
+                });
+
+                await approveItemMDM(itemId, lineaSeleccionada.value);
                 toast.success("Ítem aprobado correctamente.");
             }
             setItems(prev => prev.filter(i => i.id !== itemId));
@@ -1209,8 +1254,7 @@ function Lubricantes() {
 
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', overflow: 'auto', paddingRight: '8px' }}>
                                                 {[
-                                                    { key: 'codigoBarras', label: "Código de Barras", role: 5 },
-                                                    { key: 'nombreLub', label: "Nombre", role: 5 },
+                                                    { key: 'codigo', label: "Código de Barras", role: 5 },
                                                     { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
                                                     { key: 'codigoShell', label: "Codigo SHELL", role: 5 },
                                                     { key: 'marca', label: "Marca", role: 5 },
@@ -1220,7 +1264,6 @@ function Lubricantes() {
                                                     { key: 'empaque', label: "Empaque", role: 5 },
                                                     { key: 'unidades', label: "Unidades", role: 5 },
                                                     { key: 'medida', label: "Medida", role: 5 },
-                                                    { key: 'descripcionConVariables', label: "Descripcion", role: 3 },
                                                     { key: 'familia', label: "Familia", role: 3 },
                                                     { key: 'viscosidad', label: "Viscosidad", role: 3 },
                                                     { key: 'clase', label: "Clase", role: 3 },
@@ -1251,6 +1294,24 @@ function Lubricantes() {
                                                     } else if (role === 4) {
                                                         bgColor = isDark ? '#1f2937' : '#fff3e0'; // Naranja claro
                                                         borderColor = isDark ? '#374151' : '#fde68a';
+                                                    }
+
+                                                    if (key === 'codigo') {
+                                                        return (
+                                                            <div key={key} style={{
+                                                                padding: '12px',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: '6px'
+                                                            }}>
+                                                                <TextUI size="11px" color={isDark ? '#cbd5e1' : theme?.colors?.textSecondary} style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</TextUI>
+                                                                <InputUI
+                                                                    style={{ height: "30px", fontSize: "14px", minHeight: "30px", textTransform: "uppercase", width: "100%" }}
+                                                                    value={value || ""}
+                                                                    onChange={(v) => actualizarCampoFila(item.id, "codigo", v)}
+                                                                />
+                                                            </div>
+                                                        );
                                                     }
 
                                                     return (
@@ -1428,7 +1489,7 @@ function Lubricantes() {
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.medida || ""} onChange={(v) => actualizarCampoFila(item.id, "medida", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.robustez || ""} onChange={(v) => actualizarCampoFila(item.id, "robustez", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.descripcionConVariables || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionConVariables", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.descripcion || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcion", v)} /></td>
                                                     </>
                                                 )}
                                                 {idRolPrincipal === 3 && (
@@ -1529,7 +1590,6 @@ function Lubricantes() {
                                                 )}
                                                 {idRolPrincipal === 4 && (
                                                     <>
-
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap" }}>
                                                                 {item.marca || "-"}
@@ -1755,7 +1815,7 @@ function Lubricantes() {
                                             {idRolPrincipal === 1 && (
                                                 <>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de Barras</th>
-                                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripcion</th>
+
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. SHELL</th>
                                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
@@ -1841,7 +1901,7 @@ function Lubricantes() {
                                                 {idRolPrincipal === 3 && (
                                                     <>
                                                         {/* Descripción */}
-                                                        <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "500px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.descripcionConVariables || item.descripcion}>{item.descripcionConVariables || item.descripcion || "N/A"}</div></td>
+                                                        <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "500px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.descripcion}>{item.descripcion || "N/A"}</div></td>
                                                         {/* Familia */}
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.familia || ""} onChange={(v) => actualizarCampoFila(item.id, "familia", v)} /></td>
                                                         {/* Viscosidad */}
@@ -1924,8 +1984,7 @@ function Lubricantes() {
                                                 {/* === ROL 1: vista consolidada === */}
                                                 {idRolPrincipal === 1 && (
                                                     <>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.codigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoBarras", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreLub}>{item.nombreLub || "-"}</div></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.codigoProveedor}>{item.codigoProveedor || "-"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.codigoShell}>{item.codigoShell || "-"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.marca}>{item.marca || "-"}</div></td>
@@ -1935,7 +1994,7 @@ function Lubricantes() {
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.empaque}>{item.empaque || "-"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.unidades}>{item.unidades || "-"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.medida}>{item.medida || "-"}</div></td>
-                                                        <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.descripcionConVariables}>{item.descripcionConVariables || "-"}</div></td>
+                                                        <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.descripcion}>{item.descripcion || "-"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.familia}>{item.familia || "-"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.viscosidad}>{item.viscosidad || "-"}</div></td>
                                                         <td style={{ padding: "4px 8px" }}><div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.clase}>{item.clase || "-"}</div></td>
@@ -1962,7 +2021,7 @@ function Lubricantes() {
                                                     <>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                                {item.descripcionConVariables || "-"}
+                                                                {item.descripcion || "-"}
                                                             </div>
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}>
@@ -2174,7 +2233,7 @@ function Lubricantes() {
                                                 </td>
                                                 {idRolPrincipal !== 5 && (
                                                     <>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.descripcionConVariables || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionConVariables", v)} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.descripcion || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcion", v)} /></td>
                                                         {(idRolPrincipal === 3 || idRolPrincipal === 4) && (
                                                             <td style={{ padding: "4px 8px" }}>
                                                                 <InputUI
