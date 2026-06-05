@@ -523,9 +523,9 @@ function Llantas() {
         const lowSearch = searchTermReview.toLowerCase();
         return itemsToReview.filter(item =>
             String(item.DIT_NOMBRE || "").toLowerCase().includes(lowSearch) ||
-            String(item.DIT_CODIGO || "").toLowerCase().includes(lowSearch) ||
+            String(item.DIT_NUEVOIDENTIFICADOR || "").toLowerCase().includes(lowSearch) ||
             String(item.DIT_DISENIO || "").toLowerCase().includes(lowSearch) ||
-            String(item.DIT_NOMBREFABRICANTE || "").toLowerCase().includes(lowSearch)
+            String(item.DIT_MARCA || "").toLowerCase().includes(lowSearch)
         );
     }, [itemsToReview, searchTermReview]);
 
@@ -778,7 +778,7 @@ function Llantas() {
                 for (const item of currentItems) {
                     if (item.imagenPng || item.imagenWebp) {
                         try {
-                            await uploadItemImages(item.ID, item.marca, item.diseño, item.imagenPng, item.imagenWebp);
+                            await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, item.diseño, item.imagenPng, item.imagenWebp);
                         } catch (uploadError) {
                             console.error(`Error al subir imágenes para el ítem ${item.ID}:`, uploadError);
                             toast.error(`Error al subir imágenes para ${item.marca} ${item.diseño}`);
@@ -1117,11 +1117,25 @@ function Llantas() {
                                                 height: '100%',
                                                 minHeight: '300px'
                                             }}>
-                                                {item.imagenUrl ? (
-                                                    <img src={item.imagenUrl} alt={item.descripcion} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                                ) : (
-                                                    <TextUI color={theme?.colors?.textSecondary}>Sin Imagen</TextUI>
+                                                {item.imagenUrl && (
+                                                    <img
+                                                        key={`img-${item.id}`}
+                                                        src={item.imagenUrl}
+                                                        alt={item.descripcion}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                            if (e.target.nextElementSibling) {
+                                                                e.target.nextElementSibling.style.display = 'block';
+                                                            }
+                                                        }}
+                                                    />
                                                 )}
+                                                <div key={`text-${item.id}`} style={{ display: item.imagenUrl ? 'none' : 'block', textAlign: 'center' }}>
+                                                    <TextUI color={theme?.colors?.textSecondary}>
+                                                        {idRolPrincipal === 1 ? "Imagen no publicada" : "Sin Imagen"}
+                                                    </TextUI>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1500,57 +1514,123 @@ function Llantas() {
                                                             </div>
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                                                                <label style={{
-                                                                    cursor: 'pointer',
-                                                                    border: `1px solid ${theme?.colors?.border || '#ccc'}`,
-                                                                    backgroundColor: theme?.colors?.background || '#fff',
-                                                                    color: theme?.colors?.text || '#333',
-                                                                    padding: '4px 8px',
-                                                                    borderRadius: '4px',
-                                                                    fontSize: '11px'
-                                                                }}>
-                                                                    Elegir archivo
-                                                                    <input
-                                                                        type="file"
-                                                                        accept=".png"
-                                                                        onChange={(e) => {
-                                                                            const file = e.target.files[0];
-                                                                            if (file) actualizarCampoFila(item.id, "imagenPng", file);
-                                                                        }}
-                                                                        style={{ display: "none" }}
-                                                                    />
-                                                                </label>
-                                                                <span style={{ fontSize: "10px", color: theme?.colors?.textSecondary || "#666", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", title: item.imagenPng?.name }}>
-                                                                    {item.imagenPng ? item.imagenPng.name : "Sin archivos seleccionados"}
-                                                                </span>
+                                                            <div style={{
+                                                                position: 'relative',
+                                                                width: '100%',
+                                                                height: '40px',
+                                                                backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+                                                                border: `1px dashed ${isDark ? '#475569' : '#cbd5e1'}`,
+                                                                borderRadius: '6px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s ease',
+                                                                overflow: 'hidden'
+                                                            }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.borderColor = theme?.colors?.primary;
+                                                                    e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f1f5f9';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
+                                                                    e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
+                                                                }}
+                                                                onClick={() => document.getElementById(`png-upload-${item.id}`).click()}
+                                                            >
+                                                                {item.imagenPng ? (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
+                                                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                                                                        <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                            {item.imagenPng.name}
+                                                                        </TextUI>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>📄</span>
+                                                                        <TextUI size="11px" color={theme?.colors?.textSecondary} weight="500">Subir PNG</TextUI>
+                                                                    </div>
+                                                                )}
+                                                                <input
+                                                                    id={`png-upload-${item.id}`}
+                                                                    type="file"
+                                                                    accept=".png"
+                                                                    style={{ display: 'none' }}
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files[0];
+                                                                        if (file) {
+                                                                            if (file.type !== "image/png") {
+                                                                                toast.error("Solo se permiten archivos PNG");
+                                                                                return;
+                                                                            }
+                                                                            if (file.size > 2 * 1024 * 1024) {
+                                                                                toast.error("La imagen PNG no debe superar 2MB");
+                                                                                return;
+                                                                            }
+                                                                            actualizarCampoFila(item.id, "imagenPng", file);
+                                                                        }
+                                                                    }}
+                                                                />
                                                             </div>
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                                                                <label style={{
-                                                                    cursor: 'pointer',
-                                                                    border: `1px solid ${theme?.colors?.border || '#ccc'}`,
-                                                                    backgroundColor: theme?.colors?.background || '#fff',
-                                                                    color: theme?.colors?.text || '#333',
-                                                                    padding: '4px 8px',
-                                                                    borderRadius: '4px',
-                                                                    fontSize: '11px'
-                                                                }}>
-                                                                    Elegir archivo
-                                                                    <input
-                                                                        type="file"
-                                                                        accept=".webp"
-                                                                        onChange={(e) => {
-                                                                            const file = e.target.files[0];
-                                                                            if (file) actualizarCampoFila(item.id, "imagenWebp", file);
-                                                                        }}
-                                                                        style={{ display: "none" }}
-                                                                    />
-                                                                </label>
-                                                                <span style={{ fontSize: "10px", color: theme?.colors?.textSecondary || "#666", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", title: item.imagenWebp?.name }}>
-                                                                    {item.imagenWebp ? item.imagenWebp.name : "Sin archivos seleccionados"}
-                                                                </span>
+                                                            <div style={{
+                                                                position: 'relative',
+                                                                width: '100%',
+                                                                height: '40px',
+                                                                backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+                                                                border: `1px dashed ${isDark ? '#475569' : '#cbd5e1'}`,
+                                                                borderRadius: '6px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s ease',
+                                                                overflow: 'hidden'
+                                                            }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.borderColor = theme?.colors?.primary;
+                                                                    e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f1f5f9';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
+                                                                    e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
+                                                                }}
+                                                                onClick={() => document.getElementById(`webp-upload-${item.id}`).click()}
+                                                            >
+                                                                {item.imagenWebp ? (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
+                                                                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                                                                        <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                            {item.imagenWebp.name}
+                                                                        </TextUI>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>🖼️</span>
+                                                                        <TextUI size="11px" color={theme?.colors?.textSecondary} weight="500">Subir WEBP</TextUI>
+                                                                    </div>
+                                                                )}
+                                                                <input
+                                                                    id={`webp-upload-${item.id}`}
+                                                                    type="file"
+                                                                    accept=".webp"
+                                                                    style={{ display: 'none' }}
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files[0];
+                                                                        if (file) {
+                                                                            if (file.type !== "image/webp") {
+                                                                                toast.error("Solo se permiten archivos WEBP");
+                                                                                return;
+                                                                            }
+                                                                            if (file.size > 2 * 1024 * 1024) {
+                                                                                toast.error("La imagen WEBP no debe superar 2MB");
+                                                                                return;
+                                                                            }
+                                                                            actualizarCampoFila(item.id, "imagenWebp", file);
+                                                                        }
+                                                                    }}
+                                                                />
                                                             </div>
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}>
@@ -2015,16 +2095,19 @@ function Llantas() {
                                 if (currentItems.length === 0) return;
 
                                 if (idRolPrincipal === 5) {
-                                    // Agrupar items por empresa para el modal de SAP
-                                    const grouped = {};
-                                    currentItems.forEach(item => {
-                                        const companyName = diccionarioEmpresas[item.idEmpresa] || "SIN EMPRESA";
-                                        if (!grouped[companyName]) grouped[companyName] = [];
-                                        grouped[companyName].push(item);
-                                    });
-                                    setGroupedItemsByCompany(grouped);
-                                    setIsSAPModalOpen(true);
-                                    return;
+                                    const createdItems = currentItems.filter(i => !i.fueRechazado);
+                                    if (createdItems.length > 0) {
+                                        // Agrupar items por empresa para el modal de SAP, solo los nuevos
+                                        const grouped = {};
+                                        createdItems.forEach(item => {
+                                            const companyName = diccionarioEmpresas[item.idEmpresa] || "SIN EMPRESA";
+                                            if (!grouped[companyName]) grouped[companyName] = [];
+                                            grouped[companyName].push(item);
+                                        });
+                                        setGroupedItemsByCompany(grouped);
+                                        setIsSAPModalOpen(true);
+                                        return;
+                                    }
                                 }
 
                                 await handleFinalSubmit(currentItems);
@@ -2178,44 +2261,37 @@ function Llantas() {
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
                             <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0 }}>
                                 <tr>
-                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "40px" }}>
-                                        <CheckboxUI
-                                            checked={filteredItemsToReview.length > 0 && filteredItemsToReview.every(i => selectedItemsToReviewIds.has(i.DIT_CODIGO))}
-                                            onChange={(_, checked) => {
-                                                if (checked) {
-                                                    setSelectedItemsToReviewIds(new Set(filteredItemsToReview.map(i => i.DIT_CODIGO)));
-                                                } else {
-                                                    setSelectedItemsToReviewIds(new Set());
-                                                }
-                                            }}
-                                        />
-                                    </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Codigo</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Diseño</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Fabricante</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "40px" }}></th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Diseño</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Fabricante</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredItemsToReview.map(item => (
-                                    <tr key={item.DIT_CODIGO} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                    <tr
+                                        key={item.DIT_CODIGO}
+                                        style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer" }}
+                                        onClick={() => {
+                                            setSelectedItemsToReviewIds(prev => {
+                                                const newSet = new Set(prev);
+                                                if (newSet.has(item.DIT_CODIGO)) newSet.delete(item.DIT_CODIGO);
+                                                else newSet.add(item.DIT_CODIGO);
+                                                return newSet;
+                                            });
+                                        }}
+                                    >
                                         <td style={{ padding: "10px", textAlign: "center" }}>
                                             <CheckboxUI
                                                 checked={selectedItemsToReviewIds.has(item.DIT_CODIGO)}
-                                                onChange={(_, checked) => {
-                                                    setSelectedItemsToReviewIds(prev => {
-                                                        const newSet = new Set(prev);
-                                                        if (checked) newSet.add(item.DIT_CODIGO);
-                                                        else newSet.delete(item.DIT_CODIGO);
-                                                        return newSet;
-                                                    });
-                                                }}
+                                                onChange={() => { }} // handled by tr onClick
                                             />
                                         </td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_CODIGO}</td>
+                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_NUEVOIDENTIFICADOR}</td>
                                         <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_NOMBRE}</td>
                                         <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_DISENIO}</td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_NOMBREFABRICANTE}</td>
+                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_MARCA}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -2240,7 +2316,7 @@ function Llantas() {
                                     const selectedIds = Array.from(selectedItemsToReviewIds);
 
                                     // Crear ítems uno por uno en el backend
-                                    const promises = selectedIds.map(id => createItemFromDWH(id));
+                                    const promises = selectedIds.map(id => createItemFromDWH("LLANTAS", id));
                                     const responses = await Promise.all(promises);
 
                                     let addedCount = 0;

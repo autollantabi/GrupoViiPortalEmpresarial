@@ -10,7 +10,7 @@ const DEFAULT_VALUES = {
     "ItemName": "",
     "FrgnName": "",
     "SuppCatNum": "",
-    "ItmsGrpCod": "103",
+    "ItmsGrpCod": "", //104 lubricantes - 103 LLANTAS - 
     "CodeBars": "",
     "VatLiable": "tYES",
     "PrchseItem": "tYES",
@@ -84,6 +84,7 @@ const DEFAULT_VALUES = {
     "Series": "184",
     "NoDiscount": "tNO",
     "U_MA_ECOVALOR": "",
+    //Para llantas
     "DISEÑO": "",
     "RIN": "",
     "SERIE": "",
@@ -100,7 +101,15 @@ const DEFAULT_VALUES = {
     "U_MA_FAMILIA": "-1",
     "U_MA_CUBICAJE": "",
     "FRM_CODE": "",
-    "U_MA_CARGA": ""
+    "U_MA_CARGA": "",
+    //Para lubricantes
+    "U_MA_PESO": "",
+    //Para Herramientas
+    "UoMGroupEntry": "",
+    "InventoryUoMEntry": "",
+    "DefaultSalesUoMEntry": "",
+    "DefaultPurchasingUoMEntry": ""
+
 };
 //Clave: Segunda fila
 //Valor: Primera Fila
@@ -183,6 +192,7 @@ const MAIN_HEADERS = {
     "Series": "Series",
     "NoDiscount": "NoDiscounts",
     "U_MA_ECOVALOR": "U_MA_ECOVALOR",
+    //Para llantas
     "DISEÑO": "U_MA_DISENO",
     "RIN": "U_MA_RIN",
     "SERIE": "U_MA_SERIE",
@@ -199,7 +209,14 @@ const MAIN_HEADERS = {
     "U_MA_FAMILIA": "U_MA_FAMILIA",
     "U_MA_CUBICAJE": "U_MA_CUBICAJE",
     "FRM_CODE": "FRM_CODE",
-    "U_MA_CARGA": "U_MA_CARGA"
+    "U_MA_CARGA": "U_MA_CARGA",
+    //Para lubricantes
+    "U_MA_PESO": "U_MA_PESO",
+    //Para Herramientas
+    "UoMGroupEntry": "UoMGroupEntry",
+    "InventoryUoMEntry": "InventoryUoMEntry",
+    "DefaultSalesUoMEntry": "DefaultSalesUoMEntry",
+    "DefaultPurchasingUoMEntry": "DefaultPurchasingUoMEntry"
 };
 const NOMENCLATURA_MAPPING = {
     "MILIMETRICA": "3",
@@ -266,11 +283,18 @@ export const generateSAPExport = (companyName, items, mappingData = {}) => {
     const dataRows = items.map(item => {
         // Mapeo específico solicitado por el usuario
         const ecovalor = item.linea === "LLANTAS" ? "1" : item.linea === "LLANTAS MOTO" ? "2" : "";
+        const rawOum = item.OUM || item.oum || item.UOM || item.uom || "";
+        const peso = rawOum && !isNaN(parseFloat(rawOum)) ? Math.ceil(parseFloat(rawOum)) : "";
+        let grupCode = item.linea === "LLANTAS" ? "103" : ""
+        grupCode = item.linea === "LUBRICANTES" ? "104" : grupCode
+        grupCode = item.linea === "HERRAMIENTAS" ? "105" : grupCode
+
         const userValues = {
             "ItemCode": item.CODIGO_SAP || item.codigoSap || "",
             "ItemName": item.DESCRIPCION || item.descripcion || item.descripcionRol5 || "",
             "FrgnName": item.NOMBRE_EXTRANJERO || item.nombreExtranjero || "",
             "SuppCatNum": item.CODIGO_PROVEEDOR || item.codigoProveedor || "",
+            "ItmsGrpCod": grupCode,
             "CodeBars": item.CODIGO_BARRAS || item.codigo || "",
             "U_MA_ECOVALOR": ecovalor,
             "DISEÑO": item.DISENIO || item.diseño || "",
@@ -287,7 +311,8 @@ export const generateSAPExport = (companyName, items, mappingData = {}) => {
             "U_MA_PRT_ARA": item.PARTIDA_ARANCELARIA || item.partidaArancelaria || "",
             "U_MA_CUBICAJE": item.CUBICAJE || item.cubicaje || "",
             "FRM_CODE": item.MARCA || item.marca || "",
-            "U_MA_CARGA": item.CARGA || item.carga || ""
+            "U_MA_CARGA": item.CARGA || item.carga || "",
+            "U_MA_PESO": peso || ""
         };
 
 

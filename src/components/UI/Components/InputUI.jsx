@@ -151,7 +151,7 @@ export const InputUI = ({
         <StyledInput
           type={type}
           placeholder={placeholder}
-          value={formatValue(inputValue)} // Formato al mostrar
+          value={value !== undefined && value !== null ? formatValue(value) : formatValue(inputValue)} // Formato al mostrar
           onChange={handleChange}
           onKeyPress={handleKeyPress}
           onKeyDown={handleKeyDown}

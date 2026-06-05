@@ -72,7 +72,7 @@ const StyledTable = styled.table`
     : (theme?.colors?.white || "#ffffff")};
     font-weight: 500;
     padding: 12px 10px;
-    text-align: left;
+    text-align: center;
     border-right: 1px solid ${({ theme }) => hexToRGBA({ hex: theme?.colors?.border || "#656565", alpha: 0.2 })};
     position: sticky;
     top: 0;
@@ -194,6 +194,7 @@ export default function Vendedor() {
         CODIGOVENDEDOR: item.CODIGOVENDEDOR || "",
         linea: item.LINEANEGOCIO === "UF" ? "" : (item.LINEANEGOCIO || ""),
         categoria: item.CATEGORIA === "UF" ? "" : (item.CATEGORIA || ""),
+        lineaPrincipal: item.LINEAPRINCIPAL || "",
         isEditing: false,
         isNew: false
       }));
@@ -252,6 +253,7 @@ export default function Vendedor() {
         CODIGOVENDEDOR: "",
         linea: "",
         categoria: "",
+        lineaPrincipal: "",
         isEditing: true,
         isNew: true
       },
@@ -290,6 +292,12 @@ export default function Vendedor() {
     ));
   };
 
+  const handleChangeRowLineaPrincipal = (id, val) => {
+    setListaCompleta(prev => prev.map(row =>
+      row.id === id ? { ...row, lineaPrincipal: val.value } : row
+    ));
+  };
+
   const handleToggleEdit = (id) => {
     setListaCompleta(prev => prev.map(row =>
       row.id === id ? { ...row, isEditing: !row.isEditing } : row
@@ -313,6 +321,7 @@ export default function Vendedor() {
             ...item,
             linea: actualOriginal.LINEANEGOCIO === "UF" ? "" : (actualOriginal.LINEANEGOCIO || ""),
             categoria: actualOriginal.CATEGORIA === "UF" ? "" : (actualOriginal.CATEGORIA || ""),
+            lineaPrincipal: actualOriginal.LINEAPRINCIPAL || "",
             isEditing: false
           } : item
         ));
@@ -347,6 +356,22 @@ export default function Vendedor() {
       .map(row => row.linea?.toUpperCase());
 
     return opcionesLineas.filter(opt => !lineasOcupadas.includes(opt.value.toUpperCase()));
+  };
+
+  // Obtener opciones de línea principal
+  const getOpcionesLineaPrincipal = (codVendedor, currentRowId) => {
+    if (!codVendedor) return [];
+
+    const lineasMayoreo = listaCompleta
+      .filter(row => row.CODIGOVENDEDOR === codVendedor && row.categoria?.toUpperCase() !== "OTROS" && row.id !== currentRowId);
+
+    const currentRow = listaCompleta.find(r => r.id === currentRowId);
+    if (currentRow && currentRow.categoria?.toUpperCase() !== "OTROS") {
+      lineasMayoreo.push(currentRow);
+    }
+
+    const uniqueLineas = [...new Set(lineasMayoreo.map(r => r.linea).filter(Boolean))];
+    return uniqueLineas.map(l => ({ value: l, label: l }));
   };
 
   // Obtener categorías disponibles para un vendedor y línea específicos
@@ -389,11 +414,29 @@ export default function Vendedor() {
       return;
     }
 
+    const opcionesLP = getOpcionesLineaPrincipal(row.CODIGOVENDEDOR, row.id);
+    let finalLineaPrincipal = row.lineaPrincipal;
+
+    // Validate that the selected lineaPrincipal is still valid within current options
+    if (finalLineaPrincipal && !opcionesLP.some(opt => opt.value === finalLineaPrincipal)) {
+      finalLineaPrincipal = "";
+    }
+
+    if (!finalLineaPrincipal && opcionesLP.length === 1) {
+      finalLineaPrincipal = opcionesLP[0].value;
+    }
+
+    if (opcionesLP.length > 1 && !finalLineaPrincipal) {
+      toast.warning("Debe seleccionar una Línea Principal cuando hay múltiples opciones de EQUIPO DE MAYOREO.");
+      return;
+    }
+
     // Preparar payload
     const dataPost = {
       DCP_CODIGOVENDEDOR: row.CODIGOVENDEDOR,
       DCP_LINEA: normalizedLinea.toUpperCase(),
-      DCP_CATEGORIA: row.categoria.toUpperCase()
+      DCP_CATEGORIA: row.categoria.toUpperCase(),
+      ...(finalLineaPrincipal && { DCP_LINEAPRINCIPAL: finalLineaPrincipal.toUpperCase() })
     };
 
     setLoadingAPI(true);
@@ -475,17 +518,18 @@ export default function Vendedor() {
             <StyledTable theme={theme}>
               <thead>
                 <tr>
-                  <th style={{ width: "18%" }}>Empresa</th>
-                  <th style={{ width: "27%" }}>Vendedor</th>
-                  <th style={{ width: "27%" }}>Línea de Negocio</th>
-                  <th style={{ width: "18%" }}>Categoría</th>
+                  <th style={{ width: "15%" }}>Empresa</th>
+                  <th style={{ width: "20%" }}>Vendedor</th>
+                  <th style={{ width: "20%" }}>Línea de Negocio</th>
+                  <th style={{ width: "15%" }}>Categoría</th>
+                  <th style={{ width: "20%" }}>Línea Principal</th>
                   <th style={{ width: "10%", textAlign: "center" }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {datosFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: "30px 0" }}>
+                    <td colSpan={6} style={{ textAlign: "center", padding: "30px 0" }}>
                       <TextUI color={theme?.colors?.textSecondary || "gray"}>
                         {searchTerm ? "No se encontraron coincidencias." : "No hay registros disponibles."}
                       </TextUI>
@@ -557,6 +601,36 @@ export default function Vendedor() {
                         ) : (
                           <TextUI size="13px">{row.categoria}</TextUI>
                         )}
+                      </td>
+                      <td>
+                        {(() => {
+                          const opciones = getOpcionesLineaPrincipal(row.CODIGOVENDEDOR, row.id);
+                          let valorActual = row.lineaPrincipal;
+                          if (!valorActual && opciones.length === 1) {
+                            valorActual = opciones[0].value;
+                          }
+
+                          if (row.isNew || row.isEditing) {
+                            if (opciones.length === 0) {
+                              return <TextUI size="13px" color={theme?.colors?.textSecondary || "gray"}>No disponible</TextUI>;
+                            } else if (opciones.length === 1) {
+                              return <TextUI size="13px">{valorActual}</TextUI>;
+                            } else {
+                              return (
+                                <SelectUI
+                                  options={opciones}
+                                  value={opciones.find(o => o.value === valorActual) || null}
+                                  onChange={(val) => handleChangeRowLineaPrincipal(row.id, val)}
+                                  placeholder="Línea Principal..."
+                                  menuPlacement="auto"
+                                  menuPortalTarget={document.body}
+                                />
+                              );
+                            }
+                          } else {
+                            return <TextUI size="13px">{valorActual || "-"}</TextUI>;
+                          }
+                        })()}
                       </td>
                       <td>
                         <ContenedorFlex $gap="8px" $justifyContent="center">

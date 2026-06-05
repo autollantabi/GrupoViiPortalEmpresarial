@@ -33,6 +33,9 @@ export const getItemsByRole = async (idRolPrincipal, linea) => {
         const response = await axiosInstanceNew.get(`/mdm/items/${linea}`, {
             params: { idRolPrincipal }
         });
+        console.log("Items por rol");
+        console.log(response.data);
+
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
@@ -51,6 +54,8 @@ export const getItemsByRole = async (idRolPrincipal, linea) => {
  */
 export const saveItemRole5 = async (item) => {
     try {
+        console.log("Este es el post: ")
+        console.log(item);
         const response = await axiosInstanceNew.post("/mdm/items", item);
         return response.data;
     } catch (error) {
@@ -66,7 +71,10 @@ export const saveItemRole5 = async (item) => {
  */
 export const patchItemRole3 = async (item) => {
     try {
+        console.log(item);
         const response = await axiosInstanceNew.patch("/mdm/items", item);
+        console.log(response.data);
+
         return response.data;
     } catch (error) {
         console.error("Error en patchItemRole3:", error);
@@ -87,6 +95,8 @@ export const uploadToCloudflare = async (file, marca, diseño) => {
         formData.append("imagenWebp", file);
         formData.append("MARCA", marca);
         formData.append("DISENIO", diseño);
+
+        console.log(marca, diseño);
 
         const response = await axiosInstanceNew.post("/mdm/upload-cloudflare", formData, {
             headers: {
@@ -125,17 +135,20 @@ export const rejectItemPhase = async (itemId, linea, payload) => {
  * @param {File} imagenWebp - Archivo de imagen WebP
  * @returns {Promise<any>}
  */
-export const uploadItemImages = async (id, marca, diseño, imagenPng, imagenWebp) => {
+export const uploadItemImages = async (lineaNegocio, id, marca, diseño, imagenPng, imagenWebp) => {
     try {
         const formData = new FormData();
         formData.append("ID", id);
-        formData.append("MARCA", marca);
-        formData.append("DISENIO", diseño);
+        if (marca) formData.append("MARCA", marca);
+        if (diseño) formData.append("DISENIO", diseño);
         if (imagenPng) formData.append("imagenPng", imagenPng);
         if (imagenWebp) formData.append("imagenWebp", imagenWebp);
 
+        console.log(marca, lineaNegocio)
+
+
         // Replicamos la configuración de uploadToCloudflare que ya funciona en este proyecto
-        const response = await axiosInstanceNew.post("/mdm/items/upload-images", formData, {
+        const response = await axiosInstanceNew.post(`/mdm/items/upload-images/${lineaNegocio}`, formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
             },
@@ -155,6 +168,8 @@ export const uploadItemImages = async (id, marca, diseño, imagenPng, imagenWebp
 export const getItemsDWHByLinea = async (lineaNegocio) => {
     try {
         const response = await axiosInstanceNew.get(`/mdm/itemsDWH/linea-negocio/${lineaNegocio}`);
+        console.log("Items de DWH");
+        console.log(response.data);
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
@@ -167,12 +182,15 @@ export const getItemsDWHByLinea = async (lineaNegocio) => {
 
 /**
  * Crea un ítem a partir de la data del DWH.
+ * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LUBRICANTES, etc)
  * @param {number|string} codigoItem - El DIT_CODIGO del ítem en DWH
  * @returns {Promise<any>}
  */
-export const createItemFromDWH = async (codigoItem) => {
+export const createItemFromDWH = async (lineaNegocio, codigoItem) => {
     try {
-        const response = await axiosInstanceNew.post(`/mdm/items/from-dwh/${codigoItem}`);
+        const response = await axiosInstanceNew.post(`/mdm/items/from-dwh/${lineaNegocio}/${codigoItem}`);
+        console.log("Creando item desde DWH");
+        console.log(response.data);
         return response.data;
     } catch (error) {
         console.error("Error en createItemFromDWH:", error);

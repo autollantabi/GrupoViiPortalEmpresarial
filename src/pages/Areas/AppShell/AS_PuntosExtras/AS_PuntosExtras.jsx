@@ -118,7 +118,7 @@ export default function AS_PuntosExtras() {
   // Manejar la asignación directa de puntos (sin modal)
   const handleAsignarPuntos = async (usr) => {
     const completedCount = parseInt(usr.trivia || 1, 10);
-    const pts = completedCount * 5;
+    const pts = completedCount * 133;
 
     const dynId = triviaSeleccionada[usr.id];
     if (!dynId) {
@@ -318,7 +318,7 @@ export default function AS_PuntosExtras() {
           }}>
             <div>
               <TextUI size="16px" weight="600" color={theme?.colors?.text}>
-                Listado de {tipoUsuario.label}s
+                Listado de {tipoUsuario.label}es
               </TextUI>
               <TextUI size="12px" color={theme?.colors?.textSecondary || "#64748b"} style={{ marginTop: 2 }}>
                 Puntos obtenidos por: <strong>{tipoGanancia.label}</strong>
@@ -416,7 +416,7 @@ export default function AS_PuntosExtras() {
                         </div>
                       </td>
                       <td style={{ padding: "16px 24px", fontWeight: "700", color: theme?.name !== "light" ? "#38bdf8" : (theme?.colors?.secondary || "#6366f1"), textAlign: "right" }}>
-                        {((usr.trivia || 1) * 5).toLocaleString()} pts
+                        {((usr.trivia || 1) * 133).toLocaleString()} pts
                       </td>
                       <td style={{ padding: "12px 24px" }}>
                         <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>

@@ -66,6 +66,7 @@ import { ReporteriaTalentoHumano } from "pages/Areas/Reporteria/TalentoHumano/Re
 import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import Llantas from "pages/Areas/MDM/MDM_Crud/Llantas";
 import Lubricantes from "pages/Areas/MDM/MDM_Crud/Lubricantes";
+import Herramientas from "pages/Areas/MDM/MDM_Crud/Herramientas";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
@@ -317,6 +318,11 @@ export const RoutesConfig = [
     title: "Lubricantes",
     component: Lubricantes,
     recurso: "mdm.lubricantes",
+  },
+  {
+    title: "Herramientas",
+    component: Herramientas,
+    recurso: "mdm.herramientas",
   },
   // ================================= RRHH =================================
   {
