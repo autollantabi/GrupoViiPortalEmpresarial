@@ -109,6 +109,11 @@ export async function ObtenerReporteComisionesTecnicentroVendedores({
   idUsu,
 }) {
   try {
+
+    console.log(mes, anio, data, idUsu);
+
+
+
     const res = await axiosInstance.post(
       `/comisiones/tecnicentro/comision-cabecera/${anio}/${mes}`,
       { vendedores: data, idUsu }
@@ -120,17 +125,18 @@ export async function ObtenerReporteComisionesTecnicentroVendedores({
 
     return [];
   } catch (e) {
+    console.log(e);
     return [];
   }
 }
 
 export async function ObtenerProductosTecnicentro({ mes, anio }) {
   try {
-    
+
     const res = await axiosInstance.get(
       `/producto/obtener-tecnicentro/${mes}/${anio}`
     );
-    
+
 
     if (res.status === 200) {
       return res.data.productos;

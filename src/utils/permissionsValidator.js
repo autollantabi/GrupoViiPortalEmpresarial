@@ -258,10 +258,8 @@ export function getAvailableCanales(userContexts, recurso) {
  * @returns {Object} Info de debug
  */
 export function debugPermissions(userContexts, recurso, empresasGlobales = null) {
-  console.log("=== DEBUG PERMISSIONS ===");
-  console.log("Recurso buscado:", recurso);
-  console.log("EmpresasGlobales:", empresasGlobales);
-  
+
+
   const targetResource = recurso.toLowerCase().trim();
   const debug = {
     recurso,
@@ -276,21 +274,13 @@ export function debugPermissions(userContexts, recurso, empresasGlobales = null)
     const hasAccess = contextResource === targetResource || targetResource.startsWith(contextResource + ".");
     const isBlocked = isResourceBlocked(context.RECURSOS_BLOQUEADOS || context.BLOQUEADO, targetResource);
 
-    console.log(`\n--- Contexto: ${context.RECURSO} ---`);
-    console.log("  HERENCIA:", context.HERENCIA);
-    console.log("  hasAccess:", hasAccess);
-    console.log("  isBlocked:", isBlocked);
-    console.log("  ALCANCE:", context.ALCANCE);
-    console.log("  context.EMPRESAS:", context.EMPRESAS);
 
     if (hasAccess && !isBlocked) {
       const empresasMap = empresasGlobales || context.EMPRESAS || {};
-      console.log("  empresasMap:", empresasMap);
 
       if (context.ALCANCE?.EMPRESAS && Array.isArray(context.ALCANCE.EMPRESAS)) {
         context.ALCANCE.EMPRESAS.forEach((empresaId) => {
           const empresaNombre = empresasMap[empresaId.toString()];
-          console.log(`    Empresa ${empresaId}: nombre="${empresaNombre}" (encontrado: ${!!empresaNombre})`);
           debug.empresas_encontradas.push({
             id: empresaId,
             nombre: empresaNombre || `(ID: ${empresaId})`,
@@ -298,7 +288,7 @@ export function debugPermissions(userContexts, recurso, empresasGlobales = null)
           });
         });
       } else {
-        console.log("  ⚠️ No tiene ALCANCE.EMPRESAS o no es array");
+        console.error("  ⚠️ No tiene ALCANCE.EMPRESAS o no es array");
       }
 
       debug.contextos_procesados.push({

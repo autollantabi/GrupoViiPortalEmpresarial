@@ -246,7 +246,6 @@ export default function AS_GestionCanjes({
                 if (res.success && Array.isArray(res.data) && res.data.length > 0) {
                     const mapeados = res.data.map(mapCanjeApiToComponent);
                     setCanjes(mapeados);
-                    console.log(mapeados);
                 }
             })
             .finally(() => setLoadingCanjes(false));

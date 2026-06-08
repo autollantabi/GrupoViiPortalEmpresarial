@@ -279,7 +279,6 @@ export const RegistroPedidos = () => {
     try {
       const response = await ListarRegistroPedidosMensual({ mes, anio });
 
-      console.log(response);
 
       // Si la API retorna estado exitoso y existen datos
       if (response && response.status === "Ok!" && Array.isArray(response.data) && response.data.length > 0) {

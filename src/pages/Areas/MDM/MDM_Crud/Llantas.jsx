@@ -278,7 +278,7 @@ function Llantas() {
         const rin = String(parsed.rin || "00");
         const ancho = String(parsed.ancho || "00");
         const alto = String(parsed.serie || "00");
-        const lonas = String(parsed.lonas || "00");
+        const lonas = String(parsed.lonas || "00").padStart(2, "0").slice(0, 2);
         const firstChar = String(item.diseño || "").charAt(0);
         let designNum = "00";
         if (firstChar) {
@@ -436,7 +436,7 @@ function Llantas() {
                         const allowedMarcas = matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
                         const marcaEsValida = allowedMarcas.some(b => b.toUpperCase() === marcaImportada);
 
-                        if (!marcaEsValida) {
+                        if (!marcaEsValida && lineaSeleccionada.value !== 'LLANTAS MOTO') {
                             marcaImportada = "";
                         }
                     } else {
@@ -534,6 +534,10 @@ function Llantas() {
     const esLlantas = lineaSeleccionada?.value === "LLANTAS" || lineaSeleccionada?.value === "LLANTAS MOTO";
     const esLubricantes = lineaSeleccionada?.value === "LUBRICANTES";
     const esHerramientas = lineaSeleccionada?.value === "HERRAMIENTAS";
+
+    if (idRolPrincipal === 5 && lineaSeleccionada?.value === "LLANTAS MOTO") {
+        opcionesEmpresasPermitidas = opcionesEmpresasPermitidas.filter(opt => opt.label && opt.label.toUpperCase().includes("MAXXIMUNDO"));
+    }
 
     const fetchItems = useCallback(async () => {
         if (idRolPrincipal && lineaSeleccionada) {
@@ -691,7 +695,7 @@ function Llantas() {
                         });
                     }
                     if (idRolPrincipal === 1) {
-                        const approved = data.filter(it => it.APROBADO_MDM === true);
+                        const approved = data.filter(it => it.APROBADO_MDM === true && it.LINEA_NEGOCIO === lineaSeleccionada.value);
                         setApprovedItemsForExport(approved.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
                     }
 
@@ -854,6 +858,9 @@ function Llantas() {
     }, [diccionarioEmpresas]);
 
     const getBrandOptions = useCallback((idEmp) => {
+        if (idRolPrincipal === 5 && lineaSeleccionada?.value === "LLANTAS MOTO") {
+            return ["CST", "KEYSTONE", "MAXXIS"].map(b => ({ value: b, label: b }));
+        }
         const brands = getMarcasForEmpresa(idEmp);
         if (brands.length > 0) {
             return brands.map(b => ({ value: b, label: b }));
@@ -861,7 +868,7 @@ function Llantas() {
         const allBrands = Object.values(MARCAS_POR_EMPRESA).flat();
         const uniqueBrands = Array.from(new Set(allBrands));
         return uniqueBrands.map(b => ({ value: b, label: b }));
-    }, [getMarcasForEmpresa]);
+    }, [getMarcasForEmpresa, idRolPrincipal, lineaSeleccionada]);
 
     const actualizarCampoFila = (id, campo, valor) => {
         let val = typeof valor === 'string' ? valor.toUpperCase() : valor;
@@ -884,7 +891,7 @@ function Llantas() {
                     const baseItem = { ...it, idEmpresa: val };
                     const allowedMarcas = getMarcasForEmpresa(val);
                     const brandIsAllowed = allowedMarcas.some(b => String(b).trim().toUpperCase() === String(it.marca).trim().toUpperCase());
-                    if (it.marca && !brandIsAllowed) {
+                    if (it.marca && !brandIsAllowed && lineaSeleccionada?.value !== 'LLANTAS MOTO') {
                         baseItem.marca = "";
                         baseItem.codigo = calcularCodigoBarras(baseItem);
                     }
@@ -908,7 +915,7 @@ function Llantas() {
                             break;
                         }
                     }
-                    if (companyKey) {
+                    if (companyKey && lineaSeleccionada?.value !== 'LLANTAS MOTO') {
                         const companyId = Object.keys(diccionarioEmpresas).find(
                             k => String(diccionarioEmpresas[k]).trim().toUpperCase() === companyKey
                         );
@@ -2102,7 +2109,16 @@ function Llantas() {
                                         createdItems.forEach(item => {
                                             const companyName = diccionarioEmpresas[item.idEmpresa] || "SIN EMPRESA";
                                             if (!grouped[companyName]) grouped[companyName] = [];
-                                            grouped[companyName].push(item);
+                                            grouped[companyName].push({
+                                                CODIGO_BARRAS: item.codigo,
+                                                CODIGO_PROVEEDOR: item.codigoProveedor,
+                                                CUBICAJE: item.cubicaje,
+                                                MARCA: item.marca,
+                                                LINEA_NEGOCIO: item.linea,
+                                                NOMBRE_EXTRANJERO: item.nombreExtranjero,
+                                                DESCRIPCION: item.nombreSistema,
+                                                PARTIDA_ARANCELARIA: item.partidaArancelaria
+                                            });
                                         });
                                         setGroupedItemsByCompany(grouped);
                                         setIsSAPModalOpen(true);

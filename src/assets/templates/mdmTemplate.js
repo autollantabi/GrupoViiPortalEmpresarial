@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { axiosInstanceNew } from "config/axiosConfig";
 
 /**
  * Estructura de encabezados con sus valores por defecto iniciales.
@@ -12,7 +13,7 @@ const DEFAULT_VALUES = {
     "SuppCatNum": "",
     "ItmsGrpCod": "", //104 lubricantes - 103 LLANTAS - 
     "CodeBars": "",
-    "VatLiable": "tYES",
+    "VATLiable": "tYES",
     "PrchseItem": "tYES",
     "SellItem": "tYES",
     "InvntItem": "tYES",
@@ -100,7 +101,7 @@ const DEFAULT_VALUES = {
     "U_MA_PRT_ARA": "",
     "U_MA_FAMILIA": "-1",
     "U_MA_CUBICAJE": "",
-    "FRM_CODE": "",
+    "FirmCode": "",
     "U_MA_CARGA": "",
     //Para lubricantes
     "U_MA_PESO": "",
@@ -208,7 +209,7 @@ const MAIN_HEADERS = {
     "U_MA_PRT_ARA": "U_MA_PRT_ARA",
     "U_MA_FAMILIA": "U_MA_FAMILIA",
     "U_MA_CUBICAJE": "U_MA_CUBICAJE",
-    "FRM_CODE": "FRM_CODE",
+    "FirmCode": "Manufacture",
     "U_MA_CARGA": "U_MA_CARGA",
     //Para lubricantes
     "U_MA_PESO": "U_MA_PESO",
@@ -264,7 +265,7 @@ export const generateMDMTemplate = (lineaNombre, userValues = {}) => {
  * @param {Array} items - Lista de ítems a exportar.
  * @param {Object} mappingData - Datos de mapeo dinámicos (CATEGORIAS, SEGMENTOS, APLICACIONES, EJES).
  */
-export const generateSAPExport = (companyName, items, mappingData = {}) => {
+export const generateSAPExport = async (companyName, items, mappingData = {}) => {
     const headers = Object.keys(DEFAULT_VALUES);
 
     // Preparar funciones de mapeo dinámico
@@ -276,26 +277,58 @@ export const generateSAPExport = (companyName, items, mappingData = {}) => {
         return mappingItem ? mappingItem.code : "";
     };
 
+    let codigosMarca = [];
+    try {
+        const response = await axiosInstanceNew.get('/dwh-postgres/codigo-marca');
+        if (response.data && response.data.status === "Ok!") {
+            codigosMarca = response.data.data;
+        }
+    } catch (error) {
+        console.error("Error fetching codigo-marca", error);
+    }
+
     // Primera fila: Encabezados descriptivos (de SAP)
     const mainHeaderRow = headers.map(header => MAIN_HEADERS[header] || "");
+
+    const lineasEmpresas = {
+        "AUTLLANTAS": 103,
+        "AUTLUBRICANTES": 104,
+        "MAXLLANTAS": 103,
+        "MAXLUBRICANTES": 104,
+        "MAXHERRAMIENTAS": 168,
+        "IKOHERRAMIENTAS": 103,
+        "IKOLUBRICANTES": 178,
+        "STOLLANTAS": 103
+    }
 
     // Preparar las filas de datos
     const dataRows = items.map(item => {
         // Mapeo específico solicitado por el usuario
-        const ecovalor = item.linea === "LLANTAS" ? "1" : item.linea === "LLANTAS MOTO" ? "2" : "";
+        const ecovalor = item.LINEA_NEGOCIO === "LLANTAS" ? "1" : item.LINEA_NEGOCIO === "LLANTAS MOTO" ? "2" : "";
         const rawOum = item.OUM || item.oum || item.UOM || item.uom || "";
         const peso = rawOum && !isNaN(parseFloat(rawOum)) ? Math.ceil(parseFloat(rawOum)) : "";
-        let grupCode = item.linea === "LLANTAS" ? "103" : ""
-        grupCode = item.linea === "LUBRICANTES" ? "104" : grupCode
-        grupCode = item.linea === "HERRAMIENTAS" ? "105" : grupCode
+        const grupCode = lineasEmpresas[companyName.substring(0, 3).toUpperCase() + item.LINEA_NEGOCIO.split(" ")[0].toUpperCase().trim()] || "";
+
+        const marcaName = item.MARCA || item.marca || "";
+
+        let frmCode = "";
+        if (codigosMarca.length > 0) {
+            const found = codigosMarca.find(c =>
+                String(c.DCM_EMPRESA).trim().toUpperCase() === String(companyName).trim().toUpperCase() &&
+                String(c.DCM_MARCA).trim().toUpperCase() === String(marcaName).trim().toUpperCase()
+            );
+            if (found) {
+                frmCode = found.DCM_CODIGOSAP;
+            }
+        }
 
         const userValues = {
             "ItemCode": item.CODIGO_SAP || item.codigoSap || "",
-            "ItemName": item.DESCRIPCION || item.descripcion || item.descripcionRol5 || "",
-            "FrgnName": item.NOMBRE_EXTRANJERO || item.nombreExtranjero || "",
-            "SuppCatNum": item.CODIGO_PROVEEDOR || item.codigoProveedor || "",
+            "ItemName": item.DESCRIPCION || item.NOMBRE || "",
+            "FrgnName": item.NOMBRE_EXTRANJERO || item.NOMBRE_FORANEO || item.NOMBRE_EXT || "",
+            "SuppCatNum": item.CODIGO_PROVEEDOR || "",
             "ItmsGrpCod": grupCode,
-            "CodeBars": item.CODIGO_BARRAS || item.codigo || "",
+            "CodeBars": item.CODIGO_BARRAS || item.ITEM_CODIGO_BARRAS || "",
             "U_MA_ECOVALOR": ecovalor,
             "DISEÑO": item.DISENIO || item.diseño || "",
             "RIN": item.RIN || item.rin || "",
@@ -310,11 +343,10 @@ export const generateSAPExport = (companyName, items, mappingData = {}) => {
             "VELOCIDAD": item.VELOCIDAD || item.velocidad || "",
             "U_MA_PRT_ARA": item.PARTIDA_ARANCELARIA || item.partidaArancelaria || "",
             "U_MA_CUBICAJE": item.CUBICAJE || item.cubicaje || "",
-            "FRM_CODE": item.MARCA || item.marca || "",
+            "FirmCode": frmCode || "",
             "U_MA_CARGA": item.CARGA || item.carga || "",
             "U_MA_PESO": peso || ""
         };
-
 
         return headers.map(header => {
             return userValues[header] !== undefined ? userValues[header] : DEFAULT_VALUES[header];

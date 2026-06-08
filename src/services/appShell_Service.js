@@ -285,7 +285,6 @@ export async function appShellService_obtenerCatalogoTrivias() {
  */
 export async function appShellService_asignarPuntosInfluencer(data) {
   try {
-    console.log(data);
     const response = await axiosInstanceNew.post(`/club-shell-maxx/dinamica-influencers/resultados`, data);
     return {
       success: true,

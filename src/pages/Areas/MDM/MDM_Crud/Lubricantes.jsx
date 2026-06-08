@@ -14,6 +14,8 @@ import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItem
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
 
+const EMPRESA_LUBRICANTES = "MAXXIMUNDO";
+
 const MARCAS_POR_EMPRESA = {
     "AUTOLLANTA": ["FORTUNE", "MAXTREK", "ROADWING"],
     "STOX": ["CST", "FARROAD BRAND", "ANSU", "BAYI", "BYCROSS", "WONDERLAND", "ANTARES"],
@@ -616,7 +618,7 @@ function Lubricantes() {
                         });
                     }
                     if (idRolPrincipal === 1) {
-                        const approved = data.filter(it => it.APROBADO_MDM === true);
+                        const approved = data.filter(it => it.APROBADO_MDM === true).map(it => ({ ...it, EMPRESA: EMPRESA_LUBRICANTES }));
                         setApprovedItemsForExport(approved.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
                     }
 
@@ -657,6 +659,7 @@ function Lubricantes() {
                             EMPAQUE: item.empaque + "*" + item.unidades + item.medida || "",
                             CODIGO_BARRAS: item.codigo || "",
                             OUM: item.oum || item.OUM || item.uom || item.UOM || "",
+                            EMPRESA: EMPRESA_LUBRICANTES,
                             OBSERVACIONES: item.comentarios || "",
                             RECHAZO: false,
                             FASE: 1
@@ -676,7 +679,7 @@ function Lubricantes() {
                             UNIDADES: item.unidades || "",
                             MEDIDA: item.medida || "",
                             OUM: item.oum || item.OUM || item.uom || item.UOM || "",
-                            EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
+                            EMPRESA: EMPRESA_LUBRICANTES,
                             OBSERVACIONES: item.comentarios || ""
                         };
                         await saveItemRole5(payload);
@@ -1732,9 +1735,15 @@ function Lubricantes() {
                                         // Agrupar items por empresa para el modal de SAP, solo los nuevos
                                         const grouped = {};
                                         createdItems.forEach(item => {
-                                            const companyName = "MAXXIMUNDO";
+                                            const companyName = EMPRESA_LUBRICANTES;
                                             if (!grouped[companyName]) grouped[companyName] = [];
-                                            grouped[companyName].push(item);
+                                            grouped[companyName].push({
+                                                CODIGO_PROVEEDOR: item.codigoProveedor,
+                                                MARCA: item.marca,
+                                                LINEA_NEGOCIO: item.linea,
+                                                NOMBRE_EXTRANJERO: item.nombreExtranjero,
+                                                DESCRIPCION: item.nombreSistema,
+                                            });
                                         });
                                         setGroupedItemsByCompany(grouped);
                                         setIsSAPModalOpen(true);
@@ -1773,7 +1782,7 @@ function Lubricantes() {
                             <tbody>
                                 {approvedItems.filter(i => i.linea === lineaSeleccionada.value).map(item => (
                                     <tr key={item.id} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, opacity: 0.8 }}>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{diccionarioEmpresas[item.idEmpresa] || item.EMPRESA || "-"}</TextUI></td>
+                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{EMPRESA_LUBRICANTES}</TextUI></td>
                                         <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></td>
                                         <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></td>
                                         <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></td>
@@ -2089,7 +2098,8 @@ function Lubricantes() {
                                     if (!acc[it.EMPRESA]) acc[it.EMPRESA] = [];
                                     acc[it.EMPRESA].push({
                                         ...it,
-                                        linea: lineaSeleccionada?.value // Necesario para el ecovalor
+                                        linea: lineaSeleccionada?.value, // Necesario para el ecovalor
+                                        LINEA_NEGOCIO: it.LINEA_NEGOCIO || lineaSeleccionada?.value
                                     });
                                     return acc;
                                 }, {})

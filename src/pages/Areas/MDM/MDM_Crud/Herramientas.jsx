@@ -10,6 +10,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
 import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, getItemsDWHByLinea, createItemFromDWH } from "services/mdmService";
+import { generateSAPExport } from "assets/templates/mdmTemplate";
 
 const DICCIONARIO_ROLES = {
     1: 'Comercial', // Jefatura
@@ -48,6 +49,13 @@ function Herramientas() {
             }
         }
     }
+
+    const EMPRESA_HERRAMIENTAS = "IKONIX";
+    const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
+    const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
+    const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
+    const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
+    const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
 
     const [items, setItems] = useState([]);
     const [approvedItems, setApprovedItems] = useState([]);
@@ -163,6 +171,11 @@ function Herramientas() {
 
                     setItems(mappedItems.filter(it => !it.APROBADO_MDM));
                     setApprovedItems(mappedItems.filter(it => it.APROBADO_MDM));
+
+                    if (idRolPrincipal === 1) {
+                        const approved = rawData.filter(it => it.APROBADO_MDM === true).map(it => ({ ...it, EMPRESA: EMPRESA_HERRAMIENTAS }));
+                        setApprovedItemsForExport(approved.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
+                    }
                 }
             } catch (error) {
                 console.error("Error al obtener items:", error);
@@ -212,6 +225,7 @@ function Herramientas() {
                 } else {
                     const payload = {
                         LINEA_NEGOCIO: "HERRAMIENTAS",
+                        EMPRESA: EMPRESA_HERRAMIENTAS,
                         CODIGO_PROVEEDOR: item.codigoProveedor || "",
                         PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                         NOMBRE_EXT: item.nombreExt || "",
@@ -448,6 +462,7 @@ function Herramientas() {
                                 iconLeft="FaFileExport"
                                 variant="outlined"
                                 pcolor={theme?.colors?.info || "#17a2b8"}
+                                onClick={() => setIsSAPExportModalOpen(true)}
                             />
                         </>
                     )}
@@ -588,10 +603,10 @@ function Herramientas() {
                                                 </div>
                                             </div>
 
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', overflow: 'auto', paddingRight: '8px' }}>
-                                                    {[
-                                                        { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
-                                                        { key: 'partidaArancelaria', label: "Partida Arancelaria", role: 5 },
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', overflow: 'auto', paddingRight: '8px' }}>
+                                                {[
+                                                    { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
+                                                    { key: 'partidaArancelaria', label: "Partida Arancelaria", role: 5 },
                                                     { key: 'nombreExt', label: "Nombre Ext", role: 5 },
                                                     { key: 'descripcion', label: "Descripción", role: 5 },
                                                     { key: 'descripcionExt', label: "Descripción Ext", role: 5 },
@@ -1054,7 +1069,31 @@ function Herramientas() {
                             onClick={async () => {
                                 const currentItems = items.filter(i => selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
-                                await handleFinalSubmit(currentItems);
+
+                                if (idRolPrincipal === 5) {
+                                    const createdItems = currentItems.filter(i => !i.fueRechazado);
+                                    if (createdItems.length > 0) {
+                                        const grouped = {};
+                                        createdItems.forEach(item => {
+                                            const companyName = EMPRESA_HERRAMIENTAS;
+                                            if (!grouped[companyName]) grouped[companyName] = [];
+                                            grouped[companyName].push({
+                                                CODIGO_PROVEEDOR: item.codigoProveedor,
+                                                LINEA_NEGOCIO: "HERRAMIENTAS",
+                                                NOMBRE_EXTRANJERO: item.nombreExt,
+                                                DESCRIPCION: item.nombre,
+                                                PARTIDA_ARANCELARIA: item.partidaArancelaria,
+                                                CODIGO_BARRAS: item.itemCodigoBarras
+                                            });
+                                        });
+                                        setGroupedItemsByCompany(grouped);
+                                        setIsSAPModalOpen(true);
+                                    } else {
+                                        await handleFinalSubmit(currentItems);
+                                    }
+                                } else {
+                                    await handleFinalSubmit(currentItems);
+                                }
                             }}
                             pcolor={theme?.colors?.primary}
                         />
@@ -1329,6 +1368,125 @@ function Herramientas() {
                                 }
                             }}
                         />
+                    </div>
+                </div>
+            </ModalUI>
+
+            <ModalUI
+                isOpen={isSAPModalOpen}
+                onClose={() => setIsSAPModalOpen(false)}
+                title="Descargar datos para subir a SAP"
+                width="500px"
+            >
+                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                    <TextUI text="Se han generado los siguientes archivos por empresa. Por favor descargue cada uno para subir a SAP antes de continuar." variant="small" />
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
+                        {Object.keys(groupedItemsByCompany).map(companyName => (
+                            <ButtonUI
+                                key={companyName}
+                                text={`Descargar ${companyName}`}
+                                iconLeft="FaDownload"
+                                onClick={() => generateSAPExport(companyName, groupedItemsByCompany[companyName], {})}
+                            />
+                        ))}
+                    </div>
+                    <div style={{ borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, paddingTop: "16px", marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                        <ButtonUI
+                            text="Cancelar"
+                            variant="outlined"
+                            onClick={() => setIsSAPModalOpen(false)}
+                        />
+                        <ButtonUI
+                            text="Continuar con el envío"
+                            pcolor={theme?.colors?.primary}
+                            onClick={() => {
+                                const currentItems = items.filter(i => selectedItemIds.has(i.id));
+                                handleFinalSubmit(currentItems);
+                            }}
+                        />
+                    </div>
+                </div>
+            </ModalUI>
+
+            <ModalUI
+                isOpen={isSAPExportModalOpen}
+                onClose={() => setIsSAPExportModalOpen(false)}
+                title="Exportar ítems aprobados a SAP"
+                width="1000px"
+            >
+                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    <TextUI size="14px" color={theme?.colors?.textSecondary}>
+                        Se muestran todos los ítems aprobados ordenados por fecha de actualización.
+                    </TextUI>
+                    <div style={{ maxHeight: "500px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>
+                                <tr>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "50px" }}>
+                                        <CheckboxUI
+                                            checked={approvedItemsForExport.length > 0 && approvedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
+                                            onChange={(_, checked) => {
+                                                if (checked) {
+                                                    setSelectedApprovedItemIds(new Set(approvedItemsForExport.map(i => i.ID)));
+                                                } else {
+                                                    setSelectedApprovedItemIds(new Set());
+                                                }
+                                            }}
+                                        />
+                                    </th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Actualizado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {approvedItemsForExport.length === 0 ? (
+                                    <tr><td colSpan={5} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados disponibles.</td></tr>
+                                ) : (
+                                    approvedItemsForExport.map(item => (
+                                        <tr key={item.ID} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer", transition: "background 0.2s" }} onClick={() => {
+                                            const newSet = new Set(selectedApprovedItemIds);
+                                            if (newSet.has(item.ID)) newSet.delete(item.ID);
+                                            else newSet.add(item.ID);
+                                            setSelectedApprovedItemIds(newSet);
+                                        }}>
+                                            <td style={{ padding: "10px", textAlign: "center" }}>
+                                                <CheckboxUI
+                                                    checked={selectedApprovedItemIds.has(item.ID)}
+                                                    onChange={() => { }}
+                                                />
+                                            </td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.EMPRESA}</td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text, fontSize: "12px" }}>{item.NOMBRE || item.DESCRIPCION}</td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.textSecondary, fontSize: "11px" }}>{new Date(item.updatedAt).toLocaleString()}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
+                        {Object.entries(
+                            approvedItemsForExport
+                                .filter(it => selectedApprovedItemIds.has(it.ID))
+                                .reduce((acc, it) => {
+                                    if (!acc[it.EMPRESA]) acc[it.EMPRESA] = [];
+                                    acc[it.EMPRESA].push({
+                                        ...it,
+                                        LINEA_NEGOCIO: it.LINEA_NEGOCIO || "HERRAMIENTAS"
+                                    });
+                                    return acc;
+                                }, {})
+                        ).map(([empresa, items]) => (
+                            <ButtonUI
+                                key={empresa}
+                                text={`Exportar ${empresa} (${items.length})`}
+                                iconLeft="FaDownload"
+                                onClick={() => generateSAPExport(empresa, items, {})}
+                            />
+                        ))}
                     </div>
                 </div>
             </ModalUI>
