@@ -110,10 +110,6 @@ export async function ObtenerReporteComisionesTecnicentroVendedores({
 }) {
   try {
 
-    console.log(mes, anio, data, idUsu);
-
-
-
     const res = await axiosInstance.post(
       `/comisiones/tecnicentro/comision-cabecera/${anio}/${mes}`,
       { vendedores: data, idUsu }

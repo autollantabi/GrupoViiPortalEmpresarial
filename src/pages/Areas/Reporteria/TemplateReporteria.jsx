@@ -218,8 +218,10 @@ export const TemplateReporteria = ({
       if (!empresasDisponiblesSet.has((r.empresa || "").toUpperCase())) return false;
       if (r.linea != null && !tieneAccesoALinea((r.linea || "").toUpperCase())) return false;
       if (r.canal != null) {
-        if (canalesParaFiltrar.size === 0) return false;
-        if (!canalesParaFiltrar.has(r.canal)) return false;
+        if (r.canal !== "TODOS" && r.canal !== "todos") {
+          if (canalesParaFiltrar.size === 0) return false;
+          if (!canalesParaFiltrar.has(r.canal)) return false;
+        }
       }
       return true;
     });
@@ -362,7 +364,7 @@ export const TemplateReporteria = ({
     let list = [...canales];
     const permitidos = Array.isArray(availableCanales) && availableCanales.length > 0 ? availableCanales : canalesDelUsuario;
     if (permitidos.length > 0) {
-      list = list.filter((c) => permitidos.includes(c));
+      list = list.filter((c) => c === "TODOS" || c === "todos" || permitidos.includes(c));
     }
     return list.map((id) => ({
       value: id,

@@ -13,6 +13,7 @@ const REPORTES = [
     rol: "coordinadora",
     linea: "LLANTAS",
     empresa: "AUTOLLANTA",
+    canal: "TODOS",
   },
   {
     id: 2,
@@ -68,7 +69,8 @@ const REPORTES = [
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "jefatura",
     linea: "LLANTAS",
-    empresa: "AUTOLLANTA"
+    empresa: "AUTOLLANTA",
+    canal: "TODOS",
   },
   {
     id: 9,
@@ -132,7 +134,8 @@ const REPORTES = [
     titulo: "Flash de Ventas - Grupo VII (Supervisor)",
     rol: "supervisor",
     linea: "LLANTAS",
-    empresa: "AUTOLLANTA"
+    empresa: "AUTOLLANTA",
+    canal: "TODOS",
   },
   {
     id: 17,
@@ -181,6 +184,33 @@ const REPORTES = [
     rol: "supervisor",
     linea: "LLANTAS",
     empresa: "AUTOMAX",
+  },
+  {
+    id: 23,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+    titulo: "Flash de Ventas - Grupo VII (Coordinador - B2B)",
+    rol: "coordinadora",
+    linea: "LLANTAS",
+    empresa: "AUTOLLANTA",
+    canal: "B2B",
+  },
+  {
+    id: 24,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+    titulo: "Flash de Ventas - Grupo VII (JEFATURA - B2B)",
+    rol: "jefatura",
+    linea: "LLANTAS",
+    empresa: "AUTOLLANTA",
+    canal: "B2B",
+  },
+  {
+    id: 25,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+    titulo: "Flash de Ventas - Grupo VII (Supervisor - B2B)",
+    rol: "supervisor",
+    linea: "LLANTAS",
+    empresa: "AUTOLLANTA",
+    canal: "B2B",
   },
 ];
 

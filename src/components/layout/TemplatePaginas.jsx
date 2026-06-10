@@ -3,6 +3,7 @@ import styled from "styled-components";
 
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import RightSidebar from "./RightSidebar";
 import { useTheme } from "context/ThemeContext";
 
 const ContenedorContenidoPagina = styled.div`
@@ -36,10 +37,11 @@ const ContenedorCuerpoPaginaHorizontal = styled.div`
 const ContenedorDerecha = styled.div`
   display: flex;
   flex-direction: column;
-  width: calc(100vw - 40px); /* Resta el ancho del sidebar cerrado */
+  width: calc(100vw - 80px); /* Resta el ancho de los sidebars cerrados */
   height: 100vh;
   overflow: hidden;
-  margin-left: 40px; /* Respeta el ancho del sidebar cuando está cerrado */
+  margin-left: 40px; /* Respeta el ancho del sidebar izquierdo cuando está cerrado */
+  margin-right: 40px; /* Respeta el ancho del sidebar derecho cuando está cerrado */
 `;
 
 // 🔹 Agregar animación de fade-in con `styled-components`
@@ -60,6 +62,7 @@ export default function TemplatePaginas({ seccion, ...props }) {
   return (
     <AnimatedPage $show={fadeIn}>
       <Sidebar />
+      <RightSidebar />
       <Header />
       <ContenedorDerecha>
         <ContenedorCuerpoPaginaHorizontal

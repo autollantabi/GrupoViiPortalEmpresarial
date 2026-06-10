@@ -10,7 +10,7 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, uploadToCloudflare, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
 
@@ -50,7 +50,7 @@ const CATEGORIAS_LLANTAS = {
             "LT/4X4/SUV(LTR)": {
                 aplicaciones: {
                     "ON": ["P(PASSENGER)", "RUN FLAT", "UHP (ULTRA HIGH PERFORMANCE)", "HP (HIGH PERFORMANCE)", "HT (HIGHWAY TERRAIN)"],
-                    "ON/OFF": ["RT(RUGGED TERRAIN)", "AT(ALL TERRAIN)"],
+                    "ON/OFF": ["RT( RUGGED TERRAIN)", "AT(ALL TERRAIN)"],
                     "OFF": ["MT(MUD TERRAIN)"],
                 },
             },
@@ -273,13 +273,19 @@ function Llantas() {
             String(m.marca || "").toUpperCase() === String(item.marca || "").toUpperCase() &&
             String(m.partida_arancelaria || "").toUpperCase() === String(item.partidaArancelaria || "").toUpperCase()
         );
-        const codMarca = mapping ? mapping.valor : "00";
+
+        const codMarca = mapping ? mapping.valor : "0000";
         const parsed = item.parsedData || {};
-        const rin = String(parsed.rin || "00");
-        const ancho = String(parsed.ancho || "00");
-        const alto = String(parsed.serie || "00");
         const lonas = String(parsed.lonas || "00").padStart(2, "0").slice(0, 2);
         const firstChar = String(item.diseño || "").charAt(0);
+        const ancho = String(parsed.ancho) === "UF" ? "00" : String(parsed.ancho)
+        const alto = String(parsed.serie) === "UF" ? "00" : String(parsed.serie)
+
+        let rin = String(parsed.rin || "00");
+        if (rin.charAt(rin.length - 1) >= 'A' && rin.charAt(rin.length - 1) <= 'Z') {
+            rin = rin.substring(0, 2);
+        }
+
         let designNum = "00";
         if (firstChar) {
             const c = firstChar.toUpperCase();
@@ -287,9 +293,10 @@ function Llantas() {
                 designNum = (c.charCodeAt(0) - 64).toString().padStart(2, '0');
             }
         }
-        const diseño = String(item.diseño || "");
-        const letraDiseño = String(item.letraDiseño || "");
-        const colorLetra = String(item.colorLetra || "");
+
+        const diseño = String(item.diseño || "0000");
+        const letraDiseño = String(item.letraDiseño || "00");
+        const colorLetra = String(item.colorLetra || "00");
         const carga = String(parsed.carga || "00");
         const velocidad = String(parsed.velocidad || "00");
         return `${codMarca}${rin}${ancho}${alto}${lonas}${designNum}${diseño}${letraDiseño}${colorLetra}${carga}${velocidad}`.toUpperCase().replace(/\s+/g, '');

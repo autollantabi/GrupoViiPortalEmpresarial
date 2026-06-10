@@ -26,7 +26,11 @@ const EstructuraHeader = styled.div.withConfig({
   height: ${globalConst.alturaHeader};
   ${flexRowCenter};
   margin-left: ${(props) => (props.$sidebarExpanded ? "220px" : "40px")};
-  width: ${(props) => (props.$sidebarExpanded ? "calc(100vw - 220px)" : "calc(100vw - 40px)")};
+  margin-right: 0px;
+  width: ${(props) => {
+    const left = props.$sidebarExpanded ? 220 : 40;
+    return `calc(100vw - ${left}px)`;
+  }};
   transition: margin-left 0.4s ease-in-out, width 0.4s ease-in-out;
   background: ${(props) => {
     const start = props.theme.colors.headerGradientStart || props.theme.colors.primary;
@@ -182,7 +186,7 @@ const ElementoLista = styled.div`
 const Header = () => {
   const navigation = useNavigate();
   const { theme } = useTheme();
-  const { isExpanded } = useSidebar();
+  const { isExpanded, isRightExpanded } = useSidebar();
   const [inputValue, setInputValue] = useState("");
   const [isListVisible, setIsListVisible] = useState(false);
   const [mostrarSubMenuUsuario, setMostrarSubMenuUsuario] = useState(false);
@@ -260,7 +264,7 @@ const Header = () => {
   }
 
   return (
-    <EstructuraHeader $sidebarExpanded={isExpanded}>
+    <EstructuraHeader $sidebarExpanded={isExpanded} $rightSidebarExpanded={isRightExpanded}>
       <ContenedorHeader>
         <ContenedorLogo>
           <Reloj />
