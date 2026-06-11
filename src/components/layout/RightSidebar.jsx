@@ -260,10 +260,11 @@ export default function RightSidebar() {
   useEffect(() => {
     postgresService.getComunicados()
       .then((res) => {
-        if (res.data?.status === 'Ok!' && res.data?.data) {
-          setComunicados(res.data.data);
+        if (res?.status === 'Ok!' && res?.data) {
+          setComunicados(res.data);
         }
       })
+
       .catch((err) => console.error("Error fetching comunicados", err));
   }, []);
 
@@ -274,7 +275,6 @@ export default function RightSidebar() {
     const day = date.getDate();
 
     const matched = [];
-
     for (const com of comunicados) {
       if (!com.DCM_TIPO) continue;
       const tipo = com.DCM_TIPO.toUpperCase();
@@ -296,7 +296,7 @@ export default function RightSidebar() {
         if (tipo === 'CARNAVAL') {
           const { monday, tuesday } = getCarnavalDates(year);
           if ((month === monday.getMonth() && day === monday.getDate()) ||
-              (month === tuesday.getMonth() && day === tuesday.getDate())) {
+            (month === tuesday.getMonth() && day === tuesday.getDate())) {
             matched.push(com);
           }
         } else if (tipo === 'SANTA') {
@@ -318,8 +318,8 @@ export default function RightSidebar() {
   const getDayClassName = (date) => {
     const today = new Date();
     const isToday = date.getDate() === today.getDate() &&
-                    date.getMonth() === today.getMonth() &&
-                    date.getFullYear() === today.getFullYear();
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear();
 
     if (isToday) return "today";
 
