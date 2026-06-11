@@ -13,7 +13,7 @@ const REPORTES = [
     rol: "coordinadora",
     linea: "LLANTAS",
     empresa: "AUTOLLANTA",
-    canal: "TODOS",
+    canal: "B2C",
   },
   {
     id: 2,
@@ -70,7 +70,7 @@ const REPORTES = [
     rol: "jefatura",
     linea: "LLANTAS",
     empresa: "AUTOLLANTA",
-    canal: "TODOS",
+    canal: "B2C",
   },
   {
     id: 9,
@@ -135,7 +135,7 @@ const REPORTES = [
     rol: "supervisor",
     linea: "LLANTAS",
     empresa: "AUTOLLANTA",
-    canal: "TODOS",
+    canal: "B2C",
   },
   {
     id: 17,

@@ -8,7 +8,7 @@ import { ContenedorFlex } from "components/UI/Components/ContenedorFlex";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
-import { obtenerVendedoresParametros, crearLineaNegocio, obtenerLineaNegocioParametros } from "services/LineaNegocio";
+import { postgresService } from "services/postgresService";
 import { toast } from "react-toastify";
 
 const FilterBar = styled.div`
@@ -173,8 +173,8 @@ export default function Vendedor() {
   const fetchMaster = async () => {
     setLoadingAPI(true);
     const [resVendedores, resLineas] = await Promise.all([
-      obtenerVendedoresParametros(),
-      obtenerLineaNegocioParametros()
+      postgresService.obtenerVendedoresParametros(),
+      postgresService.obtenerLineaNegocioParametros()
     ]);
 
     if (resLineas.success) {
@@ -440,7 +440,7 @@ export default function Vendedor() {
     };
 
     setLoadingAPI(true);
-    const res = await crearLineaNegocio(dataPost);
+    const res = await postgresService.crearLineaNegocio(dataPost);
 
     if (res.success) {
       toast.success("Asociación guardada correctamente");

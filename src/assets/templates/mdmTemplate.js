@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { axiosInstanceNew } from "config/axiosConfig";
+import { getCodigoMarca, getTiposUnidades } from "services/mdmService";
 
 /**
  * Estructura de encabezados con sus valores por defecto iniciales.
@@ -20,7 +20,7 @@ const DEFAULT_VALUES = {
     "TreeType": "iNotATree",
     "AssetItem": "tNO",
     "ManSerNum": "tNO",
-    "ManBtchNum": "tYES",
+    "ManBtchNum": "tYES", //Cambiado de tYes a tNo
     "validFor": "tYES",
     "frozenFor": "tNO",
     "SalUnitMsr": "UNIDAD",
@@ -47,15 +47,15 @@ const DEFAULT_VALUES = {
     "PurFactor2": "1",
     "PurFactor3": "1",
     "PurFactor4": "1",
-    "DfltWH": "1",
+    "DfltWH": "2",
     "GLMethod": "glm_ItemClass",
     "ByWh": "tYES",
     "WTLiable": "tYES",
     "EvalSystem": "bis_MovingAverage",
     "IndirctTax": "tYES",
-    "TaxCodeAR": "IVAVB12",
-    "TaxCodeAP": "IVACM12",
-    "IssueMthd": "im_Manual",
+    "TaxCodeAR": "IVAVB15",
+    "TaxCodeAP": "IVACM00",
+    "IssueMthd": "im_Manual", //Cambiado de manual a backflush - Mentirota no se cambio nada
     "MngMethod": "bomm_OnEveryTransaction",
     "Phantom": "tNO",
     "InvntryUom": "UNIDAD",
@@ -63,7 +63,7 @@ const DEFAULT_VALUES = {
     "PrcrmntMtd": "bom_Buy",
     "ItemType": "itItems",
     "ItemClass": "itcMaterial",
-    "QryGroup1": "tNO",
+    "QryGroup1": "tNO", //Cambiado de tNO a tYES - Mentirota no se cambio nada
     "QryGroup2": "tNO",
     "QryGroup3": "tNO",
     "QryGroup4": "tNO",
@@ -82,21 +82,22 @@ const DEFAULT_VALUES = {
     "QryGroup17": "tNO",
     "QryGroup18": "tNO",
     "QryGroup19": "tNO",
+    "QryGroup20": "tYES",
     "Series": "184",
     "NoDiscount": "tNO",
     "U_MA_ECOVALOR": "",
     //Para llantas
-    "DISEÑO ": "",
-    "RIN": "",
-    "SERIE ": "",
-    "ANCHO ": "",
-    "NOMENCLATURA": "",
-    "CATEGORIA ": "",
-    "SEGMENTO ": "",
-    "APLICACIÓN ": "",
-    "EJE ": "",
-    "LONAS": "",
-    "VELOCIDAD ": "",
+    "U_MA_DISENO": "",
+    "U_MA_RIN": "",
+    "U_MA_SERIE": "",
+    "U_MA_ANCHO": "",
+    "U_MA_NOMENCLATURA": "",
+    "U_MA_CATEGORIA": "",
+    "U_MA_SEGMENTO": "",
+    "U_MA_APL_TER": "",
+    "U_MA_EJE": "",
+    "U_MA_LONAS": "",
+    "U_MA_VELOCIDAD": "",
     "U_MA_ITM_EASY": "SI",
     "U_MA_PRT_ARA": "",
     "U_MA_FAMILIA": "-1",
@@ -105,11 +106,23 @@ const DEFAULT_VALUES = {
     "U_MA_CARGA": "",
     //Para lubricantes
     "U_MA_PESO": "",
-    //Para Herramientas
+
+    //Para Herramientas - Mentirota no existen campos para herramientas (creo) (resultado: Si existe e importan mucho muchito)
+
     "UoMGroupEntry": "",
     "InventoryUoMEntry": "",
-    "DefaultSalesUoMEntry": "",
-    "DefaultPurchasingUoMEntry": ""
+    "DefaultSalesUoMEntry": "", //Cambiado de nada a 1
+    "DefaultPurchasingUoMEntry": "",
+
+
+    //Campos extra
+    "PUoMEntry": "1",
+    "SUoMEntry": "1",
+    "IUoMEntry": "1",
+    "CntUnitMsr": "UNIDAD",
+    "INUoMEntry": "1",
+    "PriceUnit": "1",
+    "UgpEntry": "1"
 
 };
 //Clave: Segunda fila
@@ -190,21 +203,22 @@ const MAIN_HEADERS = {
     "QryGroup17": "Properties17",
     "QryGroup18": "Properties18",
     "QryGroup19": "Properties19",
+    "QryGroup20": "Properties20",
     "Series": "Series",
     "NoDiscount": "NoDiscounts",
     "U_MA_ECOVALOR": "U_MA_ECOVALOR",
     //Para llantas
-    "DISEÑO ": "U_MA_DISENO",
-    "RIN": "U_MA_RIN",
-    "SERIE ": "U_MA_SERIE",
-    "ANCHO ": "U_MA_ANCHO",
-    "NOMENCLATURA": "U_MA_NOMENCLATURA",
-    "CATEGORIA ": "U_MA_CATEGORIA",
-    "SEGMENTO ": "U_MA_SEGMENTO",
-    "APLICACIÓN ": "U_MA_APL_TER",
-    "EJE ": "U_MA_EJE",
-    "LONAS": "U_MA_LONAS",
-    "VELOCIDAD ": "U_MA_VELOCIDAD",
+    "U_MA_DISENO": "U_MA_DISENO",
+    "U_MA_RIN": "U_MA_RIN",
+    "U_MA_SERIE": "U_MA_SERIE",
+    "U_MA_ANCHO": "U_MA_ANCHO",
+    "U_MA_NOMENCLATURA": "U_MA_NOMENCLATURA",
+    "U_MA_CATEGORIA": "U_MA_CATEGORIA",
+    "U_MA_SEGMENTO": "U_MA_SEGMENTO",
+    "U_MA_APL_TER": "U_MA_APL_TER",
+    "U_MA_EJE": "U_MA_EJE",
+    "U_MA_LONAS": "U_MA_LONAS",
+    "U_MA_VELOCIDAD": "U_MA_VELOCIDAD",
     "U_MA_ITM_EASY": "U_MA_ITM_EASY",
     "U_MA_PRT_ARA": "U_MA_PRT_ARA",
     "U_MA_FAMILIA": "U_MA_FAMILIA",
@@ -213,11 +227,23 @@ const MAIN_HEADERS = {
     "U_MA_CARGA": "U_MA_CARGA",
     //Para lubricantes
     "U_MA_PESO": "U_MA_PESO",
-    //Para Herramientas
+
     "UoMGroupEntry": "UoMGroupEntry",
     "InventoryUoMEntry": "InventoryUoMEntry",
     "DefaultSalesUoMEntry": "DefaultSalesUoMEntry",
-    "DefaultPurchasingUoMEntry": "DefaultPurchasingUoMEntry"
+    "DefaultPurchasingUoMEntry": "DefaultPurchasingUoMEntry",
+
+
+    //Campos extra
+    "PUoMEntry": "PUoMEntry",
+    "SUoMEntry": "SUoMEntry",
+    "IUoMEntry": "IUoMEntry",
+    "CntUnitMsr": "CntUnitMsr",
+    "INUoMEntry": "INUoMEntry",
+    "PriceUnit": "PriceUnit",
+    "UgpEntry": "UgpEntry",
+
+
 };
 const NOMENCLATURA_MAPPING = {
     "MILIMETRICA": "3",
@@ -277,16 +303,13 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
         return mappingItem ? mappingItem.code : "";
     };
 
-    let codigosMarca = [];
-    try {
-        const response = await axiosInstanceNew.get('/dwh-postgres/codigo-marca');
-        if (response.data && response.data.status === "Ok!") {
-            codigosMarca = response.data.data;
-        }
-    } catch (error) {
-        console.error("Error fetching codigo-marca", error);
-    }
+    const codigosMarca = await getCodigoMarca();
 
+    const codigosUnidades = await getTiposUnidades(companyName);
+
+
+    console.log(codigosMarca);
+    console.log(codigosUnidades);
     // Primera fila: Encabezados descriptivos (de SAP)
     const mainHeaderRow = headers.map(header => MAIN_HEADERS[header] || "");
 
@@ -305,15 +328,15 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
     const dataRows = items.map(item => {
         // Mapeo específico solicitado por el usuario
         const ecovalor = item.LINEA_NEGOCIO === "LLANTAS" ? "1" : item.LINEA_NEGOCIO === "LLANTAS MOTO" ? "2" : "";
-        const rawOum = item.OUM || item.oum || item.UOM || item.uom || "";
+        const rawOum = item.OUM || item.oum || "";
         const peso = rawOum && !isNaN(parseFloat(rawOum)) ? Math.ceil(parseFloat(rawOum)) : "";
         const grupCode = lineasEmpresas[companyName.substring(0, 3).toUpperCase() + item.LINEA_NEGOCIO.split(" ")[0].toUpperCase().trim()] || "";
-
+        const groupEntry = item.LINEA_NEGOCIO === "LLANTAS" || item.LINEA_NEGOCIO === "LLANTAS MOTO" ? codigosUnidades.data.find(c => c.OUM_NAME.toUpperCase() === "UNIDAD")?.OUM_ENTRY : "";
         const marcaName = item.MARCA || item.marca || "";
 
         let frmCode = "";
-        if (codigosMarca.length > 0) {
-            const found = codigosMarca.find(c =>
+        if (codigosMarca.data.length > 0) {
+            const found = codigosMarca.data.find(c =>
                 String(c.DCM_EMPRESA).trim().toUpperCase() === String(companyName).trim().toUpperCase() &&
                 String(c.DCM_MARCA).trim().toUpperCase() === String(marcaName).trim().toUpperCase()
             );
@@ -330,23 +353,26 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
             "ItmsGrpCod": grupCode,
             "CodeBars": item.CODIGO_BARRAS || item.ITEM_CODIGO_BARRAS || "",
             "U_MA_ECOVALOR": ecovalor,
-            "DISEÑO ": item.DISENIO || item.diseño || "",
-            "RIN": item.RIN || item.rin || "",
-            "SERIE ": item.SERIE || item.serie || "",
-            "ANCHO ": item.ANCHO || item.ancho || "",
-            "NOMENCLATURA": NOMENCLATURA_MAPPING[item.NOMENCLATURA || item.nomenclatura] || "",
-            "CATEGORIA ": getCode("CATEGORIAS", item.CATEGORIA || item.categoria),
-            "SEGMENTO ": getCode("SEGMENTOS", item.SEGMENTO || item.segmento),
-            "APLICACIÓN ": getCode("APLICACIONES", item.APLICACION || item.aplicacion),
-            "EJE ": getCode("EJES", item.EJE || item.eje),
-            "LONAS": item.LONAS || item.lonas || "",
-            "VELOCIDAD ": item.VELOCIDAD || item.velocidad || "",
+            "U_MA_DISENO": item.DISENIO || item.diseño || "",
+            "U_MA_RIN": item.RIN || item.rin || "",
+            "U_MA_SERIE": item.SERIE || item.serie || "",
+            "U_MA_ANCHO": item.ANCHO || item.ancho || "",
+            "U_MA_NOMENCLATURA": NOMENCLATURA_MAPPING[item.NOMENCLATURA || item.nomenclatura] || "",
+            "U_MA_CATEGORIA": getCode("CATEGORIAS", item.CATEGORIA || item.categoria),
+            "U_MA_SEGMENTO": getCode("SEGMENTOS", item.SEGMENTO || item.segmento),
+            "U_MA_APL_TER": getCode("APLICACIONES", item.APLICACION || item.aplicacion),
+            "U_MA_EJE": getCode("EJES", item.EJE || item.eje),
+            "U_MA_LONAS": item.LONAS || item.lonas || "",
+            "U_MA_VELOCIDAD": item.VELOCIDAD || item.velocidad || "",
             "U_MA_PRT_ARA": item.PARTIDA_ARANCELARIA || item.partidaArancelaria || "",
             "U_MA_CUBICAJE": item.CUBICAJE || item.cubicaje || "",
             "FirmCode": frmCode || "",
             "U_MA_CARGA": item.CARGA || item.carga || "",
-            "U_MA_PESO": peso || ""
+            "U_MA_PESO": peso || "",
+            "UoMGroupEntry": groupEntry || "",
         };
+
+        console.log(userValues);
 
         return headers.map(header => {
             return userValues[header] !== undefined ? userValues[header] : DEFAULT_VALUES[header];

@@ -239,3 +239,32 @@ export const getItemsCaracteristicas = async () => {
         throw error;
     }
 };
+
+/**
+ * Obtiene el código de marca del DWH.
+ * @returns {Promise<any>}
+ */
+export const getCodigoMarca = async () => {
+    try {
+        const response = await axiosInstanceNew.get('/dwh-postgres/codigo-marca');
+        return response.data;
+    } catch (error) {
+        console.error("Error al obtener codigo marca:", error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene los tipos de unidades por empresa.
+ * @param {string} companyName - Nombre de la empresa
+ * @returns {Promise<any>}
+ */
+export const getTiposUnidades = async (companyName) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/tipos-unidades/${companyName}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error al obtener tipos de unidades:", error);
+        throw error;
+    }
+};

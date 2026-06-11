@@ -71,10 +71,10 @@ index.jsx
 | `context/`        | authContext.jsx (sesión, user, login, logout, fetchUserMe), ThemeContext.jsx (tema claro/oscuro), SidebarContext.jsx (estado expandido del sidebar). |
 | `router/`         | SimpleRouter.jsx (createBrowserRouter, getRoutesConfig, getSidebarItems, ProtectedContent, inyección de routeConfig), Routes.js (RoutesConfig: lista de rutas con path, title, icon, component, recurso, recursosAlternativos, public, rootOnly). |
 | `pages/`          | auth (LoginPage, PasswordRecovery), home (Portal), NotFound; Areas (Administracion, AppShell, Cartera, Compras, Contabilidad, Marketing, Reporteria, RRHH, etc.). |
-| `components/layout/` | TemplatePaginas (Sidebar + Header + área de contenido), Sidebar.jsx (items desde getSidebarItems), Header.jsx. |
+| `components/layout/` | TemplatePaginas (Sidebar + Header + área de contenido), Sidebar.jsx (items desde getSidebarItems), RightSidebar.jsx (calendario interactivo de feriados y festividades), Header.jsx. |
 | `components/common/` | FormComponents.jsx (formularios reutilizables). |
 | `components/UI/Components/` | ButtonUI, CardUI, SelectUI, InputUI, ModalUI, ModalConfirmacionUI, TablaInfoUI, TablaInputsUI, ExportarAExcelUI, TooltipUI, LoaderUI, ToastUI, ToggleThemeButtonUI, IconsUI, etc. |
-| `services/`       | authService, administracionService, appShell_Service, carteraService, carteraDesbloqueoClientesService, contabilidadService, creditosService, importacionesService, marketingService, recoveryService, transaccionesService, usuariosService; cartera/cargarTransferencias.js, cartera/ejecutarbancos.js. |
+| `services/`       | authService, administracionService, appShell_Service, carteraService, carteraDesbloqueoClientesService, contabilidadService, creditosService, importacionesService, marketingService, postgresService, recoveryService, transaccionesService, usuariosService; cartera/cargarTransferencias.js, cartera/ejecutarbancos.js. |
 | `utils/`           | permissionsValidator.js (hasAccessToResource, getAvailableCompanies, getAvailableLines, getAvailableCanales), encryption.js (encrypt/decrypt para id-session), theme.js (lightTheme, darkTheme), colors.js, Utils.js (transformarDataAValueLabel, obtenerAniosDesde2020). |
 | `assets/`         | fonts, images (svg, webp_png_jpeg), styles (Loaders, StyledComponents). |
 
@@ -164,7 +164,7 @@ PortalEmpresarial/
 │   │   └── styles/         # Loaders, StyledComponents (ContenedorPadre)
 │   ├── components/
 │   │   ├── common/         # FormComponents.jsx
-│   │   ├── layout/         # Header, Sidebar, TemplatePaginas
+│   │   ├── layout/         # Header, Sidebar, RightSidebar, TemplatePaginas
 │   │   └── UI/Components/  # ButtonUI, CardUI, SelectUI, ModalUI, TablaInfoUI, TooltipUI, etc.
 │   ├── config/             # axiosConfig.js, constants.js, env.js
 │   ├── context/            # authContext, SidebarContext, ThemeContext
@@ -189,8 +189,9 @@ PortalEmpresarial/
 
 ### 6.2 Layout
 
-- **TemplatePaginas:** Sidebar + Header + área de contenido; animación fade-in.
+- **TemplatePaginas:** Sidebar (izquierdo), RightSidebar (derecho) + Header + área de contenido; animación fade-in.
 - **Sidebar:** Items desde `getSidebarItems`; expandible por hover; Toggle tema y Cerrar sesión abajo.
+- **RightSidebar:** Panel lateral derecho que incluye un calendario interactivo que resalta feriados y festividades con datos de `postgresService`.
 - **Header:** Cabecera de la aplicación.
 
 ### 6.3 Páginas por área

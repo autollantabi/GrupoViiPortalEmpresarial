@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -7,6 +7,7 @@ import { useTheme } from "context/ThemeContext";
 import { useSidebar } from "context/SidebarContext";
 import IconUI from "components/UI/Components/IconsUI";
 import { globalConst } from "config/constants";
+import { postgresService } from "services/postgresService";
 
 const RightSidebarContainer = styled.div`
   position: fixed;
@@ -45,7 +46,7 @@ const CalendarWrapper = styled.div.withConfig({
   transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
   width: 100%;
   padding: 10px;
-  margin-top: 50px;
+  margin-top: 10px;
   box-sizing: border-box;
 
   /* Estilos personalizados para el DatePicker */
@@ -85,16 +86,88 @@ const CalendarWrapper = styled.div.withConfig({
   .react-datepicker__month-text--selected,
   .react-datepicker__month-text--in-selecting-range,
   .react-datepicker__month-text--in-range {
-    background-color: ${(props) => props.theme.colors.primary};
+    background-color: transparent;
   }
   .react-datepicker__day--keyboard-selected,
   .react-datepicker__month-text--keyboard-selected,
   .react-datepicker__quarter-text--keyboard-selected,
   .react-datepicker__year-text--keyboard-selected {
-    background-color: ${(props) => hexToRGBA({ hex: props.theme.colors.primary, alpha: 0.6 })};
+    background-color: transparent;
   }
   .react-datepicker-wrapper {
     width: 100%;
+  }
+  .react-datepicker__day.feriado {
+    background-color: red !important;
+    color: white !important;
+  }
+  .react-datepicker__day.festividad {
+    background-color: blue !important;
+    color: white !important;
+  }
+  .react-datepicker__day.feriado:hover {
+    background-color: darkred !important;
+  }
+  .react-datepicker__day.festividad:hover {
+    background-color: darkblue !important;
+  }
+  .react-datepicker__day.today {
+    background-color: green !important;
+    color: white !important;
+  }
+  .react-datepicker__day.today:hover {
+    background-color: darkgreen !important;
+  }
+`;
+
+const ComunicadoInfoWrapper = styled.div.withConfig({
+  shouldForwardProp: (prop) => !["$isexpanded"].includes(prop),
+})`
+  opacity: ${(props) => (props.$isexpanded ? 1 : 0)};
+  visibility: ${(props) => (props.$isexpanded ? "visible" : "hidden")};
+  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+  padding: 10px;
+  color: ${(props) => props.theme.colors.white};
+  font-size: 12px;
+  margin-top: 10px;
+  width: 100%;
+  box-sizing: border-box;
+
+  h4 {
+    margin: 0 0 5px 0;
+    font-size: 13px;
+  }
+  p {
+    margin: 0;
+    line-height: 1.4;
+  }
+`;
+
+const LegendWrapper = styled.div.withConfig({
+  shouldForwardProp: (prop) => !["$isexpanded"].includes(prop),
+})`
+  opacity: ${(props) => (props.$isexpanded ? 1 : 0)};
+  visibility: ${(props) => (props.$isexpanded ? "visible" : "hidden")};
+  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+  width: 100%;
+  padding: 0 10px;
+  margin-top: 50px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  font-size: 11px;
+  color: ${(props) => props.theme.colors.white};
+  box-sizing: border-box;
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .legend-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
   }
 `;
 
@@ -128,10 +201,149 @@ const ExpandedHeaderWrapper = styled.div.withConfig({
   white-space: nowrap;
 `;
 
+const Festividades = ['FESTIVIDAD', 'MADRE', 'PADRE'];
+
+const Feriados = ['FERIADO', 'CARNAVAL', 'SANTA'];
+
+const getEasterSunday = (year) => {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month, day);
+};
+
+const getCarnavalDates = (year) => {
+  const easter = getEasterSunday(year);
+  const monday = new Date(easter);
+  monday.setDate(easter.getDate() - 48);
+  const tuesday = new Date(easter);
+  tuesday.setDate(easter.getDate() - 47);
+  return { monday, tuesday };
+};
+
+const getViernesSanto = (year) => {
+  const easter = getEasterSunday(year);
+  const friday = new Date(easter);
+  friday.setDate(easter.getDate() - 2);
+  return friday;
+};
+
+const isMothersDay = (date) => {
+  if (date.getMonth() !== 4) return false;
+  if (date.getDay() !== 0) return false;
+  return date.getDate() >= 8 && date.getDate() <= 14;
+};
+
+const isFathersDay = (date) => {
+  if (date.getMonth() !== 5) return false;
+  if (date.getDay() !== 0) return false;
+  return date.getDate() >= 15 && date.getDate() <= 21;
+};
+
 export default function RightSidebar() {
   const { isRightExpanded, setIsRightExpanded } = useSidebar();
   const { theme } = useTheme();
   const [startDate, setStartDate] = useState(new Date());
+  const [comunicados, setComunicados] = useState([]);
+
+  useEffect(() => {
+    postgresService.getComunicados()
+      .then((res) => {
+        if (res.data?.status === 'Ok!' && res.data?.data) {
+          setComunicados(res.data.data);
+        }
+      })
+      .catch((err) => console.error("Error fetching comunicados", err));
+  }, []);
+
+  const getComunicadosForDate = (date) => {
+    if (!date) return [];
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+
+    const matched = [];
+
+    for (const com of comunicados) {
+      if (!com.DCM_TIPO) continue;
+      const tipo = com.DCM_TIPO.toUpperCase();
+
+      if (Festividades.includes(tipo)) {
+        if (tipo === 'MADRE' && isMothersDay(date)) {
+          matched.push(com);
+        } else if (tipo === 'PADRE' && isFathersDay(date)) {
+          matched.push(com);
+        } else if (tipo === 'FESTIVIDAD' && com.DCM_FECHA) {
+          const [yyyy, mm, dd] = com.DCM_FECHA.split('-');
+          if (parseInt(mm, 10) - 1 === month && parseInt(dd, 10) === day) {
+            matched.push(com);
+          }
+        }
+      }
+
+      if (Feriados.includes(tipo)) {
+        if (tipo === 'CARNAVAL') {
+          const { monday, tuesday } = getCarnavalDates(year);
+          if ((month === monday.getMonth() && day === monday.getDate()) ||
+              (month === tuesday.getMonth() && day === tuesday.getDate())) {
+            matched.push(com);
+          }
+        } else if (tipo === 'SANTA') {
+          const viernes = getViernesSanto(year);
+          if (month === viernes.getMonth() && day === viernes.getDate()) {
+            matched.push(com);
+          }
+        } else if (tipo === 'FERIADO' && com.DCM_FECHA) {
+          const [yyyy, mm, dd] = com.DCM_FECHA.split('-');
+          if (parseInt(mm, 10) - 1 === month && parseInt(dd, 10) === day) {
+            matched.push(com);
+          }
+        }
+      }
+    }
+    return matched;
+  };
+
+  const getDayClassName = (date) => {
+    const today = new Date();
+    const isToday = date.getDate() === today.getDate() &&
+                    date.getMonth() === today.getMonth() &&
+                    date.getFullYear() === today.getFullYear();
+
+    if (isToday) return "today";
+
+    const matched = getComunicadosForDate(date);
+    if (matched.length === 0) return null;
+
+    const hasFeriado = matched.some(com => Feriados.includes(com.DCM_TIPO?.toUpperCase()));
+    if (hasFeriado) return "feriado";
+
+    const hasFestividad = matched.some(com => Festividades.includes(com.DCM_TIPO?.toUpperCase()));
+    if (hasFestividad) return "festividad";
+
+    return null;
+  };
+
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [resetKey, setResetKey] = useState(0);
+
+  useEffect(() => {
+    if (!isRightExpanded) {
+      setStartDate(new Date());
+      setResetKey(prev => prev + 1);
+    }
+  }, [isRightExpanded]);
 
   const handleMouseEnter = () => {
     setIsRightExpanded(true);
@@ -150,19 +362,52 @@ export default function RightSidebar() {
         <ClosedIconWrapper $isexpanded={isRightExpanded}>
           <IconUI name="FaCalendarAlt" color={isRightExpanded ? theme.colors.white : theme.colors.textSecondary} />
         </ClosedIconWrapper>
-        
+
         <ExpandedHeaderWrapper $isexpanded={isRightExpanded}>
           <IconUI name="FaCalendarAlt" color={theme.colors.white} />
           <span>Calendario</span>
         </ExpandedHeaderWrapper>
 
+        <LegendWrapper $isexpanded={isRightExpanded}>
+          <div className="legend-item">
+            <div className="legend-color" style={{ backgroundColor: 'green' }} /> Hoy
+          </div>
+          <div className="legend-item">
+            <div className="legend-color" style={{ backgroundColor: 'blue' }} /> Festividad
+          </div>
+          <div className="legend-item">
+            <div className="legend-color" style={{ backgroundColor: 'red' }} /> Feriado
+          </div>
+        </LegendWrapper>
+
         <CalendarWrapper $isexpanded={isRightExpanded}>
           <DatePicker
+            key={resetKey}
             selected={startDate}
             onChange={(date) => setStartDate(date)}
+            onMonthChange={(date) => setCurrentMonth(date)}
             inline
+            dayClassName={getDayClassName}
           />
         </CalendarWrapper>
+
+        <ComunicadoInfoWrapper $isexpanded={isRightExpanded}>
+          {getComunicadosForDate(startDate).map((com, idx) => (
+            <div key={idx} style={{ marginBottom: "10px" }}>
+              <h4 style={{ color: Feriados.includes(com.DCM_TIPO?.toUpperCase()) ? 'red' : 'blue' }}>
+                {com.DCM_MOTIVO}
+              </h4>
+              <p>
+                {com.DCM_MENSAJE && com.DCM_MENSAJE.split(/(?:\\n|\n)/).map((line, i) => (
+                  <React.Fragment key={i}>
+                    {line}
+                    <br />
+                  </React.Fragment>
+                ))}
+              </p>
+            </div>
+          ))}
+        </ComunicadoInfoWrapper>
       </ContenedorMenuRight>
     </RightSidebarContainer>
   );

@@ -63,6 +63,8 @@ El proyecto consume **dos APIs** mediante **dos instancias de Axios** definidas 
 - `usuariosService.js` — GET/POST/PUT/DELETE `/usuarios/tipoUsuario/`, y otros endpoints de usuarios nuevos.
 - `appShell_Service.js` — Club Shell Maxx: usuarios/info, usuarios (CRUD), canjes (estados y historial). **Portal Mayorista:** usuarios, usuarios-permitidos/app-shell (habilitar/quitar permiso).
 - `xcoinService.js` — Gestión de canjes XCoin: listar canjes, estados y actualizar estado.
+- `postgresService.js` — Consultas a PostgreSQL para datos maestros (marcas, unidades, vendedores, líneas de negocio) y comunicados del calendario (feriados, festividades). (Reemplaza al anterior `LineaNegocio.js`).
+- `mdmService.js` — Gestión de ítems maestros en el MDM (creación, edición, parseo de descripciones, carga de imágenes a Cloudflare, flujos de aprobación y rechazo por rol) y conexión con DWH.
 
 ### Endpoints representativos
 
@@ -74,6 +76,8 @@ El proyecto consume **dos APIs** mediante **dos instancias de Axios** definidas 
 - **Club Shell Maxx** (misma base URL API 2): `GET /club-shell-maxx/canjes/estados-canjes`, `GET /club-shell-maxx/canjes/todos-con-estados`, `POST /club-shell-maxx/canjes/estado-historial-canje`, `GET /club-shell-maxx/usuarios`, `GET /club-shell-maxx/usuarios/info`, `POST /club-shell-maxx/usuarios` (crear vendedor).
 - **Portal Mayorista** (misma base URL API 2): `GET /portal-mayorista/usuarios` (lista con ID_USER, NAME_USER, EMAIL, ACCESS_APP_SHELL, etc.), `POST /portal-mayorista/usuarios-permitidos/app-shell` (body: `{ "email": "..." }`), `DELETE /portal-mayorista/usuarios-permitidos/app-shell/{email}` (email en path, codificado).
 - **XCoin** (misma base URL API 2): `GET /x-coin/canjes` (lista de canjes), `GET /x-coin/canjes/estados` (mapeo de estados), `POST /x-coin/canjes/estado/{idCanje}` (body: `{ "NEW_STATUS": "...", "COMMENT": "..." }`).
+- **Postgres DWH:** `GET /dwh-postgres/comunicados`, `GET /dwh-postgres/codigo-marca`, `GET /mdm/tipos-unidades/:companyName`, `GET /dwh-postgres/vendedores-parametros`, `POST/DELETE /dwh-postgres/categoria-parametros`, etc.
+- **MDM:** `GET/POST/PATCH /mdm/items`, `POST /mdm/parse-llantas/:lineaNegocio`, `POST /mdm/upload-cloudflare`, `POST /mdm/items/upload-images/:lineaNegocio`, `GET /mdm/itemsDWH/linea-negocio/:lineaNegocio`, `GET /mdm/items-caracteristicas`, etc.
 
 ### Datos y riesgos
 

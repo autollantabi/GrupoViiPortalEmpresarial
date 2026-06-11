@@ -8,7 +8,7 @@ import { useTheme } from "context/ThemeContext";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
 import styled from "styled-components";
-import { obtenerLineaNegocioParametros, actualizarNombreComercial } from "services/LineaNegocio";
+import { postgresService } from "services/postgresService";
 import { useAuthContext } from "context/authContext";
 
 
@@ -125,7 +125,7 @@ export default function Linea() {
 
   const fetchData = async () => {
     setLoading(true);
-    const response = await obtenerLineaNegocioParametros();
+    const response = await postgresService.obtenerLineaNegocioParametros();
     if (response.success) {
       const data = response.data || [];
       const newRows = data.map(item => ({
@@ -195,7 +195,7 @@ export default function Linea() {
     }
 
     setLoading(true);
-    const res = await actualizarNombreComercial(row.DLN_CODIGO, { DLN_NOMBRE: row.DLN_NOMBRE });
+    const res = await postgresService.actualizarNombreComercial(row.DLN_CODIGO, { DLN_NOMBRE: row.DLN_NOMBRE });
     if (res.success) {
       toast.success(res.message);
       await fetchData();

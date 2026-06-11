@@ -44,7 +44,7 @@ Este documento describe, paso a paso, los flujos principales del sistema: login,
    - Si tiene acceso: obtiene `availableCompanies`, `availableLines` y `availableCanales` con `getAvailableCompanies`, `getAvailableLines` y `getAvailableCanales` (combinando todos los recursos que dan acceso).
    - Calcula `rolDelRecurso` a partir de user.CONTEXTOS y user.ROLES.
    - Construye `routeConfig` (recurso, recursosAlternativos, rolDelRecurso, availableCompanies, availableLines, availableCanales) e inyecta `routeConfig`, `availableCompanies`, `availableLines` y `availableCanales` al componente de la página mediante `React.cloneElement`.
-4. **Layout:** Se renderiza TemplatePaginas (Sidebar + Header + área de contenido). El Sidebar muestra solo ítems para los que el usuario tiene permiso (getSidebarItems(userContexts)).
+4. **Layout:** Se renderiza TemplatePaginas (Sidebar + Header + área de contenido). El Sidebar muestra solo ítems para los que el usuario tiene permiso (getSidebarItems(userContexts)). Además, el layout incluye un RightSidebar con un calendario interactivo que resalta fechas clave (Feriados, Festividades) consumidas vía `postgresService`.
 5. **Página:** El componente de la página recibe las props inyectadas y las usa para filtros (empresa/línea/canal), permisos de edición (p. ej. rol "jefatura" → "E", resto → "C" en tablas) y llamadas a servicios.
 
 **Resumen:** Ruta protegida → verificación de recurso → empresas/líneas/canales y rol → inyección a la página → sidebar filtrado por permisos.
@@ -139,7 +139,7 @@ El módulo **MDM_Crud** (`src/pages/Areas/MDM/MDM_Crud/MDM_Crud.jsx`) permite cr
 5. **Descripción automática:** Al agregar el ítem, se genera automáticamente una cadena `descripcionConVariables`:
    - **Llantas:** Según el tipo: `"Altura x Ancho R-Rin Diseño LonaPR Carga Velocidad"` (Americana), `"Ancho/Altura R-Rin Diseño LonaPR Carga Velocidad"` (Milimétrica), `"Ancho R-Rin Diseño LonaPR Carga Velocidad"` (Decimal).
    - **Lubricantes:** Concatenación de `"Marca Modelo Tipo Viscosidad Empaque"`.
-6. **Gestión de ítems:** Los ítems se listan con checkbox individual y checkbox "seleccionar todos". Se puede exportar todo el grupo o solo los ítems seleccionados a archivo `.txt`.
+6. **Gestión de ítems:** Los ítems se listan con checkbox individual y checkbox "seleccionar todos". Se puede exportar todo el grupo o solo los ítems seleccionados a archivo `.txt` y, para integraciones, se pueden exportar a formato SAP (`.xlsx`) utilizando `mdmTemplate.js`, el cual transforma los datos (ej: `PUoMEntry`, marcas, unidades) apoyándose en consultas mediante `postgresService`.
 7. **Guardar grupo:** Se presiona "Guardar grupo" (requiere al menos 1 ítem). El borrador obtiene un id permanente y pasa a la lista de grupos guardados.
 8. **Grupos guardados:** Desde la vista general se pueden: editar (volver a agregar ítems), eliminar (con confirmación) o exportar a TXT cada grupo.
 
@@ -197,7 +197,7 @@ La variable `config?.formType` determina si se renderizan los campos de llantas 
 | **Generación dinámica de opciones** | `generarOpciones(min, max, step)` y `generarCargasFormato()` crean las opciones de los selects a partir de la config. |
 | **Validación modular**        | Funciones de validación independientes (`validarAncho`, `validarCarga`, `validarModelo`, etc.) reciben config como parámetro, facilitando testing y extensibilidad. |
 | **Touched fields**            | Errores de validación solo se muestran para campos que el usuario ya tocó (`touchedFields`), mejorando la experiencia de usuario. |
-| **Exportación a TXT**         | `exportarItemsATxt()` genera y descarga un `.txt` con las descripciones de los ítems; soporta exportar grupo completo o selección parcial. |
+| **Exportación a TXT / SAP**   | `exportarItemsATxt()` genera y descarga un `.txt` con las descripciones de los ítems; adicionalmente se permite exportar a formato SAP (`.xlsx`) mediante `mdmTemplate.js`, consumiendo datos extendidos desde `postgresService`. |
 
 ---
 
