@@ -98,18 +98,18 @@ const CalendarWrapper = styled.div.withConfig({
     width: 100%;
   }
   .react-datepicker__day.feriado {
-    background-color: red !important;
+    background-color: #ee6b69ff !important;
     color: white !important;
   }
   .react-datepicker__day.festividad {
-    background-color: blue !important;
+    background-color: #549dd9ff !important;
     color: white !important;
   }
   .react-datepicker__day.feriado:hover {
-    background-color: darkred !important;
+    background-color: #ee6b69ff !important;
   }
   .react-datepicker__day.festividad:hover {
-    background-color: darkblue !important;
+    background-color: #549dd9ff !important;
   }
   .react-datepicker__day.today {
     background-color: green !important;
@@ -373,10 +373,10 @@ export default function RightSidebar() {
             <div className="legend-color" style={{ backgroundColor: 'green' }} /> Hoy
           </div>
           <div className="legend-item">
-            <div className="legend-color" style={{ backgroundColor: 'blue' }} /> Festividad
+            <div className="legend-color" style={{ backgroundColor: '#42a5f5' }} /> Festividad
           </div>
           <div className="legend-item">
-            <div className="legend-color" style={{ backgroundColor: 'red' }} /> Feriado
+            <div className="legend-color" style={{ backgroundColor: '#ef5350' }} /> Feriado
           </div>
         </LegendWrapper>
 
@@ -392,21 +392,29 @@ export default function RightSidebar() {
         </CalendarWrapper>
 
         <ComunicadoInfoWrapper $isexpanded={isRightExpanded}>
-          {getComunicadosForDate(startDate).map((com, idx) => (
-            <div key={idx} style={{ marginBottom: "10px" }}>
-              <h4 style={{ color: Feriados.includes(com.DCM_TIPO?.toUpperCase()) ? 'red' : 'blue' }}>
-                {com.DCM_MOTIVO}
-              </h4>
-              <p>
-                {com.DCM_MENSAJE && com.DCM_MENSAJE.split(/(?:\\n|\n)/).map((line, i) => (
-                  <React.Fragment key={i}>
-                    {line}
-                    <br />
-                  </React.Fragment>
-                ))}
-              </p>
-            </div>
-          ))}
+          {getComunicadosForDate(startDate).map((com, idx) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const selectedDate = new Date(startDate);
+            selectedDate.setHours(0, 0, 0, 0);
+            const showMessage = selectedDate <= today;
+
+            return (
+              <div key={idx} style={{ marginBottom: "10px" }}>
+                <h4 style={{ color: Feriados.includes(com.DCM_TIPO?.toUpperCase()) ? '#ef5350' : '#42a5f5' }}>
+                  {com.DCM_MOTIVO}
+                </h4>
+                <p>
+                  {showMessage && com.DCM_MENSAJE && com.DCM_MENSAJE.split(/(?:\\n|\n)/).map((line, i) => (
+                    <React.Fragment key={i}>
+                      {line}
+                      <br />
+                    </React.Fragment>
+                  ))}
+                </p>
+              </div>
+            );
+          })}
         </ComunicadoInfoWrapper>
       </ContenedorMenuRight>
     </RightSidebarContainer>
