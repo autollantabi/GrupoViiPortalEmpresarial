@@ -118,6 +118,11 @@ const CalendarWrapper = styled.div.withConfig({
   .react-datepicker__day.today:hover {
     background-color: darkgreen !important;
   }
+  .react-datepicker__day--outside-month {
+    opacity: 0.3 !important;
+    pointer-events: none;
+    background-color: transparent !important;
+  }
 `;
 
 const ComunicadoInfoWrapper = styled.div.withConfig({
@@ -315,7 +320,14 @@ export default function RightSidebar() {
     return matched;
   };
 
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [resetKey, setResetKey] = useState(0);
+
   const getDayClassName = (date) => {
+    if (date.getMonth() !== currentMonth.getMonth() || date.getFullYear() !== currentMonth.getFullYear()) {
+      return null;
+    }
+
     const today = new Date();
     const isToday = date.getDate() === today.getDate() &&
       date.getMonth() === today.getMonth() &&
@@ -334,9 +346,6 @@ export default function RightSidebar() {
 
     return null;
   };
-
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [resetKey, setResetKey] = useState(0);
 
   useEffect(() => {
     if (!isRightExpanded) {
