@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 
-import { getSidebarItems } from "router/SimpleRouter";
 import { globalConst } from "config/constants";
 import Reloj from "../UI/Components/RelojUI";
 import { hexToRGBA } from "utils/colors";
@@ -10,6 +9,7 @@ import { useTheme } from "context/ThemeContext";
 import { useSidebar } from "context/SidebarContext";
 import { useAuthContext } from "context/authContext";
 import IconUI from "components/UI/Components/IconsUI";
+import { postgresService } from "services/postgresService";
 
 // 🎨 Estilos Comunes
 const flexRowCenter = `
@@ -19,6 +19,7 @@ const flexRowCenter = `
 
 const EstructuraHeader = styled.div.withConfig({
   shouldForwardProp: (prop) => !["$sidebarExpanded"].includes(prop),
+  shouldForwardProp: (prop) => !["$sidebarExpanded", "$rightSidebarExpanded"].includes(prop),
 })`
   position: sticky;
   top: 0;
@@ -27,11 +28,15 @@ const EstructuraHeader = styled.div.withConfig({
   ${flexRowCenter};
   margin-left: ${(props) => (props.$sidebarExpanded ? "220px" : "40px")};
   margin-right: 0px;
+  margin-right: ${(props) => (props.$rightSidebarExpanded ? "250px" : "40px")};
   width: ${(props) => {
     const left = props.$sidebarExpanded ? 220 : 40;
     return `calc(100vw - ${left}px)`;
+    const right = props.$rightSidebarExpanded ? 250 : 40;
+    return `calc(100vw - ${left + right}px)`;
   }};
   transition: margin-left 0.4s ease-in-out, width 0.4s ease-in-out;
+  transition: margin-left 0.4s ease-in-out, margin-right 0.4s ease-in-out, width 0.4s ease-in-out;
   background: ${(props) => {
     const start = props.theme.colors.headerGradientStart || props.theme.colors.primary;
     const end = props.theme.colors.headerGradientEnd || props.theme.colors.secondary;
@@ -66,7 +71,6 @@ const ContenedorLogo = styled.div`
   color: ${(props) => props.theme.colors.white};
   justify-content: flex-start;
 `;
-
 const ContenedorCentro = styled.div`
   ${flexRowCenter};
   justify-content: center;
@@ -81,164 +85,87 @@ const NombreUsuario = styled.span`
   position: relative;
 `;
 
-const ContenedorBuscar = styled.div`
+const marqueeAnimation = keyframes`
+  0%   { transform: translate(0, 0); }
+  100% { transform: translate(-100%, 0); }
+`;
+
+const ContenedorMensaje = styled.div`
   ${flexRowCenter};
   width: 18vw;
   min-width: 250px;
-  padding: 2px 8px;
+  padding: 5px 15px;
   border-radius: 20px;
   background: ${(props) => {
-    // En modo oscuro, usar un fondo más oscuro para el buscador
     if (props.theme.name === "dark") {
       return hexToRGBA({ hex: props.theme.colors.background || "#1a1a1a", alpha: 0.8 });
     }
     return hexToRGBA({ hex: props.theme.colors.white, alpha: 0.6 });
   }};
-  position: relative;
-
-  & > i {
-    font-size: 14px;
-    padding-left: 2px;
-  }
-`;
-
-const InputBuscar = styled.input`
-  width: 85%;
-  font-size: 14px;
-  outline: none;
   color: ${(props) => {
-    // En modo oscuro, el texto debe ser claro para contrastar con el fondo oscuro
     if (props.theme.name === "dark") {
       return props.theme.colors.text || "#e9ecef";
     }
     return props.theme.colors.text || "#212529";
   }};
-  border: none;
-  background: transparent;
-  
-  &::placeholder {
-    color: ${(props) => {
-      if (props.theme.name === "dark") {
-        return props.theme.colors.textSecondary || "#adb5bd";
-      }
-      return props.theme.colors.textSecondary || "#6c757d";
-    }};
-  }
+  font-size: 14px;
+  overflow: hidden;
+  position: relative;
+  justify-content: flex-start;
 `;
 
-const Lista = styled.div`
-  display: ${(props) => (props.$isvisible ? "flex" : "none")};
-  flex-direction: column;
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 0;
-  width: 100%;
-  max-height: 200px;
-  overflow-y: auto;
-  background: ${(props) => {
-    // En modo oscuro, usar un fondo oscuro para el dropdown
-    if (props.theme.name === "dark") {
-      return props.theme.colors.backgroundCard || props.theme.colors.backgroundLight || "#2a2a2a";
-    }
-    return props.theme.colors.primary || "#3c3c3b";
-  }};
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
-  z-index: 2;
-  animation: fadeIn 1s ease;
-`;
-
-const ElementoLista = styled.div`
-  padding: 5px 10px;
-  width: 100%;
-  color: ${(props) => {
-    // En modo oscuro, usar texto claro
-    if (props.theme.name === "dark") {
-      return props.theme.colors.text || "#e9ecef";
-    }
-    return props.theme.colors.white || "#ffffff";
-  }};
-  text-decoration: none;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-
-  .shortcut {
-    font-size: 10px;
-    color: ${(props) => {
-      if (props.theme.name === "dark") {
-        return props.theme.colors.textSecondary || "#adb5bd";
-      }
-      return "var(--color-letra-shortcut)";
-    }};
-  }
-
-  &:hover {
-    background-color: ${(props) => {
-      if (props.theme.name === "dark") {
-        return props.theme.colors.hover || "#353535";
-      }
-      return "var(--color-hover-menu-sidebar)";
-    }};
-  }
+const TextoMarquee = styled.div`
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: ${marqueeAnimation} 20s linear infinite;
 `;
 
 const Header = () => {
   const navigation = useNavigate();
   const { theme } = useTheme();
   const { isExpanded, isRightExpanded } = useSidebar();
-  const [inputValue, setInputValue] = useState("");
-  const [isListVisible, setIsListVisible] = useState(false);
   const [mostrarSubMenuUsuario, setMostrarSubMenuUsuario] = useState(false);
-  const [listaPaginas, setListaPaginas] = useState([]);
-  const [filteredPages, setFilteredPages] = useState(listaPaginas);
-  // Lógica para cerrar sesión y eliminar el token del localStorage
-
-  const handleNavigate = (path) => {
-    navigation.navigate(path);
-  };
 
   // Obtener user y logout del contexto
   const { user, logout, isAuthenticated } = useAuthContext();
-  const userContexts = user?.data || [];
-  
+
   // Extraer información del usuario de la nueva estructura
   const usuarioInfo = user?.USUARIO || {};
   const correoUsuario = usuarioInfo.USUA_CORREO || "";
   const nombreUsuario = usuarioInfo.USUA_NOMBRE || "Usuario";
 
-  // 🔍 Obtención y filtrado de páginas
-  const ObtenerPaginas = useCallback(() => {
-    const menuItems = getSidebarItems(userContexts);
-    let extractedData = [];
+  const [mensajeCompleto, setMensajeCompleto] = useState("");
 
-    const extract = (data, parentModulo = "") => {
-      data.forEach(({ title, path, children }) => {
-        const modulo = parentModulo ? `${parentModulo} > ${title}` : title;
-        if (path) extractedData.push({ title, acortado: modulo, path });
-        if (children) extract(children, modulo);
-      });
+  useEffect(() => {
+    const fetchComunicados = async () => {
+      try {
+        const response = await postgresService.getComunicados();
+        if (response && response.status === "Ok!" && response.data) {
+          const currentMonth = new Date().getMonth() + 1; // 1 to 12
+
+          const comunicadoEncontrado = response.data.find(item => {
+            if (item.DCM_TIPO === 'COMUNICADO' && item.DCM_FECHA) {
+              const parts = item.DCM_FECHA.split('-');
+              if (parts.length >= 2) {
+                const month = parseInt(parts[1], 10);
+                return month === currentMonth;
+              }
+            }
+            return false;
+          });
+
+          if (comunicadoEncontrado) {
+            setMensajeCompleto(`${comunicadoEncontrado.DCM_MENSAJE}   `);
+          }
+        }
+      } catch (error) {
+        console.error("Error al obtener comunicados en el Header:", error);
+      }
     };
 
-    extract(menuItems);
-    return extractedData;
-  }, [userContexts]);
-
-  useEffect(() => {
-    setFilteredPages(
-      inputValue
-        ? listaPaginas.filter(({ title, acortado }) =>
-            `${title} ${acortado}`
-              .toLowerCase()
-              .includes(inputValue.toLowerCase())
-          )
-        : listaPaginas
-    );
-  }, [inputValue, listaPaginas]);
-
-  useEffect(() => {
-    setListaPaginas(ObtenerPaginas());
-  }, [ObtenerPaginas]);
+    fetchComunicados();
+  }, []);
 
   const handleLogout = () => {
     logout(navigation);
@@ -270,33 +197,13 @@ const Header = () => {
           <Reloj />
         </ContenedorLogo>
         <ContenedorCentro>
-          <ContenedorBuscar>
-            <IconUI name="FaSistrix" size={14} color={theme.colors.text} />
-            <InputBuscar
-              type="text"
-              id="input-buscar-paginas"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onFocus={() => setIsListVisible(true)}
-              onBlur={() => setTimeout(() => setIsListVisible(false), 100)}
-              placeholder="Buscar página..."
-            />
-            <Lista $isvisible={isListVisible}>
-              {filteredPages.length ? (
-                filteredPages.map(({ title, acortado, path }, index) => (
-                  <ElementoLista
-                    key={index}
-                    onClick={() => handleNavigate(path)}
-                  >
-                    <div className="shortcut">{acortado}</div>
-                    <div className="pagina">{title}</div>
-                  </ElementoLista>
-                ))
-              ) : (
-                <ElementoLista>No hay coincidencias</ElementoLista>
-              )}
-            </Lista>
-          </ContenedorBuscar>
+          {mensajeCompleto && (
+            <ContenedorMensaje>
+              <TextoMarquee>
+                {mensajeCompleto}
+              </TextoMarquee>
+            </ContenedorMensaje>
+          )}
         </ContenedorCentro>
         <ContenedorInformacion>
           <NombreUsuario
