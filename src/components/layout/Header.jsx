@@ -18,7 +18,6 @@ const flexRowCenter = `
 `;
 
 const EstructuraHeader = styled.div.withConfig({
-  shouldForwardProp: (prop) => !["$sidebarExpanded"].includes(prop),
   shouldForwardProp: (prop) => !["$sidebarExpanded", "$rightSidebarExpanded"].includes(prop),
 })`
   position: sticky;

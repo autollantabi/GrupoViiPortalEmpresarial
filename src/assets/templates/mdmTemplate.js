@@ -303,7 +303,7 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
         return mappingItem ? mappingItem.code : "";
     };
 
-    const codigosMarca = await getCodigoMarca();
+    const codigosMarca = await getCodigoMarca(companyName);
 
     const codigosUnidades = await getTiposUnidades(companyName);
 
@@ -337,7 +337,6 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
         let frmCode = "";
         if (codigosMarca.data.length > 0) {
             const found = codigosMarca.data.find(c =>
-                String(c.DCM_EMPRESA).trim().toUpperCase() === String(companyName).trim().toUpperCase() &&
                 String(c.DCM_MARCA).trim().toUpperCase() === String(marcaName).trim().toUpperCase()
             );
             if (found) {

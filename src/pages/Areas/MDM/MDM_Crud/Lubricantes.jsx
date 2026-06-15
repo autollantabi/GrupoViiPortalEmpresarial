@@ -31,17 +31,7 @@ const DICCIONARIO_ROLES = {
 };
 
 const DICCIONARIO_LINEAS = {
-    3: 'LLANTAS',
-    4: 'LUBRICANTES',
-    9: 'HERRAMIENTAS',
-    18: 'LLANTAS MOTO'
-};
-const DICCIONARIO_COLOR_LETRA_CODIGO = {
-    "00": "OWL",
-    "01": "LN",
-    "02": "OBL",
-    "03": "OOL",
-    "04": "RBL"
+    4: 'LUBRICANTES'
 };
 
 
@@ -101,16 +91,13 @@ const OPTIONS_PRESENTACION_LUB = [
     { value: "PAIL", label: "PAIL" },
 ];
 
-const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {
+const calcularNombreSistemaFinal = (nombreBase, isNew = false) => {
     if (!nombreBase) return "";
     // Limpiamos cualquier "NEW " previo para evitar duplicaciones si se rellama la función
     let baseLimpia = nombreBase.startsWith("NEW ") ? nombreBase.replace(/^NEW\s+/, "") : nombreBase;
-    const codigo = DICCIONARIO_COLOR_LETRA_CODIGO[colorCod];
-    const res = codigo ? `${baseLimpia} ${codigo}`.trim() : baseLimpia;
-    return isNew ? `NEW ${res}` : res;
+    return isNew ? `NEW ${baseLimpia}` : baseLimpia;
 };
 
-// Se movió calcularCodigoBarras dentro del componente para usar el estado dinámico
 
 // Línea fija para esta página — definida a nivel módulo para referencia estable
 const LINEA_LUBRICANTES = { value: "LUBRICANTES", label: "LUBRICANTES" };
@@ -118,21 +105,7 @@ const LINEA_LUBRICANTES = { value: "LUBRICANTES", label: "LUBRICANTES" };
 function Lubricantes() {
     const { theme } = useTheme();
     const { user } = useAuthContext();
-    const [mapeoMarcas, setMapeoMarcas] = useState([]);
     const [caracteristicasMDM, setCaracteristicasMDM] = useState({});
-
-
-    useEffect(() => {
-        const fetchMapeo = async () => {
-            try {
-                const data = await getNeumaticosDWH();
-                setMapeoMarcas(data || []);
-            } catch (error) {
-                console.error("Error fetching mapeo marcas:", error);
-            }
-        };
-        fetchMapeo();
-    }, []);
 
     useEffect(() => {
         const fetchCaracteristicas = async () => {
@@ -146,34 +119,6 @@ function Lubricantes() {
         fetchCaracteristicas();
     }, []);
 
-
-    const calcularCodigoBarras = useCallback((item) => {
-        if (!item) return "";
-        const mapping = mapeoMarcas.find(m =>
-            String(m.marca || "").toUpperCase() === String(item.marca || "").toUpperCase() &&
-            String(m.partida_arancelaria || "").toUpperCase() === String(item.partidaArancelaria || "").toUpperCase()
-        );
-        const codMarca = mapping ? mapping.valor : "00";
-        const parsed = item.parsedData || {};
-        const rin = String(parsed.rin || "00");
-        const ancho = String(parsed.ancho || "00");
-        const alto = String(parsed.serie || "00");
-        const lonas = String(parsed.lonas || "00");
-        const firstChar = String(item.diseño || "").charAt(0);
-        let designNum = "00";
-        if (firstChar) {
-            const c = firstChar.toUpperCase();
-            if (c >= 'A' && c <= 'Z') {
-                designNum = (c.charCodeAt(0) - 64).toString().padStart(2, '0');
-            }
-        }
-        const diseño = String(item.diseño || "");
-        const letraDiseño = String(item.letraDiseño || "");
-        const colorLetra = String(item.colorLetra || "");
-        const carga = String(parsed.carga || "00");
-        const velocidad = String(parsed.velocidad || "00");
-        return `${codMarca}${rin}${ancho}${alto}${lonas}${designNum}${diseño}${letraDiseño}${colorLetra}${carga}${velocidad}`.toUpperCase().replace(/\s+/g, '');
-    }, [mapeoMarcas]);
     const isDark = theme?.name === 'dark';
 
     const handleNumericInput = (value) => {
@@ -189,42 +134,7 @@ function Lubricantes() {
         return val;
     };
 
-    const handleRinSerieAncho = (value) => {
-        if (value == null) return "";
-        let v = String(value).replace(/[^0-9.]/g, "");
-        if (v.startsWith(".")) v = "0" + v;
-        const parts = v.split(".");
-        if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
-        if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].substring(0, 2);
-        return v;
-    };
 
-    const handleOneDecimalInput = (value) => {
-        if (value == null) return "";
-        let v = String(value).replace(/[^0-9.]/g, "");
-        if (v.startsWith(".")) v = "0" + v;
-        const parts = v.split(".");
-        if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
-        if (parts.length === 2 && parts[1].length > 1) v = parts[0] + "." + parts[1].substring(0, 1);
-        return v;
-    };
-
-    const handleCargaInput = (value) => {
-        if (value == null) return "";
-        let v = String(value).replace(/[^0-9/]/g, "");
-        if (v.includes("/")) {
-            const parts = v.split("/");
-            const before = parts[0];
-            if (before.length < 2) return before;
-            return before + "/" + parts.slice(1).join("").replace(/\//g, "");
-        }
-        return v;
-    };
-
-    const handleVelocidadInput = (value) => {
-        if (value == null) return "";
-        return String(value).replace(/[^A-Za-z]/g, "").substring(0, 1).toUpperCase();
-    };
 
 
     let rolPrincipal = null;
@@ -340,7 +250,6 @@ function Lubricantes() {
                         empaque: empaque,
                         unidades: unidades,
                         medida: medida,
-                        codigoBarras: "",
                         comentarios: ""
                     };
                 });
@@ -362,13 +271,10 @@ function Lubricantes() {
                     const itemWithParsed = {
                         ...it,
                         nombreSistemaBase: baseName,
-                        nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra || "", true),
+                        nombreSistema: calcularNombreSistemaFinal(baseName, true),
                         parsedData: parsed
                     };
-                    return {
-                        ...itemWithParsed,
-                        codigo: calcularCodigoBarras(itemWithParsed)
-                    };
+                    return itemWithParsed;
                 });
 
                 setItems(prev => [...prev, ...newItems]);
@@ -553,19 +459,11 @@ function Lubricantes() {
                                 empaque: empaqueVal,
                                 unidades: unidadesVal,
                                 medida: medidaVal,
-                                cubicaje: it.CUBICAJE || "",
-                                partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
-                                diseño: it.DISENIO || "",
-                                letraDiseño: it.LETRA_DISENIO || "",
-                                colorLetra: it.COLOR_LETRA || "",
                                 comentarios: it.OBSERVACIONES || "",
                                 fueRechazado: fase1 ? fase1.RECHAZO : false,
                                 motivoRechazo: fase1 ? fase1.MOTIVO_RECHAZO : ""
                             };
-                            return {
-                                ...itemWithBase,
-                                codigo: it.CODIGO_BARRAS || calcularCodigoBarras(itemWithBase)
-                            };
+                            return itemWithBase;
                         });
                     } else if (idRolPrincipal === 1) {
                         processedItems = data.filter(it => it.FASE_ACTUAL === 4 && (!it.FASES || !it.FASES.some(f => f.RECHAZO))).map(it => {
@@ -589,9 +487,6 @@ function Lubricantes() {
                                 estrategia: it.ESTRATEGIA || "",
                                 origen: it.ORIGEN || "",
                                 empaque: it.EMPAQUE || "",
-                                cubicaje: it.CUBICAJE || "",
-                                partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
-
                                 familia: it.FAMILIA || "",
                                 viscosidad: it.VISCOSIDAD || "",
                                 clase: it.CLASE || "",
@@ -657,7 +552,6 @@ function Lubricantes() {
                             ESTRATEGIA: item.estrategia || "",
                             ORIGEN: item.origen || "",
                             EMPAQUE: item.empaque + "*" + item.unidades + item.medida || "",
-                            CODIGO_BARRAS: item.codigo || "",
                             OUM: item.oum || item.OUM || item.uom || item.UOM || "",
                             EMPRESA: EMPRESA_LUBRICANTES,
                             OBSERVACIONES: item.comentarios || "",
@@ -719,7 +613,7 @@ function Lubricantes() {
                             await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, null, item.imagenPng, item.imagenWebp);
                         } catch (uploadError) {
                             console.error(`Error al subir imágenes para el ítem ${item.ID}:`, uploadError);
-                            toast.error(`Error al subir imágenes para ${item.marca} ${item.diseño}`);
+                            toast.error(`Error al subir imágenes para ${item.marca} ${item.descripcion || ""}`);
                         }
                     }
                     await patchItemRole3({
@@ -817,17 +711,7 @@ function Lubricantes() {
     const actualizarCampoFila = (id, campo, valor) => {
         let val = typeof valor === 'string' ? valor.toUpperCase() : valor;
 
-        if (idRolPrincipal === 5 && campo === "cubicaje") {
-            val = valor.replace(/[^0-9.]/g, "");
-            if (val.startsWith(".")) val = "0" + val;
-            const parts = val.split(".");
-            if (parts.length > 2) val = parts[0] + "." + parts.slice(1).join("");
-        } else if (idRolPrincipal === 3) {
-            if (["rin", "serie", "ancho"].includes(campo)) val = handleRinSerieAncho(valor);
-            else if (campo === "lonas") val = handleNumericInput(valor);
-            else if (campo === "carga") val = handleCargaInput(valor);
-            else if (campo === "velocidad") val = handleVelocidadInput(valor);
-        }
+
 
         if (idRolPrincipal === 5 && campo === "idEmpresa") {
             setItems(prev => prev.map(it => {
@@ -837,7 +721,6 @@ function Lubricantes() {
                     const brandIsAllowed = allowedMarcas.some(b => String(b).trim().toUpperCase() === String(it.marca).trim().toUpperCase());
                     if (it.marca && !brandIsAllowed) {
                         baseItem.marca = "";
-                        baseItem.codigo = calcularCodigoBarras(baseItem);
                     }
                     return baseItem;
                 }
@@ -868,7 +751,6 @@ function Lubricantes() {
                         }
                     }
 
-                    baseItem.codigo = calcularCodigoBarras(baseItem);
                     return baseItem;
                 }
                 return it;
@@ -892,12 +774,9 @@ function Lubricantes() {
                                     ...it,
                                     parsedData: parsed,
                                     nombreSistemaBase: parsedName,
-                                    nombreSistema: calcularNombreSistemaFinal(parsedName, it.colorLetra, !it.fueRechazado)
+                                    nombreSistema: calcularNombreSistemaFinal(parsedName, !it.fueRechazado)
                                 };
-                                return {
-                                    ...baseItem,
-                                    codigo: calcularCodigoBarras(baseItem)
-                                };
+                                return baseItem;
                             }
                             return it;
                         }));
@@ -910,25 +789,7 @@ function Lubricantes() {
             return;
         }
 
-        if (idRolPrincipal === 5) {
-            const barcodeFields = ["partidaArancelaria", "diseño", "letraDiseño", "colorLetra"];
-            if (barcodeFields.includes(campo)) {
-                setItems(prev => prev.map(it => {
-                    if (it.id === id) {
-                        const baseItem = { ...it, [campo]: val };
-                        if (campo === "colorLetra") {
-                            baseItem.nombreSistema = calcularNombreSistemaFinal(it.nombreSistemaBase || it.nombreSistema || "", val, !it.fueRechazado);
-                        }
-                        return {
-                            ...baseItem,
-                            codigo: calcularCodigoBarras(baseItem)
-                        };
-                    }
-                    return it;
-                }));
-                return;
-            }
-        }
+
 
         setItems(prev => prev.map(it => it.id === id ? { ...it, [campo]: val } : it));
     };
@@ -978,10 +839,7 @@ function Lubricantes() {
                                 onClick={() => {
                                     setItems(prev => [...prev, {
                                         id: Date.now(),
-                                        linea: lineaSeleccionada.value,
-                                        diseño: "",
-                                        letraDiseño: "",
-                                        colorLetra: ""
+                                        linea: lineaSeleccionada.value
                                     }]);
                                 }}
                                 pcolor={theme?.colors?.primary}
@@ -1235,7 +1093,7 @@ function Lubricantes() {
                                             iconLeft="FaCheck"
                                             pcolor={theme?.colors?.success || '#28a745'}
                                             onClick={() => {
-                                                toast.success(`Ítem ${item.codigo || item.diseño} aceptado exitosamente`);
+                                                toast.success(`Ítem ${item.codigo || item.descripcion} aceptado exitosamente`);
                                                 handleActionRol1(item.id, "approve");
                                             }}
                                         />
@@ -1776,7 +1634,7 @@ function Lubricantes() {
                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "250px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de barras</th>
                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "350px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripción</th>
                                     <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Diseño</th>
+
                                 </tr>
                             </thead>
                             <tbody>
@@ -1787,7 +1645,7 @@ function Lubricantes() {
                                         <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></td>
                                         <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></td>
                                         <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.marca || "-"}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.diseño || item.DISENIO || "-"}</TextUI></td>
+
                                     </tr>
                                 ))}
                             </tbody>
@@ -1820,7 +1678,7 @@ function Lubricantes() {
                     }
 
                     const rolesText = Array.from(rejectTargetRoles).map(r => DICCIONARIO_ROLES[r]).join(", ");
-                    toast.error(`Ítem ${itemToReject?.codigo || itemToReject?.diseño} rechazado hacia: ${rolesText}.`);
+                    toast.error(`Ítem ${itemToReject?.codigo || itemToReject?.descripcion} rechazado hacia: ${rolesText}.`);
                     handleActionRol1(itemToReject.id, "reject", Array.from(rejectTargetRoles), rejectObservations);
                     setIsRejectModalOpen(false);
                     setRejectTargetRoles(new Set());
@@ -1893,7 +1751,7 @@ function Lubricantes() {
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <InputUI
-                        placeholder="Buscar por código, nombre, diseño o fabricante..."
+                        placeholder="Buscar por código, nombre, modelo o fabricante..."
                         value={searchTermReview}
                         onChange={(v) => setSearchTermReview(v)}
                         iconLeft="FaSearch"
@@ -2053,16 +1911,15 @@ function Lubricantes() {
                                             }}
                                         />
                                     </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Aprobado el</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Aprobado el</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {approvedItemsForExport.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados para exportar.</td>
+                                        <td colSpan={4} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados para exportar.</td>
                                     </tr>
                                 ) : (
                                     approvedItemsForExport.map(item => (
@@ -2080,9 +1937,8 @@ function Lubricantes() {
                                                     }}
                                                 />
                                             </td>
-                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.EMPRESA}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</td>
-                                            <td style={{ padding: "10px", color: theme?.colors?.text, fontSize: "12px" }}>{item.DESCRIPCION}</td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text, fontSize: "12px" }}>{item.NOMBRE || item.DESCRIPCION || "-"}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.textSecondary, fontSize: "11px" }}>{new Date(item.updatedAt).toLocaleString()}</td>
                                         </tr>
                                     ))

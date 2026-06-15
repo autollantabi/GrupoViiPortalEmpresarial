@@ -79,33 +79,6 @@ export const patchItemRole3 = async (item) => {
 };
 
 /**
- * Sube una imagen a Cloudflare. Crea la carpeta de la marca automáticamente en el bucket.
- * @param {File} file - Archivo .webp a subir
- * @param {string} marca - Carpeta destino
- * @param {string} diseño - Nombre del archivo
- * @returns {Promise<any>}
- */
-export const uploadToCloudflare = async (file, marca, diseño) => {
-    try {
-        const formData = new FormData();
-        formData.append("imagenWebp", file);
-        formData.append("MARCA", marca);
-        formData.append("DISENIO", diseño);
-
-
-        const response = await axiosInstanceNew.post("/mdm/upload-cloudflare", formData, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-        });
-        return response.data;
-    } catch (error) {
-        console.error("Error al subir a Cloudflare:", error);
-        throw error;
-    }
-};
-
-/**
  * Rechaza una fase específica de un ítem (utilizado por Rol 1).
  * @param {number} itemId - ID del ítem
  * @param {Object} payload - { FASE, RECHAZO, MOTIVO_RECHAZO }
@@ -244,9 +217,9 @@ export const getItemsCaracteristicas = async () => {
  * Obtiene el código de marca del DWH.
  * @returns {Promise<any>}
  */
-export const getCodigoMarca = async () => {
+export const getCodigoMarca = async (companyName) => {
     try {
-        const response = await axiosInstanceNew.get('/dwh-postgres/codigo-marca');
+        const response = await axiosInstanceNew.get(`/dwh-postgres/codigo-marca/${companyName}`);
         return response.data;
     } catch (error) {
         console.error("Error al obtener codigo marca:", error);
