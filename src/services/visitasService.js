@@ -42,7 +42,6 @@ export const CrearReemplazoVisita = async (data) => {
 export const ListarVisitasHoy = async () => {
   try {
     const response = await axiosInstanceNew.get("/reemplazo-vendedores-visita/visitas-hoy");
-
     if (response.data && response.data.status === "Ok!") {
       return response.data.data || [];
     }
@@ -72,7 +71,8 @@ export const GuardarVisitasModificadas = async (data) => {
  */
 export const ListarVisitasModificadasHoy = async () => {
   try {
-    const response = await axiosInstanceNew.get("/reemplazo-vendedores-visita/visitas-modificadas-hoy");
+    const response = await axiosInstanceNew.get("/reemplazo-vendedores-visita/visitas-modificadas");
+    console.log(response.data);
     if (response.data && response.data.status === "Ok!") {
       return response.data.data.visitas || [];
     }

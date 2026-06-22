@@ -16,10 +16,9 @@ const Container = styled.div`
   flex-direction: column;
   gap: 24px;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   box-sizing: border-box;
   color: ${({ theme }) => theme.colors.text};
-  overflow: hidden;
 `;
 
 const SelectSection = styled.div`
@@ -134,10 +133,7 @@ const CompletedVisitsSection = styled.div`
   border-radius: 16px;
   border: 1px solid ${({ theme }) => theme.colors.border};
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  max-height: ${({ $isExpanded }) => ($isExpanded ? '500px' : '200px')};
-  overflow: hidden;
   flex-shrink: 0;
-  transition: max-height 0.3s ease;
 `;
 
 const ScrollableList = styled.div`
@@ -146,6 +142,8 @@ const ScrollableList = styled.div`
   flex-direction: column;
   gap: 12px;
   padding-right: 8px;
+  max-height: ${({ $isExpanded }) => ($isExpanded ? '400px' : '150px')};
+  transition: max-height 0.3s ease;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -195,6 +193,14 @@ const LabelSmall = styled.span`
   letter-spacing: 0.5px;
 `;
 
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const VisitasAsignadas = () => {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
@@ -204,6 +210,16 @@ export const VisitasAsignadas = () => {
   const [observacion, setObservacion] = useState("");
   const [dynamicTimes, setDynamicTimes] = useState({ inicio: "", fin: "" });
   const [completedVisits, setCompletedVisits] = useState([]);
+  const [filterDate, setFilterDate] = useState(() => getTodayDateString());
+
+  const filteredCompletedVisits = useMemo(() => {
+    if (!filterDate) return completedVisits;
+    return completedVisits.filter(visit => {
+      const creacionBD = visit.vmr_horacreacionBD ? visit.vmr_horacreacionBD.split('T')[0] : null;
+      const fechaVisita = visit.vmr_fechavisita ? visit.vmr_fechavisita.split('T')[0] : null;
+      return creacionBD === filterDate || fechaVisita === filterDate;
+    });
+  }, [completedVisits, filterDate]);
 
   const formattedDate = useMemo(() => {
     const now = new Date();
@@ -262,11 +278,11 @@ export const VisitasAsignadas = () => {
 
     if (visitDetails) {
       setObservacion("");
-      
+
       const updateTimes = () => {
         const now = new Date();
         const oneMinuteAgo = new Date(now.getTime() - 60000);
-        
+
         const formatTime = (date) => {
           return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
         };
@@ -279,7 +295,7 @@ export const VisitasAsignadas = () => {
 
       // Inicializar inmediatamente
       updateTimes();
-      
+
       // Actualizar cada segundo
       interval = setInterval(updateTimes, 1000);
     } else {
@@ -324,7 +340,6 @@ export const VisitasAsignadas = () => {
         vmr_lineanegocio: visitDetails.hvi_lineanegocio,
         vmr_motivonogestion: "PORTAL",
         vmr_observaciones: observacion || "",
-        vmr_celular: visitDetails.hvi_celular
       }
     ];
 
@@ -412,7 +427,7 @@ export const VisitasAsignadas = () => {
               </div>
               <InfoGrid>
                 {renderField("Celular", visitDetails.hvi_celular)}
-                
+
                 <FieldWrapper>
                   <Label theme={theme}>Comentario</Label>
                   <InputUI
@@ -462,8 +477,8 @@ export const VisitasAsignadas = () => {
             )
           )}
 
-          {completedVisits.length > 0 && (
-            <CompletedVisitsSection theme={theme} $isExpanded={!visitDetails}>
+          <CompletedVisitsSection theme={theme}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
                   background: theme.colors.success + '15',
@@ -476,9 +491,19 @@ export const VisitasAsignadas = () => {
                 </div>
                 <TextUI variant="h2" weight="bold" style={{ margin: 0, color: theme.colors.text }}>Visitas Completadas</TextUI>
               </div>
+              <div style={{ width: '200px' }}>
+                <InputUI
+                  type="date"
+                  value={filterDate}
+                  onChange={(val) => setFilterDate(val)}
+                  max={getTodayDateString()}
+                />
+              </div>
+            </div>
 
-              <ScrollableList theme={theme}>
-                {completedVisits.map((visit, index) => (
+            <ScrollableList theme={theme} $isExpanded={!visitDetails}>
+              {filteredCompletedVisits.length > 0 ? (
+                filteredCompletedVisits.map((visit, index) => (
                   <CompletedVisitCard key={visit.vmr_codigo || index} theme={theme}>
                     <ColumnInfo>
                       <LabelSmall theme={theme}>Vendedor</LabelSmall>
@@ -499,10 +524,14 @@ export const VisitasAsignadas = () => {
                       </TextUI>
                     </ColumnInfo>
                   </CompletedVisitCard>
-                ))}
-              </ScrollableList>
-            </CompletedVisitsSection>
-          )}
+                ))
+              ) : (
+                <TextUI variant="p" style={{ textAlign: 'center', padding: '20px', color: theme.colors.textSecondary }}>
+                  No tiene visitas completadas para el dia seleccionado
+                </TextUI>
+              )}
+            </ScrollableList>
+          </CompletedVisitsSection>
 
           {loading && (
             <div style={{ textAlign: 'center', padding: '40px' }}>
