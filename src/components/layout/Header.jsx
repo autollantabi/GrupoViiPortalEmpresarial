@@ -155,7 +155,7 @@ const Header = () => {
           });
 
           if (comunicadoEncontrado) {
-            setMensajeCompleto(`${comunicadoEncontrado.DCM_MENSAJE}   `);
+            setMensajeCompleto(``);
           }
         }
       } catch (error) {
