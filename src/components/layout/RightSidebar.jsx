@@ -369,11 +369,11 @@ export default function RightSidebar() {
     >
       <ContenedorMenuRight $isexpanded={isRightExpanded}>
         <ClosedIconWrapper $isexpanded={isRightExpanded}>
-          <IconUI name="FaCalendarAlt" color={isRightExpanded ? theme.colors.white : theme.colors.textSecondary} />
+          <IconUI name="FaCalendarDays" color={isRightExpanded ? theme.colors.white : theme.colors.textSecondary} />
         </ClosedIconWrapper>
 
         <ExpandedHeaderWrapper $isexpanded={isRightExpanded}>
-          <IconUI name="FaCalendarAlt" color={theme.colors.white} />
+          <IconUI name="FaCalendarDays" color={theme.colors.white} />
           <span>Calendario</span>
         </ExpandedHeaderWrapper>
 

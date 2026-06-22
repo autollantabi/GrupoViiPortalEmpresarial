@@ -10,7 +10,7 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
 
@@ -34,7 +34,7 @@ const DICCIONARIO_LINEAS = {
     4: 'LUBRICANTES'
 };
 
-
+// Opciones Estrategia
 const OPTIONS_ESTRATEGIA_LUB = [
     { value: "MTS", label: "MTS" },
     { value: "MTO", label: "MTO" },
@@ -143,6 +143,7 @@ function Lubricantes() {
     let opcionesEmpresasPermitidas = [];
 
     const [diccionarioEmpresas, setDiccionarioEmpresas] = useState({});
+    const [opcionesPallets, setOpcionesPallets] = useState([]);
 
     useEffect(() => {
         const fetchEmpresas = async () => {
@@ -158,6 +159,27 @@ function Lubricantes() {
             }
         };
         fetchEmpresas();
+    }, []);
+
+    useEffect(() => {
+        const fetchPalletsOptions = async () => {
+            try {
+                const response = await getGruposUnidades(EMPRESA_LUBRICANTES);
+                if (response?.status === "Ok!" && Array.isArray(response?.data)) {
+                    setOpcionesPallets(response.data.map(item => ({
+                        value: item.UGP_ENTRY,
+                        label: item.UGP_NAME
+                    })));
+                } else {
+                    setOpcionesPallets([]);
+                }
+            } catch (error) {
+                console.error(`Error fetching pallets options for ${EMPRESA_LUBRICANTES}:`, error);
+                setOpcionesPallets([]);
+            }
+        };
+
+        fetchPalletsOptions();
     }, []);
 
 
@@ -374,6 +396,7 @@ function Lubricantes() {
                                 acea: it.ACEA || "",
                                 jaso: it.JASO || "",
                                 isoDin: it.ISO_DIN || "",
+                                pallets: it.PALLETS || "",
                                 presentacion: it.PRESENTACION || "",
                                 unidadesPallet: it.UNIDADES_POR_PALLET || "",
                                 unidadesCaja: it.UNIDADES_POR_CAJA || "",
@@ -569,7 +592,7 @@ function Lubricantes() {
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
                             ESTRATEGIA: item.estrategia || "",
                             ORIGEN: item.origen || "",
-                            EMPAQUE: item.empaque || "",
+                            EMPAQUE: item.empaque + "*" + item.unidades + item.medida || "",
                             UNIDADES: item.unidades || "",
                             MEDIDA: item.medida || "",
                             OUM: item.oum || item.OUM || item.uom || item.UOM || "",
@@ -593,6 +616,7 @@ function Lubricantes() {
                         ACEA: item.acea || "",
                         JASO: item.jaso || "",
                         ISO_DIN: item.isoDin || item.iso_din || "",
+                        PALLETS: item.pallets || "",
                         PRESENTACION: item.presentacion || "",
                         UNIDADES_POR_PALLET: item.unidades_por_pallet || item.unidadesPallet || "",
                         UNIDADES_POR_CAJA: item.unidades_por_caja || item.unidadesCaja || "",
@@ -608,12 +632,21 @@ function Lubricantes() {
                 }
             } else if (idRolPrincipal === 4) {
                 for (const item of currentItems) {
-                    if (item.imagenPng || item.imagenWebp) {
+                    if (item.imagenWebp) {
                         try {
-                            await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, null, item.imagenPng, item.imagenWebp);
+                            await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, null, null, item.imagenWebp);
                         } catch (uploadError) {
-                            console.error(`Error al subir imágenes para el ítem ${item.ID}:`, uploadError);
-                            toast.error(`Error al subir imágenes para ${item.marca} ${item.descripcion || ""}`);
+                            console.error(`Error al subir imagen WebP para el ítem ${item.ID}:`, uploadError);
+                            toast.error(`Error al subir imagen WebP para ${item.marca} ${item.descripcion || ""}`);
+                        }
+                    }
+                    if (item.imagenPng) {
+                        try {
+                            const empresaToSend = item.EMPRESA || "";
+                            await uploadItemImagesSharepoint(lineaSeleccionada.value, item.ID, item.marca, empresaToSend, null, item.imagenPng, null);
+                        } catch (uploadError) {
+                            console.error(`Error al subir imagen PNG para el ítem ${item.ID}:`, uploadError);
+                            toast.error(`Error al subir imagen PNG para ${item.marca} ${item.descripcion || ""}`);
                         }
                     }
                     await patchItemRole3({
@@ -697,16 +730,6 @@ function Lubricantes() {
         );
         return matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
     }, [diccionarioEmpresas]);
-
-    const getBrandOptions = useCallback((idEmp) => {
-        const brands = getMarcasForEmpresa(idEmp);
-        if (brands.length > 0) {
-            return brands.map(b => ({ value: b, label: b }));
-        }
-        const allBrands = Object.values(MARCAS_POR_EMPRESA).flat();
-        const uniqueBrands = Array.from(new Set(allBrands));
-        return uniqueBrands.map(b => ({ value: b, label: b }));
-    }, [getMarcasForEmpresa]);
 
     const actualizarCampoFila = (id, campo, valor) => {
         let val = typeof valor === 'string' ? valor.toUpperCase() : valor;
@@ -995,6 +1018,7 @@ function Lubricantes() {
                                                     { key: 'acea', label: "ACEA", role: 3 },
                                                     { key: 'jaso', label: "JASO", role: 3 },
                                                     { key: 'isoDin', label: "ISO DIN", role: 3 },
+                                                    { key: 'pallets', label: "Pallets", role: 3 },
                                                     { key: 'presentacion', label: "Presentacion", role: 3 },
                                                     { key: 'unidadesPallet', label: "Unidades por pallet", role: 3 },
                                                     { key: 'unidadesCaja', label: "Unidades por caja", role: 3 },
@@ -1135,6 +1159,7 @@ function Lubricantes() {
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "90px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>ACEA</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "90px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>JASO</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>ISO DIN</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "90px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10, minWidth: '160px' }}>Pallets</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "130px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Presentación</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "110px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Uds. x Pallet</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "110px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Uds. x Caja</th>
@@ -1263,6 +1288,16 @@ function Lubricantes() {
                                                     <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.jaso || ""} onChange={(v) => actualizarCampoFila(item.id, "jaso", v)} /></td>
                                                     {/* ISO DIN */}
                                                     <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "90px" }} value={item.isoDin || ""} onChange={(v) => actualizarCampoFila(item.id, "isoDin", v)} /></td>
+                                                    {/* Pallets */}
+                                                    <td style={{ padding: "4px 8px" }}>
+                                                        <SelectUI
+                                                            options={opcionesPallets}
+                                                            value={item.pallets ? { value: item.pallets, label: (opcionesPallets.find(o => o.value == item.pallets)?.label) || item.pallets } : null}
+                                                            onChange={(v) => actualizarCampoFila(item.id, "pallets", v?.value)}
+                                                            minWidth="130px"
+                                                            style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                        />
+                                                    </td>
                                                     {/* Presentación */}
                                                     {/* Presentación */}
                                                     <td style={{ padding: "4px 8px" }}>
@@ -1505,7 +1540,18 @@ function Lubricantes() {
                                                     {/* Código SHELL */}
                                                     <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.codigoShell || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoShell", v)} /></td>
                                                     {/* Marca */}
-                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "160px" }} value={item.marca || ""} onChange={(v) => actualizarCampoFila(item.id, "marca", v)} /></td>
+                                                    <td style={{ padding: "4px 8px" }}>
+                                                        <SelectUI
+                                                            options={[
+                                                                { value: "SHELL", label: "SHELL" },
+                                                                { value: "PENNZOIL", label: "PENNZOIL" }
+                                                            ]}
+                                                            value={item.marca ? { value: item.marca, label: item.marca } : null}
+                                                            onChange={(v) => actualizarCampoFila(item.id, "marca", v?.value)}
+                                                            minWidth="160px"
+                                                            style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                        />
+                                                    </td>
                                                     {/* Nombre Foráneo */}
                                                     <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></td>
                                                     {/* Estrategia */}
@@ -1954,7 +2000,7 @@ function Lubricantes() {
                                     if (!acc[it.EMPRESA]) acc[it.EMPRESA] = [];
                                     acc[it.EMPRESA].push({
                                         ...it,
-                                        linea: lineaSeleccionada?.value, // Necesario para el ecovalor
+                                        linea: lineaSeleccionada?.value,
                                         LINEA_NEGOCIO: it.LINEA_NEGOCIO || lineaSeleccionada?.value
                                     });
                                     return acc;

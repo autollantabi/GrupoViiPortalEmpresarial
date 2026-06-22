@@ -128,6 +128,39 @@ export const uploadItemImages = async (lineaNegocio, id, marca, diseño, imagenP
 };
 
 /**
+ * Sube imágenes a SharePoint (principalmente PNG, enviando WebP como null).
+ * @param {string} lineaNegocio - Línea de negocio
+ * @param {number|string} id - ID del ítem
+ * @param {string} marca - Marca del ítem
+ * @param {string} empresa - Empresa
+ * @param {string} diseño - Diseño del ítem
+ * @param {File} imagenPng - Archivo de imagen PNG
+ * @param {File} imagenWebp - Archivo de imagen WebP (usualmente null)
+ * @returns {Promise<any>}
+ */
+export const uploadItemImagesSharepoint = async (lineaNegocio, id, marca, empresa, diseño, imagenPng, imagenWebp) => {
+    try {
+        const formData = new FormData();
+        formData.append("ID", id);
+        if (marca) formData.append("MARCA", marca);
+        if (empresa) formData.append("EMPRESA", empresa);
+        if (diseño) formData.append("DISENIO", diseño);
+        if (imagenPng) formData.append("imagenPng", imagenPng);
+        if (imagenWebp) formData.append("imagenWebp", imagenWebp);
+
+        const response = await axiosInstanceNew.post(`/mdm/items/upload-images-sharepoint/${lineaNegocio}`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error en uploadItemImagesSharepoint:", error);
+        throw error;
+    }
+};
+
+/**
  * Obtiene los ítems del DWH por línea de negocio.
  * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LUBRICANTES, etc)
  * @returns {Promise<Array>}
@@ -238,6 +271,37 @@ export const getTiposUnidades = async (companyName) => {
         return response.data;
     } catch (error) {
         console.error("Error al obtener tipos de unidades:", error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene los grupos de unidades por empresa.
+ * @param {string} empresa - Nombre o ID de la empresa
+ * @returns {Promise<any>}
+ */
+export const getGruposUnidades = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/grupos-unidades/${empresa}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error al obtener grupos de unidades:", error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene los grupos de unidades alternativas por empresa e ID.
+ * @param {string} empresa - Nombre o ID de la empresa
+ * @param {number|string} id - ID
+ * @returns {Promise<any>}
+ */
+export const getGruposUnidadesAlternativas = async (empresa, id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/grupos-unidades-alternativas/${empresa}/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error al obtener grupos de unidades alternativas:", error);
         throw error;
     }
 };

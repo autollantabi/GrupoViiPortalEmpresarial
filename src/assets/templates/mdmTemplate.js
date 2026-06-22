@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { getCodigoMarca, getTiposUnidades } from "services/mdmService";
+import { getCodigoMarca, getTiposUnidades, getGruposUnidadesAlternativas } from "services/mdmService";
 
 /**
  * Estructura de encabezados con sus valores por defecto iniciales.
@@ -20,7 +20,7 @@ const DEFAULT_VALUES = {
     "TreeType": "iNotATree",
     "AssetItem": "tNO",
     "ManSerNum": "tNO",
-    "ManBtchNum": "tYES", //Cambiado de tYes a tNo
+    "ManBtchNum": "", //Si es lubricantes = tNO, en llantas = tYES
     "validFor": "tYES",
     "frozenFor": "tNO",
     "SalUnitMsr": "UNIDAD",
@@ -80,9 +80,9 @@ const DEFAULT_VALUES = {
     "QryGroup15": "tNO",
     "QryGroup16": "tNO",
     "QryGroup17": "tNO",
-    "QryGroup18": "tNO",
-    "QryGroup19": "tNO",
-    "QryGroup20": "tYES",
+    "QryGroup18": "", // SE TIENE QUE VALIDAR SI ES SHELL
+    "QryGroup19": "", // SE TIENE QUE VALIDAR SI ES PENNZOIL
+    "QryGroup20": "", //SE TIENE QUE VALIDAR SI ES PREMIUM
     "Series": "184",
     "NoDiscount": "tNO",
     "U_MA_ECOVALOR": "",
@@ -100,7 +100,7 @@ const DEFAULT_VALUES = {
     "U_MA_VELOCIDAD": "",
     "U_MA_ITM_EASY": "SI",
     "U_MA_PRT_ARA": "",
-    "U_MA_FAMILIA": "-1",
+    "U_MA_FAMILIA": "",
     "U_MA_CUBICAJE": "",
     "FirmCode": "",
     "U_MA_CARGA": "",
@@ -111,18 +111,21 @@ const DEFAULT_VALUES = {
 
     "UoMGroupEntry": "",
     "InventoryUoMEntry": "",
-    "DefaultSalesUoMEntry": "", //Cambiado de nada a 1
+    "DefaultSalesUoMEntry": "", //En herramientas esto siempre es 43.
     "DefaultPurchasingUoMEntry": "",
+    "PricingUnit": ""
+
 
 
     //Campos extra
+    /*
     "PUoMEntry": "1",
     "SUoMEntry": "1",
     "IUoMEntry": "1",
     "CntUnitMsr": "UNIDAD",
     "INUoMEntry": "1",
-    "PriceUnit": "1",
     "UgpEntry": "1"
+    */
 
 };
 //Clave: Segunda fila
@@ -232,16 +235,18 @@ const MAIN_HEADERS = {
     "InventoryUoMEntry": "InventoryUoMEntry",
     "DefaultSalesUoMEntry": "DefaultSalesUoMEntry",
     "DefaultPurchasingUoMEntry": "DefaultPurchasingUoMEntry",
+    "PricingUnit": "PricingUnit"
 
 
     //Campos extra
+    /*
     "PUoMEntry": "PUoMEntry",
     "SUoMEntry": "SUoMEntry",
     "IUoMEntry": "IUoMEntry",
     "CntUnitMsr": "CntUnitMsr",
     "INUoMEntry": "INUoMEntry",
-    "PriceUnit": "PriceUnit",
-    "UgpEntry": "UgpEntry",
+    "UgpEntry": "UgpEntry"
+    */
 
 
 };
@@ -291,7 +296,7 @@ export const generateMDMTemplate = (lineaNombre, userValues = {}) => {
  * @param {Array} items - Lista de ítems a exportar.
  * @param {Object} mappingData - Datos de mapeo dinámicos (CATEGORIAS, SEGMENTOS, APLICACIONES, EJES).
  */
-export const generateSAPExport = async (companyName, items, mappingData = {}) => {
+export const generateSAPExport = async (companyName, items, mappingData = {}, grupEntry = {}) => {
     const headers = Object.keys(DEFAULT_VALUES);
 
     // Preparar funciones de mapeo dinámico
@@ -304,14 +309,12 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
     };
 
     const codigosMarca = await getCodigoMarca(companyName);
-
     const codigosUnidades = await getTiposUnidades(companyName);
-
-
-    console.log(codigosMarca);
-    console.log(codigosUnidades);
-    // Primera fila: Encabezados descriptivos (de SAP)
     const mainHeaderRow = headers.map(header => MAIN_HEADERS[header] || "");
+
+
+
+
 
     const lineasEmpresas = {
         "AUTLLANTAS": 103,
@@ -325,13 +328,82 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
     }
 
     // Preparar las filas de datos
-    const dataRows = items.map(item => {
-        // Mapeo específico solicitado por el usuario
-        const ecovalor = item.LINEA_NEGOCIO === "LLANTAS" ? "1" : item.LINEA_NEGOCIO === "LLANTAS MOTO" ? "2" : "";
+    const dataRows = await Promise.all(items.map(async item => {
+        let ecovalor = item.LINEA_NEGOCIO === "LLANTAS" ? "1" : item.LINEA_NEGOCIO === "LLANTAS MOTO" ? "2" : "";
+        let propiedad19 = "tNO";
+        let propiedad18 = "tNO";
+        let propiedad20 = "tNO";
+        let gruposUnidadesAlternativas = '';
+        let unidadesDeVenta = item.LINEA_NEGOCIO === 'HERRAMIENTAS' ? '1' : '';
+        let familia = '-1';
+        const unidad = codigosUnidades.data.find(c => c.OUM_NAME.toUpperCase() === "UNIDAD")?.OUM_ENTRY;
+
+        if (item.LINEA_NEGOCIO === 'LUBRICANTES') {
+
+            propiedad18 = item.MARCA === 'SHELL' ? 'tYES' : 'tNO';
+            propiedad19 = item.MARCA === 'PENNZOIL' ? 'tYES' : 'tNO';
+            propiedad20 = item.CLASIFICACION === 'PREMIUM' ? 'tYES' : 'tNO';
+
+            switch (item.CLASIFICACION) {
+                case 'PREMIUM':
+                    familia = '18';
+                    break;
+                case 'CONVENCIONAL':
+                    familia = '20';
+                    break;
+                case 'REFRIGERANTE':
+                    familia = '21';
+                    break;
+                default:
+                    familia = '';
+                    break;
+            }
+
+            if (item.GRADO_DE_LA_GRASA && item.GRADO_DE_LA_GRASA !== "0") {
+                ecovalor = 'N';
+            }
+
+            if (item.CLASIFICACION && item.CLASIFICACION === 'REFRIGERANTE') {
+                ecovalor = 'N';
+            }
+
+            if (item.CLASIFICACION !== 'REFIGERANTE' && item.GRADO_DE_LA_GRASA === "0") {
+                ecovalor = "1";
+            }
+
+            if (item.PALLETS) {
+                gruposUnidadesAlternativas = await getGruposUnidadesAlternativas(companyName, item.PALLETS);
+                unidadesDeVenta = gruposUnidadesAlternativas.data.find(g => g.UOM_NAME.toUpperCase().includes("CAJA"))?.UOM_ENTRY || unidad;
+            }
+        }
+        if (item.LINEA_NEGOCIO === 'HERRAMIENTAS') {
+            unidadesDeVenta = unidad;
+        }
+
         const rawOum = item.OUM || item.oum || "";
         const peso = rawOum && !isNaN(parseFloat(rawOum)) ? Math.ceil(parseFloat(rawOum)) : "";
         const grupCode = lineasEmpresas[companyName.substring(0, 3).toUpperCase() + item.LINEA_NEGOCIO.split(" ")[0].toUpperCase().trim()] || "";
-        const groupEntry = item.LINEA_NEGOCIO === "LLANTAS" || item.LINEA_NEGOCIO === "LLANTAS MOTO" ? codigosUnidades.data.find(c => c.OUM_NAME.toUpperCase() === "UNIDAD")?.OUM_ENTRY : "";
+
+        let groupEntry = "";
+        switch (item.LINEA_NEGOCIO.toUpperCase()) {
+            case "LLANTAS":
+                groupEntry = unidad;
+                break;
+            case "LLANTAS MOTO":
+                groupEntry = unidad;
+                break;
+            case "LUBRICANTES":
+                groupEntry = item.PALLETS;
+                break;
+            case "HERRAMIENTAS":
+                groupEntry = item.PALLETS;
+                break;
+            default:
+                groupEntry = "";
+                break;
+        }
+
+
         const marcaName = item.MARCA || item.marca || "";
 
         let frmCode = "";
@@ -344,23 +416,25 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
             }
         }
 
+
         const userValues = {
             "ItemCode": item.CODIGO_SAP || item.codigoSap || "",
-            "ItemName": item.DESCRIPCION || item.NOMBRE || "",
+            "ItemName": item.NOMBRE || item.DESCRIPCION || "",
             "FrgnName": item.NOMBRE_EXTRANJERO || item.NOMBRE_FORANEO || item.NOMBRE_EXT || "",
             "SuppCatNum": item.CODIGO_PROVEEDOR || "",
-            "ItmsGrpCod": grupCode,
-            "CodeBars": item.CODIGO_BARRAS || item.ITEM_CODIGO_BARRAS || "",
-            "U_MA_ECOVALOR": ecovalor,
+            "ItmsGrpCod": grupCode || "",
+            "CodeBars": item.LINEA_NEGOCIO === 'HERRAMIENTAS' ? '' : item.CODIGO_BARRAS || item.ITEM_CODIGO_BARRAS || "",
+            "U_MA_ECOVALOR": ecovalor || "",
             "U_MA_DISENO": item.DISENIO || item.diseño || "",
             "U_MA_RIN": item.RIN || item.rin || "",
             "U_MA_SERIE": item.SERIE || item.serie || "",
             "U_MA_ANCHO": item.ANCHO || item.ancho || "",
+            "U_MA_FAMILIA": familia,
             "U_MA_NOMENCLATURA": NOMENCLATURA_MAPPING[item.NOMENCLATURA || item.nomenclatura] || "",
-            "U_MA_CATEGORIA": getCode("CATEGORIAS", item.CATEGORIA || item.categoria),
-            "U_MA_SEGMENTO": getCode("SEGMENTOS", item.SEGMENTO || item.segmento),
-            "U_MA_APL_TER": getCode("APLICACIONES", item.APLICACION || item.aplicacion),
-            "U_MA_EJE": getCode("EJES", item.EJE || item.eje),
+            "U_MA_CATEGORIA": getCode("CATEGORIAS", item.CATEGORIA || item.categoria) || "",
+            "U_MA_SEGMENTO": getCode("SEGMENTOS", item.SEGMENTO || item.segmento) || "",
+            "U_MA_APL_TER": getCode("APLICACIONES", item.APLICACION || item.aplicacion) || "",
+            "U_MA_EJE": getCode("EJES", item.EJE || item.eje) || "",
             "U_MA_LONAS": item.LONAS || item.lonas || "",
             "U_MA_VELOCIDAD": item.VELOCIDAD || item.velocidad || "",
             "U_MA_PRT_ARA": item.PARTIDA_ARANCELARIA || item.partidaArancelaria || "",
@@ -369,6 +443,14 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
             "U_MA_CARGA": item.CARGA || item.carga || "",
             "U_MA_PESO": peso || "",
             "UoMGroupEntry": groupEntry || "",
+            "InventoryUoMEntry": item.LINEA_NEGOCIO.trim().toUpperCase() === "LUBRICANTES" || "HERRAMIENTAS" ? unidad : "",
+            "DefaultSalesUoMEntry": unidadesDeVenta || "",
+            "DefaultPurchasingUoMEntry": unidadesDeVenta || "",
+            "QryGroup18": propiedad18,
+            "QryGroup19": propiedad19,
+            "QryGroup20": propiedad20,
+            "ManBtchNum": item.LINEA_NEGOCIO.toUpperCase() === 'LUBRICANTES' ? "tNO" : "tYES",
+            "PricingUnit": unidad
         };
 
         console.log(userValues);
@@ -376,7 +458,7 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
         return headers.map(header => {
             return userValues[header] !== undefined ? userValues[header] : DEFAULT_VALUES[header];
         });
-    });
+    }));
 
     const aoaData = [
         mainHeaderRow, // Fila 1: Encabezados descriptivos
@@ -401,6 +483,88 @@ export const generateSAPExport = async (companyName, items, mappingData = {}) =>
     const fechaActual = `${dd}-${mm}-${yyyy}`;
 
     link.setAttribute("download", `${companyName}_${fechaActual}.txt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
+/**
+ * Genera y descarga el archivo para guardar los codigos de barras en SAP. (Unicamente se utiliza con herramientas)
+ * @param {string} companyName - Nombre de la empresa para el nombre del archivo.
+ * @param {Array} items - Lista de ítems a exportar.
+ */
+export const generateSAPExportSecondaryFile = async (companyName, items) => {
+    const header1 = ["ItemNo", "BarCode", "UoMEntry"];
+    const header2 = ["ItemNo", "CodeBars", "UoMEntry"];
+
+    const dataRows = [];
+
+    for (const item of items) {
+        let caja = '';
+        if (item.PALLETS) {
+            try {
+                const gruposUnidadesAlternativas = await getGruposUnidadesAlternativas(companyName, item.PALLETS);
+                if (gruposUnidadesAlternativas && gruposUnidadesAlternativas.data) {
+                    caja = gruposUnidadesAlternativas.data.find(g => g.UOM_NAME.toUpperCase().includes("CAJA"))?.UOM_ENTRY || '';
+                }
+            } catch (error) {
+                console.error("Error obteniendo grupos de unidades alternativas:", error);
+            }
+        } else {
+            try {
+                const gruposUnidadesAlternativas = await getGruposUnidadesAlternativas(companyName, "");
+                if (gruposUnidadesAlternativas && gruposUnidadesAlternativas.data) {
+                    caja = gruposUnidadesAlternativas.data.find(g => g.UOM_NAME.toUpperCase().includes("CAJA"))?.UOM_ENTRY || '';
+                }
+            } catch (error) {
+                console.error("Error obteniendo grupos de unidades alternativas (sin pallets):", error);
+            }
+        }
+
+        const codigoSap = item.CODIGO_SAP || item.codigoSap || "";
+        const cartonCodigoBarras = item.CARTON_CODIGO_BARRAS || item.cartonCodigoBarras || "";
+        const itemCodigoBarras = item.ITEM_CODIGO_BARRAS || item.itemCodigoBarras || item.CODIGO_BARRAS || item.codigo || "";
+
+        // Primer valor
+        dataRows.push([
+            codigoSap,
+            cartonCodigoBarras,
+            caja
+        ]);
+
+        // Segundo valor
+        dataRows.push([
+            codigoSap,
+            itemCodigoBarras,
+            "43"
+        ]);
+
+        console.log(dataRows);
+    }
+
+    const aoaData = [
+        header1,
+        header2,
+        ...dataRows
+    ];
+
+
+    const ws = XLSX.utils.aoa_to_sheet(aoaData);
+    const content = XLSX.utils.sheet_to_csv(ws, { FS: "\t" });
+
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, "0");
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const yyyy = today.getFullYear();
+    const fechaActual = `${dd}-${mm}-${yyyy}`;
+
+    link.setAttribute("download", `${companyName}_CodigoBarras_${fechaActual}.txt`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

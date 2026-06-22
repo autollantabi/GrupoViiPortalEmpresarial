@@ -10,7 +10,7 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
 
@@ -787,12 +787,21 @@ function Llantas() {
                 }
             } else if (idRolPrincipal === 4) {
                 for (const item of currentItems) {
-                    if (item.imagenPng || item.imagenWebp) {
+                    if (item.imagenWebp) {
                         try {
-                            await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, item.diseño, item.imagenPng, item.imagenWebp);
+                            await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, item.diseño, null, item.imagenWebp);
                         } catch (uploadError) {
-                            console.error(`Error al subir imágenes para el ítem ${item.ID}:`, uploadError);
-                            toast.error(`Error al subir imágenes para ${item.marca} ${item.diseño}`);
+                            console.error(`Error al subir imagen WebP para el ítem ${item.ID}:`, uploadError);
+                            toast.error(`Error al subir imagen WebP para ${item.marca} ${item.diseño}`);
+                        }
+                    }
+                    if (item.imagenPng) {
+                        try {
+                            const empresaToSend = item.EMPRESA || "";
+                            await uploadItemImagesSharepoint(lineaSeleccionada.value, item.ID, item.marca, empresaToSend, item.diseño, item.imagenPng, null);
+                        } catch (uploadError) {
+                            console.error(`Error al subir imagen PNG para el ítem ${item.ID}:`, uploadError);
+                            toast.error(`Error al subir imagen PNG para ${item.marca} ${item.diseño}`);
                         }
                     }
                     await patchItemRole3({

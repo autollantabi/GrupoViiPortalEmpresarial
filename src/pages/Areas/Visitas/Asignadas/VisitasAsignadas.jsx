@@ -165,7 +165,7 @@ const CompletedVisitCard = styled.div`
   border-radius: 12px;
   border: 1px solid ${({ theme }) => theme.colors.border};
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 1fr 1fr 1.5fr;
   gap: 16px;
   align-items: center;
   transition: transform 0.2s ease;
@@ -481,9 +481,15 @@ export const VisitasAsignadas = () => {
                 {completedVisits.map((visit, index) => (
                   <CompletedVisitCard key={visit.vmr_codigo || index} theme={theme}>
                     <ColumnInfo>
-                      <LabelSmall theme={theme}>Celular</LabelSmall>
+                      <LabelSmall theme={theme}>Vendedor</LabelSmall>
                       <TextUI variant="p" weight="medium" style={{ fontSize: '14px' }}>
-                        {visit.vmr_celular || "N/A"}
+                        {visit.vmr_nombrevendedor || "N/A"}
+                      </TextUI>
+                    </ColumnInfo>
+                    <ColumnInfo>
+                      <LabelSmall theme={theme}>Cliente</LabelSmall>
+                      <TextUI variant="p" weight="medium" style={{ fontSize: '14px' }}>
+                        {visit.vmr_nombrecliente || "N/A"}
                       </TextUI>
                     </ColumnInfo>
                     <ColumnInfo>

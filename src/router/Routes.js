@@ -63,6 +63,8 @@ import { ReporteriaGarantiasHerramientas } from "pages/Areas/Reporteria/Garantia
 import { ReporteriaCartera } from "pages/Areas/Reporteria/Cartera/ReporteriaCartera";
 import { ReporteriaLubricantes } from "pages/Areas/Reporteria/Lubricantes/ReporteriaLubricantes";
 import { ReporteriaTalentoHumano } from "pages/Areas/Reporteria/TalentoHumano/ReporteriaTalentoHumano";
+import { ReporteriaConsolidado } from "pages/Areas/Reporteria/Consolidado/ReporteriaConsolidado";
+import { ReporteriaAnalisisCartera } from "pages/Areas/Reporteria/AnalisisCartera/ReporteriaAnalisisCartera";
 import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import Llantas from "pages/Areas/MDM/MDM_Crud/Llantas";
 import Lubricantes from "pages/Areas/MDM/MDM_Crud/Lubricantes";
@@ -402,9 +404,19 @@ export const RoutesConfig = [
     recurso: "reportes.camiones",
   },
   {
+    title: "Consolidado",
+    component: ReporteriaConsolidado,
+    recurso: "reportes.consolidado",
+  },
+  {
     title: "Casos Cartera",
     component: ReporteriaCartera,
     recurso: "reportes.cartera",
+  },
+  {
+    title: "Cartera",
+    component: ReporteriaAnalisisCartera,
+    recurso: "reportes.analisiscartera",
   },
   {
     title: "Lubricantes",

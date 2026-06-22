@@ -9,8 +9,10 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, getItemsDWHByLinea, createItemFromDWH } from "services/mdmService";
-import { generateSAPExport } from "assets/templates/mdmTemplate";
+import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades } from "services/mdmService";
+import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
+
+const EMPRESA_HERRAMIENTAS = 'IKONIX';
 
 const DICCIONARIO_ROLES = {
     1: 'Comercial', // Jefatura
@@ -30,6 +32,7 @@ const OPTIONS_MARCA = [
     { value: "UYUSTOOLS", label: "UYUSTOOLS" },
     { value: "SATA", label: "SATA" }
 ];
+
 
 function Herramientas() {
     const { theme } = useTheme();
@@ -51,6 +54,29 @@ function Herramientas() {
     }
 
     const EMPRESA_HERRAMIENTAS = "IKONIX";
+
+    const [opcionesPallets, setOpcionesPallets] = useState([]);
+
+    useEffect(() => {
+        const fetchPalletsOptions = async () => {
+            try {
+                const response = await getGruposUnidades(EMPRESA_HERRAMIENTAS);
+                if (response?.status === "Ok!" && Array.isArray(response?.data)) {
+                    setOpcionesPallets(response.data.map(item => ({
+                        value: item.UGP_ENTRY,
+                        label: item.UGP_NAME
+                    })));
+                } else {
+                    setOpcionesPallets([]);
+                }
+            } catch (error) {
+                console.error(`Error fetching pallets options for ${EMPRESA_HERRAMIENTAS}:`, error);
+                setOpcionesPallets([]);
+            }
+        };
+
+        fetchPalletsOptions();
+    }, []);
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
     const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
@@ -152,6 +178,7 @@ function Herramientas() {
                             grupo: it.GRUPO || "",
                             subgrupo: it.SUBGRUPO || "",
                             subgrupo1: it.SUBGRUPO1 || "",
+                            pallets: it.PALLETS || "",
                             tipo: it.TIPO || "",
                             codigoSap: it.CODIGO_SAP || "",
                             marca: it.MARCA || "",
@@ -198,6 +225,7 @@ function Herramientas() {
                         GRUPO: item.grupo || "",
                         SUBGRUPO: item.subgrupo || "",
                         SUBGRUPO1: item.subgrupo1 || "",
+                        PALLETS: item.pallets || "",
                         TIPO: item.tipo || "",
                         CODIGO_SAP: item.codigoSap || "",
                         MARCA: item.marca || "",
@@ -207,12 +235,21 @@ function Herramientas() {
                     };
                     await patchItemRole3(payloadRole3);
                 } else if (idRolPrincipal === 4) {
-                    if (item.imagenPng || item.imagenWebp) {
+                    if (item.imagenWebp) {
                         try {
-                            await uploadItemImages("HERRAMIENTAS", item.id, item.marca, null, item.imagenPng, item.imagenWebp);
+                            await uploadItemImages("HERRAMIENTAS", item.id, item.marca, null, null, item.imagenWebp);
                         } catch (uploadError) {
-                            console.error(`Error al subir imágenes para el ítem ${item.id}:`, uploadError);
-                            toast.error(`Error al subir imágenes`);
+                            console.error(`Error al subir imagen WebP para el ítem ${item.id}:`, uploadError);
+                            toast.error(`Error al subir imagen WebP`);
+                        }
+                    }
+                    if (item.imagenPng) {
+                        try {
+                            const empresaToSend = "IKONIX"; // EMPRESA_HERRAMIENTAS
+                            await uploadItemImagesSharepoint("HERRAMIENTAS", item.id, item.marca, empresaToSend, null, item.imagenPng, null);
+                        } catch (uploadError) {
+                            console.error(`Error al subir imagen PNG para el ítem ${item.id}:`, uploadError);
+                            toast.error(`Error al subir imagen PNG`);
                         }
                     }
                     await patchItemRole3({
@@ -372,8 +409,8 @@ function Herramientas() {
     const handleDownloadTemplate = () => {
         const headers = [
             "Codigo Proveedor", "Partida Arancelaria", "Nombre Ext", "Descripcion Ext",
-            "Nombre", "Descripcion", "Unidad", "Unidad por paquete", "Paquetes por carton",
-            "Unidades por carton", "Largo del carton", "Ancho del carton", "Alto del carton",
+            "Nombre", "Descripcion", "Unidad", "Und x caja", "Cajas x empaque",
+            "Und x empaque", "Largo de la caja", "Ancho de la caja", "Alto de la caja",
             "VOL/CTN", "GW/CTN", "Peso", "Item Codigo Barras", "Carton Codigo Barras", "Paquete codigo Barras"
         ];
         const ws = XLSX.utils.aoa_to_sheet([headers]);
@@ -406,12 +443,12 @@ function Herramientas() {
                     nombre: String(row["Nombre"] || "").trim().toUpperCase(),
                     descripcion: String(row["Descripcion"] || "").trim(),
                     unidad: String(row["Unidad"] || "").trim().toUpperCase(),
-                    unidadPaquete: handleNumericInt(row["Unidad por paquete"] || ""),
-                    empaquesCarton: handleNumericInt(row["Paquetes por carton"] || ""),
-                    unidadesCarton: handleNumericInt(row["Unidades por carton"] || ""),
-                    largoCarton: handleNumericDec(row["Largo del carton"] || ""),
-                    anchoCarton: handleNumericDec(row["Ancho del carton"] || ""),
-                    altoCarton: handleNumericDec(row["Alto del carton"] || ""),
+                    unidadPaquete: handleNumericInt(row["Und x caja"] || ""),
+                    empaquesCarton: handleNumericInt(row["Cajas x empaque"] || ""),
+                    unidadesCarton: handleNumericInt(row["Und x empaque"] || ""),
+                    largoCarton: handleNumericDec(row["Largo de la caja"] || ""),
+                    anchoCarton: handleNumericDec(row["Ancho de la caja"] || ""),
+                    altoCarton: handleNumericDec(row["Alto de la caja"] || ""),
                     volumenCtn: handleNumericDec(row["VOL/CTN"] || ""),
                     gwCtn: handleNumericDec(row["GW/CTN"] || ""),
                     peso: handleNumericDec(row["Peso"] || ""),
@@ -611,12 +648,12 @@ function Herramientas() {
                                                     { key: 'descripcion', label: "Descripción", role: 5 },
                                                     { key: 'descripcionExt', label: "Descripción Ext", role: 5 },
                                                     { key: 'unidad', label: "Unidad", role: 5 },
-                                                    { key: 'unidadPaquete', label: "Unidad por paquete", role: 5 },
-                                                    { key: 'empaquesCarton', label: "Paquetes por carton", role: 5 },
-                                                    { key: 'unidadesCarton', label: "Unidades por carton", role: 5 },
-                                                    { key: 'largoCarton', label: "Largo del carton", role: 5 },
-                                                    { key: 'anchoCarton', label: "Ancho del carton", role: 5 },
-                                                    { key: 'altoCarton', label: "Alto del carton", role: 5 },
+                                                    { key: 'unidadPaquete', label: "Und x caja", role: 5 },
+                                                    { key: 'empaquesCarton', label: "Cajas x empaque", role: 5 },
+                                                    { key: 'unidadesCarton', label: "Und x empaque", role: 5 },
+                                                    { key: 'largoCarton', label: "Largo de la caja", role: 5 },
+                                                    { key: 'anchoCarton', label: "Ancho de la caja", role: 5 },
+                                                    { key: 'altoCarton', label: "Alto de la caja", role: 5 },
                                                     { key: 'volumenCtn', label: "VOL/CTN", role: 5 },
                                                     { key: 'gwCtn', label: "GW/CTN", role: 5 },
                                                     { key: 'peso', label: "Peso", role: 5 },
@@ -627,6 +664,7 @@ function Herramientas() {
                                                     { key: 'grupo', label: "Grupo", role: 3 },
                                                     { key: 'subgrupo', label: "Subgrupo", role: 3 },
                                                     { key: 'subgrupo1', label: "Subgrupo 1", role: 3 },
+                                                    { key: 'pallets', label: "Pallets", role: 3 },
                                                     { key: 'tipo', label: "Tipo", role: 3 },
                                                     { key: 'codigoSap', label: "Codigo SAP", role: 3 },
                                                     { key: 'marca', label: "Marca", role: 3 },
@@ -750,12 +788,12 @@ function Herramientas() {
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripcion</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Unidad</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Unidad por paquete</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Paquetes por carton</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Unidades por carton</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Largo del carton</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Ancho del carton</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Alto del carton</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Und x caja</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cajas x empaque</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Und x empaque</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Largo de la caja</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Ancho de la caja</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Alto de la caja</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>VOL/CTN</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>GW/CTN</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Peso</th>
@@ -782,6 +820,7 @@ function Herramientas() {
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Grupo</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Subgrupo</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Subgrupo 1</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Pallets</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Tipo</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Codigo SAP</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
@@ -1027,6 +1066,15 @@ function Herramientas() {
                                                         <td style={{ padding: "10px 16px" }}><InputUI value={item.grupo || ""} onChange={(v) => actualizarCampoFila(item.id, "grupo", v)} /></td>
                                                         <td style={{ padding: "10px 16px" }}><InputUI value={item.subgrupo || ""} onChange={(v) => actualizarCampoFila(item.id, "subgrupo", v)} /></td>
                                                         <td style={{ padding: "10px 16px" }}><InputUI value={item.subgrupo1 || ""} onChange={(v) => actualizarCampoFila(item.id, "subgrupo1", v)} /></td>
+                                                        <td style={{ padding: "10px 16px" }}>
+                                                            <SelectUI
+                                                                options={opcionesPallets}
+                                                                value={item.pallets ? { value: item.pallets, label: (opcionesPallets.find(o => o.value == item.pallets)?.label) || item.pallets } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "pallets", v?.value)}
+                                                                minWidth="130px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                            />
+                                                        </td>
                                                         <td style={{ padding: "10px 16px" }}><InputUI value={item.tipo || ""} onChange={(v) => actualizarCampoFila(item.id, "tipo", v)} /></td>
                                                         <td style={{ padding: "10px 16px" }}><InputUI value={item.codigoSap || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoSap", v)} /></td>
                                                         <td style={{ padding: "10px 16px" }}>
@@ -1383,10 +1431,12 @@ function Herramientas() {
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
                         {Object.keys(groupedItemsByCompany).map(companyName => (
                             <ButtonUI
-                                key={companyName}
-                                text={`Descargar ${companyName}`}
+                                key={EMPRESA_HERRAMIENTAS}
+                                text={`Descargar ${EMPRESA_HERRAMIENTAS}`}
                                 iconLeft="FaDownload"
-                                onClick={() => generateSAPExport(companyName, groupedItemsByCompany[companyName], {})}
+                                onClick={() => {
+                                    generateSAPExport(EMPRESA_HERRAMIENTAS, groupedItemsByCompany[companyName], {});
+                                }}
                             />
                         ))}
                     </div>
@@ -1481,10 +1531,13 @@ function Herramientas() {
                                 }, {})
                         ).map(([empresa, items]) => (
                             <ButtonUI
-                                key={empresa}
-                                text={`Exportar ${empresa} (${items.length})`}
+                                key={EMPRESA_HERRAMIENTAS}
+                                text={`Exportar ${EMPRESA_HERRAMIENTAS} (${items.length})`}
                                 iconLeft="FaDownload"
-                                onClick={() => generateSAPExport(empresa, items, {})}
+                                onClick={() => {
+                                    generateSAPExport(EMPRESA_HERRAMIENTAS, items, {});
+                                    generateSAPExportSecondaryFile(EMPRESA_HERRAMIENTAS, items);
+                                }}
                             />
                         ))}
                     </div>
