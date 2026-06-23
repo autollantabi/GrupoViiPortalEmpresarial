@@ -348,10 +348,15 @@ export default function RightSidebar() {
   };
 
   useEffect(() => {
+    let timer;
     if (!isRightExpanded) {
-      setStartDate(new Date());
-      setResetKey(prev => prev + 1);
+      timer = setTimeout(() => {
+        setStartDate(new Date());
+        setCurrentMonth(new Date());
+        setResetKey(prev => prev + 1);
+      }, 350);
     }
+    return () => clearTimeout(timer);
   }, [isRightExpanded]);
 
   const handleMouseEnter = () => {
