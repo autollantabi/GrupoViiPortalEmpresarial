@@ -15,8 +15,8 @@ const RightSidebarContainer = styled.div`
   min-width: 40px;
   transition: all 0.3s ease-in-out;
   overflow: hidden;
-  height: calc(100vh - ${globalConst.alturaHeader});
-  top: ${globalConst.alturaHeader};
+  height: calc(100vh - ${globalConst.alturaHeader} + 1vh);
+  top: ${`calc(${globalConst.alturaHeader} - 0.1vh)`};
   right: 0;
   z-index: 1000;
 `;
