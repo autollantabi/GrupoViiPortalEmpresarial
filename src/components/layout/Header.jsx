@@ -155,12 +155,13 @@ const Header = () => {
           });
 
           if (comunicadoEncontrado) {
-            setMensajeCompleto(``);
+            setMensajeCompleto(``); //Eliminado por peticion, se queda para un futuro, eliminar futuramente
           }
         }
       } catch (error) {
         console.error("Error al obtener comunicados en el Header:", error);
       }
+
     };
 
     fetchComunicados();

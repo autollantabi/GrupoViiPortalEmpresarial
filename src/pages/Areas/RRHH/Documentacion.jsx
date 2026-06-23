@@ -96,8 +96,8 @@ export const Documentacion = () => {
       searchTerm === ""
         ? videos
         : videos.filter((video) =>
-            video.title.toLowerCase().includes(searchTerm.toLowerCase())
-          );
+          video.title.toLowerCase().includes(searchTerm.toLowerCase())
+        );
 
     // Ordena los videos por el atributo 'id'
     const sortedVideos = filtered.sort((a, b) => a.id - b.id);
@@ -123,7 +123,7 @@ export const Documentacion = () => {
                 key={video.id}
                 onClick={() => window.open(video.videoPageUrl, "_blank")}
               >
-                <div style={{background:`linear-gradient(rgba(0, 0, 0, 0.27), rgba(0, 0, 0, 0.27)), url('${video.thumbnail}')`}} className="tbn">
+                <div style={{ background: `linear-gradient(rgba(0, 0, 0, 0.27), rgba(0, 0, 0, 0.27)), url('${video.thumbnail}')` }} className="tbn">
                   <TypeLink>
                     {video.type === "vid" ? (
                       <IconUI name="FaVideo" size={14} color={theme.colors.text} />
@@ -132,7 +132,7 @@ export const Documentacion = () => {
                     )}
                   </TypeLink>
                 </div>
-                <div className="title" title={video.title}>
+                <div className="title" title={video.title} style={{ color: theme.colors.text }}>
                   <span>{video.title}</span>
                 </div>
                 {/* <img src={video.thumbnail} alt="Video Thumbnail" /> */}
