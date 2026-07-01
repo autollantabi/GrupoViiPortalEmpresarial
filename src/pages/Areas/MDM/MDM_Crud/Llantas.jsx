@@ -113,8 +113,47 @@ const CATEGORIAS_LLANTAS = {
                 },
             },
         },
-    },
+    }
 };
+
+const CATEGORIAS_LLANTAS_MOTO = {
+    "2WHEEL & UTV": {
+        segmentos: {
+            "MOTOS": {
+                aplicaciones: {
+                    "PISTA": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"],
+                    "CROSS/ ENDURO": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"],
+                    "UTILITARIAS": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"],
+                    "DUAL SPORT": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"]
+                },
+            },
+            "UTV/SSV (SIDE BY SIDE VEHICLE)": {
+                aplicaciones: {
+                    "SPORT": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"],
+                },
+            },
+            "SCOOTER": {
+                aplicaciones: {
+                    "PISTA": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"],
+                    "DUAL SPORT": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"]
+                }
+            },
+            "ATV/CUADRON": {
+                aplicaciones: {
+                    "SPORT": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"],
+                }
+            },
+            "KARTING": {
+                aplicaciones: {
+                    "KARTING": ["A (TODA POSICION)", "F (DELANTERA)", "R (POSTERIOR)"],
+                }
+            }
+        },
+    }
+};
+
+const getCategoriasPorLinea = (linea) => linea === "LLANTAS MOTO" ? CATEGORIAS_LLANTAS_MOTO : CATEGORIAS_LLANTAS;
+
 
 const MARCAS_POR_EMPRESA = {
     "AUTOLLANTA": ["FORTUNE", "MAXTREK", "ROADWING"],
@@ -392,6 +431,7 @@ function Llantas() {
     }
 
     const [items, setItems] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
     const debounceTimeouts = useRef({});
 
@@ -726,6 +766,7 @@ function Llantas() {
     }, [fetchItems]);
 
     const handleFinalSubmit = async (currentItems) => {
+        setIsSubmitting(true);
         try {
             if (idRolPrincipal === 5) {
                 for (const item of currentItems) {
@@ -821,6 +862,8 @@ function Llantas() {
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
             toast.error("Error al enviar los ítems a revisión.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -1447,7 +1490,7 @@ function Llantas() {
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.velocidad || ""} formatValue={handleVelocidadInput} onChange={(v) => actualizarCampoFila(item.id, "velocidad", handleVelocidadInput(v))} /></td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
-                                                                options={Object.keys(CATEGORIAS_LLANTAS).map(k => ({ value: k, label: k }))}
+                                                                options={Object.keys(getCategoriasPorLinea(item.linea || lineaSeleccionada?.value)).map(k => ({ value: k, label: k }))}
                                                                 value={item.categoria ? { value: item.categoria, label: item.categoria } : null}
                                                                 onChange={(v) => {
                                                                     actualizarCampoFila(item.id, "categoria", v?.value);
@@ -1461,7 +1504,7 @@ function Llantas() {
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
-                                                                options={item.categoria && CATEGORIAS_LLANTAS[item.categoria]?.segmentos ? Object.keys(CATEGORIAS_LLANTAS[item.categoria].segmentos).map(k => ({ value: k, label: k })) : []}
+                                                                options={item.categoria && getCategoriasPorLinea(item.linea || lineaSeleccionada?.value)[item.categoria]?.segmentos ? Object.keys(getCategoriasPorLinea(item.linea || lineaSeleccionada?.value)[item.categoria].segmentos).map(k => ({ value: k, label: k })) : []}
                                                                 value={item.segmento ? { value: item.segmento, label: item.segmento } : null}
                                                                 onChange={(v) => {
                                                                     actualizarCampoFila(item.id, "segmento", v?.value);
@@ -1475,7 +1518,7 @@ function Llantas() {
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
-                                                                options={item.categoria && item.segmento && CATEGORIAS_LLANTAS[item.categoria]?.segmentos?.[item.segmento]?.aplicaciones ? Object.keys(CATEGORIAS_LLANTAS[item.categoria].segmentos[item.segmento].aplicaciones).map(k => ({ value: k, label: k })) : []}
+                                                                options={item.categoria && item.segmento && getCategoriasPorLinea(item.linea || lineaSeleccionada?.value)[item.categoria]?.segmentos?.[item.segmento]?.aplicaciones ? Object.keys(getCategoriasPorLinea(item.linea || lineaSeleccionada?.value)[item.categoria].segmentos[item.segmento].aplicaciones).map(k => ({ value: k, label: k })) : []}
                                                                 value={item.aplicacion ? { value: item.aplicacion, label: item.aplicacion } : null}
                                                                 onChange={(v) => {
                                                                     actualizarCampoFila(item.id, "aplicacion", v?.value);
@@ -1488,7 +1531,7 @@ function Llantas() {
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
-                                                                options={item.categoria && item.segmento && item.aplicacion && CATEGORIAS_LLANTAS[item.categoria]?.segmentos?.[item.segmento]?.aplicaciones?.[item.aplicacion] ? CATEGORIAS_LLANTAS[item.categoria].segmentos[item.segmento].aplicaciones[item.aplicacion].map(k => ({ value: k, label: k })) : []}
+                                                                options={item.categoria && item.segmento && item.aplicacion && getCategoriasPorLinea(item.linea || lineaSeleccionada?.value)[item.categoria]?.segmentos?.[item.segmento]?.aplicaciones?.[item.aplicacion] ? getCategoriasPorLinea(item.linea || lineaSeleccionada?.value)[item.categoria].segmentos[item.segmento].aplicaciones[item.aplicacion].map(k => ({ value: k, label: k })) : []}
                                                                 value={item.eje ? { value: item.eje, label: item.eje } : null}
                                                                 onChange={(v) => actualizarCampoFila(item.id, "eje", v?.value)}
                                                                 minWidth="140px"
@@ -1696,6 +1739,7 @@ function Llantas() {
                                                                 onChange={(v) => actualizarCampoFila(item.id, "marca", v?.value)}
                                                                 minWidth="200px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                                isCreatable={true}
                                                             />
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
@@ -1873,6 +1917,7 @@ function Llantas() {
                                                                 onChange={(v) => actualizarCampoFila(item.id, "marca", v?.value)}
                                                                 minWidth="200px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                                isCreatable={true}
                                                             />
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
@@ -2038,6 +2083,7 @@ function Llantas() {
                                                                 onChange={(v) => actualizarCampoFila(item.id, "marca", v?.value)}
                                                                 minWidth="200px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                                isCreatable={true}
                                                             />
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
@@ -2110,9 +2156,9 @@ function Llantas() {
                 {lineaSeleccionada && idRolPrincipal !== 1 && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
-                            text="Enviar a revisión"
+                            text={isSubmitting ? "Enviando..." : "Enviar a revisión"}
                             iconLeft="FaCheck"
-                            disabled={items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
+                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
                             onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
@@ -2410,9 +2456,10 @@ function Llantas() {
                             onClick={() => setIsSAPModalOpen(false)}
                         />
                         <ButtonUI
-                            text="Continuar con el envío"
+                            text={isSubmitting ? "Enviando..." : "Continuar con el envío"}
                             pcolor={theme?.colors?.primary}
-                            onClick={() => {
+                            disabled={isSubmitting}
+                            onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 handleFinalSubmit(currentItems);
                             }}

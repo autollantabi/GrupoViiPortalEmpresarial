@@ -4,8 +4,8 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 0,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiZTY4YjA0NmEtNGRkZS00Y2ViLWEyZDUtYWYwODYzYzJmMWM5IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=54e3ae545eaeb75aac3e",
-    titulo: "Reporte de Camiones",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiODRiZjJkMTYtNzJjNS00ODdlLTgzYTEtMTQ3MzU5OTY1MmI2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    titulo: "Camion",
     rol: "usuario",
     linea: null,
     empresa: "GRUPOVII",

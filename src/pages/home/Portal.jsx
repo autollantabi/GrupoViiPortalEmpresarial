@@ -59,7 +59,7 @@ export default function Portal() {
   );
 
   useEffect(() => {
-    const nomUs = user?.USUARIO?.USUA_NOMBRE ||"";
+    const nomUs = user?.USUARIO?.USUA_NOMBRE || "";
 
     if (!nomUs || nomUs === "") {
       setPopupOpen(true);

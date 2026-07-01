@@ -26,7 +26,7 @@ const ContenedorMenuRight = styled.div.withConfig({
 })`
   width: ${(props) => (props.$isexpanded ? "250px" : "40px")};
   height: 100%;
-  background: ${(props) => props.$isexpanded ? (props.theme.colors.sidebarBackground || props.theme.colors.secondary) : props.theme.colors.background};
+  background: ${(props) => props.theme.name === 'light' ? props.theme.colors.backgroundCard : (props.$isexpanded ? (props.theme.colors.sidebarBackground || props.theme.colors.secondary) : props.theme.colors.background)};
   margin: 0px;
   padding: 2px;
   display: flex;
@@ -62,23 +62,23 @@ const CalendarWrapper = styled.div.withConfig({
   }
   .react-datepicker__header {
     background: transparent;
-    border-bottom: 1px solid ${(props) => hexToRGBA({ hex: props.theme.colors.white, alpha: 0.2 })};
+    border-bottom: 1px solid ${(props) => hexToRGBA({ hex: props.theme.colors.textPrimary || props.theme.colors.white, alpha: 0.2 })};
   }
   .react-datepicker__current-month,
   .react-datepicker-time__header,
   .react-datepicker-year-header {
-    color: ${(props) => props.theme.colors.white};
+    color: ${(props) => props.theme.colors.textPrimary || props.theme.colors.white};
   }
   .react-datepicker__day-name,
   .react-datepicker__day,
   .react-datepicker__time-name {
-    color: ${(props) => props.theme.colors.white};
+    color: ${(props) => props.theme.colors.textPrimary || props.theme.colors.white};
   }
   .react-datepicker__day:hover,
   .react-datepicker__month-text:hover,
   .react-datepicker__quarter-text:hover,
   .react-datepicker__year-text:hover {
-    background-color: ${(props) => hexToRGBA({ hex: props.theme.colors.white, alpha: 0.2 })};
+    background-color: ${(props) => hexToRGBA({ hex: props.theme.colors.textPrimary || props.theme.colors.white, alpha: 0.2 })};
   }
   .react-datepicker__day--selected,
   .react-datepicker__day--in-selecting-range,
@@ -132,7 +132,7 @@ const ComunicadoInfoWrapper = styled.div.withConfig({
   visibility: ${(props) => (props.$isexpanded ? "visible" : "hidden")};
   transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
   padding: 10px;
-  color: ${(props) => props.theme.colors.white};
+  color: ${(props) => props.theme.colors.textPrimary || props.theme.colors.white};
   font-size: 12px;
   margin-top: 10px;
   width: 100%;
@@ -161,7 +161,7 @@ const LegendWrapper = styled.div.withConfig({
   justify-content: center;
   gap: 15px;
   font-size: 11px;
-  color: ${(props) => props.theme.colors.white};
+  color: ${(props) => props.theme.colors.textPrimary || props.theme.colors.white};
   box-sizing: border-box;
 
   .legend-item {
@@ -182,7 +182,7 @@ const ClosedIconWrapper = styled.div.withConfig({
   position: absolute;
   top: 15px;
   right: 12px;
-  color: ${(props) => props.theme.colors.white};
+  color: ${(props) => props.theme.colors.textPrimary || props.theme.colors.white};
   font-size: 15px;
   transition: opacity 0.3s ease-in-out;
   opacity: ${(props) => (props.$isexpanded ? 0 : 0.5)};
@@ -195,7 +195,7 @@ const ExpandedHeaderWrapper = styled.div.withConfig({
   position: absolute;
   top: 15px;
   left: 15px;
-  color: ${(props) => props.theme.colors.white};
+  color: ${(props) => props.theme.colors.textPrimary || props.theme.colors.white};
   font-size: 15px;
   display: flex;
   align-items: center;
@@ -374,11 +374,11 @@ export default function RightSidebar() {
     >
       <ContenedorMenuRight $isexpanded={isRightExpanded}>
         <ClosedIconWrapper $isexpanded={isRightExpanded}>
-          <IconUI name="FaCalendarDays" color={isRightExpanded ? theme.colors.white : theme.colors.textSecondary} />
+          <IconUI name="FaCalendarDays" color={isRightExpanded ? (theme.name === 'light' ? theme.colors.textPrimary : theme.colors.white) : theme.colors.textSecondary} />
         </ClosedIconWrapper>
 
         <ExpandedHeaderWrapper $isexpanded={isRightExpanded}>
-          <IconUI name="FaCalendarDays" color={theme.colors.white} />
+          <IconUI name="FaCalendarDays" color={theme.name === 'light' ? theme.colors.textPrimary : theme.colors.white} />
           <span>Calendario</span>
         </ExpandedHeaderWrapper>
 

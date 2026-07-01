@@ -4,7 +4,7 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 0,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiN2JmNTYzZDEtMDcwMi00NDAzLWE2YmItYjJiYzQyOWIzMTJkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiN2JmNTYzZDEtMDcwMi00NDAzLWE2YmItYjJiYzQyOWIzMTJkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=64730466057a2c173267",
     titulo: "Reporte de Análisis de Cartera",
     rol: "usuario",
     linea: null,

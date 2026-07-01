@@ -299,7 +299,6 @@ export function debugPermissions(userContexts, recurso, empresasGlobales = null)
     }
   }
 
-  console.log("\n=== RESULTADO ===");
-  console.log(debug);
+
   return debug;
 }

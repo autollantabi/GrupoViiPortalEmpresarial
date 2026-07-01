@@ -207,6 +207,7 @@ function Lubricantes() {
     }
 
     const [items, setItems] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
     const debounceTimeouts = useRef({});
 
@@ -560,6 +561,7 @@ function Lubricantes() {
     }, [fetchItems]);
 
     const handleFinalSubmit = async (currentItems) => {
+        setIsSubmitting(true);
         try {
             if (idRolPrincipal === 5) {
                 for (const item of currentItems) {
@@ -569,7 +571,7 @@ function Lubricantes() {
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                            CODIGO_SHELL: item.codigoShell || "",
+                            CODIGO_SHELL: item.codigoProveedor || "",
                             MARCA: item.marca || "",
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
                             ESTRATEGIA: item.estrategia || "",
@@ -587,7 +589,7 @@ function Lubricantes() {
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                            CODIGO_SHELL: item.codigoShell || "",
+                            CODIGO_SHELL: item.codigoProveedor || "",
                             MARCA: item.marca || "",
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
                             ESTRATEGIA: item.estrategia || "",
@@ -666,6 +668,8 @@ function Lubricantes() {
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
             toast.error("Error al enviar los ítems a revisión.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -1001,7 +1005,6 @@ function Lubricantes() {
                                                 {[
                                                     { key: 'codigo', label: "Código de Barras", role: 5 },
                                                     { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
-                                                    { key: 'codigoShell', label: "Codigo SHELL", role: 5 },
                                                     { key: 'marca', label: "Marca", role: 5 },
                                                     { key: 'nombreExtranjero', label: "Nombre Foraneo", role: 5 },
                                                     { key: 'estrategia', label: "Estrategia", role: 5 },
@@ -1219,7 +1222,6 @@ function Lubricantes() {
                                             <>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripcion</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. SHELL</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "180px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Extranjero</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "120px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Estrategia</th>
@@ -1537,8 +1539,6 @@ function Lubricantes() {
                                                     </td>
                                                     {/* Código Proveedor */}
                                                     <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></td>
-                                                    {/* Código SHELL */}
-                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.codigoShell || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoShell", v)} /></td>
                                                     {/* Marca */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <SelectUI
@@ -1550,6 +1550,7 @@ function Lubricantes() {
                                                             onChange={(v) => actualizarCampoFila(item.id, "marca", v?.value)}
                                                             minWidth="160px"
                                                             style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                            isCreatable={true}
                                                         />
                                                     </td>
                                                     {/* Nombre Foráneo */}
@@ -1626,9 +1627,9 @@ function Lubricantes() {
                 {lineaSeleccionada && idRolPrincipal !== 1 && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
-                            text="Enviar a revisión"
+                            text={isSubmitting ? "Enviando..." : "Enviar a revisión"}
                             iconLeft="FaCheck"
-                            disabled={items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
+                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
                             onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
@@ -1923,9 +1924,10 @@ function Lubricantes() {
                             onClick={() => setIsSAPModalOpen(false)}
                         />
                         <ButtonUI
-                            text="Continuar con el envío"
+                            text={isSubmitting ? "Enviando..." : "Continuar con el envío"}
                             pcolor={theme?.colors?.primary}
-                            onClick={() => {
+                            disabled={isSubmitting}
+                            onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 handleFinalSubmit(currentItems);
                             }}

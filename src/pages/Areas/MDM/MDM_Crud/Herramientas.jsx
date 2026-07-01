@@ -9,7 +9,7 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades } from "services/mdmService";
+import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
 
 const EMPRESA_HERRAMIENTAS = 'IKONIX';
@@ -20,6 +20,7 @@ const DICCIONARIO_ROLES = {
     4: 'Marketing',   // Coordinadora
     5: 'Compras'    // Usuario
 };
+
 
 const OPTIONS_UNIDAD = [
     { value: "PAIRS", label: "PAIRS" },
@@ -56,6 +57,7 @@ function Herramientas() {
     const EMPRESA_HERRAMIENTAS = "IKONIX";
 
     const [opcionesPallets, setOpcionesPallets] = useState([]);
+    const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
 
     useEffect(() => {
         const fetchPalletsOptions = async () => {
@@ -75,7 +77,18 @@ function Herramientas() {
             }
         };
 
+        const fetchGruposHerramientas = async () => {
+            try {
+                const response = await getGruposHerramientas();
+                setGruposHerramientasRaw(response);
+            } catch (error) {
+                console.error("Error fetching grupos herramientas:", error);
+                setGruposHerramientasRaw([]);
+            }
+        };
+
         fetchPalletsOptions();
+        fetchGruposHerramientas();
     }, []);
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
     const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
@@ -84,6 +97,7 @@ function Herramientas() {
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
 
     const [items, setItems] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [approvedItems, setApprovedItems] = useState([]);
     const [selectedItemIds, setSelectedItemIds] = useState(new Set());
     const [currentItemIndex, setCurrentItemIndex] = useState(0);
@@ -216,6 +230,7 @@ function Herramientas() {
     }, [fetchItems]);
 
     const handleFinalSubmit = async (currentItems) => {
+        setIsSubmitting(true);
         try {
             for (const item of currentItems) {
                 if (idRolPrincipal === 3) {
@@ -227,8 +242,6 @@ function Herramientas() {
                         SUBGRUPO1: item.subgrupo1 || "",
                         PALLETS: item.pallets || "",
                         TIPO: item.tipo || "",
-                        CODIGO_SAP: item.codigoSap || "",
-                        MARCA: item.marca || "",
                         FASE: 2,
                         OBSERVACIONES: item.comentarios || "",
                         ...(item.fueRechazado && { RECHAZO: false })
@@ -282,6 +295,7 @@ function Herramientas() {
                         ITEM_CODIGO_BARRAS: item.itemCodigoBarras || "",
                         CARTON_CODIGO_BARRAS: item.cartonCodigoBarras || "",
                         PAQUETE_CODIGO_BARRAS: item.paqueteCodigoBarras || "",
+                        MARCA: item.marca || "",
                         OBSERVACIONES: item.comentarios || ""
                     };
 
@@ -295,9 +309,12 @@ function Herramientas() {
             toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
             setItems(prev => prev.filter(i => !selectedItemIds.has(i.id)));
             setSelectedItemIds(new Set());
+            setIsSAPModalOpen(false);
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
             toast.error("Error al enviar los ítems a revisión.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -362,7 +379,6 @@ function Herramientas() {
         if (v.startsWith(".")) v = "0" + v;
         const parts = v.split(".");
         if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
-        if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].substring(0, 2);
         return v;
     };
 
@@ -380,8 +396,8 @@ function Herramientas() {
                         return it; // Ignorar el tipeo inválido (ej: puntos o letras)
                     }
                 } else if (["largoCarton", "anchoCarton", "altoCarton", "volumenCtn", "gwCtn", "peso"].includes(campo)) {
-                    if (val !== "" && !/^\d+(\.\d{0,2})?$/.test(val)) {
-                        return it; // Ignorar si tiene más de 2 decimales, o si tiene letras
+                    if (val !== "" && !/^\d+(\.\d*)?$/.test(val)) {
+                        return it; // Ignorar si tiene letras o múltiples puntos
                     }
                 }
 
@@ -411,7 +427,8 @@ function Herramientas() {
             "Codigo Proveedor", "Partida Arancelaria", "Nombre Ext", "Descripcion Ext",
             "Nombre", "Descripcion", "Unidad", "Und x caja", "Cajas x empaque",
             "Und x empaque", "Largo de la caja", "Ancho de la caja", "Alto de la caja",
-            "VOL/CTN", "GW/CTN", "Peso", "Item Codigo Barras", "Carton Codigo Barras", "Paquete codigo Barras"
+            "VOL/CTN", "GW/CTN", "Peso", "Item Codigo Barras", "Carton Codigo Barras", "Paquete codigo Barras",
+            "Marca"
         ];
         const ws = XLSX.utils.aoa_to_sheet([headers]);
         const wb = XLSX.utils.book_new();
@@ -455,6 +472,7 @@ function Herramientas() {
                     itemCodigoBarras: handleNumericInt(row["Item Codigo Barras"] || ""),
                     cartonCodigoBarras: handleNumericInt(row["Carton Codigo Barras"] || ""),
                     paqueteCodigoBarras: handleNumericInt(row["Paquete codigo Barras"] || ""),
+                    marca: String(row["Marca"] || "").trim().toUpperCase(),
                 }));
 
                 setItems(prev => [...prev, ...newItems]);
@@ -660,14 +678,14 @@ function Herramientas() {
                                                     { key: 'itemCodigoBarras', label: "Item Codigo Barras", role: 5 },
                                                     { key: 'cartonCodigoBarras', label: "Carton Codigo Barras", role: 5 },
                                                     { key: 'paqueteCodigoBarras', label: "Paquete codigo Barras", role: 5 },
+                                                    { key: 'marca', label: "Marca", role: 5 },
 
                                                     { key: 'grupo', label: "Grupo", role: 3 },
                                                     { key: 'subgrupo', label: "Subgrupo", role: 3 },
                                                     { key: 'subgrupo1', label: "Subgrupo 1", role: 3 },
+                                                    { key: 'cajas', label: "Cajas", role: 3 },
                                                     { key: 'pallets', label: "Pallets", role: 3 },
                                                     { key: 'tipo', label: "Tipo", role: 3 },
-                                                    { key: 'codigoSap', label: "Codigo SAP", role: 3 },
-                                                    { key: 'marca', label: "Marca", role: 3 },
                                                 ].map(({ key, label, role }) => {
                                                     const value = item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
@@ -800,6 +818,7 @@ function Herramientas() {
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Item Codigo Barras</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Carton Codigo Barras</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Paquete codigo Barras</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Comentarios</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Acciones</th>
                                             </>
@@ -820,10 +839,9 @@ function Herramientas() {
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Grupo</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Subgrupo</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Subgrupo 1</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Pallets</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Tipo</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Codigo SAP</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cajas</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Pallets</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Comentarios</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Acciones</th>
                                             </>
@@ -890,6 +908,9 @@ function Herramientas() {
                                                         <td style={{ padding: "10px 16px" }}><InputUI value={item.cartonCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "cartonCodigoBarras", v)} /></td>
                                                         <td style={{ padding: "10px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
                                                             <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }} value={item.paqueteCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "paqueteCodigoBarras", v)} />
+                                                        </td>
+                                                        <td style={{ padding: "10px 16px" }}>
+                                                            <SelectUI options={OPTIONS_MARCA} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} isCreatable={true} />
                                                         </td>
                                                         <td style={{ padding: "10px 16px" }}>
                                                             <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
@@ -1063,22 +1084,65 @@ function Herramientas() {
                                                         <td style={{ padding: "10px 16px" }}>
                                                             <TextUI size="13px">{item.nombre || "-"}</TextUI>
                                                         </td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.grupo || ""} onChange={(v) => actualizarCampoFila(item.id, "grupo", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.subgrupo || ""} onChange={(v) => actualizarCampoFila(item.id, "subgrupo", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.subgrupo1 || ""} onChange={(v) => actualizarCampoFila(item.id, "subgrupo1", v)} /></td>
+                                                        <td style={{ padding: "10px 16px" }}>
+                                                            <SelectUI
+                                                                options={Array.from(new Set(gruposHerramientasRaw.map(g => g.DMH_GRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
+                                                                value={item.grupo ? { value: item.grupo, label: item.grupo } : null}
+                                                                onChange={(v) => {
+                                                                    actualizarCampoFila(item.id, "grupo", v?.value || "");
+                                                                    actualizarCampoFila(item.id, "subgrupo", "");
+                                                                    actualizarCampoFila(item.id, "subgrupo1", "");
+                                                                    actualizarCampoFila(item.id, "tipo", "");
+                                                                }}
+                                                                minWidth="140px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "10px 16px" }}>
+                                                            <SelectUI
+                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo).map(g => g.DMH_SUBGRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
+                                                                value={item.subgrupo ? { value: item.subgrupo, label: item.subgrupo } : null}
+                                                                onChange={(v) => {
+                                                                    actualizarCampoFila(item.id, "subgrupo", v?.value || "");
+                                                                    actualizarCampoFila(item.id, "subgrupo1", "");
+                                                                    actualizarCampoFila(item.id, "tipo", "");
+                                                                }}
+                                                                disabled={!item.grupo}
+                                                                minWidth="140px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "10px 16px" }}>
+                                                            <SelectUI
+                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo && g.DMH_SUBGRUPO === item.subgrupo).map(g => g.DMH_SUBGRUPO1))).filter(Boolean).map(k => ({ value: k, label: k }))}
+                                                                value={item.subgrupo1 ? { value: item.subgrupo1, label: item.subgrupo1 } : null}
+                                                                onChange={(v) => {
+                                                                    actualizarCampoFila(item.id, "subgrupo1", v?.value || "");
+                                                                    actualizarCampoFila(item.id, "tipo", "");
+                                                                }}
+                                                                disabled={!item.grupo || !item.subgrupo}
+                                                                minWidth="140px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
+                                                        <td style={{ padding: "10px 16px" }}>
+                                                            <SelectUI
+                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo && g.DMH_SUBGRUPO === item.subgrupo && g.DMH_SUBGRUPO1 === item.subgrupo1).map(g => g.DMH_TIPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
+                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value || "")}
+                                                                disabled={!item.grupo || !item.subgrupo || !item.subgrupo1}
+                                                                minWidth="140px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </td>
                                                         <td style={{ padding: "10px 16px" }}>
                                                             <SelectUI
                                                                 options={opcionesPallets}
                                                                 value={item.pallets ? { value: item.pallets, label: (opcionesPallets.find(o => o.value == item.pallets)?.label) || item.pallets } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "pallets", v?.value)}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "cajas", v?.value)}
                                                                 minWidth="130px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
                                                             />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.tipo || ""} onChange={(v) => actualizarCampoFila(item.id, "tipo", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.codigoSap || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoSap", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}>
-                                                            <SelectUI options={OPTIONS_MARCA} value={OPTIONS_MARCA.find(opt => opt.value === item.marca) || null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} />
                                                         </td>
                                                         <td style={{ padding: "10px 16px" }}>
                                                             <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
@@ -1111,9 +1175,9 @@ function Herramientas() {
                 {(idRolPrincipal === 5 || idRolPrincipal === 3 || idRolPrincipal === 4) && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
-                            text="Enviar a revisión"
+                            text={isSubmitting ? "Enviando..." : "Enviar a revisión"}
                             iconLeft="FaCheck"
-                            disabled={items.filter(i => selectedItemIds.has(i.id)).length === 0}
+                            disabled={isSubmitting || items.filter(i => selectedItemIds.has(i.id)).length === 0}
                             onClick={async () => {
                                 const currentItems = items.filter(i => selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
@@ -1131,7 +1195,10 @@ function Herramientas() {
                                                 NOMBRE_EXTRANJERO: item.nombreExt,
                                                 DESCRIPCION: item.nombre,
                                                 PARTIDA_ARANCELARIA: item.partidaArancelaria,
-                                                CODIGO_BARRAS: item.itemCodigoBarras
+                                                CODIGO_BARRAS: item.itemCodigoBarras,
+                                                CARTON_CODIGO_BARRAS: item.cartonCodigoBarras,
+                                                PAQUETE_CODIGO_BARRAS: item.paqueteCodigoBarras,
+                                                MARCA: item.marca
                                             });
                                         });
                                         setGroupedItemsByCompany(grouped);
@@ -1447,9 +1514,10 @@ function Herramientas() {
                             onClick={() => setIsSAPModalOpen(false)}
                         />
                         <ButtonUI
-                            text="Continuar con el envío"
+                            text={isSubmitting ? "Enviando..." : "Continuar con el envío"}
                             pcolor={theme?.colors?.primary}
-                            onClick={() => {
+                            disabled={isSubmitting}
+                            onClick={async () => {
                                 const currentItems = items.filter(i => selectedItemIds.has(i.id));
                                 handleFinalSubmit(currentItems);
                             }}

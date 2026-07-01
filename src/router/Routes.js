@@ -404,6 +404,11 @@ export const RoutesConfig = [
     recurso: "reportes.camiones",
   },
   {
+    title: "Camion",
+    component: ReporteriaCamiones,
+    recurso: "reportes.camion",
+  },
+  {
     title: "Consolidado",
     component: ReporteriaConsolidado,
     recurso: "reportes.consolidado",

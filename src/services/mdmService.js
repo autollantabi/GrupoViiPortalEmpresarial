@@ -22,7 +22,7 @@ export const parseLlantas = async (descripciones, lineaNegocio) => {
     }
 };
 
-/**
+/** 
  * Obtiene los ítems pendientes según el rol y línea de negocio.
  * @param {number} idRolPrincipal - ID del rol del usuario
  * @param {string} linea - Línea de negocio (LLANTAS, LUBRICANTES, etc)
@@ -33,8 +33,6 @@ export const getItemsByRole = async (idRolPrincipal, linea) => {
         const response = await axiosInstanceNew.get(`/mdm/items/${linea}`, {
             params: { idRolPrincipal }
         });
-
-
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
@@ -53,7 +51,6 @@ export const getItemsByRole = async (idRolPrincipal, linea) => {
  */
 export const saveItemRole5 = async (item) => {
     try {
-
         const response = await axiosInstanceNew.post("/mdm/items", item);
         return response.data;
     } catch (error) {
@@ -70,7 +67,6 @@ export const saveItemRole5 = async (item) => {
 export const patchItemRole3 = async (item) => {
     try {
         const response = await axiosInstanceNew.patch("/mdm/items", item);
-
         return response.data;
     } catch (error) {
         console.error("Error en patchItemRole3:", error);
@@ -111,9 +107,6 @@ export const uploadItemImages = async (lineaNegocio, id, marca, diseño, imagenP
         if (diseño) formData.append("DISENIO", diseño);
         if (imagenPng) formData.append("imagenPng", imagenPng);
         if (imagenWebp) formData.append("imagenWebp", imagenWebp);
-
-
-
         // Replicamos la configuración de uploadToCloudflare que ya funciona en este proyecto
         const response = await axiosInstanceNew.post(`/mdm/items/upload-images/${lineaNegocio}`, formData, {
             headers: {
@@ -147,7 +140,6 @@ export const uploadItemImagesSharepoint = async (lineaNegocio, id, marca, empres
         if (diseño) formData.append("DISENIO", diseño);
         if (imagenPng) formData.append("imagenPng", imagenPng);
         if (imagenWebp) formData.append("imagenWebp", imagenWebp);
-
         const response = await axiosInstanceNew.post(`/mdm/items/upload-images-sharepoint/${lineaNegocio}`, formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
@@ -168,7 +160,6 @@ export const uploadItemImagesSharepoint = async (lineaNegocio, id, marca, empres
 export const getItemsDWHByLinea = async (lineaNegocio) => {
     try {
         const response = await axiosInstanceNew.get(`/mdm/itemsDWH/linea-negocio/${lineaNegocio}`);
-
         if (response.data && response.data.status === "Ok!") {
             return response.data.data;
         }
@@ -303,5 +294,19 @@ export const getGruposUnidadesAlternativas = async (empresa, id) => {
     } catch (error) {
         console.error("Error al obtener grupos de unidades alternativas:", error);
         throw error;
+    }
+};
+
+/**
+ * Obtiene los grupos, subgrupos y tipos para Herramientas.
+ * @returns {Promise<Array>}
+ */
+export const getGruposHerramientas = async () => {
+    try {
+        const response = await axiosInstanceNew.get('/mdm/grupos-herramientas/');
+        return response.data?.data || [];
+    } catch (error) {
+        console.error("Error en getGruposHerramientas:", error);
+        return [];
     }
 };

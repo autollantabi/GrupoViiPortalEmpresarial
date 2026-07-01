@@ -1,6 +1,67 @@
 import * as XLSX from "xlsx";
 import { getCodigoMarca, getTiposUnidades, getGruposUnidadesAlternativas } from "services/mdmService";
 
+
+const PROPIEDADES = {
+    "AUTOLLANTA": {
+        "MAXTREK": "QryGroup1",
+        "FARROAD": "QryGroup2",
+        "FORTUNE LIVIANO": "QryGroup3",
+        "FORTUNE PESADO": "QryGroup4",
+        "MAXXIS": "QryGroup5",
+        "CST": "QryGroup6",
+        "ROADCRUZA": "QryGroup7",
+        "APLUS": "QryGroup8",
+        "HAOHUA": "QryGroup11",
+        "OTRAS MARCAS": "QryGroup12",
+        "MAXXIS PESADO": "QryGroup13",
+        "CST PESADO": "QryGroup14",
+        "APLUS PESADO": "QryGroup15",
+        "CST MOTO": "QryGroup16",
+        "MAXXIS MOTO": "QryGroup17",
+        "ANSU": "QryGroup18",
+        "ANTARES": "QryGroup19",
+        "ROADWING": "QryGroup20"
+    },
+    "MAXXIMUNDO": {
+        "SHELL": "QryGroup18",
+        "PENNZOIL": "QryGroup19",
+        "MAXXIS LIVIANO": "QryGroup1",
+        "MAXXIS PESADO": "QryGroup2",
+        "MAXXIX MOTO": "QryGroup3",
+        "CST LIVIANO": "QryGroup4",
+        "CST PESADO": "QryGroup5",
+        "CST MOTO": "QryGroup6",
+        "APLUS LIVIANO": "QryGroup7",
+        "APLUS PESADO": "QryGroup8",
+        "READCRUZA LIVIADNO": "QryGroup9",
+        "BAYI": "QryGroup10",
+        "ANSU": "QryGroup11",
+        "WONDERLAND": "QryGroup12",
+        "BYCROSS": "QryGroup13",
+        "PETRONAS": "QryGroup14",
+        "HAOHUA": "QryGroup15",
+        "OTRAS MARCAS": "QryGroup16",
+        "KEYSTONE": "QryGroup17"
+    },
+    "IKONIX": {
+        "SATA": "QryGroup4",
+        "UYUSTOOLS": "QryGroup1"
+    },
+    "STOX": {
+        "CST LIVIANO": "QryGroup1",
+        "CST PESADO": "QryGroup2",
+        "FARROAD BRAND": "QryGroup3",
+        "ANSU": "QryGroup4",
+        "BAYI": "QryGroup5",
+        "WONDERLAND": "QryGroup5",
+        "CST MOTO": "QryGroup6",
+        "ANTARES": "QryGroup7",
+        "BYCROSS": "QryGroup8",
+        "OTRAS MARCAS": "QryGroup9"
+    }
+}
+
 /**
  * Estructura de encabezados con sus valores por defecto iniciales.
  * La clave debe de ser el nombre de la segunda fila.
@@ -11,7 +72,7 @@ const DEFAULT_VALUES = {
     "ItemName": "",
     "FrgnName": "",
     "SuppCatNum": "",
-    "ItmsGrpCod": "", //104 lubricantes - 103 LLANTAS - 
+    "ItmsGrpCod": "",
     "CodeBars": "",
     "VATLiable": "tYES",
     "PrchseItem": "tYES",
@@ -20,7 +81,7 @@ const DEFAULT_VALUES = {
     "TreeType": "iNotATree",
     "AssetItem": "tNO",
     "ManSerNum": "tNO",
-    "ManBtchNum": "", //Si es lubricantes = tNO, en llantas = tYES
+    "ManBtchNum": "tNO",
     "validFor": "tYES",
     "frozenFor": "tNO",
     "SalUnitMsr": "UNIDAD",
@@ -63,7 +124,7 @@ const DEFAULT_VALUES = {
     "PrcrmntMtd": "bom_Buy",
     "ItemType": "itItems",
     "ItemClass": "itcMaterial",
-    "QryGroup1": "tNO", //Cambiado de tNO a tYES - Mentirota no se cambio nada
+    "QryGroup1": "tNO",
     "QryGroup2": "tNO",
     "QryGroup3": "tNO",
     "QryGroup4": "tNO",
@@ -80,9 +141,9 @@ const DEFAULT_VALUES = {
     "QryGroup15": "tNO",
     "QryGroup16": "tNO",
     "QryGroup17": "tNO",
-    "QryGroup18": "", // SE TIENE QUE VALIDAR SI ES SHELL
-    "QryGroup19": "", // SE TIENE QUE VALIDAR SI ES PENNZOIL
-    "QryGroup20": "", //SE TIENE QUE VALIDAR SI ES PREMIUM
+    "QryGroup18": "tNO",
+    "QryGroup19": "tNO",
+    "QryGroup20": "tNO",
     "Series": "184",
     "NoDiscount": "tNO",
     "U_MA_ECOVALOR": "",
@@ -109,23 +170,12 @@ const DEFAULT_VALUES = {
 
     //Para Herramientas - Mentirota no existen campos para herramientas (creo) (resultado: Si existe e importan mucho muchito)
 
-    "UoMGroupEntry": "",
+    "UoMGroupEntry": "-1",
     "InventoryUoMEntry": "",
     "DefaultSalesUoMEntry": "", //En herramientas esto siempre es 43.
     "DefaultPurchasingUoMEntry": "",
     "PricingUnit": ""
 
-
-
-    //Campos extra
-    /*
-    "PUoMEntry": "1",
-    "SUoMEntry": "1",
-    "IUoMEntry": "1",
-    "CntUnitMsr": "UNIDAD",
-    "INUoMEntry": "1",
-    "UgpEntry": "1"
-    */
 
 };
 //Clave: Segunda fila
@@ -238,17 +288,6 @@ const MAIN_HEADERS = {
     "PricingUnit": "PricingUnit"
 
 
-    //Campos extra
-    /*
-    "PUoMEntry": "PUoMEntry",
-    "SUoMEntry": "SUoMEntry",
-    "IUoMEntry": "IUoMEntry",
-    "CntUnitMsr": "CntUnitMsr",
-    "INUoMEntry": "INUoMEntry",
-    "UgpEntry": "UgpEntry"
-    */
-
-
 };
 const NOMENCLATURA_MAPPING = {
     "MILIMETRICA": "3",
@@ -330,19 +369,63 @@ export const generateSAPExport = async (companyName, items, mappingData = {}, gr
     // Preparar las filas de datos
     const dataRows = await Promise.all(items.map(async item => {
         let ecovalor = item.LINEA_NEGOCIO === "LLANTAS" ? "1" : item.LINEA_NEGOCIO === "LLANTAS MOTO" ? "2" : "";
-        let propiedad19 = "tNO";
-        let propiedad18 = "tNO";
-        let propiedad20 = "tNO";
         let gruposUnidadesAlternativas = '';
-        let unidadesDeVenta = item.LINEA_NEGOCIO === 'HERRAMIENTAS' ? '1' : '';
+        let unidadesDeVenta = '';
         let familia = '-1';
         const unidad = codigosUnidades.data.find(c => c.OUM_NAME.toUpperCase() === "UNIDAD")?.OUM_ENTRY;
 
+        let marcaUpper = item.MARCA.toUpperCase() || "";
+
+
+        // Propiedades por marca dinámicas basadas en la constante PROPIEDADES
+        let qryProps = {
+            QryGroup1: "tNO",
+            QryGroup2: "tNO",
+            QryGroup3: "tNO",
+            QryGroup4: "tNO",
+            QryGroup5: "tNO",
+            QryGroup6: "tNO",
+            QryGroup7: "tNO",
+            QryGroup8: "tNO",
+            QryGroup9: "tNO",
+            QryGroup10: "tNO",
+            QryGroup11: "tNO",
+            QryGroup12: "tNO",
+            QryGroup13: "tNO",
+            QryGroup14: "tNO",
+            QryGroup15: "tNO",
+            QryGroup16: "tNO",
+            QryGroup17: "tNO",
+            QryGroup18: "tNO",
+            QryGroup19: "tNO"
+        };
+
+        const propsEmpresa = PROPIEDADES[companyName];
+
+        if (propsEmpresa) {
+            const sufijos = {
+                "CAMION PESADO": " PESADO",
+                "CAMION LIVIANO": " LIVIANO",
+                "2WHEEL & UTV": " MOTO"
+            };
+            const sufijo = item.CATEGORIA ? sufijos[item.CATEGORIA] : undefined;
+
+            if (propsEmpresa[marcaUpper]) {
+                qryProps[propsEmpresa[marcaUpper]] = "tYES";
+            } else if (sufijo && propsEmpresa[marcaUpper + sufijo]) {
+                marcaUpper += sufijo;
+                qryProps[propsEmpresa[marcaUpper]] = "tYES";
+            }
+            if (item.CATEGORIA && item.CATEGORIA !== "" && !Object.values(qryProps).includes("tYES") && companyName !== 'IKONIX') {
+                qryProps[propsEmpresa['OTRAS MARCAS']] = 'tYES';
+            }
+        }
+
         if (item.LINEA_NEGOCIO === 'LUBRICANTES') {
 
-            propiedad18 = item.MARCA === 'SHELL' ? 'tYES' : 'tNO';
-            propiedad19 = item.MARCA === 'PENNZOIL' ? 'tYES' : 'tNO';
-            propiedad20 = item.CLASIFICACION === 'PREMIUM' ? 'tYES' : 'tNO';
+            if (item.CLASIFICACION === 'PREMIUM') {
+                qryProps["QryGroup20"] = "tYES";
+            }
 
             switch (item.CLASIFICACION) {
                 case 'PREMIUM':
@@ -376,6 +459,7 @@ export const generateSAPExport = async (companyName, items, mappingData = {}, gr
                 unidadesDeVenta = gruposUnidadesAlternativas.data.find(g => g.UOM_NAME.toUpperCase().includes("CAJA"))?.UOM_ENTRY || unidad;
             }
         }
+
         if (item.LINEA_NEGOCIO === 'HERRAMIENTAS') {
             unidadesDeVenta = unidad;
         }
@@ -393,10 +477,10 @@ export const generateSAPExport = async (companyName, items, mappingData = {}, gr
                 groupEntry = unidad;
                 break;
             case "LUBRICANTES":
-                groupEntry = item.PALLETS;
+                groupEntry = item.PALLETS || '-1';
                 break;
             case "HERRAMIENTAS":
-                groupEntry = item.PALLETS;
+                groupEntry = item.PALLETS || "-1";
                 break;
             default:
                 groupEntry = "";
@@ -404,18 +488,16 @@ export const generateSAPExport = async (companyName, items, mappingData = {}, gr
         }
 
 
-        const marcaName = item.MARCA || item.marca || "";
-
         let frmCode = "";
+
         if (codigosMarca.data.length > 0) {
             const found = codigosMarca.data.find(c =>
-                String(c.DCM_MARCA).trim().toUpperCase() === String(marcaName).trim().toUpperCase()
+                String(c.DCM_MARCA).trim().toUpperCase() === String(marcaUpper).trim().toUpperCase()
             );
             if (found) {
                 frmCode = found.DCM_CODIGOSAP;
             }
         }
-
 
         const userValues = {
             "ItemCode": item.CODIGO_SAP || item.codigoSap || "",
@@ -446,11 +528,8 @@ export const generateSAPExport = async (companyName, items, mappingData = {}, gr
             "InventoryUoMEntry": item.LINEA_NEGOCIO.trim().toUpperCase() === "LUBRICANTES" || "HERRAMIENTAS" ? unidad : "",
             "DefaultSalesUoMEntry": unidadesDeVenta || "",
             "DefaultPurchasingUoMEntry": unidadesDeVenta || "",
-            "QryGroup18": propiedad18,
-            "QryGroup19": propiedad19,
-            "QryGroup20": propiedad20,
-            "ManBtchNum": item.LINEA_NEGOCIO.toUpperCase() === 'LUBRICANTES' ? "tNO" : "tYES",
-            "PricingUnit": unidad
+            "PricingUnit": unidad,
+            ...qryProps
         };
 
         console.log(userValues);
@@ -540,7 +619,6 @@ export const generateSAPExportSecondaryFile = async (companyName, items) => {
             "43"
         ]);
 
-        console.log(dataRows);
     }
 
     const aoaData = [
