@@ -73,6 +73,7 @@ import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellFor
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
 import { VisitasAsignadas } from "pages/Areas/Visitas/Asignadas/VisitasAsignadas";
+import { ReporteriaComecialTecnicentro } from "pages/Areas/Reporteria/ComercialTecnicentro/ReporteriaComercialTecnicentro"
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -362,6 +363,11 @@ export const RoutesConfig = [
     title: "Tecni. Comercial",
     component: ReporteriaTecnicentroComercial,
     recurso: "reportes.tecnicentrocomercial",
+  },
+  {
+    title: "Comercial Tecnicentro",
+    component: ReporteriaComecialTecnicentro,
+    recurso: "reportes.comercialtecnicentro",
   },
   {
     title: "Flash de Ventas",

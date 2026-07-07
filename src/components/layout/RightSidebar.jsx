@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -186,7 +186,8 @@ const ClosedIconWrapper = styled.div.withConfig({
   font-size: 15px;
   transition: opacity 0.3s ease-in-out;
   opacity: ${(props) => (props.$isexpanded ? 0 : 0.5)};
-  pointer-events: none;
+  pointer-events: ${(props) => (props.$isexpanded ? "none" : "auto")};
+  cursor: pointer;
 `;
 
 const ExpandedHeaderWrapper = styled.div.withConfig({
@@ -202,7 +203,8 @@ const ExpandedHeaderWrapper = styled.div.withConfig({
   gap: 10px;
   transition: opacity 0.3s ease-in-out;
   opacity: ${(props) => (props.$isexpanded ? 1 : 0)};
-  pointer-events: none;
+  pointer-events: ${(props) => (props.$isexpanded ? "auto" : "none")};
+  cursor: pointer;
   white-space: nowrap;
 `;
 
@@ -261,6 +263,19 @@ export default function RightSidebar() {
   const { theme } = useTheme();
   const [startDate, setStartDate] = useState(new Date());
   const [comunicados, setComunicados] = useState([]);
+  const sidebarRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (isRightExpanded && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+        setIsRightExpanded(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isRightExpanded, setIsRightExpanded]);
 
   useEffect(() => {
     postgresService.getComunicados()
@@ -359,25 +374,16 @@ export default function RightSidebar() {
     return () => clearTimeout(timer);
   }, [isRightExpanded]);
 
-  const handleMouseEnter = () => {
-    setIsRightExpanded(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsRightExpanded(false);
-  };
-
   return (
     <RightSidebarContainer
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      ref={sidebarRef}
     >
       <ContenedorMenuRight $isexpanded={isRightExpanded}>
-        <ClosedIconWrapper $isexpanded={isRightExpanded}>
+        <ClosedIconWrapper $isexpanded={isRightExpanded} onClick={() => setIsRightExpanded(true)}>
           <IconUI name="FaCalendarDays" color={isRightExpanded ? (theme.name === 'light' ? theme.colors.textPrimary : theme.colors.white) : theme.colors.textSecondary} />
         </ClosedIconWrapper>
 
-        <ExpandedHeaderWrapper $isexpanded={isRightExpanded}>
+        <ExpandedHeaderWrapper $isexpanded={isRightExpanded} onClick={() => setIsRightExpanded(false)}>
           <IconUI name="FaCalendarDays" color={theme.name === 'light' ? theme.colors.textPrimary : theme.colors.white} />
           <span>Calendario</span>
         </ExpandedHeaderWrapper>
