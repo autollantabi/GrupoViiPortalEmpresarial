@@ -30,6 +30,7 @@ function mapCanjeApiToComponent(apiCanje) {
         nombreCliente,
         cantidad: apiCanje.QUANTITY ?? apiCanje.quantity ?? null,
         fechaOrigen: apiCanje.REDEMPTION_DATE ?? apiCanje.redemption_date ?? null,
+        especificacion: apiCanje.SELECTED_SPECIFICATION ?? apiCanje.selected_specification ?? null,
         historialEstados: historialApi.map((h) => ({
             estado: (h.ESTADO_CANJE ?? h.estado_canje)?.NAME ?? (h.ESTADO_CANJE ?? h.estado_canje)?.name ?? "",
             fecha: h.REGISTERED_AT ?? h.registered_at ?? h.createdAt ?? h.created_at,
@@ -481,6 +482,7 @@ export default function AS_GestionCanjes({
                                 const descripcion = [
                                     fechaOrigen ? `Fecha de solicitud: ${formatearFecha(fechaOrigen)}` : null,
                                     cantidadCanje != null ? `Cantidad: ${cantidadCanje}` : null,
+                                    canje.especificacion != null ? `Especificación: ${canje.especificacion}` : null,
                                 ].filter(Boolean).join(" | ");
 
                                 const body = (
