@@ -74,6 +74,7 @@ import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtra
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
 import { VisitasAsignadas } from "pages/Areas/Visitas/Asignadas/VisitasAsignadas";
 import { ReporteriaComecialTecnicentro } from "pages/Areas/Reporteria/ComercialTecnicentro/ReporteriaComercialTecnicentro"
+import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -463,4 +464,12 @@ export const RoutesConfig = [
     component: NotFound,
     public: true,
   },
+
+  {
+    title: "Cobus",
+    icon: "FaGears",
+    component: StreamlitEmbed,
+    recurso: "cobus",
+  },
+
 ];
