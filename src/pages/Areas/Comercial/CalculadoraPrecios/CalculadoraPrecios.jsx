@@ -7,13 +7,13 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { InputUI } from "components/UI/Components/InputUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
 import { useTheme } from "context/ThemeContext";
-import { getProductosCalculadora } from "services/calculadoraService";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
 import * as XLSX from "xlsx";
 import { useAuthContext } from "context/authContext";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getProductosCalculadora, getPromedioVentasByCodigoItem } from "services/calculadoraService";
 
 export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
   const { theme } = useTheme();
@@ -27,6 +27,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
   const [loading, setLoading] = useState(true);
   const [forceEditId, setForceEditId] = useState(null);
   const [selectedProductos, setSelectedProductos] = useState([]);
+  const [isFetchingPromedios, setIsFetchingPromedios] = useState(false);
 
   // Obtener opciones de empresas desde las empresas disponibles pasadas por el router
   const empresasOptions = useMemo(() => {
@@ -304,6 +305,23 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     doc.save("Calculadora_Precios.pdf");
   };
 
+  const obtenerPromedioVentas = async (codigoItem) => {
+    try {
+      const response = await getPromedioVentasByCodigoItem(codigoItem);
+      if (response.status === "Ok!") {
+        return {
+          promedioMesesConVentas: response.data.promedioMesesConVentas,
+          promedioGeneral: response.data.promedioGeneral
+        };
+      }
+      return { promedioMesesConVentas: null, promedioGeneral: null };
+    } catch (error) {
+      console.log('ERROR', error)
+      // Si falla la consulta de un item puntual, no bloqueamos el resto
+      return { promedioMesesConVentas: null, promedioGeneral: null };
+    }
+  };
+
   const columnsConfig = [
     { header: "Código", field: "ID_PRODUCTO", isEditable: false, width: "120px" },
     {
@@ -324,6 +342,20 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       editType: "number",
       min: 1,
       width: "100px"
+    },
+    {
+      header: "Prom. Ventas (meses c/venta)",
+      field: "PROMEDIO_MESES_CON_VENTAS",
+      isEditable: false,
+      width: "110px",
+      format: (value) => (value === null || value === undefined ? "S/D" : value)
+    },
+    {
+      header: "Prom. Ventas (general)",
+      field: "PROMEDIO_GENERAL",
+      isEditable: false,
+      width: "110px",
+      format: (value) => (value === null || value === undefined ? "S/D" : value)
     },
     { header: "Precio", field: "PRECIO", isEditable: false, format: "money", width: "140px" },
     {
@@ -436,7 +468,12 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     setData((prev) => prev.map(row => row.ID === rowWithCalculated.ID ? rowWithCalculated : row));
   };
 
-  const handleAddProductFromModal = (producto) => {
+  const handleAddProductFromModal = async (producto) => {
+
+    setIsFetchingPromedios(true);
+
+    const { promedioMesesConVentas, promedioGeneral } = await obtenerPromedioVentas(producto.codigoItem);
+
     const newId = Date.now();
     const nuevaFila = {
       ID: newId,
@@ -445,6 +482,8 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
       NOMBRE: producto.nombreItem,
       STOCK: producto.stock,
       CANTIDAD: 1,
+      PROMEDIO_MESES_CON_VENTAS: promedioMesesConVentas,
+      PROMEDIO_GENERAL: promedioGeneral,
       PRECIO: producto.listaPreciosA,
       COSTO_PROMEDIO: producto.costoPromedio,
       DESCUENTO_1: 0,
@@ -464,17 +503,28 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     setSelectedProductos([]);
     setSearchQuery("");
     setSearchField("all");
+    setIsFetchingPromedios(false);
 
     setForceEditId(newId);
     setTimeout(() => setForceEditId(null), 100);
   };
 
-  const handleAddMultipleProducts = () => {
+  const handleAddMultipleProducts = async () => {
+
+    console.log(selectedProductos.length)
+
     if (selectedProductos.length === 0) return;
+
+    setIsFetchingPromedios(true);
+
+    const promedios = await Promise.all(
+      selectedProductos.map((producto) => obtenerPromedioVentas(producto.codigoItem))
+    );
 
     const baseId = Date.now();
     const nuevasFilas = selectedProductos.map((producto, index) => {
       const newId = baseId + index;
+      const { promedioMesesConVentas, promedioGeneral } = promedios[index];
       return {
         ID: newId,
         ID_PRODUCTO: producto.codigoItem,
@@ -482,6 +532,8 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
         NOMBRE: producto.nombreItem,
         STOCK: producto.stock,
         CANTIDAD: 1,
+        PROMEDIO_MESES_CON_VENTAS: promedioMesesConVentas,
+        PROMEDIO_GENERAL: promedioGeneral,
         PRECIO: producto.listaPreciosA,
         COSTO_PROMEDIO: producto.costoPromedio,
         DESCUENTO_1: 0,
@@ -503,6 +555,8 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     setSelectedProductos([]);
     setSearchQuery("");
     setSearchField("all");
+    setIsFetchingPromedios(false);
+
   };
 
   const handleDelete = (item) => {
@@ -520,6 +574,7 @@ export const CalculadoraPrecios = ({ availableCompanies = [] }) => {
     { header: "Identificador", field: "identificadorItem", width: "150px" },
     { header: "Nombre del Producto", field: "nombreItem" },
   ];
+
 
   return (
     <ContainerUI
