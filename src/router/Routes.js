@@ -75,6 +75,7 @@ import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
 import { VisitasAsignadas } from "pages/Areas/Visitas/Asignadas/VisitasAsignadas";
 import { ReporteriaComecialTecnicentro } from "pages/Areas/Reporteria/ComercialTecnicentro/ReporteriaComercialTecnicentro"
 import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
+import { ReporteClienteSinCompra } from "pages/Areas/Reporteria/ClientesSinCompra/ClientesSinCompra";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -440,6 +441,11 @@ export const RoutesConfig = [
     component: ReporteriaTalentoHumano,
     recurso: "reportes.talentohumano",
   },
+  {
+    title: "Clientes sin compra",
+    component: ReporteClienteSinCompra,
+    recurso: "reportes.clientessincompra",
+  },
   // ================================= VISITAS =================================
   {
     recurso: "visitas",
@@ -467,7 +473,7 @@ export const RoutesConfig = [
 
   {
     title: "Cobus",
-    icon: "FaGears",
+    icon: "FaDatabase",
     component: StreamlitEmbed,
     recurso: "cobus",
   },
