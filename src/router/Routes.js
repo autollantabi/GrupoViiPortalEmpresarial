@@ -77,6 +77,7 @@ import { ReporteriaComecialTecnicentro } from "pages/Areas/Reporteria/ComercialT
 import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import { ReporteClienteSinCompra } from "pages/Areas/Reporteria/ClientesSinCompra/ClientesSinCompra";
 import { ReporteCalificacionScoreCrediticio } from "pages/Areas/Reporteria/CalificacionScoreCrediticio/CalificacionScoreCrediticio";
+import { ReporteInventariosQuedados } from "pages/Areas/Reporteria/InventariosQuedados/InventariosQuedados";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -451,6 +452,11 @@ export const RoutesConfig = [
     title: "Calificación de Score Crediticio",
     component: ReporteCalificacionScoreCrediticio,
     recurso: "reportes.calificacionscorecrediticio",
+  },
+  {
+    title: "Inventarios Quedados",
+    component: ReporteInventariosQuedados,
+    recurso: "reportes.inventariosquedados",
   },
   // ================================= VISITAS =================================
   {
