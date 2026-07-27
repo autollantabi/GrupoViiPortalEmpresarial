@@ -76,6 +76,7 @@ import { VisitasAsignadas } from "pages/Areas/Visitas/Asignadas/VisitasAsignadas
 import { ReporteriaComecialTecnicentro } from "pages/Areas/Reporteria/ComercialTecnicentro/ReporteriaComercialTecnicentro"
 import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import { ReporteClienteSinCompra } from "pages/Areas/Reporteria/ClientesSinCompra/ClientesSinCompra";
+import { ReporteCalificacionScoreCrediticio } from "pages/Areas/Reporteria/CalificacionScoreCrediticio/CalificacionScoreCrediticio";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -445,6 +446,11 @@ export const RoutesConfig = [
     title: "Clientes sin compra",
     component: ReporteClienteSinCompra,
     recurso: "reportes.clientessincompra",
+  },
+  {
+    title: "Calificación de Score Crediticio",
+    component: ReporteCalificacionScoreCrediticio,
+    recurso: "reportes.calificacionscorecrediticio",
   },
   // ================================= VISITAS =================================
   {
