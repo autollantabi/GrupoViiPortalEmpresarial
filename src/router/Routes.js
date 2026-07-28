@@ -78,6 +78,7 @@ import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import { ReporteClienteSinCompra } from "pages/Areas/Reporteria/ClientesSinCompra/ClientesSinCompra";
 import { ReporteCalificacionScoreCrediticio } from "pages/Areas/Reporteria/CalificacionScoreCrediticio/CalificacionScoreCrediticio";
 import { ReporteInventariosQuedados } from "pages/Areas/Reporteria/InventariosQuedados/InventariosQuedados";
+import { ReporteImportacionesCobus } from "pages/Areas/Reporteria/ImportacionesCobus/ImportacionesCobus";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -457,6 +458,11 @@ export const RoutesConfig = [
     title: "Inventarios Quedados",
     component: ReporteInventariosQuedados,
     recurso: "reportes.inventariosquedados",
+  },
+  {
+    title: "Importaciones Cobus",
+    component: ReporteImportacionesCobus,
+    recurso: "reportes.importacionescobus",
   },
   // ================================= VISITAS =================================
   {
