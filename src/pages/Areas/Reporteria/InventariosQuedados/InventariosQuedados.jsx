@@ -4,7 +4,7 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 0,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiZGUzZGI1OTYtZDdlYS00OGQ4LThmZjItODdlZGU2MTg4Mzc5IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiOTBiOTlhM2MtZmRmNy00ODM2LTkyY2MtZTY4YzI3OWVhMzZhIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Calificación de Score Crediticio",
     rol: "usuario",
     linea: null,
