@@ -79,6 +79,7 @@ import { ReporteClienteSinCompra } from "pages/Areas/Reporteria/ClientesSinCompr
 import { ReporteCalificacionScoreCrediticio } from "pages/Areas/Reporteria/CalificacionScoreCrediticio/CalificacionScoreCrediticio";
 import { ReporteInventariosQuedados } from "pages/Areas/Reporteria/InventariosQuedados/InventariosQuedados";
 import { ReporteImportacionesCobus } from "pages/Areas/Reporteria/ImportacionesCobus/ImportacionesCobus";
+import { ReporteTopVendedores } from "pages/Areas/Reporteria/TopVendedores/TopVendedores";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -463,6 +464,11 @@ export const RoutesConfig = [
     title: "Importaciones Cobus",
     component: ReporteImportacionesCobus,
     recurso: "reportes.importacionescobus",
+  },
+  {
+    title: "Top Vendedores",
+    component: ReporteTopVendedores,
+    recurso: "reportes.topvendedores",
   },
   // ================================= VISITAS =================================
   {
