@@ -8,7 +8,7 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 1,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiMTBjOTAzNWEtZDVjNy00OGYzLWIxMGEtNjZmYjg3MzMwNWNiIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiZmFmYTVmYTMtN2Y5Zi00MWMzLWEzNTYtNjI0YzBlOGVlMDhhIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (Coordinador)",
     rol: "coordinadora",
     linea: "LLANTAS",
