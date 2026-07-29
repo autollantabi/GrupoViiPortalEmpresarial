@@ -500,7 +500,7 @@ function Llantas() {
                         codigoProveedor: String(row.CODIGO_PROVEEDOR || "").trim().toUpperCase(),
                         nombreExtranjero: String(row.NOMBRE_EXTRANJERO || "").trim().toUpperCase(),
                         partidaArancelaria: String(row.PARTIDA_ARANCELARIA || "").trim().toUpperCase(),
-                        diseño: String(row.DISENIO || "").trim().toUpperCase().slice(0, 4),
+                        diseño: String(row.DISENIO || "").trim().toUpperCase().slice(0, 20),
                         letraDiseño: String(row.LETRA_DISENIO || "").trim().toUpperCase(),
                         colorLetra: String(row.COLOR_LETRA || "").trim().toUpperCase(),
                         codigo: "", // Código de barras
@@ -1743,7 +1743,7 @@ function Llantas() {
                                                             />
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={20} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 20))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
@@ -1921,7 +1921,7 @@ function Llantas() {
                                                             />
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={20} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 20))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI
@@ -2087,7 +2087,7 @@ function Llantas() {
                                                             />
                                                         </td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={4} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 4))} /></td>
+                                                        <td style={{ padding: "4px 8px" }}><InputUI maxLength={20} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 20))} /></td>
                                                         <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></td>
                                                         <td style={{ padding: "4px 8px" }}>
                                                             <SelectUI

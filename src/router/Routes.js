@@ -470,6 +470,11 @@ export const RoutesConfig = [
     component: ReporteTopVendedores,
     recurso: "reportes.topvendedores",
   },
+  {
+    title: "Ventas Lubricantes",
+    component: ReporteVentasLubricantes,
+    recurso: "reportes.ventaslubricantes",
+  },
   // ================================= VISITAS =================================
   {
     recurso: "visitas",
