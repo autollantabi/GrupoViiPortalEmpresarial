@@ -466,7 +466,7 @@ export const RoutesConfig = [
     recurso: "reportes.importacionescobus",
   },
   {
-    title: "Top Vendedores",
+    title: "Top Clientes",
     component: ReporteTopVendedores,
     recurso: "reportes.topvendedores",
   },
