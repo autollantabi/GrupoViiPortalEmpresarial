@@ -80,6 +80,7 @@ import { ReporteCalificacionScoreCrediticio } from "pages/Areas/Reporteria/Calif
 import { ReporteInventariosQuedados } from "pages/Areas/Reporteria/InventariosQuedados/InventariosQuedados";
 import { ReporteImportacionesCobus } from "pages/Areas/Reporteria/ImportacionesCobus/ImportacionesCobus";
 import { ReporteTopVendedores } from "pages/Areas/Reporteria/TopVendedores/TopVendedores";
+import { ReporteVentasLubricantes } from "pages/Areas/Reporteria/VentasLubricantes/VentasLubricantes";
 
 
 // Configuración centralizada - Una sola fuente de verdad
