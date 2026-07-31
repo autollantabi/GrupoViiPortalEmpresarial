@@ -33,7 +33,7 @@ const REPORTES = [
   },
   {
     id: 4,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiNGRjMzg2ZTQtMzEwMS00Mzg4LTg4MWEtMzUzNzczMTIzYTkzIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiYmFhYmJmN2UtNDdiYS00YjFiLTk5YTQtMzAzNzIzNDkzZTFkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "coordinadora",
     linea: "LLANTAS MOTO",
