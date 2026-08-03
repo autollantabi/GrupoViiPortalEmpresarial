@@ -81,6 +81,7 @@ import { ReporteInventariosQuedados } from "pages/Areas/Reporteria/InventariosQu
 import { ReporteImportacionesCobus } from "pages/Areas/Reporteria/ImportacionesCobus/ImportacionesCobus";
 import { ReporteTopVendedores } from "pages/Areas/Reporteria/TopVendedores/TopVendedores";
 import { ReporteVentasLubricantes } from "pages/Areas/Reporteria/VentasLubricantes/VentasLubricantes";
+import { ReporteVentasClientesPorMes } from "pages/Areas/Reporteria/VentasClientesPorMes/VentasClientesPorMes";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -475,6 +476,11 @@ export const RoutesConfig = [
     title: "Ventas Lubricantes",
     component: ReporteVentasLubricantes,
     recurso: "reportes.ventaslubricantes",
+  },
+  {
+    title: "Ventas Clientes Por Mes",
+    component: ReporteVentasClientesPorMes,
+    recurso: "reportes.ventasclientespormes",
   },
   // ================================= VISITAS =================================
   {
