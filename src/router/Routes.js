@@ -82,6 +82,7 @@ import { ReporteImportacionesCobus } from "pages/Areas/Reporteria/ImportacionesC
 import { ReporteTopVendedores } from "pages/Areas/Reporteria/TopVendedores/TopVendedores";
 import { ReporteVentasLubricantes } from "pages/Areas/Reporteria/VentasLubricantes/VentasLubricantes";
 import { ReporteVentasClientesPorMes } from "pages/Areas/Reporteria/VentasClientesPorMes/VentasClientesPorMes";
+import { ClientesEnrutados } from "pages/Areas/Reporteria/ClientesEnrutados/ClientesEnrutados";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -481,6 +482,11 @@ export const RoutesConfig = [
     title: "Ventas Clientes Por Mes",
     component: ReporteVentasClientesPorMes,
     recurso: "reportes.ventasclientespormes",
+  },
+  {
+    title: "Clientes Enrutados",
+    component: ClientesEnrutados,
+    recurso: "reportes.clientesenrutados",
   },
   // ================================= VISITAS =================================
   {
