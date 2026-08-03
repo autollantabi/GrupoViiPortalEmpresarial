@@ -4,7 +4,7 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 1,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiNGRmZDg1MzMtZTczOC00MmVmLTlmNzUtNTQ4MTg1OTc0YWZjIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMzczMmNlNDktMjU4Ni00MGUwLWFiYWUtMDEyM2I0MWRlOTE2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Importaciones - GrupoVii (JEFATURA)",
     rol: "jefatura",
     linea: null,
