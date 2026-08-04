@@ -28,7 +28,7 @@ const PROPIEDADES = {
         "PENNZOIL": "QryGroup19",
         "MAXXIS LIVIANO": "QryGroup1",
         "MAXXIS PESADO": "QryGroup2",
-        "MAXXIX MOTO": "QryGroup3",
+        "MAXXIS MOTO": "QryGroup3",
         "CST LIVIANO": "QryGroup4",
         "CST PESADO": "QryGroup5",
         "CST MOTO": "QryGroup6",
