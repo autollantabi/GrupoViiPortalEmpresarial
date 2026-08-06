@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx esbuild *)",
+      "Bash(grep -n 'hexToRGBA\\({ hex: theme?.colors?.primary || \"#000\", alpha: 0.05 }\\)' src/pages/Areas/MDM/MDM_Crud/Llantas.jsx)",
+      "Bash(python3 -)",
+      "Bash(grep -n '\\\\$fija=' src/pages/Areas/MDM/MDM_Crud/Llantas.jsx)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=6144\" npx vite build)",
+      "Bash(grep -n \"const ModalUI\\\\|^\\\\s*\\\\w*,\\\\?$\\\\|}\\) =>\" src/components/UI/Components/ModalUI.jsx)",
+      "Bash(node -e \"const i=require\\('react-icons/fa6'\\); console.log\\('FaEye:', typeof i.FaEye\\); console.log\\('otros usados en Llantas:', ['FaSearch','FaFileExport','FaPlus','FaFileExcel','FaDownload','FaCheck'].map\\(n=>n+'='+\\(typeof i[n]\\)\\).join\\(' '\\)\\)\")"
+    ]
+  }
+}

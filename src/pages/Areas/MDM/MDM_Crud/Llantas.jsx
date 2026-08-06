@@ -471,6 +471,55 @@ const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {
     return isNew ? `NEW ${res}` : res;
 };
 
+/* Columnas de la plantilla de importación de llantas.
+   El orden es el del Excel generado. `alias` recoge los encabezados que usaba
+   la plantilla anterior, para que los archivos ya descargados se sigan
+   importando sin cambios. `ancho` solo afecta la vista del Excel. */
+const COLUMNAS_PLANTILLA = [
+    { header: "EMPRESA", ancho: 16 },
+    { header: "MARCA", ancho: 16 },
+    { header: "NOMBRE", alias: ["DESCRIPCION"], ancho: 42 },
+    { header: "DISENIO", ancho: 18 },
+    { header: "LETRA_DISENIO", ancho: 15 },
+    { header: "COLOR_LETRA", ancho: 13 },
+    { header: "CODIGO_BARRAS", ancho: 28 },
+    { header: "CODIGO_PROVEEDOR", ancho: 20 },
+    { header: "CUBICAJE", ancho: 12 },
+    { header: "DESCRIPCION_PROVEEDOR", alias: ["NOMBRE_EXTRANJERO"], ancho: 34 },
+    { header: "PARTIDA_ARANCELARIA", ancho: 22 },
+    { header: "ES_NUEVO", ancho: 11 },
+];
+
+/* Devuelve el valor de una columna aceptando también sus encabezados antiguos. */
+const valorPlantilla = (fila, header) => {
+    const columna = COLUMNAS_PLANTILLA.find(c => c.header === header);
+    for (const nombre of [header, ...(columna?.alias || [])]) {
+        const v = fila[nombre];
+        if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+    }
+    return "";
+};
+
+/* El cubicaje puede llegar como número, con coma decimal o con unidad
+   ("0,45 m3"). Se toma el primer número de la celda; quitar solo los caracteres
+   no numéricos pegaría el "3" de "m3" al valor. */
+const normalizarCubicaje = (valor) => {
+    if (valor === undefined || valor === null) return "";
+    if (typeof valor === "number") return String(valor);
+    const encontrado = String(valor).trim().replace(",", ".").match(/\d+(\.\d+)?/);
+    return encontrado ? encontrado[0] : "";
+};
+
+/* Interpreta la columna ES_NUEVO: admite SI/NO, TRUE/FALSE, 1/0 y X.
+   Vacío se toma como nuevo, que es como se comportaba la importación antes
+   de que existiera la columna. */
+const interpretarEsNuevo = (valor) => {
+    if (valor === undefined || valor === null || String(valor).trim() === "") return true;
+    if (typeof valor === "boolean") return valor;
+    return ["SI", "SÍ", "S", "TRUE", "VERDADERO", "V", "1", "X", "YES", "Y"]
+        .includes(String(valor).trim().toUpperCase());
+};
+
 /* Campos del detalle informativo de un ítem aprobado.
    Los ítems se construyen con `...it`, así que conservan tanto los campos
    normalizados del front (camelCase) como los que devuelve el backend
@@ -716,8 +765,9 @@ function Llantas() {
 
     const handleDownloadTemplate = () => {
         if (!lineaSeleccionada) return;
-        const headers = ["DISENIO", "LETRA_DISENIO", "COLOR_LETRA", "DESCRIPCION", "EMPRESA", "MARCA", "CODIGO_PROVEEDOR", "NOMBRE_EXTRANJERO", "PARTIDA_ARANCELARIA"];
+        const headers = COLUMNAS_PLANTILLA.map(c => c.header);
         const ws = XLSX.utils.aoa_to_sheet([headers]);
+        ws["!cols"] = COLUMNAS_PLANTILLA.map(c => ({ wch: c.ancho }));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
         const fileName = `plantilla_importacion_${lineaSeleccionada.label.toLowerCase().replace(/\s+/g, '_')}.xlsx`;
@@ -747,12 +797,14 @@ function Llantas() {
                 }
 
                 const baseItems = data.map(row => {
-                    const nombreEmpresa = String(row.EMPRESA || "").trim().toUpperCase();
+                    const leer = (header) => String(valorPlantilla(row, header)).trim().toUpperCase();
+
+                    const nombreEmpresa = leer("EMPRESA");
                     let idEmpresa = Object.keys(diccionarioEmpresas).find(
                         key => diccionarioEmpresas[key].trim().toUpperCase() === nombreEmpresa
                     ) || "";
 
-                    let marcaImportada = String(row.MARCA || "").trim().toUpperCase();
+                    let marcaImportada = leer("MARCA");
 
                     if (idEmpresa) {
                         const companyName = String(diccionarioEmpresas[idEmpresa]).trim().toUpperCase();
@@ -770,20 +822,23 @@ function Llantas() {
                         marcaImportada = "";
                     }
 
+                    const nombre = leer("NOMBRE");
+
                     return {
                         id: Date.now() + Math.random(),
                         linea: lineaSeleccionada.value,
                         idEmpresa: idEmpresa,
-                        descripcionRol5: String(row.DESCRIPCION || "").trim().toUpperCase(),
-                        descripcion: String(row.DESCRIPCION || "").trim().toUpperCase(),
-                        codigoProveedor: String(row.CODIGO_PROVEEDOR || "").trim().toUpperCase(),
-                        nombreExtranjero: String(row.NOMBRE_EXTRANJERO || "").trim().toUpperCase(),
-                        partidaArancelaria: String(row.PARTIDA_ARANCELARIA || "").trim().toUpperCase(),
-                        diseño: String(row.DISENIO || "").trim().toUpperCase().slice(0, 20),
-                        letraDiseño: String(row.LETRA_DISENIO || "").trim().toUpperCase(),
-                        colorLetra: String(row.COLOR_LETRA || "").trim().toUpperCase(),
-                        codigo: String(row.CODIGO_BARRAS || "").trim().toUpperCase(), // <-- Nuevo: código de barras desde Excel
-                        cubicaje: "",
+                        descripcionRol5: nombre,
+                        descripcion: nombre,
+                        codigoProveedor: leer("CODIGO_PROVEEDOR"),
+                        nombreExtranjero: leer("DESCRIPCION_PROVEEDOR"),
+                        partidaArancelaria: leer("PARTIDA_ARANCELARIA"),
+                        diseño: leer("DISENIO").slice(0, 20),
+                        letraDiseño: leer("LETRA_DISENIO"),
+                        colorLetra: leer("COLOR_LETRA"),
+                        codigo: leer("CODIGO_BARRAS"), // si no viene, más abajo se calcula
+                        cubicaje: normalizarCubicaje(valorPlantilla(row, "CUBICAJE")),
+                        isNew: interpretarEsNuevo(valorPlantilla(row, "ES_NUEVO")),
                         marca: marcaImportada,
                         comentarios: ""
                     };
@@ -806,7 +861,7 @@ function Llantas() {
                     const itemWithParsed = {
                         ...it,
                         nombreSistemaBase: baseName,
-                        nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra, true),
+                        nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra, esNuevo(it)),
                         parsedData: parsed
                     };
                     return {
