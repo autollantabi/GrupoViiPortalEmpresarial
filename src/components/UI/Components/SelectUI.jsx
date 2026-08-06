@@ -16,7 +16,7 @@ export const SelectUI = ({
   value,
   onChange,
   onInputChange,
-  placeholder = "Selecciona...",
+  placeholder = "Selecciona",
   isSearchable = true,
   isCreatable = false,
   menuPlacement = "auto",
