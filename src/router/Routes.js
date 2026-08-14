@@ -83,6 +83,7 @@ import { ReporteTopVendedores } from "pages/Areas/Reporteria/TopVendedores/TopVe
 import { ReporteVentasLubricantes } from "pages/Areas/Reporteria/VentasLubricantes/VentasLubricantes";
 import { ReporteVentasClientesPorMes } from "pages/Areas/Reporteria/VentasClientesPorMes/VentasClientesPorMes";
 import { ClientesEnrutados } from "pages/Areas/Reporteria/ClientesEnrutados/ClientesEnrutados";
+import { ReporteAnalisisPorCliente } from "pages/Areas/Reporteria/AnalisisPorCliente/AnalisisPorCliente";
 
 
 // Configuración centralizada - Una sola fuente de verdad
