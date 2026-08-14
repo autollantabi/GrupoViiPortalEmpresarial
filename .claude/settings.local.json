@@ -7,7 +7,15 @@
       "Bash(grep -n '\\\\$fija=' src/pages/Areas/MDM/MDM_Crud/Llantas.jsx)",
       "Bash(NODE_OPTIONS=\"--max-old-space-size=6144\" npx vite build)",
       "Bash(grep -n \"const ModalUI\\\\|^\\\\s*\\\\w*,\\\\?$\\\\|}\\) =>\" src/components/UI/Components/ModalUI.jsx)",
-      "Bash(node -e \"const i=require\\('react-icons/fa6'\\); console.log\\('FaEye:', typeof i.FaEye\\); console.log\\('otros usados en Llantas:', ['FaSearch','FaFileExport','FaPlus','FaFileExcel','FaDownload','FaCheck'].map\\(n=>n+'='+\\(typeof i[n]\\)\\).join\\(' '\\)\\)\")"
+      "Bash(node -e \"const i=require\\('react-icons/fa6'\\); console.log\\('FaEye:', typeof i.FaEye\\); console.log\\('otros usados en Llantas:', ['FaSearch','FaFileExport','FaPlus','FaFileExcel','FaDownload','FaCheck'].map\\(n=>n+'='+\\(typeof i[n]\\)\\).join\\(' '\\)\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(cd /home/administrador/Frontend/PortalEmpresarial *)",
+      "Bash(cd /home/administrador/Backend/backend-portal/backend-portal-produccion/backend-portal *)",
+      "Read(//home/administrador/Backend/backend-portal/backend-portal-produccion/backend-portal/**)",
+      "Bash(npx tsc *)"
+    ],
+    "additionalDirectories": [
+      "/home/administrador/Frontend/PortalEmpresarial/src/pages/Areas/MDM/MDM_Crud"
     ]
   }
 }

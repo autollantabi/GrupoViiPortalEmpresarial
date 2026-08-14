@@ -263,6 +263,9 @@ export const VisitasAsignadas = () => {
 
   // Opciones para el selector de cliente basándose en el vendedor seleccionado
   const clientOptions = useMemo(() => {
+
+    console.log("Selected Seller:", selectedSeller); // Depuración: Verificar el vendedor seleccionado
+
     if (!selectedSeller) return [];
     return selectedSeller.original.visitas.map((visita, index) => ({
       value: visita.hvi_idvisita || index,
