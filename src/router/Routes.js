@@ -488,6 +488,11 @@ export const RoutesConfig = [
     component: ClientesEnrutados,
     recurso: "reportes.clientesenrutados",
   },
+  {
+    title: "Análisis por cliente",
+    component: ReporteAnalisisPorCliente,
+    recurso: "reportes.analisisporcliente",
+  },
   // ================================= VISITAS =================================
   {
     recurso: "visitas",
