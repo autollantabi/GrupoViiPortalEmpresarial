@@ -9,20 +9,178 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas, syncItemsToSap } from "services/mdmService";
+import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
-import { ListarProveedores } from "services/importacionesService";
+import { hexToRGBA } from "utils/colors";
+import styled from "styled-components";
+
+/* ------------------------------------------------------------------ */
+/* Primitivas de tabla (mismas que MDM_Crud/Llantas.jsx)               */
+/* La tabla crece a lo ancho y el contenedor scrollea en X; la         */
+/* cabecera queda fija arriba y las columnas de selección y acciones   */
+/* quedan congeladas a los costados.                                   */
+/* ------------------------------------------------------------------ */
+
+const TablaScroll = styled.div`
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+
+    &::-webkit-scrollbar { width: 10px; height: 10px; }
+    &::-webkit-scrollbar-track {
+        background: ${({ theme }) => theme?.colors?.backgroundLight || "#fafafa"};
+    }
+    &::-webkit-scrollbar-thumb {
+        background: ${({ theme }) => theme?.colors?.borderDark || "#ced4da"};
+        border-radius: 5px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+        background: ${({ theme }) => theme?.colors?.textSecondary || "#6c757d"};
+    }
+    &::-webkit-scrollbar-corner {
+        background: ${({ theme }) => theme?.colors?.backgroundLight || "#fafafa"};
+    }
+`;
+
+const Tabla = styled.table`
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    text-align: left;
+`;
+
+/* Ancho exacto de la columna de selección: es el desplazamiento con el que
+   se congela una segunda columna, así que no puede negociarlo el navegador. */
+const ANCHO_COL_SELECCION = "76px";
+
+const Th = styled.th`
+    position: sticky;
+    top: 0;
+    z-index: ${({ $fija }) => ($fija ? 5 : 3)};
+    ${({ $fija, $offset }) => ($fija === "left" ? `left: ${$offset || "0"};` : "")}
+    ${({ $fija, $offset }) => ($fija === "right" ? `right: ${$offset || "0"};` : "")}
+    padding: 10px 14px;
+    text-align: ${({ $align }) => $align || "left"};
+    ${({ $min }) => ($min ? `min-width: ${$min};` : "")}
+    ${({ $w, $fija }) =>
+        !$w
+            ? ""
+            : $fija
+                ? `width: ${$w}; min-width: ${$w}; max-width: ${$w};`
+                : `width: ${$w};`}
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    /* Gris oscuro fijo en ambos temas */
+    background-color: #3c3c3b;
+    color: ${({ theme }) => theme?.colors?.white || "#ffffff"};
+    border-bottom: 2px solid ${({ theme }) => theme?.colors?.white || "#ffffff"};
+    border-right: 1px solid ${({ theme }) => hexToRGBA({ hex: theme?.colors?.white || "#ffffff", alpha: 0.25 })};
+
+    ${({ $fija, theme }) =>
+        $fija === "left" ? `border-right: 2px solid ${theme?.colors?.white || "#ffffff"};` : ""}
+    ${({ $fija, theme }) =>
+        $fija === "right" ? `border-left: 2px solid ${theme?.colors?.white || "#ffffff"};` : ""}
+`;
+
+const Td = styled.td`
+    padding: ${({ $densa }) => ($densa ? "4px 8px" : "9px 14px")};
+    text-align: ${({ $align }) => $align || "left"};
+    vertical-align: middle;
+    /* index.css impone td { max-width: 275px }, que recorta las columnas anchas */
+    max-width: none;
+    border-bottom: 1px solid ${({ theme }) => theme?.colors?.borderLight || "#e9ecef"};
+    border-right: 1px solid ${({ theme }) => theme?.colors?.borderLight || "#e9ecef"};
+
+    ${({ $fija }) => ($fija ? `position: sticky; z-index: 2; background-color: inherit;` : "")}
+    ${({ $fija, $offset }) => ($fija === "left" ? `left: ${$offset || "0"};` : "")}
+    ${({ $fija, $offset }) => ($fija === "right" ? `right: ${$offset || "0"};` : "")}
+    ${({ $w, $fija }) =>
+        $w && $fija ? `width: ${$w}; min-width: ${$w}; max-width: ${$w};` : ""}
+    ${({ $fija, theme }) =>
+        $fija === "left" ? `border-right: 2px solid ${theme?.colors?.border || "#dee2e6"};` : ""}
+    ${({ $fija, theme }) =>
+        $fija === "right" ? `border-left: 2px solid ${theme?.colors?.border || "#dee2e6"};` : ""}
+`;
+
+/* Gris muy claro para fila seleccionada / bajo el cursor. Sólidos a propósito:
+   las celdas congeladas heredan este fondo y con alpha se vería el contenido
+   desplazándose por debajo. */
+const FILA_HOVER = { claro: "#eef0f2", oscuro: "#343434" };
+const FILA_SELECCION = { claro: "#e4e7eb", oscuro: "#3d3d3d" };
+const tonoFila = (theme, tono) => (theme?.name === "dark" ? tono.oscuro : tono.claro);
+
+const Fila = styled.tr`
+    background-color: ${({ theme, $par }) =>
+        $par
+            ? theme?.colors?.backgroundLight || "#fafafa"
+            : theme?.colors?.background || "#f5f5f5"};
+    transition: background-color 0.12s ease;
+
+    ${({ theme, $sel }) => ($sel ? `background-color: ${tonoFila(theme, FILA_SELECCION)};` : "")}
+
+    &:hover {
+        background-color: ${({ theme }) => tonoFila(theme, FILA_HOVER)};
+    }
+`;
+
+/* Celda de solo lectura (valor calculado) dentro de las tablas editables */
+const CeldaLectura = styled.div`
+    font-size: 12px;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border-radius: 4px;
+    background-color: ${({ theme }) => hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.06 })};
+    color: ${({ theme }) => theme?.colors?.text || "#212529"};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+`;
+
+/* Número de fila: ancla visual al desplazarse horizontalmente */
+const NumeroFila = styled.span`
+    font-size: 11px;
+    font-weight: 600;
+    color: ${({ theme }) => theme?.colors?.textSecondary || "#6c757d"};
+    font-variant-numeric: tabular-nums;
+`;
+
+/* Nombre del sistema: el nombre tal como llega al backend, con el prefijo
+   "NEW " cuando el producto se marca como nuevo. Equivale a
+   calcularNombreSistemaFinal de Llantas.jsx, pero herramientas no tiene
+   parser de medidas ni letra de diseño, así que se compone solo del nombre. */
+const calcularNombreSistema = (nombreBase, isNew = false) => {
+    if (!nombreBase) return "";
+    // Se limpia un "NEW " previo para no duplicarlo al recalcular
+    const limpio = String(nombreBase).replace(/^NEW\s+/i, "").trim();
+    return isNew ? `NEW ${limpio}` : limpio;
+};
+
+/* Interpreta la columna "Es nuevo" del Excel: admite SI/NO, TRUE/FALSE, 1/0 y X.
+   Vacío se toma como nuevo, que es como se comportaba la importación antes
+   de que existiera la columna. */
+const interpretarEsNuevo = (valor) => {
+    if (valor === undefined || valor === null || String(valor).trim() === "") return true;
+    if (typeof valor === "boolean") return valor;
+    return ["SI", "SÍ", "S", "TRUE", "VERDADERO", "V", "1", "X", "YES", "Y"]
+        .includes(String(valor).trim().toUpperCase());
+};
+
+/* Bandera "Es nuevo". El fallback conserva el comportamiento de los ítems
+   que todavía no traen el campo. */
+const esNuevo = (item) =>
+    item?.isNew !== undefined && item?.isNew !== null
+        ? Boolean(item.isNew)
+        : !item?.fueRechazado;
 
 const EMPRESA_HERRAMIENTAS = 'IKONIX';
-
-// Código numérico de empresa que espera el servicio web de proveedores (distinto del ID interno del portal).
-const CODIGO_EMPRESA_PROVEEDORES = {
-    AUTOLLANTA: 1,
-    MAXXIMUNDO: 2,
-    STOX: 3,
-    IKONIX: 4,
-    AUTOMAX: 5,
-};
 
 const DICCIONARIO_ROLES = {
     1: 'Comercial', // Jefatura
@@ -68,7 +226,6 @@ function Herramientas() {
 
     const [opcionesPallets, setOpcionesPallets] = useState([]);
     const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
-    const [opcionesProveedores, setOpcionesProveedores] = useState([]);
 
     useEffect(() => {
         const fetchPalletsOptions = async () => {
@@ -98,27 +255,14 @@ function Herramientas() {
             }
         };
 
-        const fetchProveedoresOptions = async () => {
-            try {
-                const codigoEmpresa = CODIGO_EMPRESA_PROVEEDORES[EMPRESA_HERRAMIENTAS];
-                const data = await ListarProveedores(codigoEmpresa);
-                setOpcionesProveedores(Array.isArray(data) ? data.map(({ value, name }) => ({ value, label: name })) : []);
-            } catch (error) {
-                console.error(`Error fetching proveedores options for ${EMPRESA_HERRAMIENTAS}:`, error);
-                setOpcionesProveedores([]);
-            }
-        };
-
         fetchPalletsOptions();
         fetchGruposHerramientas();
-        fetchProveedoresOptions();
     }, []);
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
     const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
-    const [isSyncingSap, setIsSyncingSap] = useState(false);
 
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -195,11 +339,13 @@ function Herramientas() {
                         return {
                             id: it.ID,
                             codigoProveedor: it.CODIGO_PROVEEDOR || "",
-                            proveedor: it.ID_PROVEEDOR || "",
                             partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
                             nombreExt: it.NOMBRE_EXT || "",
-                            descripcionExt: it.DESCRIPCION_EXT || "",
                             nombre: it.NOMBRE || "",
+                            // Si el backend aún no devuelve ES_NUEVO se deja sin definir
+                            // para que esNuevo() aplique el fallback de siempre
+                            isNew: it.ES_NUEVO !== undefined && it.ES_NUEVO !== null ? Boolean(it.ES_NUEVO) : undefined,
+                            nombreSistema: calcularNombreSistema(it.NOMBRE || "", Boolean(it.ES_NUEVO)),
                             descripcion: it.DESCRIPCION || "",
                             unidad: it.UNIDAD || "",
                             unidadPaquete: it.UNIDAD_PAQUETE || "",
@@ -254,50 +400,6 @@ function Herramientas() {
         fetchItems();
     }, [fetchItems]);
 
-    const handleSyncToSap = async () => {
-        const ids = Array.from(selectedApprovedItemIds);
-        if (ids.length === 0) {
-            toast.warning("Seleccione al menos un ítem para sincronizar con SAP.");
-            return;
-        }
-
-        setIsSyncingSap(true);
-        try {
-            const response = await syncItemsToSap("HERRAMIENTAS", ids);
-            const result = response?.data || {};
-            const { Exitosos = 0, Fallidos = 0, Total = 0, PorEmpresa = [], ItemsOmitidos = [] } = result;
-
-            if (Fallidos === 0 && Exitosos > 0) {
-                toast.success(`Sincronización SAP: ${Exitosos} de ${Total} ítems creados correctamente.`);
-            } else if (Exitosos > 0) {
-                toast.warning(`Sincronización SAP: ${Exitosos} exitosos, ${Fallidos} fallidos de ${Total}. Revise la consola para el detalle.`);
-            } else {
-                toast.error(`Sincronización SAP: no se pudo crear ningún ítem (${Fallidos} fallidos de ${Total}). Revise la consola para el detalle.`);
-            }
-
-            console.log("Resultado sincronización SAP:", { PorEmpresa, ItemsOmitidos });
-
-            for (const empresaResult of PorEmpresa) {
-                for (const resultado of empresaResult.Resultados || []) {
-                    if (!resultado.Success) {
-                        console.warn(`❌ ${empresaResult.Empresa} - ${resultado.ItemName}: ${resultado.Message}`);
-                    }
-                }
-            }
-            for (const omitido of ItemsOmitidos) {
-                console.warn(`⚠️ Item omitido (ID ${omitido.ItemId}): ${omitido.Motivo}`);
-            }
-
-            setSelectedApprovedItemIds(new Set());
-            fetchItems();
-        } catch (error) {
-            console.error("Error al sincronizar con SAP:", error);
-            toast.error("Error al sincronizar los ítems con SAP.");
-        } finally {
-            setIsSyncingSap(false);
-        }
-    };
-
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
@@ -346,11 +448,10 @@ function Herramientas() {
                         LINEA_NEGOCIO: "HERRAMIENTAS",
                         EMPRESA: EMPRESA_HERRAMIENTAS,
                         CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                        ID_PROVEEDOR: item.proveedor || "",
                         PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                         NOMBRE_EXT: item.nombreExt || "",
-                        DESCRIPCION_EXT: item.descripcionExt || "",
-                        NOMBRE: item.nombre || "",
+                        NOMBRE: item.nombreSistema || item.nombre || "",
+                        ES_NUEVO: esNuevo(item),
                         DESCRIPCION: item.descripcion || "",
                         UNIDAD: item.unidad || "",
                         UNIDAD_PAQUETE: item.unidadPaquete || "",
@@ -456,8 +557,15 @@ function Herramientas() {
         setItems(prev => prev.map(it => {
             if (it.id === id) {
                 let val = valor;
-                if (typeof valor === 'string' && !["descripcion", "descripcionExt"].includes(campo)) {
+                if (typeof valor === 'string' && campo !== "descripcion") {
                     val = valor.toUpperCase();
+                }
+
+                // El nombre del sistema deriva del nombre y de la bandera "es nuevo"
+                if (campo === "nombre" || campo === "isNew") {
+                    const base = campo === "nombre" ? val : it.nombre;
+                    const nuevo = campo === "isNew" ? Boolean(val) : esNuevo(it);
+                    return { ...it, [campo]: val, nombreSistema: calcularNombreSistema(base, nuevo) };
                 }
 
                 // Aplicar restricciones estrictas para escritura
@@ -493,12 +601,14 @@ function Herramientas() {
     };
 
     const handleDownloadTemplate = () => {
+        // Mismo orden que las columnas de la tabla del rol 5
         const headers = [
-            "Codigo Proveedor", "Partida Arancelaria", "Nombre Ext", "Descripcion Ext",
-            "Nombre", "Descripcion", "Unidad", "Und x caja", "Cajas x empaque",
-            "Und x empaque", "Largo de la caja", "Ancho de la caja", "Alto de la caja",
-            "VOL/CTN", "GW/CTN", "Peso", "Item Codigo Barras", "Carton Codigo Barras", "Paquete codigo Barras",
-            "Marca"
+            "Marca", "Nombre", "Descripcion", "Codigo Proveedor", "Descripcion Proveedor",
+            "Unidad", "Unidades por empaque", "Cajas por empaque", "Unidades por caja",
+            "Largo de la caja", "Ancho de la caja", "Alto de la caja",
+            "VOL/CTN", "GW/CTN", "Peso",
+            "Item Codigo Barras", "Carton Codigo Barras", "Paquete codigo Barras",
+            "Partida Arancelaria", "Es nuevo"
         ];
         const ws = XLSX.utils.aoa_to_sheet([headers]);
         const wb = XLSX.utils.book_new();
@@ -525,14 +635,13 @@ function Herramientas() {
                     id: Date.now() + Math.random(),
                     codigoProveedor: String(row["Codigo Proveedor"] || "").trim().toUpperCase(),
                     partidaArancelaria: handleNumericInt(row["Partida Arancelaria"] || ""),
-                    nombreExt: String(row["Nombre Ext"] || "").trim().toUpperCase(),
-                    descripcionExt: String(row["Descripcion Ext"] || "").trim(),
+                    nombreExt: String(row["Descripcion Proveedor"] || row["Nombre Ext"] || "").trim().toUpperCase(),
                     nombre: String(row["Nombre"] || "").trim().toUpperCase(),
                     descripcion: String(row["Descripcion"] || "").trim(),
                     unidad: String(row["Unidad"] || "").trim().toUpperCase(),
-                    unidadPaquete: handleNumericInt(row["Und x caja"] || ""),
-                    empaquesCarton: handleNumericInt(row["Cajas x empaque"] || ""),
-                    unidadesCarton: handleNumericInt(row["Und x empaque"] || ""),
+                    unidadesCarton: handleNumericInt(row["Unidades por empaque"] ?? row["Und x empaque"] ?? ""),
+                    empaquesCarton: handleNumericInt(row["Cajas por empaque"] ?? row["Cajas x empaque"] ?? ""),
+                    unidadPaquete: handleNumericInt(row["Unidades por caja"] ?? row["Und x caja"] ?? ""),
                     largoCarton: handleNumericDec(row["Largo de la caja"] || ""),
                     anchoCarton: handleNumericDec(row["Ancho de la caja"] || ""),
                     altoCarton: handleNumericDec(row["Alto de la caja"] || ""),
@@ -543,6 +652,11 @@ function Herramientas() {
                     cartonCodigoBarras: handleNumericInt(row["Carton Codigo Barras"] || ""),
                     paqueteCodigoBarras: handleNumericInt(row["Paquete codigo Barras"] || ""),
                     marca: String(row["Marca"] || "").trim().toUpperCase(),
+                    isNew: interpretarEsNuevo(row["Es nuevo"]),
+                    nombreSistema: calcularNombreSistema(
+                        String(row["Nombre"] || "").trim().toUpperCase(),
+                        interpretarEsNuevo(row["Es nuevo"])
+                    ),
                 }));
 
                 setItems(prev => [...prev, ...newItems]);
@@ -627,13 +741,13 @@ function Herramientas() {
                 </div>
             </div>
 
-            <div style={{ flex: "0 0 100%", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: "1 1 auto", minHeight: "62vh", maxHeight: "80vh", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <TextUI size="14px" weight="600">
                         Ítems de Herramientas ({itemsFiltrados.length})
                     </TextUI>
                 </div>
-                <div style={{ flex: 1, overflow: "auto" }}>
+                <TablaScroll>
                     {(() => {
                         if (idRolPrincipal === 1) {
                             if (itemsFiltrados.length === 0) {
@@ -732,13 +846,12 @@ function Herramientas() {
                                                 {[
                                                     { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
                                                     { key: 'partidaArancelaria', label: "Partida Arancelaria", role: 5 },
-                                                    { key: 'nombreExt', label: "Nombre Ext", role: 5 },
+                                                    { key: 'nombreExt', label: "Descripción Proveedor", role: 5 },
                                                     { key: 'descripcion', label: "Descripción", role: 5 },
-                                                    { key: 'descripcionExt', label: "Descripción Ext", role: 5 },
                                                     { key: 'unidad', label: "Unidad", role: 5 },
-                                                    { key: 'unidadPaquete', label: "Und x caja", role: 5 },
-                                                    { key: 'empaquesCarton', label: "Cajas x empaque", role: 5 },
-                                                    { key: 'unidadesCarton', label: "Und x empaque", role: 5 },
+                                                    { key: 'unidadesCarton', label: "Unidades por empaque", role: 5 },
+                                                    { key: 'empaquesCarton', label: "Cajas por empaque", role: 5 },
+                                                    { key: 'unidadPaquete', label: "Unidades por caja", role: 5 },
                                                     { key: 'largoCarton', label: "Largo de la caja", role: 5 },
                                                     { key: 'anchoCarton', label: "Ancho de la caja", role: 5 },
                                                     { key: 'altoCarton', label: "Alto de la caja", role: 5 },
@@ -848,10 +961,10 @@ function Herramientas() {
                         }
 
                         return (
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                                <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
+                            <Tabla>
+                                <thead>
                                     <tr>
-                                        <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "40px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", left: 0, zIndex: 11 }}>
+                                        <Th $fija="left" $w={ANCHO_COL_SELECCION} $align="center">
                                             <CheckboxUI
                                                 checked={itemsFiltrados.length > 0 && itemsFiltrados.every(i => selectedItemIds.has(i.id))}
                                                 onChange={(_, checked) => {
@@ -866,55 +979,55 @@ function Herramientas() {
                                                     }
                                                 }}
                                             />
-                                        </th>
+                                        </Th>
                                         {idRolPrincipal === 5 && (
                                             <>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Codigo Proveedor</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Proveedor</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Partida Arancelaria</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Ext</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripcion Ext</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripcion</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Unidad</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Und x caja</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cajas x empaque</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Und x empaque</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Largo de la caja</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Ancho de la caja</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Alto de la caja</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>VOL/CTN</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>GW/CTN</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Peso</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Item Codigo Barras</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Carton Codigo Barras</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Paquete codigo Barras</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Comentarios</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Acciones</th>
+                                                <Th $min="150px">Marca</Th>
+                                                <Th $min="200px">Nombre</Th>
+                                                <Th $align="center" $min="100px">Descripción</Th>
+                                                <Th $min="150px">Codigo Proveedor</Th>
+                                                <Th $min="180px">Descripción Proveedor</Th>
+                                                <Th $min="150px">Unidad</Th>
+                                                <Th $min="180px">Unidades por empaque</Th>
+                                                <Th $min="160px">Cajas por empaque</Th>
+                                                <Th $min="170px">Unidades por caja</Th>
+                                                <Th $min="150px">Largo de la caja</Th>
+                                                <Th $min="150px">Ancho de la caja</Th>
+                                                <Th $min="150px">Alto de la caja</Th>
+                                                <Th $min="150px">VOL/CTN</Th>
+                                                <Th $min="150px">GW/CTN</Th>
+                                                <Th $min="150px">Peso</Th>
+                                                <Th $min="150px">Item Codigo Barras</Th>
+                                                <Th $min="150px">Carton Codigo Barras</Th>
+                                                <Th $min="150px">Paquete codigo Barras</Th>
+                                                <Th $min="280px">Nombre Del Sistema</Th>
+                                                <Th $align="center" $w="90px">Es nuevo</Th>
+                                                <Th $min="160px">Partida Arancelaria</Th>
+                                                <Th $min="200px">Comentarios</Th>
+                                                <Th $min="100px" $align="center" $fija="right">Acciones</Th>
                                             </>
                                         )}
                                         {idRolPrincipal === 4 && (
                                             <>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Imagen PNG</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Imagen WEBP</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Comentarios</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Acciones</th>
+                                                <Th $min="150px">Nombre</Th>
+                                                <Th $min="200px">Imagen PNG</Th>
+                                                <Th $min="200px">Imagen WEBP</Th>
+                                                <Th $min="200px">Comentarios</Th>
+                                                <Th $min="100px" $align="center" $fija="right">Acciones</Th>
                                             </>
                                         )}
                                         {idRolPrincipal === 3 && (
                                             <>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Codigo Proveedor</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Grupo</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Subgrupo</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Subgrupo 1</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Tipo</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cajas</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Pallets</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Comentarios</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Acciones</th>
+                                                <Th $min="150px">Codigo Proveedor</Th>
+                                                <Th $min="150px">Nombre</Th>
+                                                <Th $min="150px">Grupo</Th>
+                                                <Th $min="150px">Subgrupo</Th>
+                                                <Th $min="150px">Subgrupo 1</Th>
+                                                <Th $min="150px">Tipo</Th>
+                                                <Th $min="150px">Cajas</Th>
+                                                <Th $min="150px">Pallets</Th>
+                                                <Th $min="200px">Comentarios</Th>
+                                                <Th $min="100px" $align="center" $fija="right">Acciones</Th>
                                             </>
                                         )}
                                     </tr>
@@ -922,47 +1035,31 @@ function Herramientas() {
                                 <tbody>
                                     {itemsFiltrados.length === 0 ? (
                                         <tr>
-                                            <td colSpan={25} style={{ padding: "40px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                            <Td colSpan={99} style={{ padding: "40px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                 No hay ítems para mostrar.
-                                            </td>
+                                            </Td>
                                         </tr>
                                     ) : (
-                                        itemsFiltrados.map((item) => (
-                                            <tr key={item.id} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
-                                                <td style={{ padding: "10px 16px", textAlign: "center" }}>
-                                                    <CheckboxUI checked={selectedItemIds.has(item.id)} onChange={(e, checked) => {
-                                                        const newSet = new Set(selectedItemIds);
-                                                        if (checked) newSet.add(item.id);
-                                                        else newSet.delete(item.id);
-                                                        setSelectedItemIds(newSet);
-                                                    }} />
-                                                </td>
+                                        itemsFiltrados.map((item, idx) => (
+                                            <Fila key={item.id} $par={idx % 2 === 0} $sel={selectedItemIds.has(item.id)}>
+                                                <Td $densa $align="center" $fija="left" $w={ANCHO_COL_SELECCION}>
+                                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                                                        <NumeroFila>{idx + 1}</NumeroFila>
+                                                        <CheckboxUI checked={selectedItemIds.has(item.id)} onChange={(e, checked) => {
+                                                            const newSet = new Set(selectedItemIds);
+                                                            if (checked) newSet.add(item.id);
+                                                            else newSet.delete(item.id);
+                                                            setSelectedItemIds(newSet);
+                                                        }} />
+                                                    </div>
+                                                </Td>
                                                 {idRolPrincipal === 5 && (
                                                     <>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></td>
-                                                        <td style={{ padding: "4px 8px" }}>
-                                                            <SelectUI
-                                                                options={opcionesProveedores}
-                                                                value={item.proveedor ? { value: item.proveedor, label: opcionesProveedores.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
-                                                                minWidth="200px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
-                                                            />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.nombreExt || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExt", v)} /></td>
-                                                        <td style={{ padding: "10px 16px", textAlign: "center" }}>
-                                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                                                <ButtonUI
-                                                                    iconLeft="FaRegNoteSticky"
-                                                                    variant="outlined"
-                                                                    pcolortext={item.descripcionExt ? (theme?.colors?.success || '#28a745') : undefined}
-                                                                    onClick={() => openDescModal(item.id, "descripcionExt", item.descripcionExt, "Descripción Ext")}
-                                                                />
-                                                            </div>
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></td>
-                                                        <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                                                        <Td>
+                                                            <SelectUI options={OPTIONS_MARCA} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} isCreatable={true} />
+                                                        </Td>
+                                                        <Td><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></Td>
+                                                        <Td $align="center">
                                                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                                                 <ButtonUI
                                                                     iconLeft="FaRegNoteSticky"
@@ -971,31 +1068,42 @@ function Herramientas() {
                                                                     onClick={() => openDescModal(item.id, "descripcion", item.descripcion, "Descripción")}
                                                                 />
                                                             </div>
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td><InputUI value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
+                                                        <Td><InputUI value={item.nombreExt || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExt", v)} /></Td>
+                                                        <Td>
                                                             <SelectUI options={OPTIONS_UNIDAD} value={OPTIONS_UNIDAD.find(opt => opt.value === item.unidad) || null} onChange={(v) => actualizarCampoFila(item.id, "unidad", v ? v.value : "")} />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.unidadPaquete || ""} onChange={(v) => actualizarCampoFila(item.id, "unidadPaquete", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.empaquesCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "empaquesCarton", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.unidadesCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "unidadesCarton", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.largoCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "largoCarton", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.anchoCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "anchoCarton", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.altoCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "altoCarton", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.volumenCtn || ""} onChange={(v) => actualizarCampoFila(item.id, "volumenCtn", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.gwCtn || ""} onChange={(v) => actualizarCampoFila(item.id, "gwCtn", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.peso || ""} onChange={(v) => actualizarCampoFila(item.id, "peso", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.itemCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "itemCodigoBarras", v)} /></td>
-                                                        <td style={{ padding: "10px 16px" }}><InputUI value={item.cartonCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "cartonCodigoBarras", v)} /></td>
-                                                        <td style={{ padding: "10px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                                        </Td>
+                                                        <Td><InputUI value={item.unidadesCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "unidadesCarton", v)} /></Td>
+                                                        <Td><InputUI value={item.empaquesCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "empaquesCarton", v)} /></Td>
+                                                        <Td><InputUI value={item.unidadPaquete || ""} onChange={(v) => actualizarCampoFila(item.id, "unidadPaquete", v)} /></Td>
+                                                        <Td><InputUI value={item.largoCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "largoCarton", v)} /></Td>
+                                                        <Td><InputUI value={item.anchoCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "anchoCarton", v)} /></Td>
+                                                        <Td><InputUI value={item.altoCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "altoCarton", v)} /></Td>
+                                                        <Td><InputUI value={item.volumenCtn || ""} onChange={(v) => actualizarCampoFila(item.id, "volumenCtn", v)} /></Td>
+                                                        <Td><InputUI value={item.gwCtn || ""} onChange={(v) => actualizarCampoFila(item.id, "gwCtn", v)} /></Td>
+                                                        <Td><InputUI value={item.peso || ""} onChange={(v) => actualizarCampoFila(item.id, "peso", v)} /></Td>
+                                                        <Td><InputUI value={item.itemCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "itemCodigoBarras", v)} /></Td>
+                                                        <Td><InputUI value={item.cartonCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "cartonCodigoBarras", v)} /></Td>
+                                                        <Td>
                                                             <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }} value={item.paqueteCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "paqueteCodigoBarras", v)} />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
-                                                            <SelectUI options={OPTIONS_MARCA} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} isCreatable={true} />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td>
+                                                            <CeldaLectura title={item.nombreSistema || ""}>
+                                                                {item.nombreSistema || "-"}
+                                                            </CeldaLectura>
+                                                        </Td>
+                                                        <Td $align="center">
+                                                            <CheckboxUI
+                                                                checked={esNuevo(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
+                                                            />
+                                                        </Td>
+                                                        <Td><InputUI value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
+                                                        <Td>
                                                             <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, textAlign: "center" }}>
+                                                        </Td>
+                                                        <Td $align="center" $fija="right">
                                                             {item.fueRechazado ? (
                                                                 <ButtonUI
                                                                     text="Motivo de rechazo"
@@ -1010,13 +1118,13 @@ function Herramientas() {
                                                             ) : (
                                                                 <ButtonUI text="Eliminar" variant="outlined" pcolor={theme?.colors?.error || "#dc3545"} style={{ padding: "4px 8px", fontSize: "11px", minWidth: "auto" }} onClick={() => eliminarItem(item.id)} />
                                                             )}
-                                                        </td>
+                                                        </Td>
                                                     </>
                                                 )}
                                                 {idRolPrincipal === 4 && (
                                                     <>
-                                                        <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "250px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.descripcion || item.nombre}>{item.descripcion || item.nombre || "N/A"}</div></td>
-                                                        <td style={{ padding: "4px 8px" }}>
+                                                        <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "250px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.descripcion || item.nombre}>{item.descripcion || item.nombre || "N/A"}</div></Td>
+                                                        <Td $densa>
                                                             <div style={{
                                                                 position: 'relative',
                                                                 width: '100%',
@@ -1075,8 +1183,8 @@ function Herramientas() {
                                                                     }}
                                                                 />
                                                             </div>
-                                                        </td>
-                                                        <td style={{ padding: "4px 8px" }}>
+                                                        </Td>
+                                                        <Td $densa>
                                                             <div style={{
                                                                 position: 'relative',
                                                                 width: '100%',
@@ -1135,11 +1243,11 @@ function Herramientas() {
                                                                     }}
                                                                 />
                                                             </div>
-                                                        </td>
-                                                        <td style={{ padding: "4px 8px" }}>
+                                                        </Td>
+                                                        <Td $densa>
                                                             <InputUI style={{ height: "40px", fontSize: "12px", minHeight: "40px", textTransform: "uppercase", minWidth: "180px", width: "100%" }} value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Escriba comentarios si es necesario..." />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                                                        </Td>
+                                                        <Td $align="center">
                                                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                                                 <ButtonUI
                                                                     text="Motivo de rechazo"
@@ -1153,18 +1261,18 @@ function Herramientas() {
                                                                     }}
                                                                 />
                                                             </div>
-                                                        </td>
+                                                        </Td>
                                                     </>
                                                 )}
                                                 {idRolPrincipal === 3 && (
                                                     <>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        <Td>
                                                             <TextUI size="13px">{item.codigoProveedor || "-"}</TextUI>
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td>
                                                             <TextUI size="13px">{item.nombre || "-"}</TextUI>
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td>
                                                             <SelectUI
                                                                 options={Array.from(new Set(gruposHerramientasRaw.map(g => g.DMH_GRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
                                                                 value={item.grupo ? { value: item.grupo, label: item.grupo } : null}
@@ -1177,8 +1285,8 @@ function Herramientas() {
                                                                 minWidth="140px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td>
                                                             <SelectUI
                                                                 options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo).map(g => g.DMH_SUBGRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
                                                                 value={item.subgrupo ? { value: item.subgrupo, label: item.subgrupo } : null}
@@ -1191,8 +1299,8 @@ function Herramientas() {
                                                                 minWidth="140px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td>
                                                             <SelectUI
                                                                 options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo && g.DMH_SUBGRUPO === item.subgrupo).map(g => g.DMH_SUBGRUPO1))).filter(Boolean).map(k => ({ value: k, label: k }))}
                                                                 value={item.subgrupo1 ? { value: item.subgrupo1, label: item.subgrupo1 } : null}
@@ -1204,8 +1312,8 @@ function Herramientas() {
                                                                 minWidth="140px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td>
                                                             <SelectUI
                                                                 options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo && g.DMH_SUBGRUPO === item.subgrupo && g.DMH_SUBGRUPO1 === item.subgrupo1).map(g => g.DMH_TIPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
                                                                 value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
@@ -1214,8 +1322,8 @@ function Herramientas() {
                                                                 minWidth="140px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td>
                                                             <SelectUI
                                                                 options={opcionesPallets}
                                                                 value={item.pallets ? { value: item.pallets, label: (opcionesPallets.find(o => o.value == item.pallets)?.label) || item.pallets } : null}
@@ -1223,11 +1331,11 @@ function Herramientas() {
                                                                 minWidth="130px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
                                                             />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px" }}>
+                                                        </Td>
+                                                        <Td>
                                                             <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
-                                                        </td>
-                                                        <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                                                        </Td>
+                                                        <Td $align="center">
                                                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                                                 <ButtonUI
                                                                     text="Motivo de rechazo"
@@ -1241,17 +1349,17 @@ function Herramientas() {
                                                                     }}
                                                                 />
                                                             </div>
-                                                        </td>
+                                                        </Td>
                                                     </>
                                                 )}
-                                            </tr>
+                                            </Fila>
                                         ))
                                     )}
                                 </tbody>
-                            </table>
+                            </Tabla>
                         );
                     })()}
-                </div>
+                </TablaScroll>
                 {(idRolPrincipal === 5 || idRolPrincipal === 3 || idRolPrincipal === 4) && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
@@ -1304,40 +1412,40 @@ function Herramientas() {
                             Aprobados de HERRAMIENTAS ({approvedItems.length})
                         </TextUI>
                     </div>
-                    <div style={{ flex: 1, overflow: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <TablaScroll>
+                        <Tabla>
                             <thead>
                                 <tr>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código Proveedor</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Partida Arancelaria</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "180px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Ext</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Item Código Barras</th>
+                                    <Th $min="150px">Código Proveedor</Th>
+                                    <Th $min="140px">Partida Arancelaria</Th>
+                                    <Th $min="180px">Nombre Ext</Th>
+                                    <Th $min="200px">Nombre</Th>
+                                    <Th $min="150px">Item Código Barras</Th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {approvedItems.map((item) => (
-                                    <tr key={item.id}>
-                                        <td style={{ padding: "10px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                {approvedItems.map((item, idx) => (
+                                    <Fila key={item.id} $par={idx % 2 === 0}>
+                                        <Td>
                                             <TextUI size="13px">{item.codigoProveedor || "-"}</TextUI>
-                                        </td>
-                                        <td style={{ padding: "10px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                        </Td>
+                                        <Td>
                                             <TextUI size="13px">{item.partidaArancelaria || "-"}</TextUI>
-                                        </td>
-                                        <td style={{ padding: "10px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                        </Td>
+                                        <Td>
                                             <TextUI size="13px">{item.nombreExt || "-"}</TextUI>
-                                        </td>
-                                        <td style={{ padding: "10px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                        </Td>
+                                        <Td>
                                             <TextUI size="13px">{item.nombre || "-"}</TextUI>
-                                        </td>
-                                        <td style={{ padding: "10px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                        </Td>
+                                        <Td>
                                             <TextUI size="13px">{item.itemCodigoBarras || "-"}</TextUI>
-                                        </td>
-                                    </tr>
+                                        </Td>
+                                    </Fila>
                                 ))}
                             </tbody>
-                        </table>
-                    </div>
+                        </Tabla>
+                    </TablaScroll>
                 </div>
             )}
 
@@ -1471,22 +1579,24 @@ function Herramientas() {
                         onChange={(v) => setSearchTermReview(v)}
                         iconLeft="FaSearch"
                     />
-                    <div style={{ maxHeight: "400px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
-                            <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0 }}>
+                    <TablaScroll style={{ maxHeight: "400px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                        <Tabla>
+                            <thead>
                                 <tr>
-                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "40px" }}></th>
-                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: '80px' }}>Código</th>
-                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Nombre</th>
-                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Marca</th>
-                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Grupo</th>
+                                    <Th $fija="left" $w={ANCHO_COL_SELECCION} $align="center"></Th>
+                                    <Th $align="center">Código</Th>
+                                    <Th $align="center">Nombre</Th>
+                                    <Th $align="center">Marca</Th>
+                                    <Th $align="center">Grupo</Th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredItemsToReview.map(item => (
-                                    <tr
+                                {filteredItemsToReview.map((item, idx) => (
+                                    <Fila
                                         key={item.DIT_NUEVOIDENTIFICADOR}
-                                        style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer" }}
+                                        $par={idx % 2 === 0}
+                                        $sel={selectedItemsToReviewIds.has(item.DIT_NUEVOIDENTIFICADOR)}
+                                        style={{ cursor: "pointer" }}
                                         onClick={() => {
                                             setSelectedItemsToReviewIds(prev => {
                                                 const newSet = new Set(prev);
@@ -1496,21 +1606,21 @@ function Herramientas() {
                                             });
                                         }}
                                     >
-                                        <td style={{ padding: "10px", textAlign: "center" }}>
+                                        <Td $align="center">
                                             <CheckboxUI
                                                 checked={selectedItemsToReviewIds.has(item.DIT_NUEVOIDENTIFICADOR)}
                                                 onChange={() => { }} // handled by tr onClick
                                             />
-                                        </td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_NUEVOIDENTIFICADOR}</td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_NOMBRE}</td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_MARCA}</td>
-                                        <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.DIT_GRUPO}</td>
-                                    </tr>
+                                        </Td>
+                                        <Td style={{ color: theme?.colors?.text }}>{item.DIT_NUEVOIDENTIFICADOR}</Td>
+                                        <Td style={{ color: theme?.colors?.text }}>{item.DIT_NOMBRE}</Td>
+                                        <Td style={{ color: theme?.colors?.text }}>{item.DIT_MARCA}</Td>
+                                        <Td style={{ color: theme?.colors?.text }}>{item.DIT_GRUPO}</Td>
+                                    </Fila>
                                 ))}
                             </tbody>
-                        </table>
-                    </div>
+                        </Tabla>
+                    </TablaScroll>
 
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
                         <ButtonUI
@@ -1616,11 +1726,11 @@ function Herramientas() {
                     <TextUI size="14px" color={theme?.colors?.textSecondary}>
                         Se muestran todos los ítems aprobados ordenados por fecha de actualización.
                     </TextUI>
-                    <div style={{ maxHeight: "500px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                            <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>
+                    <TablaScroll style={{ maxHeight: "500px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                        <Tabla>
+                            <thead>
                                 <tr>
-                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "50px" }}>
+                                    <Th $align="center" $w="50px">
                                         <CheckboxUI
                                             checked={approvedItemsForExport.length > 0 && approvedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
                                             onChange={(_, checked) => {
@@ -1631,40 +1741,40 @@ function Herramientas() {
                                                 }
                                             }}
                                         />
-                                    </th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
-                                    <th style={{ padding: "12px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Actualizado</th>
+                                    </Th>
+                                    <Th>Empresa</Th>
+                                    <Th>Código SAP</Th>
+                                    <Th>Descripción</Th>
+                                    <Th>Actualizado</Th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {approvedItemsForExport.length === 0 ? (
-                                    <tr><td colSpan={5} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados disponibles.</td></tr>
+                                    <tr><Td colSpan={99} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados disponibles.</Td></tr>
                                 ) : (
-                                    approvedItemsForExport.map(item => (
-                                        <tr key={item.ID} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer", transition: "background 0.2s" }} onClick={() => {
+                                    approvedItemsForExport.map((item, idx) => (
+                                        <Fila key={item.ID} $par={idx % 2 === 0} $sel={selectedApprovedItemIds.has(item.ID)} style={{ cursor: "pointer" }} onClick={() => {
                                             const newSet = new Set(selectedApprovedItemIds);
                                             if (newSet.has(item.ID)) newSet.delete(item.ID);
                                             else newSet.add(item.ID);
                                             setSelectedApprovedItemIds(newSet);
                                         }}>
-                                            <td style={{ padding: "10px", textAlign: "center" }}>
+                                            <Td $align="center">
                                                 <CheckboxUI
                                                     checked={selectedApprovedItemIds.has(item.ID)}
                                                     onChange={() => { }}
                                                 />
-                                            </td>
-                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.EMPRESA}</td>
-                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</td>
-                                            <td style={{ padding: "10px", color: theme?.colors?.text, fontSize: "12px" }}>{item.NOMBRE || item.DESCRIPCION}</td>
-                                            <td style={{ padding: "10px", color: theme?.colors?.textSecondary, fontSize: "11px" }}>{new Date(item.updatedAt).toLocaleString()}</td>
-                                        </tr>
+                                            </Td>
+                                            <Td style={{ color: theme?.colors?.text }}>{item.EMPRESA}</Td>
+                                            <Td style={{ color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</Td>
+                                            <Td style={{ color: theme?.colors?.text }}>{item.NOMBRE || item.DESCRIPCION}</Td>
+                                            <Td style={{ color: theme?.colors?.textSecondary }}>{new Date(item.updatedAt).toLocaleString()}</Td>
+                                        </Fila>
                                     ))
                                 )}
                             </tbody>
-                        </table>
-                    </div>
+                        </Tabla>
+                    </TablaScroll>
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
                         {Object.entries(
                             approvedItemsForExport
@@ -1688,12 +1798,6 @@ function Herramientas() {
                                 }}
                             />
                         ))}
-                        <ButtonUI
-                            text={isSyncingSap ? "Sincronizando..." : `Sincronizar con SAP (${selectedApprovedItemIds.size})`}
-                            iconLeft="FaCloudUploadAlt"
-                            onClick={handleSyncToSap}
-                            disabled={isSyncingSap || selectedApprovedItemIds.size === 0}
-                        />
                     </div>
                 </div>
             </ModalUI>
