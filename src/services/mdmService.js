@@ -298,6 +298,18 @@ export const getGruposUnidadesAlternativas = async (empresa, id) => {
 };
 
 /**
+ * Sincroniza items aprobados hacia SAP: el front solo envía los IDs seleccionados,
+ * el backend consulta los items, homologa los campos y llama al integrador SAP.
+ * @param {string} lineaNegocio - LLANTAS | LUBRICANTES | HERRAMIENTAS
+ * @param {Array<number>} ids - IDs de items del portal a sincronizar
+ * @returns {Promise<Object>} - { LineaNegocio, Total, Exitosos, Fallidos, PorEmpresa, ItemsOmitidos }
+ */
+export const syncItemsToSap = async (lineaNegocio, ids) => {
+    const response = await axiosInstanceNew.post(`/mdm/items/${lineaNegocio}/sync-sap`, { ids });
+    return response.data;
+};
+
+/**
  * Obtiene los grupos, subgrupos y tipos para Herramientas.
  * @returns {Promise<Array>}
  */

@@ -10,11 +10,21 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades, syncItemsToSap } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
+import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
 
 const EMPRESA_LUBRICANTES = "MAXXIMUNDO";
+
+// Código numérico de empresa que espera el servicio web de proveedores (distinto del ID interno del portal).
+const CODIGO_EMPRESA_PROVEEDORES = {
+    AUTOLLANTA: 1,
+    MAXXIMUNDO: 2,
+    STOX: 3,
+    IKONIX: 4,
+    AUTOMAX: 5,
+};
 
 const MARCAS_POR_EMPRESA = {
     "AUTOLLANTA": ["FORTUNE", "MAXTREK", "ROADWING"],
@@ -144,6 +154,7 @@ function Lubricantes() {
 
     const [diccionarioEmpresas, setDiccionarioEmpresas] = useState({});
     const [opcionesPallets, setOpcionesPallets] = useState([]);
+    const [opcionesProveedores, setOpcionesProveedores] = useState([]);
 
     useEffect(() => {
         const fetchEmpresas = async () => {
@@ -179,7 +190,19 @@ function Lubricantes() {
             }
         };
 
+        const fetchProveedoresOptions = async () => {
+            try {
+                const codigoEmpresa = CODIGO_EMPRESA_PROVEEDORES[EMPRESA_LUBRICANTES];
+                const data = await ListarProveedores(codigoEmpresa);
+                setOpcionesProveedores(Array.isArray(data) ? data.map(({ value, name }) => ({ value, label: name })) : []);
+            } catch (error) {
+                console.error(`Error fetching proveedores options for ${EMPRESA_LUBRICANTES}:`, error);
+                setOpcionesProveedores([]);
+            }
+        };
+
         fetchPalletsOptions();
+        fetchProveedoresOptions();
     }, []);
 
 
@@ -328,6 +351,7 @@ function Lubricantes() {
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
+    const [isSyncingSap, setIsSyncingSap] = useState(false);
 
     const filteredItemsToReview = useMemo(() => {
         if (!searchTermReview) return itemsToReview;
@@ -475,6 +499,7 @@ function Lubricantes() {
                                 nombreSistemaBase: parsed["Posible Descripcion"] || it.NOMBRE || it.DESCRIPCION || "",
                                 nombreSistema: calcularNombreSistemaFinal(parsed["Posible Descripcion"] || it.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", false),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                proveedor: it.ID_PROVEEDOR || "",
                                 codigoShell: it.CODIGO_SHELL || "",
                                 marca: it.MARCA || "",
                                 nombreExtranjero: it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO || "",
@@ -560,6 +585,50 @@ function Lubricantes() {
         fetchItems();
     }, [fetchItems]);
 
+    const handleSyncToSap = async () => {
+        const ids = Array.from(selectedApprovedItemIds);
+        if (ids.length === 0) {
+            toast.warning("Seleccione al menos un ítem para sincronizar con SAP.");
+            return;
+        }
+
+        setIsSyncingSap(true);
+        try {
+            const response = await syncItemsToSap("LUBRICANTES", ids);
+            const result = response?.data || {};
+            const { Exitosos = 0, Fallidos = 0, Total = 0, PorEmpresa = [], ItemsOmitidos = [] } = result;
+
+            if (Fallidos === 0 && Exitosos > 0) {
+                toast.success(`Sincronización SAP: ${Exitosos} de ${Total} ítems creados correctamente.`);
+            } else if (Exitosos > 0) {
+                toast.warning(`Sincronización SAP: ${Exitosos} exitosos, ${Fallidos} fallidos de ${Total}. Revise la consola para el detalle.`);
+            } else {
+                toast.error(`Sincronización SAP: no se pudo crear ningún ítem (${Fallidos} fallidos de ${Total}). Revise la consola para el detalle.`);
+            }
+
+            console.log("Resultado sincronización SAP:", { PorEmpresa, ItemsOmitidos });
+
+            for (const empresaResult of PorEmpresa) {
+                for (const resultado of empresaResult.Resultados || []) {
+                    if (!resultado.Success) {
+                        console.warn(`❌ ${empresaResult.Empresa} - ${resultado.ItemName}: ${resultado.Message}`);
+                    }
+                }
+            }
+            for (const omitido of ItemsOmitidos) {
+                console.warn(`⚠️ Item omitido (ID ${omitido.ItemId}): ${omitido.Motivo}`);
+            }
+
+            setSelectedApprovedItemIds(new Set());
+            fetchItems();
+        } catch (error) {
+            console.error("Error al sincronizar con SAP:", error);
+            toast.error("Error al sincronizar los ítems con SAP.");
+        } finally {
+            setIsSyncingSap(false);
+        }
+    };
+
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
@@ -571,6 +640,7 @@ function Lubricantes() {
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            ID_PROVEEDOR: item.proveedor || "",
                             CODIGO_SHELL: item.codigoProveedor || "",
                             MARCA: item.marca || "",
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
@@ -589,6 +659,7 @@ function Lubricantes() {
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            ID_PROVEEDOR: item.proveedor || "",
                             CODIGO_SHELL: item.codigoProveedor || "",
                             MARCA: item.marca || "",
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
@@ -1222,6 +1293,7 @@ function Lubricantes() {
                                             <>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripcion</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Proveedor</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "180px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Extranjero</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "120px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Estrategia</th>
@@ -1539,6 +1611,16 @@ function Lubricantes() {
                                                     </td>
                                                     {/* Código Proveedor */}
                                                     <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></td>
+                                                    {/* Proveedor */}
+                                                    <td style={{ padding: "4px 8px" }}>
+                                                        <SelectUI
+                                                            options={opcionesProveedores}
+                                                            value={item.proveedor ? { value: item.proveedor, label: opcionesProveedores.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                            onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                            minWidth="200px"
+                                                            style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                        />
+                                                    </td>
                                                     {/* Marca */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <SelectUI
@@ -2016,6 +2098,13 @@ function Lubricantes() {
                                 pcolor={theme?.colors?.success || "#28a745"}
                             />
                         ))}
+                        <ButtonUI
+                            text={isSyncingSap ? "Sincronizando..." : `Sincronizar con SAP (${selectedApprovedItemIds.size})`}
+                            iconLeft="FaCloudUploadAlt"
+                            onClick={handleSyncToSap}
+                            disabled={isSyncingSap || selectedApprovedItemIds.size === 0}
+                            pcolor={theme?.colors?.primary || "#0d6efd"}
+                        />
                     </div>
                 </div>
             </ModalUI>
