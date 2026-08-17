@@ -4,7 +4,7 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
     {
         id: 0,
-        url: "https://app.powerbi.com/view?r=eyJrIjoiYzMwYjZmMjQtNThiMS00NjdhLThjZDktMDAwMjIwZWI4MzM0IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=ReportSection5ee1a0f34007764061eb",
+        url: "https://app.powerbi.com/view?r=eyJrIjoiZDQyN2E5NmMtMjhlMS00YjMxLWJkNjItY2Q4MTgyOTRjYTdmIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
         titulo: "Reporte Comecial Tenicentro",
         rol: "usuario",
         linea: null,
