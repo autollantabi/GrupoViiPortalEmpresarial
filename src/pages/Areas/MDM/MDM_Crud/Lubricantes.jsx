@@ -531,6 +531,7 @@ function Lubricantes() {
                                 descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 descripcionRol5: it.NOMBRE || it.DESCRIPCION || "",
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                proveedor: it.ID_PROVEEDOR || "",
                                 codigoShell: it.CODIGO_SHELL || "",
                                 nombreExtranjero: it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO || "",
                                 estrategia: it.ESTRATEGIA || "",
@@ -788,7 +789,7 @@ function Lubricantes() {
                 await approveItemMDM(itemId, lineaSeleccionada.value);
                 toast.success("Ítem aprobado correctamente.");
             }
-            setItems(prev => prev.filter(i => i.id !== itemId));
+            await fetchItems();
             // Si era el último ítem, retroceder el índice
             setCurrentItemIndex(prev => Math.max(0, prev - 1));
         } catch (error) {
@@ -1076,6 +1077,7 @@ function Lubricantes() {
                                                 {[
                                                     { key: 'codigo', label: "Código de Barras", role: 5 },
                                                     { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
+                                                    { key: 'proveedor', label: "Proveedor", role: 5 },
                                                     { key: 'marca', label: "Marca", role: 5 },
                                                     { key: 'nombreExtranjero', label: "Nombre Foraneo", role: 5 },
                                                     { key: 'estrategia', label: "Estrategia", role: 5 },
@@ -1101,7 +1103,11 @@ function Lubricantes() {
                                                     { key: 'pesoMaterialBruto', label: "Peso material bruto", role: 3 },
                                                     { key: 'clasificacion', label: "Clasificacion", role: 3 },
                                                 ].map(({ key, label, role }) => {
-                                                    const value = key === 'OUM' ? (item.oum || item.OUM || item.uom || item.UOM) : item[key];
+                                                    const value = key === 'OUM'
+                                                        ? (item.oum || item.OUM || item.uom || item.UOM)
+                                                        : key === 'proveedor'
+                                                            ? (item.proveedor ? `${item.proveedor} - ${opcionesProveedores.find(o => o.value === item.proveedor)?.label || ''}` : '')
+                                                            : item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
                                                     let borderColor = isDark ? '#1f2937' : '#eee';
 
@@ -2099,7 +2105,7 @@ function Lubricantes() {
                             />
                         ))}
                         <ButtonUI
-                            text={isSyncingSap ? "Sincronizando..." : `Sincronizar con SAP (${selectedApprovedItemIds.size})`}
+                            text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
                             iconLeft="FaCloudUploadAlt"
                             onClick={handleSyncToSap}
                             disabled={isSyncingSap || selectedApprovedItemIds.size === 0}

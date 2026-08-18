@@ -17,7 +17,13 @@
       "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && grep -v -i 'password\\\\|secret' .env)",
       "Read(//c/Users/sfigueroa/Documents/Maxximundo/PortalEmpresarialBack/v1-portal-empresarial-back-new/src/config/**)",
       "Bash(npx tsc *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Llantas.jsx --jsx=automatic --bundle=false --loader=jsx --outfile=/dev/null)",
+      "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Herramientas.jsx --jsx=automatic --bundle=false --loader=jsx --outfile=/dev/null)",
+      "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Llantas.jsx --jsx=automatic --bundle=false)",
+      "Bash(echo \"Llantas exit=$?\")",
+      "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Herramientas.jsx --jsx=automatic --bundle=false)",
+      "Bash(echo \"Herramientas exit=$?\")"
     ]
   }
 }

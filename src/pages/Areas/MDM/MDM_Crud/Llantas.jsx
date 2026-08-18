@@ -11,8 +11,9 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas, syncItemsToSap } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
+import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
 import styled from "styled-components";
 
@@ -364,6 +365,15 @@ const MARCAS_POR_EMPRESA = {
     "AUTOLLANTA": ["FORTUNE", "MAXTREK", "ROADWING"],
     "STOX": ["CST", "FARROAD BRAND", "ANSU", "BAYI", "BYCROSS", "WONDERLAND", "ANTARES"],
     "MAXXIMUNDO": ["MAXXIS LIVIANO", "MAXXIS PESADO", "APLUS", "ROADCRUZA", "HAOHUA"],
+};
+
+// Código numérico de empresa que espera el servicio web de proveedores (distinto del ID interno del portal).
+const CODIGO_EMPRESA_PROVEEDORES = {
+    AUTOLLANTA: 1,
+    MAXXIMUNDO: 2,
+    STOX: 3,
+    IKONIX: 4,
+    AUTOMAX: 5,
 };
 
 function validarRequerido(valor) {
@@ -905,6 +915,7 @@ function Llantas() {
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
+    const [isSyncingSap, setIsSyncingSap] = useState(false);
 
     const filteredItemsToReview = useMemo(() => {
         if (!searchTermReview) return itemsToReview;
@@ -922,6 +933,43 @@ function Llantas() {
     const esLlantas = lineaSeleccionada?.value === "LLANTAS" || lineaSeleccionada?.value === "LLANTAS MOTO";
     const esLubricantes = lineaSeleccionada?.value === "LUBRICANTES";
     const esHerramientas = lineaSeleccionada?.value === "HERRAMIENTAS";
+
+    // Proveedores por empresa (rol 5): la empresa se selecciona por fila, así que se cachean por código de empresa.
+    const [proveedoresPorEmpresa, setProveedoresPorEmpresa] = useState({});
+    const proveedoresEnCargaRef = useRef(new Set());
+
+    const asegurarProveedoresEmpresa = useCallback((codigoEmpresa) => {
+        if (!codigoEmpresa || proveedoresPorEmpresa[codigoEmpresa] || proveedoresEnCargaRef.current.has(codigoEmpresa)) return;
+        proveedoresEnCargaRef.current.add(codigoEmpresa);
+        ListarProveedores(codigoEmpresa)
+            .then((data) => {
+                const opciones = Array.isArray(data) ? data.map(({ value, name }) => ({ value, label: name })) : [];
+                setProveedoresPorEmpresa(prev => ({ ...prev, [codigoEmpresa]: opciones }));
+            })
+            .catch((error) => {
+                console.error(`Error al obtener proveedores para empresa ${codigoEmpresa}:`, error);
+                setProveedoresPorEmpresa(prev => ({ ...prev, [codigoEmpresa]: [] }));
+            })
+            .finally(() => {
+                proveedoresEnCargaRef.current.delete(codigoEmpresa);
+            });
+    }, [proveedoresPorEmpresa]);
+
+    const getCodigoProveedorEmpresa = useCallback((idEmpresaFila) => {
+        const nombreEmpresa = diccionarioEmpresas[idEmpresaFila];
+        if (!nombreEmpresa) return undefined;
+        return CODIGO_EMPRESA_PROVEEDORES[String(nombreEmpresa).trim().toUpperCase()];
+    }, [diccionarioEmpresas]);
+
+    // Cuando se selecciona/carga la empresa de una fila (rol 5), se asegura la lista de proveedores de esa empresa.
+    useEffect(() => {
+        if (idRolPrincipal !== 5 && idRolPrincipal !== 1) return;
+        items.forEach(it => {
+            if (it.linea !== lineaSeleccionada?.value) return;
+            const codigoEmpresa = getCodigoProveedorEmpresa(it.idEmpresa);
+            if (codigoEmpresa) asegurarProveedoresEmpresa(codigoEmpresa);
+        });
+    }, [items, idRolPrincipal, lineaSeleccionada, getCodigoProveedorEmpresa, asegurarProveedoresEmpresa]);
 
     if (idRolPrincipal === 5 && lineaSeleccionada?.value === "LLANTAS MOTO") {
         opcionesEmpresasPermitidas = opcionesEmpresasPermitidas.filter(opt => opt.label && opt.label.toUpperCase().includes("MAXXIMUNDO"));
@@ -1033,6 +1081,7 @@ function Llantas() {
                                 nombreSistemaBase: parsed.NOMBRE || it.DESCRIPCION || "",
                                 nombreSistema: calcularNombreSistemaFinal(parsed.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", banderaNueva ?? false),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                proveedor: it.ID_PROVEEDOR || "",
                                 cubicaje: it.CUBICAJE || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
@@ -1066,6 +1115,7 @@ function Llantas() {
                                 descripcion: it.DESCRIPCION || "",
                                 descripcionRol5: it.DESCRIPCION || "",
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                proveedor: it.ID_PROVEEDOR || "",
                                 cubicaje: it.CUBICAJE || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
@@ -1112,6 +1162,50 @@ function Llantas() {
         fetchItems();
     }, [fetchItems]);
 
+    const handleSyncToSap = async () => {
+        const ids = Array.from(selectedApprovedItemIds);
+        if (ids.length === 0) {
+            toast.warning("Seleccione al menos un ítem para sincronizar con SAP.");
+            return;
+        }
+
+        setIsSyncingSap(true);
+        try {
+            const response = await syncItemsToSap(lineaSeleccionada.value, ids);
+            const result = response?.data || {};
+            const { Exitosos = 0, Fallidos = 0, Total = 0, PorEmpresa = [], ItemsOmitidos = [] } = result;
+
+            if (Fallidos === 0 && Exitosos > 0) {
+                toast.success(`Sincronización SAP: ${Exitosos} de ${Total} ítems creados correctamente.`);
+            } else if (Exitosos > 0) {
+                toast.warning(`Sincronización SAP: ${Exitosos} exitosos, ${Fallidos} fallidos de ${Total}. Revise la consola para el detalle.`);
+            } else {
+                toast.error(`Sincronización SAP: no se pudo crear ningún ítem (${Fallidos} fallidos de ${Total}). Revise la consola para el detalle.`);
+            }
+
+            console.log("Resultado sincronización SAP:", { PorEmpresa, ItemsOmitidos });
+
+            for (const empresaResult of PorEmpresa) {
+                for (const resultado of empresaResult.Resultados || []) {
+                    if (!resultado.Success) {
+                        console.warn(`❌ ${empresaResult.Empresa} - ${resultado.ItemName}: ${resultado.Message}`);
+                    }
+                }
+            }
+            for (const omitido of ItemsOmitidos) {
+                console.warn(`⚠️ Item omitido (ID ${omitido.ItemId}): ${omitido.Motivo}`);
+            }
+
+            setSelectedApprovedItemIds(new Set());
+            fetchItems();
+        } catch (error) {
+            console.error("Error al sincronizar con SAP:", error);
+            toast.error("Error al sincronizar los ítems con SAP.");
+        } finally {
+            setIsSyncingSap(false);
+        }
+    };
+
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
@@ -1124,6 +1218,7 @@ function Llantas() {
                             CODIGO_BARRAS: item.codigo || "",
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            ID_PROVEEDOR: item.proveedor || "",
                             CUBICAJE: item.cubicaje || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
@@ -1141,6 +1236,7 @@ function Llantas() {
                             CODIGO_BARRAS: item.codigo || "",
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            ID_PROVEEDOR: item.proveedor || "",
                             CUBICAJE: item.cubicaje || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
@@ -1247,7 +1343,7 @@ function Llantas() {
                 await approveItemMDM(itemId, lineaSeleccionada.value);
                 toast.success("Ítem aprobado correctamente.");
             }
-            setItems(prev => prev.filter(i => i.id !== itemId));
+            await fetchItems();
             // Si era el último ítem, retroceder el índice
             setCurrentItemIndex(prev => Math.max(0, prev - 1));
         } catch (error) {
@@ -1618,6 +1714,7 @@ function Llantas() {
                                                     { key: 'codigo', label: "Código Barras", role: 5 },
                                                     { key: 'idEmpresa', label: "Empresa", role: 5 },
                                                     { key: 'codigoProveedor', label: "Cód. Proveedor", role: 5 },
+                                                    { key: 'proveedor', label: "Proveedor", role: 5 },
                                                     { key: 'cubicaje', label: "Cubicaje", role: 5 },
                                                     { key: 'descripcionRol5', label: "Descripción Comercial", role: 5 },
                                                     { key: 'nombreExtranjero', label: "Descripción Proveedor", role: 5 },
@@ -1636,7 +1733,9 @@ function Llantas() {
                                                     { key: 'aplicacion', label: "Aplicación", role: 3 },
                                                     { key: 'eje', label: "Eje", role: 3 },
                                                 ].map(({ key, label, role }) => {
-                                                    const value = item[key];
+                                                    const value = key === 'proveedor'
+                                                        ? (item.proveedor ? `${item.proveedor} - ${(proveedoresPorEmpresa[getCodigoProveedorEmpresa(item.idEmpresa)] || []).find(o => o.value === item.proveedor)?.label || ''}` : '')
+                                                        : item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
                                                     let borderColor = isDark ? '#1f2937' : '#eee';
 
@@ -1787,6 +1886,7 @@ function Llantas() {
                                                     <Th>Color Letra</Th>
                                                     <Th $min="300px">Código Barras</Th>
                                                     <Th>Código Proveedor</Th>
+                                                    <Th $min="220px">Proveedor</Th>
                                                     <Th>Descripción Proveedor</Th>
                                                     <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
@@ -2124,6 +2224,21 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
+                                                        <Td $densa>
+                                                            {(() => {
+                                                                const codigoEmpresaProveedor = getCodigoProveedorEmpresa(item.idEmpresa);
+                                                                const opcionesProveedor = codigoEmpresaProveedor ? (proveedoresPorEmpresa[codigoEmpresaProveedor] || []) : [];
+                                                                return (
+                                                                    <SelectUI
+                                                                        options={opcionesProveedor}
+                                                                        value={item.proveedor ? { value: item.proveedor, label: opcionesProveedor.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                        onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                        minWidth="200px"
+                                                                        style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                                    />
+                                                                );
+                                                            })()}
+                                                        </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
                                                         <Td $densa>
@@ -2228,6 +2343,7 @@ function Llantas() {
                                                     <Th>Color Letra</Th>
                                                     <Th $min="300px">Código Barras</Th>
                                                     <Th>Cód. Proveedor</Th>
+                                                    <Th $min="220px">Proveedor</Th>
                                                     <Th>Descripción Proveedor</Th>
                                                     <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
@@ -2318,6 +2434,21 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
+                                                        <Td $densa>
+                                                            {(() => {
+                                                                const codigoEmpresaProveedor = getCodigoProveedorEmpresa(item.idEmpresa);
+                                                                const opcionesProveedor = codigoEmpresaProveedor ? (proveedoresPorEmpresa[codigoEmpresaProveedor] || []) : [];
+                                                                return (
+                                                                    <SelectUI
+                                                                        options={opcionesProveedor}
+                                                                        value={item.proveedor ? { value: item.proveedor, label: opcionesProveedor.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                        onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                        minWidth="200px"
+                                                                        style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                                    />
+                                                                );
+                                                            })()}
+                                                        </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
                                                         <Td $densa>
@@ -2409,6 +2540,7 @@ function Llantas() {
                                                     <Th>Color Letra</Th>
                                                     <Th $min="300px">Código Barras</Th>
                                                     <Th>Cód. Proveedor</Th>
+                                                    <Th $min="220px">Proveedor</Th>
                                                     <Th>Descripción Proveedor</Th>
                                                     <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
@@ -2495,6 +2627,21 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
+                                                        <Td $densa>
+                                                            {(() => {
+                                                                const codigoEmpresaProveedor = getCodigoProveedorEmpresa(item.idEmpresa);
+                                                                const opcionesProveedor = codigoEmpresaProveedor ? (proveedoresPorEmpresa[codigoEmpresaProveedor] || []) : [];
+                                                                return (
+                                                                    <SelectUI
+                                                                        options={opcionesProveedor}
+                                                                        value={item.proveedor ? { value: item.proveedor, label: opcionesProveedor.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                        onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                        minWidth="200px"
+                                                                        style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                                    />
+                                                                );
+                                                            })()}
+                                                        </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
                                                         <Td $densa>
@@ -2575,6 +2722,7 @@ function Llantas() {
                                             grouped[companyName].push({
                                                 CODIGO_BARRAS: item.codigo,
                                                 CODIGO_PROVEEDOR: item.codigoProveedor,
+                                                ID_PROVEEDOR: item.proveedor,
                                                 CUBICAJE: item.cubicaje,
                                                 MARCA: item.marca,
                                                 LINEA_NEGOCIO: item.linea,
@@ -3060,6 +3208,13 @@ function Llantas() {
                                 pcolor={theme?.colors?.success || "#28a745"}
                             />
                         ))}
+                        <ButtonUI
+                            text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
+                            iconLeft="FaCloudUploadAlt"
+                            onClick={handleSyncToSap}
+                            disabled={isSyncingSap || selectedApprovedItemIds.size === 0}
+                            pcolor={theme?.colors?.primary || "#0d6efd"}
+                        />
                     </div>
                 </div>
             </ModalUI>

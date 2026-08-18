@@ -9,8 +9,9 @@ import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas } from "services/mdmService";
+import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas, syncItemsToSap } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
+import { ListarProveedores } from "services/importacionesService";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
 
@@ -182,6 +183,15 @@ const esNuevo = (item) =>
 
 const EMPRESA_HERRAMIENTAS = 'IKONIX';
 
+// Código numérico de empresa que espera el servicio web de proveedores (distinto del ID interno del portal).
+const CODIGO_EMPRESA_PROVEEDORES = {
+    AUTOLLANTA: 1,
+    MAXXIMUNDO: 2,
+    STOX: 3,
+    IKONIX: 4,
+    AUTOMAX: 5,
+};
+
 const DICCIONARIO_ROLES = {
     1: 'Comercial', // Jefatura
     3: 'Técnico', // Supervisor
@@ -226,6 +236,7 @@ function Herramientas() {
 
     const [opcionesPallets, setOpcionesPallets] = useState([]);
     const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
+    const [opcionesProveedores, setOpcionesProveedores] = useState([]);
 
     useEffect(() => {
         const fetchPalletsOptions = async () => {
@@ -255,14 +266,27 @@ function Herramientas() {
             }
         };
 
+        const fetchProveedoresOptions = async () => {
+            try {
+                const codigoEmpresa = CODIGO_EMPRESA_PROVEEDORES[EMPRESA_HERRAMIENTAS];
+                const data = await ListarProveedores(codigoEmpresa);
+                setOpcionesProveedores(Array.isArray(data) ? data.map(({ value, name }) => ({ value, label: name })) : []);
+            } catch (error) {
+                console.error(`Error fetching proveedores options for ${EMPRESA_HERRAMIENTAS}:`, error);
+                setOpcionesProveedores([]);
+            }
+        };
+
         fetchPalletsOptions();
         fetchGruposHerramientas();
+        fetchProveedoresOptions();
     }, []);
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
     const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
+    const [isSyncingSap, setIsSyncingSap] = useState(false);
 
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -339,6 +363,7 @@ function Herramientas() {
                         return {
                             id: it.ID,
                             codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                            proveedor: it.ID_PROVEEDOR || "",
                             partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
                             nombreExt: it.NOMBRE_EXT || "",
                             nombre: it.NOMBRE || "",
@@ -400,6 +425,50 @@ function Herramientas() {
         fetchItems();
     }, [fetchItems]);
 
+    const handleSyncToSap = async () => {
+        const ids = Array.from(selectedApprovedItemIds);
+        if (ids.length === 0) {
+            toast.warning("Seleccione al menos un ítem para sincronizar con SAP.");
+            return;
+        }
+
+        setIsSyncingSap(true);
+        try {
+            const response = await syncItemsToSap("HERRAMIENTAS", ids);
+            const result = response?.data || {};
+            const { Exitosos = 0, Fallidos = 0, Total = 0, PorEmpresa = [], ItemsOmitidos = [] } = result;
+
+            if (Fallidos === 0 && Exitosos > 0) {
+                toast.success(`Sincronización SAP: ${Exitosos} de ${Total} ítems creados correctamente.`);
+            } else if (Exitosos > 0) {
+                toast.warning(`Sincronización SAP: ${Exitosos} exitosos, ${Fallidos} fallidos de ${Total}. Revise la consola para el detalle.`);
+            } else {
+                toast.error(`Sincronización SAP: no se pudo crear ningún ítem (${Fallidos} fallidos de ${Total}). Revise la consola para el detalle.`);
+            }
+
+            console.log("Resultado sincronización SAP:", { PorEmpresa, ItemsOmitidos });
+
+            for (const empresaResult of PorEmpresa) {
+                for (const resultado of empresaResult.Resultados || []) {
+                    if (!resultado.Success) {
+                        console.warn(`❌ ${empresaResult.Empresa} - ${resultado.ItemName}: ${resultado.Message}`);
+                    }
+                }
+            }
+            for (const omitido of ItemsOmitidos) {
+                console.warn(`⚠️ Item omitido (ID ${omitido.ItemId}): ${omitido.Motivo}`);
+            }
+
+            setSelectedApprovedItemIds(new Set());
+            fetchItems();
+        } catch (error) {
+            console.error("Error al sincronizar con SAP:", error);
+            toast.error("Error al sincronizar los ítems con SAP.");
+        } finally {
+            setIsSyncingSap(false);
+        }
+    };
+
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
@@ -448,6 +517,7 @@ function Herramientas() {
                         LINEA_NEGOCIO: "HERRAMIENTAS",
                         EMPRESA: EMPRESA_HERRAMIENTAS,
                         CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                        ID_PROVEEDOR: item.proveedor || "",
                         PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                         NOMBRE_EXT: item.nombreExt || "",
                         NOMBRE: item.nombreSistema || item.nombre || "",
@@ -528,7 +598,7 @@ function Herramientas() {
                 await approveItemMDM(itemId, "HERRAMIENTAS");
                 toast.success("Ítem aprobado correctamente.");
             }
-            setItems(prev => prev.filter(i => i.id !== itemId));
+            await fetchItems();
             setCurrentItemIndex(prev => Math.max(0, prev - 1));
         } catch (error) {
             console.error("Error al procesar acción:", error);
@@ -845,6 +915,7 @@ function Herramientas() {
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', overflow: 'auto', paddingRight: '8px' }}>
                                                 {[
                                                     { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
+                                                    { key: 'proveedor', label: "Proveedor", role: 5 },
                                                     { key: 'partidaArancelaria', label: "Partida Arancelaria", role: 5 },
                                                     { key: 'nombreExt', label: "Descripción Proveedor", role: 5 },
                                                     { key: 'descripcion', label: "Descripción", role: 5 },
@@ -870,7 +941,9 @@ function Herramientas() {
                                                     { key: 'pallets', label: "Pallets", role: 3 },
                                                     { key: 'tipo', label: "Tipo", role: 3 },
                                                 ].map(({ key, label, role }) => {
-                                                    const value = item[key];
+                                                    const value = key === 'proveedor'
+                                                        ? (item.proveedor ? `${item.proveedor} - ${opcionesProveedores.find(o => o.value === item.proveedor)?.label || ''}` : '')
+                                                        : item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
                                                     let borderColor = isDark ? '#1f2937' : '#eee';
 
@@ -986,6 +1059,7 @@ function Herramientas() {
                                                 <Th $min="200px">Nombre</Th>
                                                 <Th $align="center" $min="100px">Descripción</Th>
                                                 <Th $min="150px">Codigo Proveedor</Th>
+                                                <Th $min="220px">Proveedor</Th>
                                                 <Th $min="180px">Descripción Proveedor</Th>
                                                 <Th $min="150px">Unidad</Th>
                                                 <Th $min="180px">Unidades por empaque</Th>
@@ -1070,6 +1144,14 @@ function Herramientas() {
                                                             </div>
                                                         </Td>
                                                         <Td><InputUI value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
+                                                        <Td>
+                                                            <SelectUI
+                                                                options={opcionesProveedores}
+                                                                value={item.proveedor ? { value: item.proveedor, label: opcionesProveedores.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                minWidth="200px"
+                                                            />
+                                                        </Td>
                                                         <Td><InputUI value={item.nombreExt || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExt", v)} /></Td>
                                                         <Td>
                                                             <SelectUI options={OPTIONS_UNIDAD} value={OPTIONS_UNIDAD.find(opt => opt.value === item.unidad) || null} onChange={(v) => actualizarCampoFila(item.id, "unidad", v ? v.value : "")} />
@@ -1379,6 +1461,7 @@ function Herramientas() {
                                             if (!grouped[companyName]) grouped[companyName] = [];
                                             grouped[companyName].push({
                                                 CODIGO_PROVEEDOR: item.codigoProveedor,
+                                                ID_PROVEEDOR: item.proveedor,
                                                 LINEA_NEGOCIO: "HERRAMIENTAS",
                                                 NOMBRE_EXTRANJERO: item.nombreExt,
                                                 DESCRIPCION: item.nombre,
@@ -1798,6 +1881,13 @@ function Herramientas() {
                                 }}
                             />
                         ))}
+                        <ButtonUI
+                            text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
+                            iconLeft="FaCloudUploadAlt"
+                            onClick={handleSyncToSap}
+                            disabled={isSyncingSap || selectedApprovedItemIds.size === 0}
+                            pcolor={theme?.colors?.primary || "#0d6efd"}
+                        />
                     </div>
                 </div>
             </ModalUI>
