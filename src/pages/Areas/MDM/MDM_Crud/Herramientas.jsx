@@ -287,6 +287,7 @@ function Herramientas() {
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
     const [isSyncingSap, setIsSyncingSap] = useState(false);
+    const [searchTermExport, setSearchTermExport] = useState("");
 
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -311,6 +312,12 @@ function Herramientas() {
         (it.DIT_NOMBRE && it.DIT_NOMBRE.toLowerCase().includes(searchTermReview.toLowerCase())) ||
         (it.DIT_MARCA && it.DIT_MARCA.toLowerCase().includes(searchTermReview.toLowerCase())) ||
         (it.DIT_GRUPO && it.DIT_GRUPO.toLowerCase().includes(searchTermReview.toLowerCase()))
+    );
+
+    const filteredApprovedItemsForExport = approvedItemsForExport.filter(item =>
+        (item.EMPRESA && item.EMPRESA.toLowerCase().includes(searchTermExport.toLowerCase())) ||
+        (item.CODIGO_SAP && item.CODIGO_SAP.toLowerCase().includes(searchTermExport.toLowerCase())) ||
+        ((item.NOMBRE || item.DESCRIPCION) && (item.NOMBRE || item.DESCRIPCION).toLowerCase().includes(searchTermExport.toLowerCase()))
     );
 
     const fetchItems = useCallback(async () => {
@@ -1809,33 +1816,41 @@ function Herramientas() {
                     <TextUI size="14px" color={theme?.colors?.textSecondary}>
                         Se muestran todos los ítems aprobados ordenados por fecha de actualización.
                     </TextUI>
+                    <InputUI
+                        placeholder="Buscar por empresa, código SAP o descripción..."
+                        value={searchTermExport}
+                        onChange={(v) => setSearchTermExport(v)}
+                        iconLeft="FaSearch"
+                    />
                     <TablaScroll style={{ maxHeight: "500px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
                         <Tabla>
                             <thead>
                                 <tr>
                                     <Th $align="center" $w="50px">
                                         <CheckboxUI
-                                            checked={approvedItemsForExport.length > 0 && approvedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
+                                            checked={filteredApprovedItemsForExport.length > 0 && filteredApprovedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
                                             onChange={(_, checked) => {
-                                                if (checked) {
-                                                    setSelectedApprovedItemIds(new Set(approvedItemsForExport.map(i => i.ID)));
-                                                } else {
-                                                    setSelectedApprovedItemIds(new Set());
-                                                }
+                                                setSelectedApprovedItemIds(prev => {
+                                                    const newSet = new Set(prev);
+                                                    filteredApprovedItemsForExport.forEach(i => checked ? newSet.add(i.ID) : newSet.delete(i.ID));
+                                                    return newSet;
+                                                });
                                             }}
                                         />
                                     </Th>
                                     <Th>Empresa</Th>
                                     <Th>Código SAP</Th>
                                     <Th>Descripción</Th>
-                                    <Th>Actualizado</Th>
+                                    <Th>Aprobado el</Th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {approvedItemsForExport.length === 0 ? (
-                                    <tr><Td colSpan={99} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados disponibles.</Td></tr>
+                                {filteredApprovedItemsForExport.length === 0 ? (
+                                    <tr><Td colSpan={99} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>
+                                        {approvedItemsForExport.length === 0 ? "No hay ítems aprobados disponibles." : "No se encontraron ítems que coincidan con la búsqueda."}
+                                    </Td></tr>
                                 ) : (
-                                    approvedItemsForExport.map((item, idx) => (
+                                    filteredApprovedItemsForExport.map((item, idx) => (
                                         <Fila key={item.ID} $par={idx % 2 === 0} $sel={selectedApprovedItemIds.has(item.ID)} style={{ cursor: "pointer" }} onClick={() => {
                                             const newSet = new Set(selectedApprovedItemIds);
                                             if (newSet.has(item.ID)) newSet.delete(item.ID);
@@ -1881,13 +1896,15 @@ function Herramientas() {
                                 }}
                             />
                         ))}
-                        <ButtonUI
-                            text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
-                            iconLeft="FaCloudUploadAlt"
-                            onClick={handleSyncToSap}
-                            disabled={isSyncingSap || selectedApprovedItemIds.size === 0}
-                            pcolor={theme?.colors?.primary || "#0d6efd"}
-                        />
+                        {selectedApprovedItemIds.size > 0 && (
+                            <ButtonUI
+                                text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
+                                iconLeft="FaCloudUploadAlt"
+                                onClick={handleSyncToSap}
+                                disabled={isSyncingSap}
+                                pcolor={theme?.colors?.primary || "#0d6efd"}
+                            />
+                        )}
                     </div>
                 </div>
             </ModalUI>

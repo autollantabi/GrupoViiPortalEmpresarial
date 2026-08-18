@@ -352,6 +352,7 @@ function Lubricantes() {
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
     const [isSyncingSap, setIsSyncingSap] = useState(false);
+    const [searchTermExport, setSearchTermExport] = useState("");
 
     const filteredItemsToReview = useMemo(() => {
         if (!searchTermReview) return itemsToReview;
@@ -363,6 +364,16 @@ function Lubricantes() {
             String(item.DIT_MARCA || "").toLowerCase().includes(lowSearch)
         );
     }, [itemsToReview, searchTermReview]);
+
+    const filteredApprovedItemsForExport = useMemo(() => {
+        if (!searchTermExport) return approvedItemsForExport;
+        const lowSearch = searchTermExport.toLowerCase();
+        return approvedItemsForExport.filter(item =>
+            String(item.EMPRESA || "").toLowerCase().includes(lowSearch) ||
+            String(item.CODIGO_SAP || "").toLowerCase().includes(lowSearch) ||
+            String(item.NOMBRE || item.DESCRIPCION || "").toLowerCase().includes(lowSearch)
+        );
+    }, [approvedItemsForExport, searchTermExport]);
 
     // Línea fija: LUBRICANTES (referencia estable desde módulo)
     const lineaSeleccionada = LINEA_LUBRICANTES;
@@ -2034,45 +2045,62 @@ function Lubricantes() {
                     <TextUI size="14px" color={theme?.colors?.textSecondary}>
                         Se muestran todos los ítems aprobados ordenados por fecha de actualización.
                     </TextUI>
+                    <InputUI
+                        placeholder="Buscar por empresa, código SAP o descripción..."
+                        value={searchTermExport}
+                        onChange={(v) => setSearchTermExport(v)}
+                        iconLeft="FaSearch"
+                    />
                     <div style={{ maxHeight: "500px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>
                                 <tr>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "50px" }}>
                                         <CheckboxUI
-                                            checked={approvedItemsForExport.length > 0 && approvedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
+                                            checked={filteredApprovedItemsForExport.length > 0 && filteredApprovedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
                                             onChange={(_, checked) => {
-                                                if (checked) setSelectedApprovedItemIds(new Set(approvedItemsForExport.map(i => i.ID)));
-                                                else setSelectedApprovedItemIds(new Set());
+                                                setSelectedApprovedItemIds(prev => {
+                                                    const newSet = new Set(prev);
+                                                    filteredApprovedItemsForExport.forEach(i => checked ? newSet.add(i.ID) : newSet.delete(i.ID));
+                                                    return newSet;
+                                                });
                                             }}
                                         />
                                     </th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Aprobado el</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {approvedItemsForExport.length === 0 ? (
+                                {filteredApprovedItemsForExport.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados para exportar.</td>
+                                        <td colSpan={5} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>
+                                            {approvedItemsForExport.length === 0 ? "No hay ítems aprobados para exportar." : "No se encontraron ítems que coincidan con la búsqueda."}
+                                        </td>
                                     </tr>
                                 ) : (
-                                    approvedItemsForExport.map(item => (
-                                        <tr key={item.ID} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                    filteredApprovedItemsForExport.map(item => (
+                                        <tr
+                                            key={item.ID}
+                                            style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer" }}
+                                            onClick={() => {
+                                                setSelectedApprovedItemIds(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (newSet.has(item.ID)) newSet.delete(item.ID);
+                                                    else newSet.add(item.ID);
+                                                    return newSet;
+                                                });
+                                            }}
+                                        >
                                             <td style={{ padding: "10px", textAlign: "center" }}>
                                                 <CheckboxUI
                                                     checked={selectedApprovedItemIds.has(item.ID)}
-                                                    onChange={(_, checked) => {
-                                                        setSelectedApprovedItemIds(prev => {
-                                                            const newSet = new Set(prev);
-                                                            if (checked) newSet.add(item.ID);
-                                                            else newSet.delete(item.ID);
-                                                            return newSet;
-                                                        });
-                                                    }}
+                                                    onChange={() => { }} // handled by tr onClick
                                                 />
                                             </td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.EMPRESA}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.text, fontSize: "12px" }}>{item.NOMBRE || item.DESCRIPCION || "-"}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.textSecondary, fontSize: "11px" }}>{new Date(item.updatedAt).toLocaleString()}</td>
@@ -2104,13 +2132,15 @@ function Lubricantes() {
                                 pcolor={theme?.colors?.success || "#28a745"}
                             />
                         ))}
-                        <ButtonUI
-                            text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
-                            iconLeft="FaCloudUploadAlt"
-                            onClick={handleSyncToSap}
-                            disabled={isSyncingSap || selectedApprovedItemIds.size === 0}
-                            pcolor={theme?.colors?.primary || "#0d6efd"}
-                        />
+                        {selectedApprovedItemIds.size > 0 && (
+                            <ButtonUI
+                                text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
+                                iconLeft="FaCloudUploadAlt"
+                                onClick={handleSyncToSap}
+                                disabled={isSyncingSap}
+                                pcolor={theme?.colors?.primary || "#0d6efd"}
+                            />
+                        )}
                     </div>
                 </div>
             </ModalUI>
