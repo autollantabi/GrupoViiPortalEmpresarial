@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Debug: npm run dev (Vite + React)",
+      "url": "http://localhost:5000",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "dev",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///./~/*": "${webRoot}/node_modules/*",
+        "webpack:///./*": "${webRoot}/*",
+        "webpack:///*": "*"
+      }
+    }
+  ]
+}
