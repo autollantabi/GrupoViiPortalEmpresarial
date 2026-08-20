@@ -101,6 +101,18 @@ const OPTIONS_PRESENTACION_LUB = [
     { value: "PAIL", label: "PAIL" },
 ];
 
+/* Ancho exacto de la columna de selección de fila: es el desplazamiento con
+   el que se congela la columna Nombre, así que no puede negociarlo el navegador. */
+const ANCHO_COL_SELECCION_LUB = "40px";
+
+/* Bandera "Visible EasySales" del ítem: por defecto true (equivalente al "SI"
+   que el export SAP enviaba siempre en U_MA_ITM_EASY antes de existir este
+   checkbox), así los ítems ya cargados sin el campo no cambian de comportamiento. */
+const esVisibleEasySales = (item) =>
+    item?.visibleEasySales !== undefined && item?.visibleEasySales !== null
+        ? Boolean(item.visibleEasySales)
+        : true;
+
 const calcularNombreSistemaFinal = (nombreBase, isNew = false) => {
     if (!nombreBase) return "";
     // Limpiamos cualquier "NEW " previo para evitar duplicaciones si se rellama la función
@@ -504,6 +516,8 @@ function Lubricantes() {
                                 id: it.ID,
                                 linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
+                                // Mismo criterio que ES_NUEVO en las otras líneas: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
+                                visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
                                 descripcionRol5: it.NOMBRE || it.DESCRIPCION || "",
                                 descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 parsedData: parsed,
@@ -662,6 +676,7 @@ function Lubricantes() {
                             OUM: item.oum || item.OUM || item.uom || item.UOM || "",
                             EMPRESA: EMPRESA_LUBRICANTES,
                             OBSERVACIONES: item.comentarios || "",
+                            VISIBLE_EASYSALES: esVisibleEasySales(item),
                             RECHAZO: false,
                             FASE: 1
                         };
@@ -682,7 +697,8 @@ function Lubricantes() {
                             MEDIDA: item.medida || "",
                             OUM: item.oum || item.OUM || item.uom || item.UOM || "",
                             EMPRESA: EMPRESA_LUBRICANTES,
-                            OBSERVACIONES: item.comentarios || ""
+                            OBSERVACIONES: item.comentarios || "",
+                            VISIBLE_EASYSALES: esVisibleEasySales(item),
                         };
                         await saveItemRole5(payload);
                     }
@@ -1221,7 +1237,7 @@ function Lubricantes() {
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                                 <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
                                     <tr>
-                                        <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "40px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>
+                                        <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: ANCHO_COL_SELECCION_LUB, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, left: idRolPrincipal === 5 ? 0 : undefined, zIndex: idRolPrincipal === 5 ? 11 : 10 }}>
                                             <CheckboxUI
                                                 checked={itemsFiltrados.length > 0 && itemsFiltrados.every(i => selectedItemIds.has(i.id))}
                                                 onChange={(_, checked) => {
@@ -1308,7 +1324,7 @@ function Lubricantes() {
                                         )}
                                         {idRolPrincipal === 5 && (
                                             <>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripcion</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, left: ANCHO_COL_SELECCION_LUB, zIndex: 11 }}>Nombre</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Proveedor</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
@@ -1317,9 +1333,10 @@ function Lubricantes() {
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Origen</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Empaque</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Unidades</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Medida</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Medida</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Del Sistema</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "120px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>OUM (Litros)</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Visible EasySales</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Comentarios</th>
                                             </>
                                         )}
@@ -1329,13 +1346,13 @@ function Lubricantes() {
                                 <tbody>
                                     {itemsFiltrados.length === 0 ? (
                                         <tr>
-                                            <td colSpan={idRolPrincipal === 5 ? 14 : idRolPrincipal === 3 ? 20 : idRolPrincipal === 4 ? 6 : idRolPrincipal === 1 ? 33 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                            <td colSpan={idRolPrincipal === 5 ? 15 : idRolPrincipal === 3 ? 20 : idRolPrincipal === 4 ? 6 : idRolPrincipal === 1 ? 33 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                 No hay ítems de Lubricantes
                                             </td>
                                         </tr>
                                     ) : itemsFiltrados.map(item => (
                                         <tr key={item.id} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
-                                            <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                                            <td style={{ padding: "4px 8px", textAlign: "center", ...(idRolPrincipal === 5 ? { position: "sticky", left: 0, zIndex: 2, backgroundColor: theme?.colors?.background || "#fff" } : {}) }}>
                                                 <CheckboxUI
                                                     checked={selectedItemIds.has(item.id)}
                                                     onChange={(_, checked) => {
@@ -1616,8 +1633,8 @@ function Lubricantes() {
                                             )}
                                             {idRolPrincipal === 5 && (
                                                 <>
-                                                    {/* Descripción */}
-                                                    <td style={{ padding: "4px 8px" }}>
+                                                    {/* Nombre */}
+                                                    <td style={{ padding: "4px 8px", position: "sticky", left: ANCHO_COL_SELECCION_LUB, zIndex: 2, backgroundColor: theme?.colors?.background || "#fff" }}>
                                                         {item.fueRechazado ? (
                                                             <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: "220px" }} title={item.descripcionRol5}>
                                                                 {item.descripcionRol5 || "-"}
@@ -1684,7 +1701,7 @@ function Lubricantes() {
                                                             options={OPTIONS_MEDIDA_LUB}
                                                             value={item.medida ? { value: item.medida, label: item.medida } : null}
                                                             onChange={(v) => actualizarCampoFila(item.id, "medida", v?.value)}
-                                                            minWidth="90px"
+                                                            minWidth="150px"
                                                             style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
                                                         />
                                                     </td>
@@ -1693,6 +1710,13 @@ function Lubricantes() {
                                                     {/* oum */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.oum || item.OUM || item.uom || item.UOM || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "oum", handleDecimalInput(v))} />
+                                                    </td>
+                                                    {/* Visible EasySales */}
+                                                    <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                                                        <CheckboxUI
+                                                            checked={esVisibleEasySales(item)}
+                                                            onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
+                                                        />
                                                     </td>
                                                     {/* Comentarios */}
                                                     <td style={{ padding: "4px 8px" }}>

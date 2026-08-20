@@ -501,7 +501,6 @@ const COLUMNAS_PLANTILLA = [
     { header: "CODIGO_BARRAS", ancho: 28 },
     { header: "CODIGO_PROVEEDOR", ancho: 20 },
     { header: "DESCRIPCION_PROVEEDOR", alias: ["NOMBRE_EXTRANJERO"], ancho: 34 },
-    { header: "CUBICAJE", ancho: 12 },
     { header: "PARTIDA_ARANCELARIA", ancho: 22 },
     { header: "ES_NUEVO", ancho: 11 },
 ];
@@ -514,16 +513,6 @@ const valorPlantilla = (fila, header) => {
         if (v !== undefined && v !== null && String(v).trim() !== "") return v;
     }
     return "";
-};
-
-/* El cubicaje puede llegar como número, con coma decimal o con unidad
-   ("0,45 m3"). Se toma el primer número de la celda; quitar solo los caracteres
-   no numéricos pegaría el "3" de "m3" al valor. */
-const normalizarCubicaje = (valor) => {
-    if (valor === undefined || valor === null) return "";
-    if (typeof valor === "number") return String(valor);
-    const encontrado = String(valor).trim().replace(",", ".").match(/\d+(\.\d+)?/);
-    return encontrado ? encontrado[0] : "";
 };
 
 /* Interpreta la columna ES_NUEVO: admite SI/NO, TRUE/FALSE, 1/0 y X.
@@ -597,6 +586,15 @@ const esNuevo = (item) =>
     item?.isNew !== undefined && item?.isNew !== null
         ? Boolean(item.isNew)
         : !item?.fueRechazado;
+
+/* Bandera "Visible EasySales" del ítem. Por defecto true (equivalente al
+   "SI" que el export SAP enviaba siempre en U_MA_ITM_EASY antes de existir
+   este checkbox), así los ítems ya cargados sin el campo no cambian de
+   comportamiento. */
+const esVisibleEasySales = (item) =>
+    item?.visibleEasySales !== undefined && item?.visibleEasySales !== null
+        ? Boolean(item.visibleEasySales)
+        : true;
 
 // Se movió calcularCodigoBarras dentro del componente para usar el estado dinámico
 
@@ -853,7 +851,6 @@ function Llantas() {
                         letraDiseño: leer("LETRA_DISENIO"),
                         colorLetra: leer("COLOR_LETRA"),
                         codigo: leer("CODIGO_BARRAS"), // si no viene, más abajo se calcula
-                        cubicaje: normalizarCubicaje(valorPlantilla(row, "CUBICAJE")),
                         isNew: interpretarEsNuevo(valorPlantilla(row, "ES_NUEVO")),
                         marca: marcaImportada,
                         comentarios: ""
@@ -1080,9 +1077,14 @@ function Llantas() {
                             const banderaNueva = it.ES_NUEVO !== undefined && it.ES_NUEVO !== null
                                 ? Boolean(it.ES_NUEVO)
                                 : undefined;
+                            // Mismo criterio que ES_NUEVO: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
+                            const banderaVisibleEasySales = it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null
+                                ? Boolean(it.VISIBLE_EASYSALES)
+                                : undefined;
                             const itemWithBase = {
                                 ...it,
                                 isNew: banderaNueva,
+                                visibleEasySales: banderaVisibleEasySales,
                                 id: it.ID,
                                 linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
@@ -1093,7 +1095,6 @@ function Llantas() {
                                 nombreSistema: calcularNombreSistemaFinal(parsed.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", banderaNueva ?? false),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
                                 proveedor: it.ID_PROVEEDOR || "",
-                                cubicaje: it.CUBICAJE || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
                                 marca: it.MARCA || "",
@@ -1230,13 +1231,13 @@ function Llantas() {
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
                             ID_PROVEEDOR: item.proveedor || "",
-                            CUBICAJE: item.cubicaje || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             ES_NUEVO: esNuevo(item),
+                            VISIBLE_EASYSALES: esVisibleEasySales(item),
                             RECHAZO: false,
                             FASE: 1
                         };
@@ -1248,13 +1249,13 @@ function Llantas() {
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
                             ID_PROVEEDOR: item.proveedor || "",
-                            CUBICAJE: item.cubicaje || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             ES_NUEVO: esNuevo(item),
+                            VISIBLE_EASYSALES: esVisibleEasySales(item),
                         };
                         await saveItemRole5(payload);
                     }
@@ -1388,12 +1389,7 @@ function Llantas() {
     const actualizarCampoFila = (id, campo, valor) => {
         let val = typeof valor === 'string' ? valor.toUpperCase() : valor;
 
-        if (idRolPrincipal === 5 && campo === "cubicaje") {
-            val = valor.replace(/[^0-9.]/g, "");
-            if (val.startsWith(".")) val = "0" + val;
-            const parts = val.split(".");
-            if (parts.length > 2) val = parts[0] + "." + parts.slice(1).join("");
-        } else if (idRolPrincipal === 3) {
+        if (idRolPrincipal === 3) {
             if (["rin", "serie", "ancho"].includes(campo)) val = handleRinSerieAncho(valor);
             else if (campo === "lonas") val = handleNumericInput(valor);
             else if (campo === "carga") val = handleCargaInput(valor);
@@ -1899,10 +1895,10 @@ function Llantas() {
                                                     <Th>Código Proveedor</Th>
                                                     <Th $min="220px">Proveedor</Th>
                                                     <Th>Descripción Proveedor</Th>
-                                                    <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
                                                     <Th $min="380px">Nombre Del Sistema</Th>
                                                     <Th $align="center" $w="90px">Es nuevo</Th>
+                                                    <Th $align="center" $w="140px">Visible EasySales</Th>
                                                     <Th $min="200px">Comentarios</Th>
                                                     <Th $min="100px" $w="100px" $align="center" $fija="right">Acciones</Th>
                                                 </>
@@ -2251,7 +2247,6 @@ function Llantas() {
                                                             })()}
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
                                                         <Td $densa>
                                                             <SelectUI
                                                                 options={
@@ -2276,6 +2271,12 @@ function Llantas() {
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa $align="center">
+                                                            <CheckboxUI
+                                                                checked={esVisibleEasySales(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                             />
                                                         </Td>
                                                         <Td $densa>
@@ -2356,10 +2357,10 @@ function Llantas() {
                                                     <Th>Cód. Proveedor</Th>
                                                     <Th $min="220px">Proveedor</Th>
                                                     <Th>Descripción Proveedor</Th>
-                                                    <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
                                                     <Th $min="380px">Nombre Del Sistema</Th>
                                                     <Th $align="center" $w="90px">Es nuevo</Th>
+                                                    <Th $align="center" $w="140px">Visible EasySales</Th>
                                                     <Th $min="200px">Comentarios</Th>
                                                     <Th $min="100px" $w="100px" $align="center" $fija="right">Acciones</Th>
                                                 </>
@@ -2461,7 +2462,6 @@ function Llantas() {
                                                             })()}
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
                                                         <Td $densa>
                                                             <SelectUI
                                                                 options={[
@@ -2482,6 +2482,12 @@ function Llantas() {
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa $align="center">
+                                                            <CheckboxUI
+                                                                checked={esVisibleEasySales(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                             />
                                                         </Td>
                                                         <Td $densa>
@@ -2553,10 +2559,10 @@ function Llantas() {
                                                     <Th>Cód. Proveedor</Th>
                                                     <Th $min="220px">Proveedor</Th>
                                                     <Th>Descripción Proveedor</Th>
-                                                    <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
                                                     <Th $min="380px">Nombre Del Sistema</Th>
                                                     <Th $align="center" $w="90px">Es nuevo</Th>
+                                                    <Th $align="center" $w="140px">Visible EasySales</Th>
                                                     <Th $min="200px">Comentarios</Th>
                                                     <Th $min="100px" $w="100px" $align="center" $fija="right">Acciones</Th>
                                                 </>
@@ -2654,7 +2660,6 @@ function Llantas() {
                                                             })()}
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
                                                         <Td $densa>
                                                             <SelectUI
                                                                 options={[
@@ -2676,6 +2681,12 @@ function Llantas() {
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa $align="center">
+                                                            <CheckboxUI
+                                                                checked={esVisibleEasySales(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                             />
                                                         </Td>
                                                         <Td $densa>
@@ -2734,7 +2745,6 @@ function Llantas() {
                                                 CODIGO_BARRAS: item.codigo,
                                                 CODIGO_PROVEEDOR: item.codigoProveedor,
                                                 ID_PROVEEDOR: item.proveedor,
-                                                CUBICAJE: item.cubicaje,
                                                 MARCA: item.marca,
                                                 LINEA_NEGOCIO: item.linea,
                                                 NOMBRE_EXTRANJERO: item.nombreExtranjero,

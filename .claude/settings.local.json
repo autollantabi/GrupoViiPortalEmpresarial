@@ -23,7 +23,12 @@
       "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Llantas.jsx --jsx=automatic --bundle=false)",
       "Bash(echo \"Llantas exit=$?\")",
       "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Herramientas.jsx --jsx=automatic --bundle=false)",
-      "Bash(echo \"Herramientas exit=$?\")"
+      "Bash(echo \"Herramientas exit=$?\")",
+      "Bash(ls \"c:/Users/sfigueroa/Documents/Maxximundo/PortalEmpresarial/\" 2>/dev/null)",
+      "Read(//c/Users/sfigueroa/Documents/Maxximundo/PortalEmpresarial/**)",
+      "Bash(powershell -NoProfile -Command \"Test-Path 'C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new'\")",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && ls -la)",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && find src -maxdepth 3 -type d | sort)"
     ]
   }
 }

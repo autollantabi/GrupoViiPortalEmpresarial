@@ -57,6 +57,10 @@ const Tabla = styled.table`
    se congela una segunda columna, así que no puede negociarlo el navegador. */
 const ANCHO_COL_SELECCION = "76px";
 
+/* Ancho de la columna Nombre cuando va congelada (rol 5), misma técnica que
+   Llantas.jsx: acotado a propósito para no comerse el ancho útil del scroll. */
+const ANCHO_COL_NOMBRE = "220px";
+
 const Th = styled.th`
     position: sticky;
     top: 0;
@@ -180,6 +184,14 @@ const esNuevo = (item) =>
     item?.isNew !== undefined && item?.isNew !== null
         ? Boolean(item.isNew)
         : !item?.fueRechazado;
+
+/* Bandera "Visible EasySales" del ítem, con el mismo criterio de fallback
+   que esNuevo: por defecto true para no cambiar el comportamiento de los
+   ítems que aún no traen el campo. */
+const esVisibleEasySales = (item) =>
+    item?.visibleEasySales !== undefined && item?.visibleEasySales !== null
+        ? Boolean(item.visibleEasySales)
+        : true;
 
 const EMPRESA_HERRAMIENTAS = 'IKONIX';
 
@@ -377,6 +389,8 @@ function Herramientas() {
                             // Si el backend aún no devuelve ES_NUEVO se deja sin definir
                             // para que esNuevo() aplique el fallback de siempre
                             isNew: it.ES_NUEVO !== undefined && it.ES_NUEVO !== null ? Boolean(it.ES_NUEVO) : undefined,
+                            // Mismo criterio que ES_NUEVO: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
+                            visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
                             nombreSistema: calcularNombreSistema(it.NOMBRE || "", Boolean(it.ES_NUEVO)),
                             descripcion: it.DESCRIPCION || "",
                             unidad: it.UNIDAD || "",
@@ -529,6 +543,7 @@ function Herramientas() {
                         NOMBRE_EXT: item.nombreExt || "",
                         NOMBRE: item.nombreSistema || item.nombre || "",
                         ES_NUEVO: esNuevo(item),
+                        VISIBLE_EASYSALES: esVisibleEasySales(item),
                         DESCRIPCION: item.descripcion || "",
                         UNIDAD: item.unidad || "",
                         UNIDAD_PAQUETE: item.unidadPaquete || "",
@@ -1063,7 +1078,7 @@ function Herramientas() {
                                         {idRolPrincipal === 5 && (
                                             <>
                                                 <Th $min="150px">Marca</Th>
-                                                <Th $min="200px">Nombre</Th>
+                                                <Th $w={ANCHO_COL_NOMBRE} $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                 <Th $align="center" $min="100px">Descripción</Th>
                                                 <Th $min="150px">Codigo Proveedor</Th>
                                                 <Th $min="220px">Proveedor</Th>
@@ -1083,6 +1098,7 @@ function Herramientas() {
                                                 <Th $min="150px">Paquete codigo Barras</Th>
                                                 <Th $min="280px">Nombre Del Sistema</Th>
                                                 <Th $align="center" $w="90px">Es nuevo</Th>
+                                                <Th $align="center" $w="140px">Visible EasySales</Th>
                                                 <Th $min="160px">Partida Arancelaria</Th>
                                                 <Th $min="200px">Comentarios</Th>
                                                 <Th $min="100px" $align="center" $fija="right">Acciones</Th>
@@ -1139,7 +1155,7 @@ function Herramientas() {
                                                         <Td>
                                                             <SelectUI options={OPTIONS_MARCA} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} isCreatable={true} />
                                                         </Td>
-                                                        <Td><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></Td>
+                                                        <Td $fija="left" $offset={ANCHO_COL_SELECCION} $w={ANCHO_COL_NOMBRE}><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></Td>
                                                         <Td $align="center">
                                                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                                                 <ButtonUI
@@ -1186,6 +1202,12 @@ function Herramientas() {
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
+                                                            />
+                                                        </Td>
+                                                        <Td $align="center">
+                                                            <CheckboxUI
+                                                                checked={esVisibleEasySales(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                             />
                                                         </Td>
                                                         <Td><InputUI value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
