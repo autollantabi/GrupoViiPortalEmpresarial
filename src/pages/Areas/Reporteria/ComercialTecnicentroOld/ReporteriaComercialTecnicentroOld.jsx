@@ -4,15 +4,15 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
     {
         id: 0,
-        url: "https://app.powerbi.com/view?r=eyJrIjoiZDQyN2E5NmMtMjhlMS00YjMxLWJkNjItY2Q4MTgyOTRjYTdmIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
-        titulo: "Reporte Comecial Tenicentro",
+        url: "https://app.powerbi.com/view?r=eyJrIjoiYzMwYjZmMjQtNThiMS00NjdhLThjZDktMDAwMjIwZWI4MzM0IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+        titulo: "Reporte Comecial Tenicentro Antiguo",
         rol: "usuario",
         linea: null,
         empresa: "AUTOLLANTA",
     },
 ];
 
-export const ReporteriaComecialTecnicentro = ({
+export const ReporteriaComecialTecnicentroOld = ({
     routeConfig,
     availableCompanies = [],
     availableLines = [],

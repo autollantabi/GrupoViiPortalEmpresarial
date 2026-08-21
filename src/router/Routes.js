@@ -84,6 +84,7 @@ import { ReporteVentasLubricantes } from "pages/Areas/Reporteria/VentasLubricant
 import { ReporteVentasClientesPorMes } from "pages/Areas/Reporteria/VentasClientesPorMes/VentasClientesPorMes";
 import { ClientesEnrutados } from "pages/Areas/Reporteria/ClientesEnrutados/ClientesEnrutados";
 import { ReporteAnalisisPorCliente } from "pages/Areas/Reporteria/AnalisisPorCliente/AnalisisPorCliente";
+import { ReporteriaComecialTecnicentroOld } from "pages/Areas/Reporteria/ComercialTecnicentroOld/ReporteriaComercialTecnicentroOld";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -378,6 +379,11 @@ export const RoutesConfig = [
     title: "Comercial Tecnicentro",
     component: ReporteriaComecialTecnicentro,
     recurso: "reportes.comercialtecnicentro",
+  },
+  {
+    title: "Comercial Tecnicentro Antiguo",
+    component: ReporteriaComecialTecnicentroOld,
+    recurso: "reportes.comercialtecnicentroold",
   },
   {
     title: "Flash de Ventas",
