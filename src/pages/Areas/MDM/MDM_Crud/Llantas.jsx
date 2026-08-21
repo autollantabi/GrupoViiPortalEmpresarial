@@ -500,9 +500,12 @@ const COLUMNAS_PLANTILLA = [
     { header: "COLOR_LETRA", ancho: 13 },
     { header: "CODIGO_BARRAS", ancho: 28 },
     { header: "CODIGO_PROVEEDOR", ancho: 20 },
+    { header: "PROVEEDOR", ancho: 28 },
     { header: "DESCRIPCION_PROVEEDOR", alias: ["NOMBRE_EXTRANJERO"], ancho: 34 },
     { header: "PARTIDA_ARANCELARIA", ancho: 22 },
     { header: "ES_NUEVO", ancho: 11 },
+    { header: "VISIBLE_EASYSALES", ancho: 18 },
+    { header: "COMENTARIOS", ancho: 30 },
 ];
 
 /* Devuelve el valor de una columna aceptando también sus encabezados antiguos. */
@@ -515,10 +518,10 @@ const valorPlantilla = (fila, header) => {
     return "";
 };
 
-/* Interpreta la columna ES_NUEVO: admite SI/NO, TRUE/FALSE, 1/0 y X.
-   Vacío se toma como nuevo, que es como se comportaba la importación antes
-   de que existiera la columna. */
-const interpretarEsNuevo = (valor) => {
+/* Interpreta una columna de bandera SI/NO del Excel (ES_NUEVO, VISIBLE_EASYSALES):
+   admite SI/NO, TRUE/FALSE, 1/0 y X. Vacío se toma como afirmativo, que es como
+   se comportaba la importación antes de que existiera la columna ES_NUEVO. */
+const interpretarFlagBooleano = (valor) => {
     if (valor === undefined || valor === null || String(valor).trim() === "") return true;
     if (typeof valor === "boolean") return valor;
     return ["SI", "SÍ", "S", "TRUE", "VERDADERO", "V", "1", "X", "YES", "Y"]
@@ -845,16 +848,44 @@ function Llantas() {
                         descripcionRol5: nombre,
                         descripcion: nombre,
                         codigoProveedor: leer("CODIGO_PROVEEDOR"),
+                        proveedorNombreImportado: String(valorPlantilla(row, "PROVEEDOR") || "").trim(),
+                        proveedor: "", // se resuelve más abajo contra el listado real de proveedores de la empresa
                         nombreExtranjero: leer("DESCRIPCION_PROVEEDOR"),
                         partidaArancelaria: leer("PARTIDA_ARANCELARIA"),
                         diseño: leer("DISENIO").slice(0, 20),
                         letraDiseño: leer("LETRA_DISENIO"),
                         colorLetra: leer("COLOR_LETRA"),
                         codigo: leer("CODIGO_BARRAS"), // si no viene, más abajo se calcula
-                        isNew: interpretarEsNuevo(valorPlantilla(row, "ES_NUEVO")),
+                        isNew: interpretarFlagBooleano(valorPlantilla(row, "ES_NUEVO")),
+                        visibleEasySales: interpretarFlagBooleano(valorPlantilla(row, "VISIBLE_EASYSALES")),
                         marca: marcaImportada,
-                        comentarios: ""
+                        comentarios: leer("COMENTARIOS")
                     };
+                });
+
+                // Resolver "Proveedor" (selección real, distinta de Código Proveedor libre)
+                // contra el listado de proveedores de cada empresa, igual que hace el
+                // selector de la tabla. Solo se consulta una vez por empresa presente en el archivo.
+                const empresasAResolver = Array.from(new Set(baseItems.map(it => it.idEmpresa).filter(Boolean)));
+                const proveedoresPorEmpresaImportados = {};
+                for (const idEmp of empresasAResolver) {
+                    const codigoEmpresaProveedor = getCodigoProveedorEmpresa(idEmp);
+                    if (!codigoEmpresaProveedor) continue;
+                    try {
+                        const proveedoresResp = await ListarProveedores(codigoEmpresaProveedor);
+                        proveedoresPorEmpresaImportados[idEmp] = Array.isArray(proveedoresResp)
+                            ? proveedoresResp.map(({ value, name }) => ({ value, label: name }))
+                            : [];
+                    } catch (err) {
+                        console.error(`Error al obtener proveedores para importar (empresa ${idEmp}):`, err);
+                        proveedoresPorEmpresaImportados[idEmp] = [];
+                    }
+                }
+                baseItems.forEach(it => {
+                    if (!it.proveedorNombreImportado) return;
+                    const opciones = proveedoresPorEmpresaImportados[it.idEmpresa] || [];
+                    const match = opciones.find(o => String(o.label).trim().toUpperCase() === it.proveedorNombreImportado.toUpperCase());
+                    it.proveedor = match ? match.value : "";
                 });
 
                 // Ejecutar parseLlantas para los ítems importados
@@ -877,6 +908,7 @@ function Llantas() {
                         nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra, esNuevo(it)),
                         parsedData: parsed
                     };
+                    delete itemWithParsed.proveedorNombreImportado;
                     return {
                         ...itemWithParsed,
                         codigo: it.codigo ? it.codigo : calcularCodigoBarras(itemWithParsed) // <-- Prioriza el del Excel, si no viene lo calcula
