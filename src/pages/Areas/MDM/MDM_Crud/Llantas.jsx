@@ -968,6 +968,28 @@ function Llantas() {
         );
     }, [approvedItemsForExport, searchTermExport]);
 
+    /* Paginación de los modales "Seleccionar ítems para revisar" y "Exportar ítems
+       aprobados a SAP": renderizar de una sola vez listas grandes (DWH, histórico de
+       aprobados) rompía la tabla, así que solo se pinta una página a la vez. */
+    const ITEMS_POR_PAGINA_MODAL = 20;
+    const [paginaReview, setPaginaReview] = useState(1);
+    const [paginaExport, setPaginaExport] = useState(1);
+
+    useEffect(() => { setPaginaReview(1); }, [searchTermReview, itemsToReview]);
+    useEffect(() => { setPaginaExport(1); }, [searchTermExport, approvedItemsForExport]);
+
+    const totalPaginasReview = Math.max(1, Math.ceil(filteredItemsToReview.length / ITEMS_POR_PAGINA_MODAL));
+    const itemsToReviewPaginados = filteredItemsToReview.slice(
+        (paginaReview - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaReview * ITEMS_POR_PAGINA_MODAL,
+    );
+
+    const totalPaginasExport = Math.max(1, Math.ceil(filteredApprovedItemsForExport.length / ITEMS_POR_PAGINA_MODAL));
+    const approvedItemsForExportPaginados = filteredApprovedItemsForExport.slice(
+        (paginaExport - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaExport * ITEMS_POR_PAGINA_MODAL,
+    );
+
     // Selector global para el nuevo ítem
     const [lineaSeleccionada, setLineaSeleccionada] = useState(null);
     const esLlantas = lineaSeleccionada?.value === "LLANTAS" || lineaSeleccionada?.value === "LLANTAS MOTO";
@@ -3036,7 +3058,8 @@ function Llantas() {
                     setSelectedItemsToReviewIds(new Set());
                 }}
                 title="Seleccionar ítems para revisar"
-                width="800px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <InputUI
@@ -3050,14 +3073,14 @@ function Llantas() {
                             <thead>
                                 <tr>
                                     <Th $w="46px" $align="center"></Th>
-                                    <Th $align="center">Código</Th>
                                     <Th $align="center">Nombre</Th>
+                                    <Th $align="center">Código Sap</Th>
                                     <Th $align="center">Diseño</Th>
                                     <Th $align="center">Fabricante</Th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredItemsToReview.map((item, idx) => (
+                                {itemsToReviewPaginados.map((item, idx) => (
                                     <Fila
                                         key={item.DIT_CODIGO}
                                         $par={idx % 2 === 0}
@@ -3078,8 +3101,8 @@ function Llantas() {
                                                 onChange={() => { }} // handled by tr onClick
                                             />
                                         </Td>
-                                        <Td style={{ color: theme?.colors?.text }}>{item.DIT_NUEVOIDENTIFICADOR}</Td>
                                         <Td style={{ color: theme?.colors?.text }}>{item.DIT_NOMBRE}</Td>
+                                        <Td style={{ color: theme?.colors?.text }}>{item.DIT_NUEVOIDENTIFICADOR}</Td>
                                         <Td style={{ color: theme?.colors?.text }}>{item.DIT_DISENIO}</Td>
                                         <Td style={{ color: theme?.colors?.text }}>{item.DIT_MARCA}</Td>
                                     </Fila>
@@ -3087,6 +3110,25 @@ function Llantas() {
                             </tbody>
                         </Tabla>
                     </TablaScroll>
+                    {filteredItemsToReview.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaReview <= 1}
+                                onClick={() => setPaginaReview(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaReview} de {totalPaginasReview} ({filteredItemsToReview.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaReview >= totalPaginasReview}
+                                onClick={() => setPaginaReview(p => p + 1)}
+                            />
+                        </div>
+                    )}
 
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
                         <ButtonUI
@@ -3184,7 +3226,8 @@ function Llantas() {
                 isOpen={isSAPExportModalOpen}
                 onClose={() => setIsSAPExportModalOpen(false)}
                 title="Exportar ítems aprobados a SAP"
-                width="1000px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <TextUI size="14px" color={theme?.colors?.textSecondary}>
@@ -3196,7 +3239,7 @@ function Llantas() {
                         onChange={(v) => setSearchTermExport(v)}
                         iconLeft="FaSearch"
                     />
-                    <TablaScroll style={{ maxHeight: "500px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                    <TablaScroll style={{ maxHeight: "400px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
                         <Tabla>
                             <thead>
                                 <tr>
@@ -3226,7 +3269,7 @@ function Llantas() {
                                         </Td>
                                     </tr>
                                 ) : (
-                                    filteredApprovedItemsForExport.map((item, idx) => (
+                                    approvedItemsForExportPaginados.map((item, idx) => (
                                         <Fila
                                             key={item.ID}
                                             $par={idx % 2 === 0}
@@ -3257,6 +3300,25 @@ function Llantas() {
                             </tbody>
                         </Tabla>
                     </TablaScroll>
+                    {filteredApprovedItemsForExport.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaExport <= 1}
+                                onClick={() => setPaginaExport(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaExport} de {totalPaginasExport} ({filteredApprovedItemsForExport.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaExport >= totalPaginasExport}
+                                onClick={() => setPaginaExport(p => p + 1)}
+                            />
+                        </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
                         {Object.entries(
                             approvedItemsForExport

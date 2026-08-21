@@ -387,6 +387,28 @@ function Lubricantes() {
         );
     }, [approvedItemsForExport, searchTermExport]);
 
+    /* Paginación de los modales "Seleccionar ítems para revisar" y "Exportar ítems
+       aprobados a SAP": renderizar de una sola vez listas grandes (DWH, histórico de
+       aprobados) rompía la tabla, así que solo se pinta una página a la vez. */
+    const ITEMS_POR_PAGINA_MODAL = 20;
+    const [paginaReview, setPaginaReview] = useState(1);
+    const [paginaExport, setPaginaExport] = useState(1);
+
+    useEffect(() => { setPaginaReview(1); }, [searchTermReview, itemsToReview]);
+    useEffect(() => { setPaginaExport(1); }, [searchTermExport, approvedItemsForExport]);
+
+    const totalPaginasReview = Math.max(1, Math.ceil(filteredItemsToReview.length / ITEMS_POR_PAGINA_MODAL));
+    const itemsToReviewPaginados = filteredItemsToReview.slice(
+        (paginaReview - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaReview * ITEMS_POR_PAGINA_MODAL,
+    );
+
+    const totalPaginasExport = Math.max(1, Math.ceil(filteredApprovedItemsForExport.length / ITEMS_POR_PAGINA_MODAL));
+    const approvedItemsForExportPaginados = filteredApprovedItemsForExport.slice(
+        (paginaExport - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaExport * ITEMS_POR_PAGINA_MODAL,
+    );
+
     // Línea fija: LUBRICANTES (referencia estable desde módulo)
     const lineaSeleccionada = LINEA_LUBRICANTES;
 
@@ -1917,7 +1939,8 @@ function Lubricantes() {
                     setSelectedItemsToReviewIds(new Set());
                 }}
                 title="Seleccionar ítems para revisar"
-                width="800px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <InputUI
@@ -1938,7 +1961,7 @@ function Lubricantes() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredItemsToReview.map(item => (
+                                {itemsToReviewPaginados.map(item => (
                                     <tr
                                         key={item.DIT_NUEVOIDENTIFICADOR}
                                         style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer" }}
@@ -1966,6 +1989,25 @@ function Lubricantes() {
                             </tbody>
                         </table>
                     </div>
+                    {filteredItemsToReview.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaReview <= 1}
+                                onClick={() => setPaginaReview(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaReview} de {totalPaginasReview} ({filteredItemsToReview.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaReview >= totalPaginasReview}
+                                onClick={() => setPaginaReview(p => p + 1)}
+                            />
+                        </div>
+                    )}
 
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
                         <ButtonUI
@@ -2063,7 +2105,8 @@ function Lubricantes() {
                 isOpen={isSAPExportModalOpen}
                 onClose={() => setIsSAPExportModalOpen(false)}
                 title="Exportar ítems aprobados a SAP"
-                width="1000px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <TextUI size="14px" color={theme?.colors?.textSecondary}>
@@ -2075,7 +2118,7 @@ function Lubricantes() {
                         onChange={(v) => setSearchTermExport(v)}
                         iconLeft="FaSearch"
                     />
-                    <div style={{ maxHeight: "500px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                    <div style={{ maxHeight: "400px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>
                                 <tr>
@@ -2105,7 +2148,7 @@ function Lubricantes() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredApprovedItemsForExport.map(item => (
+                                    approvedItemsForExportPaginados.map(item => (
                                         <tr
                                             key={item.ID}
                                             style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer" }}
@@ -2134,6 +2177,25 @@ function Lubricantes() {
                             </tbody>
                         </table>
                     </div>
+                    {filteredApprovedItemsForExport.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaExport <= 1}
+                                onClick={() => setPaginaExport(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaExport} de {totalPaginasExport} ({filteredApprovedItemsForExport.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaExport >= totalPaginasExport}
+                                onClick={() => setPaginaExport(p => p + 1)}
+                            />
+                        </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
                         {Object.entries(
                             approvedItemsForExport
