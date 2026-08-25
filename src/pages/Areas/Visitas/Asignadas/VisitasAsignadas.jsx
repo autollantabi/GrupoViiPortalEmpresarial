@@ -317,7 +317,7 @@ export const VisitasAsignadas = () => {
       {
         vmr_nombrevendedor: visitDetails.hvi_nombrevendedor,
         vmr_nombrecliente: visitDetails.hvi_nombrecliente,
-        vmr_cuenta: visitDetails.hvi_cuenta,
+        vmr_cuenta: visitDetails.hvi_cuentacliente,
         vmr_fechavisita: visitDetails.hvi_fechavisita,
         vmr_horaincio: dynamicTimes.inicio,
         vmr_horafin: dynamicTimes.fin,
