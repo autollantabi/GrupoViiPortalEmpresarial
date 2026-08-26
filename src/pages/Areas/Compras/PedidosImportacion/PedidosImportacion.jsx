@@ -23,6 +23,11 @@ const ESTADOS_PEDIDO = [
   { value: "BACKORDER", label: "Backorder" },
 ];
 
+const OPCIONES_BACKORDER = [
+  { value: true, label: "Con Backorder" },
+  { value: false, label: "Sin Backorder" },
+];
+
 // Código numérico de empresa que espera el servicio web de proveedores/marcas (distinto del ID interno del portal)
 const CODIGO_EMPRESA_PROVEEDORES = {
   AUTOLLANTA: 1,
@@ -301,6 +306,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
   const [marcaSeleccionada, setMarcaSeleccionada] = useState(null);
   const [estadoSeleccionado, setEstadoSeleccionado] = useState(null);
+  const [backorderSeleccionado, setBackorderSeleccionado] = useState(null);
   const [numeroDocInput, setNumeroDocInput] = useState("");
   const [numeroDocumento, setNumeroDocumento] = useState(null);
   const [fechaDesde, setFechaDesde] = useState(null);
@@ -420,6 +426,10 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
         marca: marcaSeleccionada?.value || null,
         fechaDesde: formatFechaISO(fechaDesde),
         fechaHasta: formatFechaISO(fechaHasta),
+        backorder:
+          typeof backorderSeleccionado?.value === "boolean"
+            ? backorderSeleccionado.value
+            : null,
       });
 
       if (response?.status === "Ok!" && response.data) {
@@ -445,6 +455,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     proveedorSeleccionado,
     marcaSeleccionada,
     estadoSeleccionado,
+    backorderSeleccionado,
     numeroDocumento,
     fechaDesde,
     fechaHasta,
@@ -476,6 +487,11 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
 
   const handleEstadoChange = (opt) => {
     setEstadoSeleccionado(opt || null);
+    setPage(1);
+  };
+
+  const handleBackorderChange = (opt) => {
+    setBackorderSeleccionado(opt || null);
     setPage(1);
   };
 
@@ -752,6 +768,18 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
             isSearchable={false}
             minWidth="150px"
             maxWidth="180px"
+          />
+
+          <SelectUI
+            label="Backorder"
+            options={OPCIONES_BACKORDER}
+            value={backorderSeleccionado}
+            onChange={handleBackorderChange}
+            placeholder="Todos"
+            isClearable
+            isSearchable={false}
+            minWidth="160px"
+            maxWidth="190px"
           />
 
           <FiltroGrupo theme={theme} style={{ minWidth: "180px" }}>

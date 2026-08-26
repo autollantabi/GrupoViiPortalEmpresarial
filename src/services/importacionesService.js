@@ -824,6 +824,7 @@ export async function ListarPedidosImportacion({
   marca = null,
   fechaDesde = null,
   fechaHasta = null,
+  backorder = null,
 }) {
   try {
     const res = await axiosInstanceNew.post(
@@ -837,6 +838,7 @@ export async function ListarPedidosImportacion({
         marca,
         fechaDesde,
         fechaHasta,
+        backorder,
       }
     );
     return res.data;
