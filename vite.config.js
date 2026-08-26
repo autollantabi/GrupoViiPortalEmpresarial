@@ -25,7 +25,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/apid1/, ""),
       },
       "/apid2": {
-        target: "http://localhost:3004",
+        target: "http://192.168.0.68:3004",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/apid2/, ""),
       }

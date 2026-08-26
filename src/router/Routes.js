@@ -26,6 +26,7 @@ import Linea from "pages/Areas/Negocio/Linea/Linea";
 // Compras
 import { Compras_Reportes } from "pages/Areas/Compras/Reportes/Compras_Reportes";
 import { Importaciones } from "pages/Areas/Compras/Importaciones/Importaciones";
+import { PedidosImportacion } from "pages/Areas/Compras/PedidosImportacion/PedidosImportacion";
 import { RegistroPedidos } from "pages/Areas/Compras/RegistroPedidos/RegistroPedidos";
 import { Creditos } from "pages/Areas/Compras/Creditos/Creditos";
 import { Anticipos } from "pages/Areas/Compras/Anticipos/Anticipos";
@@ -203,6 +204,11 @@ export const RoutesConfig = [
     title: "Importaciones",
     component: Importaciones,
     recurso: "compras.importaciones",
+  },
+  {
+    title: "Pedidos Importación",
+    component: PedidosImportacion,
+    recurso: "compras.pedidosimportacion",
   },
   {
     title: "Créditos",

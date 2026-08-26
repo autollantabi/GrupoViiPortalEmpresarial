@@ -813,3 +813,34 @@ export async function ActualizarRegistroPedido(id, datos) {
     return error.response?.data || null;
   }
 }
+
+export async function ListarPedidosImportacion({
+  page = 1,
+  size = 15,
+  empresa,
+  cuentaSocio = null,
+  numeroDocumento = null,
+  estado = null,
+  marca = null,
+  fechaDesde = null,
+  fechaHasta = null,
+}) {
+  try {
+    const res = await axiosInstanceNew.post(
+      `/importaciones/pedidosImportacion?page=${page}&size=${size}&empresa=${encodeURIComponent(
+        empresa
+      )}`,
+      {
+        cuentaSocio,
+        numeroDocumento,
+        estado,
+        marca,
+        fechaDesde,
+        fechaHasta,
+      }
+    );
+    return res.data;
+  } catch (error) {
+    return error.response?.data || null;
+  }
+}
