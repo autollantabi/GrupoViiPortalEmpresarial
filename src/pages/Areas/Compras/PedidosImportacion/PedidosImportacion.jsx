@@ -23,6 +23,15 @@ const ESTADOS_PEDIDO = [
   { value: "BACKORDER", label: "Backorder" },
 ];
 
+// Código numérico de empresa que espera el servicio web de proveedores/marcas (distinto del ID interno del portal)
+const CODIGO_EMPRESA_PROVEEDORES = {
+  AUTOLLANTA: 1,
+  MAXXIMUNDO: 2,
+  STOX: 3,
+  IKONIX: 4,
+  AUTOMAX: 5,
+};
+
 const OPCIONES_FILAS = [10, 15, 25, 50, 100].map((n) => ({
   value: n,
   label: `${n} por página`,
@@ -37,8 +46,8 @@ const COLUMNAS_PEDIDOS = [
   { header: "Fecha Máx. Envío", field: "hfr_fechamaximaenvio", isDate: true, align: "center" },
   { header: "Tipo", field: "hfr_pedidocompleto", align: "center" },
   { header: "Estado", field: "hfr_estado", isBadge: true, align: "center" },
-  { header: "PI(s)", field: "PIs", isList: true },
-  { header: "Marca(s)", field: "Marcas", isList: true },
+  { header: "PI(s)", field: "PIs", isList: true, wrap: true },
+  { header: "Marca(s)", field: "Marcas", isList: true, wrap: true },
   { header: "Líneas", field: "TotalLineas", align: "right" },
   { header: "Cantidad", field: "TotalCantidad", align: "right" },
   { header: "Backorder", field: "TotalBackorder", align: "right" },
@@ -48,15 +57,15 @@ const COLUMNAS_PEDIDOS = [
 const COLUMNAS_DETALLE = [
   { header: "Línea", field: "hfr_linea", align: "center" },
   { header: "Código Item", field: "hfr_codigoitem" },
-  { header: "Nombre", field: "DIT_NOMBRE" },
-  { header: "Fabricante", field: "DIT_NOMBREFABRICANTE" },
+  { header: "Nombre", field: "DIT_NOMBRE", wrap: true },
+  { header: "Fabricante", field: "DIT_NOMBREFABRICANTE", wrap: true },
   { header: "N° PI", field: "hfr_numeropi", align: "center" },
   { header: "Cantidad", field: "hfr_cantidad", align: "right", isNumber: true },
   { header: "Precio", field: "hfr_precio", align: "right", isMoney: true },
   { header: "Backorder", field: "hfr_backorder", align: "right", isNumber: true },
   { header: "Total Línea", field: "hfr_totallinea", align: "right", isMoney: true },
   { header: "Estado", field: "hfr_estado", isBadge: true, align: "center" },
-  { header: "Comentario", field: "hfr_comentario2" },
+  { header: "Comentario", field: "hfr_comentario2", wrap: true },
 ];
 
 const formatFecha = (valor) => {
@@ -193,7 +202,9 @@ const Th = styled.th`
 const Td = styled.td`
   padding: 10px;
   text-align: ${({ $align }) => $align || "left"};
-  white-space: nowrap;
+  white-space: ${({ $wrap }) => ($wrap ? "normal" : "nowrap")};
+  word-break: ${({ $wrap }) => ($wrap ? "break-word" : "normal")};
+  max-width: ${({ $wrap }) => ($wrap ? "320px" : "none")};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   color: ${({ theme }) => theme.colors.text};
 `;
@@ -331,9 +342,16 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     return () => clearTimeout(timeout);
   }, [numeroDocInput]);
 
+  // Código de empresa que espera el servicio de proveedores/marcas (no es el ID interno del portal)
+  const codigoEmpresaProveedores = empresaSeleccionada?.label
+    ? CODIGO_EMPRESA_PROVEEDORES[
+        String(empresaSeleccionada.label).trim().toUpperCase()
+      ]
+    : null;
+
   // Proveedores dependientes de la empresa seleccionada
   useEffect(() => {
-    if (!empresaSeleccionada?.value) {
+    if (!codigoEmpresaProveedores) {
       setProveedores([]);
       return;
     }
@@ -341,7 +359,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     (async () => {
       setCargandoProveedores(true);
       try {
-        const data = await ListarProveedores(empresaSeleccionada.value);
+        const data = await ListarProveedores(codigoEmpresaProveedores);
         if (cancelado) return;
         setProveedores(
           (data || []).map(({ value, name }) => ({ value, label: name }))
@@ -355,11 +373,11 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     return () => {
       cancelado = true;
     };
-  }, [empresaSeleccionada]);
+  }, [codigoEmpresaProveedores]);
 
   // Marcas dependientes de empresa + proveedor seleccionados
   useEffect(() => {
-    if (!empresaSeleccionada?.value || !proveedorSeleccionado?.value) {
+    if (!codigoEmpresaProveedores || !proveedorSeleccionado?.value) {
       setMarcas([]);
       return;
     }
@@ -368,7 +386,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
       setCargandoMarcas(true);
       try {
         const data = await ListarMarcas(
-          empresaSeleccionada.value,
+          codigoEmpresaProveedores,
           proveedorSeleccionado.value
         );
         if (cancelado) return;
@@ -384,7 +402,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     return () => {
       cancelado = true;
     };
-  }, [empresaSeleccionada, proveedorSeleccionado]);
+  }, [codigoEmpresaProveedores, proveedorSeleccionado]);
 
   const cargarPedidos = useCallback(async () => {
     if (!empresaSeleccionada?.label) return;
@@ -586,7 +604,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
                 return (
                   <Fila key={`${cabecera.hfr_numerodocumento}-${index}`} $par={index % 2 === 0}>
                     {COLUMNAS_PEDIDOS.map((columna) => (
-                      <Td key={columna.field} $align={columna.align}>
+                      <Td key={columna.field} $align={columna.align} $wrap={columna.wrap}>
                         {renderCelda(cabecera, columna)}
                       </Td>
                     ))}
@@ -809,7 +827,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
                   {detalleModal.detalle.map((item, index) => (
                     <Fila key={`${item.hfr_codigo}-${index}`} $par={index % 2 === 0}>
                       {COLUMNAS_DETALLE.map((columna) => (
-                        <Td key={columna.field} $align={columna.align}>
+                        <Td key={columna.field} $align={columna.align} $wrap={columna.wrap}>
                           {renderCelda(item, columna)}
                         </Td>
                       ))}
