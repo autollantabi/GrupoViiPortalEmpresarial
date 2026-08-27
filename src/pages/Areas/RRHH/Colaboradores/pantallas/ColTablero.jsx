@@ -58,6 +58,19 @@ const FilaEmpresa = styled(Link)`
   }
 `;
 
+const ListaEmpresas = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const CuerpoEmpresa = styled.span`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+`;
+
 const NombreEmpresa = styled.span`
   font-size: 14px;
   font-weight: 600;
@@ -65,6 +78,18 @@ const NombreEmpresa = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+const DetalleEmpresa = styled.span`
+  font-size: 12px;
+  color: ${({ theme }) => theme?.colors?.textSecondary};
+`;
+
+const CifraEmpresa = styled.strong`
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: ${({ theme }) => theme?.colors?.primary};
 `;
 
 export const ColTablero = () => {
@@ -146,23 +171,24 @@ export const ColTablero = () => {
           {datos.porEmpresa.length === 0 ? (
             <TextoTenue>No hay empresas registradas.</TextoTenue>
           ) : (
-            <Rejilla $min={260}>
+            <ListaEmpresas>
               {datos.porEmpresa.map((empresa) => (
                 <FilaEmpresa
                   key={empresa.empresaId}
                   to={`${RUTA_BASE}/empleados?empresaId=${empresa.empresaId}`}
                   title={empresa.empresa}
                 >
-                  <NombreEmpresa>{nombreCortoEmpresa(empresa.empresa)}</NombreEmpresa>
-                  <Acciones>
-                    <Badge $tono="exito">{empresa.activos} activos</Badge>
-                    {puedeGestionar && empresa.inactivos > 0 && (
-                      <Badge $tono="neutro">{empresa.inactivos} de baja</Badge>
-                    )}
-                  </Acciones>
+                  <CuerpoEmpresa>
+                    <NombreEmpresa>{empresa.empresa}</NombreEmpresa>
+                    <DetalleEmpresa>
+                      {empresa.activos} activos
+                      {puedeGestionar ? ` · ${empresa.inactivos} de baja` : ""}
+                    </DetalleEmpresa>
+                  </CuerpoEmpresa>
+                  <CifraEmpresa>{empresa.activos}</CifraEmpresa>
                 </FilaEmpresa>
               ))}
-            </Rejilla>
+            </ListaEmpresas>
           )}
         </Tarjeta>
 
