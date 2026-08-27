@@ -518,7 +518,13 @@ const generateRoutes = () => {
   RoutesConfig.forEach((item) => {
     if (item.rootOnly) return; // Solo metadata para sidebar, no genera ruta
 
-    const path = item.path || (item.recurso ? recursoToPath(item.recurso) : "/");
+    const pathBase = item.path || (item.recurso ? recursoToPath(item.recurso) : "/");
+
+    // `subrutas: true` registra la ruta con splat (".../*") para que la pantalla
+    // declare sus propias sub-rutas con <Routes> anidadas y conserve URLs reales.
+    // A proposito NO se toca getSidebarItems: el enlace del menú sigue saliendo de
+    // item.path || recursoToPath(item.recurso), es decir sin el splat.
+    const path = item.subrutas ? `${pathBase.replace(/\/+$/, "")}/*` : pathBase;
 
     if (item.public) {
       routes.push({
