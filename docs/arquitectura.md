@@ -232,6 +232,38 @@ Resumen: API 1 (`VITE_API_URL`) — Cartera, Compras, Contabilidad, Importacione
 2. **El componente de página** debe recibir (inyectados por SimpleRouter): `routeConfig`, `availableCompanies`, `availableLines`, `availableCanales`. Opcionalmente usar `routeConfig.rolDelRecurso` y empresas/líneas/canales para filtros y permisos (p. ej. edición vs consulta; Reportería filtra por canal).
 3. **Llamadas HTTP:** Reutilizar la instancia Axios adecuada desde `src/config/axiosConfig.js` y crear o ampliar un servicio en `src/services/` según la API que corresponda (ver [apis.md](apis.md)).
 
+### 8.1 Pantallas con sub-rutas propias (`subrutas`)
+
+Una entrada de `Routes.js` puede declarar `subrutas: true`. Con eso `generateRoutes()`
+registra la ruta con splat (`/rrhh/colaboradores/*`) y la pantalla declara sus
+propias rutas internas con `<Routes>` anidadas, conservando URLs reales, enlaces
+compartibles, filtros en la query string y el botón atrás del navegador.
+
+```js
+{
+  title: "Colaboradores",
+  icon: "FaUsers",
+  component: Colaboradores,
+  recurso: "rrhh.colaboradores",
+  subrutas: true,
+}
+```
+
+Detalles a tener en cuenta:
+
+- **El ítem del menú no cambia.** `getSidebarItems` sigue calculando el enlace con
+  `item.path || recursoToPath(item.recurso)`, así que apunta a
+  `/rrhh/colaboradores` limpio, sin el splat. Por eso **no** hay que declarar
+  `path` a mano: si se declarara con el splat, el enlace del menú quedaría roto.
+- **Un solo ítem de menú.** Basta una entrada; no se duplica.
+- **Las props inyectadas llegan solo al componente raíz.** `cloneElement` pasa
+  `routeConfig`, `availableCompanies`, `availableLines` y `availableCanales` al
+  componente de la entrada, que debe repartirlas a sus pantallas internas.
+- **Si falta el `subrutas`**, React Router avisa en consola: *"You rendered
+  descendant `<Routes>` … but the parent route path has no trailing `*`"*.
+
+Ejemplo completo en `src/pages/Areas/RRHH/Colaboradores/`.
+
 ---
 
 *Este documento refleja el estado del repositorio en el momento del análisis. Ante cambios en rutas, contextos o servicios, conviene actualizar esta descripción.*

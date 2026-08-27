@@ -86,4 +86,78 @@ El proyecto consume **dos APIs** mediante **dos instancias de Axios** definidas 
 
 ---
 
+## Módulo RRHH · Colaboradores (`/rrhh/*`, API 2)
+
+Control de personal, portado del proyecto Intranet «Control de Personal»
+(C#/.NET 8) al backend `v1-portal-empresarial-back-new`. Los datos viven en el
+esquema `portal_empresarial` de la PostgreSQL que ya usa el back. Lo consume
+`src/services/colaboradoresService.js` con `axiosInstanceNew`.
+
+### Permisos: dos niveles de acceso
+
+Mismo patrón que XCoin con `xcoin.admin` / `xcoin.viewer`:
+
+| Recurso | Qué permite |
+|---|---|
+| `rrhh.colaboradores` | Gestión completa: crear, editar, dar de baja, reingresar, eliminar, abrir la ficha y ver la bitácora |
+| `rrhh.colaboradores.consulta` | Solo el listado de colaboradores **activos**: sin abrir fichas, sin editar y sin ver bajas |
+
+Quien tenga el recurso raíz `rrhh` obtiene la gestión completa por herencia de
+prefijo. Quien tenga **solo** `rrhh.colaboradores.consulta` no la obtiene, porque
+la herencia va de padre a hijo y nunca al revés.
+
+**La regla se aplica en el servidor**, no solo en la pantalla: los endpoints de
+escritura, la ficha individual y la bitácora responden **403** a quien es de
+consulta, y el listado le fuerza `estado=Activo` aunque pida otra cosa en la
+query. El front lo refleja escondiendo botones, quitando la columna Estado y
+dejando las filas no clicables, pero eso es UX: quien decide es el back
+(`src/config/permisosRrhh.ts`).
+
+`GET /rrhh/empleados` devuelve además **`puedeGestionar`** dentro de `data`. Ése es
+el valor que manda en la pantalla: si el front dedujera el permiso por su cuenta y
+las dos reglas divergieran, mostraría acciones que el API va a rechazar.
+
+### Endpoints
+
+Los marcados con 🔒 exigen `rrhh.colaboradores`; el resto acepta también consulta.
+
+| Verbo | Ruta | Qué hace |
+|---|---|---|
+| GET | `/rrhh/resumen` | Tablero: totales, ingresos y bajas del mes, desglose por empresa, últimos 10 movimientos |
+| GET | `/rrhh/empleados` | Listado paginado + `puedeGestionar`. Query: `buscar`, `estado`, `empresaId`, `cargoId`, `ciudadId`, `areaId`, `lineaId`, `page`, `pageSize`. A quien es de consulta se le fuerza `estado=Activo` |
+| GET 🔒 | `/rrhh/empleados/:id` | Ficha completa (29 campos) con auditoría e historial de movimientos |
+| POST 🔒 | `/rrhh/empleados` | Alta. Devuelve **201** |
+| PUT 🔒 | `/rrhh/empleados/:id` | Edición de datos. No toca estado ni salida |
+| POST 🔒 | `/rrhh/empleados/:id/baja` | Da de baja |
+| POST 🔒 | `/rrhh/empleados/:id/reingreso` | Reingresa |
+| DELETE 🔒 | `/rrhh/empleados/:id` | Borrado lógico. **Requiere cuerpo** con `motivo` (mín. 5 caracteres) |
+| GET 🔒 | `/rrhh/empleados/:id/auditoria` | Bitácora de cambios de la ficha |
+| GET | `/rrhh/catalogos/{empresas,cargos,ciudades,areas,lineas}` | Catálogos con conteo de fichas activas |
+| GET | `/rrhh/catalogos/motivos-salida` | Motivos vigentes, con `requiereDetalle` |
+| GET | `/rrhh/catalogos/{estados,tipos-movimiento}` | Constantes de dominio |
+
+### Particularidades de este contrato
+
+- **Devuelve camelCase**, no MAYÚSCULAS como otros módulos de la API 2. Es un
+  acuerdo explícito: las pantallas vienen portadas del Intranet y ya estaban
+  escritas contra camelCase.
+- **Las fechas de negocio son strings `AAAA-MM-DD`.** Si alguna llegara como
+  datetime, el `value` de un `<input type="date">` la rechaza en silencio: el
+  campo aparece vacío y guardar el formulario **borra la fecha**. El servicio
+  recorta a 10 caracteres como red de seguridad.
+- **Los catálogos se crean al paso.** Cargo, área, línea y ciudad se envían por
+  NOMBRE (`cargoNombre`, `areaNombre`, `lineaNombre`, `ciudadNombre`) y el
+  backend crea la fila si no existe. Por eso el formulario usa un combobox de
+  texto libre y no un select.
+- **El DELETE lleva cuerpo:** `axiosInstanceNew.delete(url, { data: { motivo } })`.
+  Como segundo argumento plano, axios lo interpreta como config y el cuerpo se pierde.
+- **El orden de las claves de `datosAnteriores` / `datosNuevos` es contrato.** La
+  pantalla de bitácora empareja «antes» y «ahora» por posición del arreglo, no por
+  nombre. Reordenarlas no da error: muestra el valor de otro campo.
+- **Los errores traen el mensaje de negocio en `message`** y están escritos para
+  mostrarse en pantalla tal cual («ya tiene una ficha en MAXXIMUNDO CIA LTDA»,
+  «complétela en la ficha antes de dar de baja»).
+
+---
+
 *Para requisitos de entorno y errores comunes al conectar con las APIs, ver [setup.md](setup.md).*
