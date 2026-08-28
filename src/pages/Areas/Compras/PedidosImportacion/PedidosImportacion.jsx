@@ -51,6 +51,7 @@ const COLUMNAS_PEDIDOS = [
   { header: "Fecha Máx. Envío", field: "hfr_fechamaximaenvio", isDate: true, align: "center" },
   { header: "Tipo", field: "hfr_pedidocompleto", align: "center" },
   { header: "Estado", field: "hfr_estado", isBadge: true, align: "center" },
+  { header: "Pedido Completo", field: "_pedidoCompleto", align: "center" },
   { header: "PI(s)", field: "PIs", isList: true, wrap: true },
   { header: "Marca(s)", field: "Marcas", isList: true, wrap: true },
   { header: "Líneas", field: "TotalLineas", align: "right" },
@@ -70,8 +71,17 @@ const COLUMNAS_DETALLE = [
   { header: "Backorder", field: "hfr_backorder", align: "right", isNumber: true },
   { header: "Total Línea", field: "hfr_totallinea", align: "right", isMoney: true },
   { header: "Estado", field: "hfr_estado", isBadge: true, align: "center" },
+  { header: "Pedido Completo", field: "_pedidoCompleto", align: "center" },
   { header: "Comentario", field: "hfr_comentario2", wrap: true },
 ];
+
+// Cuando el pedido llega a estado CERRADO, hfr_pedidocompleto se limpia a
+// null en origen; en ese caso se muestra "COMPLETO" en su lugar.
+const getPedidoCompleto = (item) => {
+  const estado = (item.hfr_estado || "").toUpperCase();
+  if (estado === "CERRADO") return "COMPLETO";
+  return item.hfr_pedidocompleto || "—";
+};
 
 const formatFecha = (valor) => {
   if (!valor) return "—";
@@ -530,7 +540,25 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     return theme.colors.info || theme.colors.primary;
   };
 
+  const colorPedidoCompleto = (valor) => {
+    const v = (valor || "").toUpperCase();
+    if (v === "COMPLETO") return theme.colors.success;
+    if (v === "DESPACHADO") return theme.colors.info || theme.colors.primary;
+    if (v === "PEDIDO") return theme.colors.warning || theme.colors.secondary;
+    if (v === "BACKORDER") return theme.colors.error || theme.colors.danger;
+    return theme.colors.textSecondary;
+  };
+
   const renderCelda = (item, columna) => {
+    if (columna.field === "_pedidoCompleto") {
+      const valorPedidoCompleto = getPedidoCompleto(item);
+      return (
+        <Badge $color={colorPedidoCompleto(valorPedidoCompleto)}>
+          {valorPedidoCompleto}
+        </Badge>
+      );
+    }
+
     const valor = item[columna.field];
 
     if (columna.isBadge) {

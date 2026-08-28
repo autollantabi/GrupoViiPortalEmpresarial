@@ -11,6 +11,19 @@ const securityHeaders = {
   "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
 };
 
+// Imprime en la terminal del "npm run dev" cada request que el proxy reenvía
+// al backend real, con la URL completa (target + path ya reescrito).
+const logProxiedRequests = (nombre) => (proxy, options) => {
+  proxy.on("proxyReq", (proxyReq, req) => {
+    console.log(
+      `[proxy:${nombre}] ${req.method} ${req.url} -> ${options.target}${proxyReq.path}`
+    );
+  });
+  proxy.on("error", (err, req) => {
+    console.error(`[proxy:${nombre}] ERROR ${req.method} ${req.url} ->`, err.message);
+  });
+};
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -19,15 +32,17 @@ export default defineConfig({
     port: 5000, // Mantén el mismo puerto si quieres,
     headers: securityHeaders,
     proxy: {
-      "/apid1": {
-        target: "http://192.168.0.68:3002",
+      "/apip1": {
+        target: "http://192.168.0.68:3001",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/apid1/, ""),
+        rewrite: (path) => path.replace(/^\/apip1/, ""),
+        configure: logProxiedRequests("apip1"),
       },
       "/apid2": {
-        target: "http://192.168.0.68:3004",
+        target: "http://192.168.0.68:3003",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/apid2/, ""),
+        configure: logProxiedRequests("apid2"),
       }
     },
   },

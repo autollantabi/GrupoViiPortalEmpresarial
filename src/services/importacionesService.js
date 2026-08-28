@@ -846,3 +846,14 @@ export async function ListarPedidosImportacion({
     return error.response?.data || null;
   }
 }
+
+export async function ObtenerDetalleSkuPedido(idImportacion) {
+  try {
+    const res = await axiosInstanceNew.get(
+      `/importaciones/detalleSku/${idImportacion}`
+    );
+    return res.data;
+  } catch (error) {
+    return error.response?.data || null;
+  }
+}
