@@ -212,10 +212,13 @@ export const CirculoIcono = styled.div`
 `;
 
 /** Aviso en línea, para errores de acción y notas informativas. */
+// Bloque, no flex, a proposito: un Aviso lleva texto corrido con negritas y
+// enlaces dentro. En un contenedor flex cada <strong> o <Link> se vuelve un ITEM
+// flex con su propia columna, asi que la frase se parte en pedazos separados por
+// el gap en lugar de leerse seguida. Ninguno de los avisos del modulo pone un
+// icono al lado del texto, que es lo unico que justificaria el flex.
 export const Aviso = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: block;
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 13px;
