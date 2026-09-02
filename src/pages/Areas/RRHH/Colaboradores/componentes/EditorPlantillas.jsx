@@ -228,6 +228,13 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
               artículo sobre la genérica.
             </Aviso>
 
+            {/* maxWidth="100%" en los cuatro: el de SelectUI son 250px y las
+                columnas de FilaFormulario son mas anchas, asi que sin esto los
+                selects no llenan su columna y la fila queda despareja.
+                noOptionsMessage dice POR QUE no hay opciones: un desplegable
+                vacio sin explicacion es indistinguible de un select roto, y
+                `lineas` esta legitimamente vacio mientras nadie registre lineas
+                de negocio. */}
             <FilaFormulario $min={180}>
               <CampoLabel etiqueta="Cargo">
                 <SelectUI
@@ -236,7 +243,11 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
                   onChange={(opcion) => setCargoId(opcion?.value ?? null)}
                   isClearable
                   isSearchable
+                  maxWidth="100%"
                   placeholder="Cualquiera"
+                  noOptionsMessage={() =>
+                    catalogos.cargos === null ? "Cargando cargos…" : "No hay cargos registrados"
+                  }
                   menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                 />
               </CampoLabel>
@@ -247,7 +258,13 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
                   onChange={(opcion) => setEmpresaId(opcion?.value ?? null)}
                   isClearable
                   isSearchable
+                  maxWidth="100%"
                   placeholder="Cualquiera"
+                  noOptionsMessage={() =>
+                    catalogos.empresas === null
+                      ? "Cargando empresas…"
+                      : "No hay empresas registradas"
+                  }
                   menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                 />
               </CampoLabel>
@@ -258,7 +275,11 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
                   onChange={(opcion) => setAreaId(opcion?.value ?? null)}
                   isClearable
                   isSearchable
+                  maxWidth="100%"
                   placeholder="Cualquiera"
+                  noOptionsMessage={() =>
+                    catalogos.areas === null ? "Cargando áreas…" : "No hay áreas registradas"
+                  }
                   menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                 />
               </CampoLabel>
@@ -269,7 +290,13 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
                   onChange={(opcion) => setLineaId(opcion?.value ?? null)}
                   isClearable
                   isSearchable
+                  maxWidth="100%"
                   placeholder="Cualquiera"
+                  noOptionsMessage={() =>
+                    catalogos.lineas === null
+                      ? "Cargando líneas…"
+                      : "No hay líneas registradas: deje el campo en blanco"
+                  }
                   menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
                 />
               </CampoLabel>
@@ -286,6 +313,11 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
               isSearchable
               maxWidth="100%"
               placeholder="Agregar un artículo…"
+              noOptionsMessage={() =>
+                items === null
+                  ? "Cargando el catálogo…"
+                  : "No hay artículos activos: créelos en la sección Catálogo"
+              }
               menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
             />
 
@@ -429,7 +461,9 @@ const VistaPrevia = ({ catalogos }) => {
               onChange={(opcion) => setAmbito({ ...ambito, [clave]: opcion?.value ?? undefined })}
               isClearable
               isSearchable
+              maxWidth="100%"
               placeholder="Sin definir"
+              noOptionsMessage={() => (lista === null ? "Cargando…" : "Sin registros")}
               menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
             />
           </CampoLabel>
@@ -535,14 +569,30 @@ export const EditorPlantillas = () => {
     [],
   );
 
-  const { datos: cargos } = useConsulta(({ signal }) => ListarCargos({ signal }), []);
-  const { datos: empresas } = useConsulta(({ signal }) => ListarEmpresas({ signal }), []);
-  const { datos: areas } = useConsulta(({ signal }) => ListarAreas({ signal }), []);
-  const { datos: lineas } = useConsulta(({ signal }) => ListarLineas({ signal }), []);
+  const cargos = useConsulta(({ signal }) => ListarCargos({ signal }), []);
+  const empresas = useConsulta(({ signal }) => ListarEmpresas({ signal }), []);
+  const areas = useConsulta(({ signal }) => ListarAreas({ signal }), []);
+  const lineas = useConsulta(({ signal }) => ListarLineas({ signal }), []);
 
   const [enEdicion, setEnEdicion] = useState(undefined);
 
-  const catalogos = { cargos, empresas, areas, lineas };
+  const catalogos = {
+    cargos: cargos.datos,
+    empresas: empresas.datos,
+    areas: areas.datos,
+    lineas: lineas.datos,
+  };
+
+  // Antes estos cuatro errores se descartaban. Un catalogo que falla deja su
+  // select sin opciones, que en pantalla es exactamente igual a "no hay nada
+  // configurado" o a un select roto: hay que decir cual fallo y dejar
+  // reintentar, o el usuario se queda mirando un desplegable vacio sin pista.
+  const catalogosFallidos = [
+    ["cargos", cargos],
+    ["empresas", empresas],
+    ["áreas", areas],
+    ["líneas", lineas],
+  ].filter(([, consulta]) => consulta.error);
 
   const borrar = async (plantilla) => {
     try {
@@ -571,6 +621,18 @@ export const EditorPlantillas = () => {
         aplican todas las que calzan, de la más genérica a la más específica, y para un mismo
         artículo gana la más específica. Para quitar algo heredado se marca como excluido.
       </Aviso>
+
+      {catalogosFallidos.length > 0 && (
+        <Aviso $tono="peligro">
+          No se pudo cargar {catalogosFallidos.map(([nombre]) => nombre).join(", ")}, así que
+          esos selectores van a salir vacíos y no podrá fijar el ámbito.{" "}
+          <ButtonUI
+            text="Reintentar"
+            variant="ghost"
+            onClick={() => catalogosFallidos.forEach(([, consulta]) => consulta.recargar())}
+          />
+        </Aviso>
+      )}
 
       <Tarjeta $sinRelleno>
         <div style={{ padding: 16 }}>
