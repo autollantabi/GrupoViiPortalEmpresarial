@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { InputUI } from "components/UI/Components/InputUI";
+import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
 import {
@@ -23,6 +24,7 @@ import {
   TituloTarjeta,
 } from "./piezas";
 import { hoyIso } from "../utils/fechas";
+import { ESTADO_CIVIL, ETIQUETA_ESTADO_CIVIL } from "../utils/constantesDotacion";
 
 /**
  * Formulario único de alta y edición de una ficha.
@@ -40,6 +42,12 @@ import { hoyIso } from "../utils/fechas";
 
 const soloDigitos = (valor) => valor.replace(/\D/g, "");
 
+/** Los mismos valores que el CHECK de la base; las etiquetas salen del módulo. */
+const OPCIONES_ESTADO_CIVIL = ESTADO_CIVIL.map((valor) => ({
+  value: valor,
+  label: ETIQUETA_ESTADO_CIVIL[valor] ?? valor,
+}));
+
 const VACIO = {
   apellidos: "",
   nombres: "",
@@ -50,6 +58,9 @@ const VACIO = {
   lineaNombre: "",
   ciudadNombre: "",
   fechaNacimiento: "",
+  estadoCivil: null,
+  numeroHijos: "",
+  conduce: false,
   correoCorporativo: "",
   extension: "",
   telefonoEmpresarial: "",
@@ -70,6 +81,14 @@ const desdeFicha = (ficha) =>
         lineaNombre: ficha.linea ?? "",
         ciudadNombre: ficha.ciudad ?? "",
         fechaNacimiento: ficha.fechaNacimiento ?? "",
+        estadoCivil: ficha.estadoCivil ?? null,
+        // Cadena vacía y no 0: null significa "no se sabe", y un 0 puesto por
+        // omisión afirmaría que no tiene hijos.
+        numeroHijos:
+          ficha.numeroHijos === null || ficha.numeroHijos === undefined
+            ? ""
+            : String(ficha.numeroHijos),
+        conduce: ficha.conduce === true,
         correoCorporativo: ficha.correoCorporativo ?? "",
         extension: ficha.extension ?? "",
         telefonoEmpresarial: ficha.telefonoEmpresarial ?? "",
@@ -172,6 +191,9 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
       lineaNombre: aTexto(valores.lineaNombre),
       ciudadNombre: aTexto(valores.ciudadNombre),
       fechaNacimiento: aTexto(valores.fechaNacimiento),
+      estadoCivil: valores.estadoCivil ?? null,
+      numeroHijos: valores.numeroHijos === "" ? null : Number(valores.numeroHijos),
+      conduce: valores.conduce === true,
       correoCorporativo: aTexto(valores.correoCorporativo),
       extension: aTexto(valores.extension),
       telefonoEmpresarial: aTexto(valores.telefonoEmpresarial),
@@ -231,6 +253,54 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
                 max={hoyIso()}
               />
             </CampoLabel>
+          </FilaFormulario>
+        </Tarjeta>
+
+        <Tarjeta>
+          <TituloTarjeta>Situación personal</TituloTarjeta>
+          <Aviso $tono="info">
+            Estos tres datos deciden qué documentos se le piden: el acta de matrimonio solo
+            si es casado, las partidas de nacimiento solo si tiene hijos, y la licencia y la
+            matrícula solo si conduce. Mientras estén vacíos no se le reclama ninguno de
+            ellos.
+          </Aviso>
+          <FilaFormulario>
+            <CampoLabel etiqueta="Estado civil">
+              <SelectUI
+                options={OPCIONES_ESTADO_CIVIL}
+                value={
+                  OPCIONES_ESTADO_CIVIL.find((opcion) => opcion.value === valores.estadoCivil) ??
+                  null
+                }
+                onChange={(opcion) => campo("estadoCivil")(opcion?.value ?? null)}
+                isClearable
+                placeholder="Sin registrar"
+                menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
+              />
+            </CampoLabel>
+
+            <CampoLabel
+              etiqueta="Número de hijos"
+              ayuda="Déjelo vacío si no se sabe. Un 0 afirma que no tiene."
+            >
+              <InputUI
+                type="number"
+                value={valores.numeroHijos}
+                onChange={(valor) => campo("numeroHijos")(soloDigitos(valor))}
+                min={0}
+                max={30}
+              />
+            </CampoLabel>
+
+            <div style={{ display: "flex", alignItems: "center", paddingTop: 18 }}>
+              <CheckboxUI
+                name="conduce"
+                checked={valores.conduce === true}
+                // CheckboxUI del kit entrega (name, checked), no el evento.
+                onChange={(_nombre, marcado) => campo("conduce")(marcado)}
+                label="Conduce por trabajo"
+              />
+            </div>
           </FilaFormulario>
         </Tarjeta>
 

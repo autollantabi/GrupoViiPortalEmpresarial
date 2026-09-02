@@ -63,6 +63,9 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {number|null} lineaId
  * @property {string|null} linea
  * @property {string|null} fechaNacimiento
+ * @property {string|null} estadoCivil
+ * @property {number|null} numeroHijos
+ * @property {boolean} conduce
  * @property {string|null} correoCorporativo
  * @property {string|null} correoEstandar
  * @property {string|null} extension
@@ -140,6 +143,10 @@ const mapearDetalle = (ficha) => ({
   lineaId: numero(ficha.lineaId),
   motivoSalidaId: numero(ficha.motivoSalidaId),
   fechaNacimiento: soloFecha(ficha.fechaNacimiento),
+  // numeroHijos distingue null ("no se sabe") de 0 ("se sabe que no tiene"), así
+  // que pasa por numero() y no por Number() a secas.
+  numeroHijos: numero(ficha.numeroHijos),
+  conduce: ficha.conduce === true,
   fechaIngreso: soloFecha(ficha.fechaIngreso),
   fechaSalida: soloFecha(ficha.fechaSalida),
   movimientos: (ficha.movimientos ?? []).map((mov) => ({
