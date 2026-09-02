@@ -12,16 +12,16 @@ import {
   ReingresarColaborador,
 } from "services/colaboradoresService";
 import { BitacoraAuditoria } from "../componentes/BitacoraAuditoria";
+import { CabeceraFicha } from "../componentes/CabeceraFicha";
 import { ModalBajaReingreso } from "../componentes/ModalBajaReingreso";
 import { ModalEliminar } from "../componentes/ModalEliminar";
+import { PestanasFicha } from "../componentes/PestanasFicha";
 import { useConsulta } from "../hooks/useConsulta";
-import {
-  ESTADO,
-  RUTA_BASE,
-  TONO_ESTADO,
-  TONO_MOVIMIENTO,
-} from "../utils/constantes";
+import { ESTADO, RUTA_BASE, TONO_MOVIMIENTO } from "../utils/constantes";
 import { formatearFecha, formatearMomento } from "../utils/fechas";
+import { ObtenerDocumentacionEmpleado, ObtenerDotacionEmpleado } from "services/dotacionService";
+import { ETIQUETA_ESTADO_CIVIL, RUTA_DOCUMENTOS, RUTA_DOTACION } from "../utils/constantesDotacion";
+import { Rejilla } from "../componentes/piezas";
 import {
   Acciones,
   Aviso,
@@ -32,16 +32,13 @@ import {
   DatoContenedor,
   DatoEtiqueta,
   DatoValor,
-  Encabezado,
   EnlaceVolver,
   ItemTiempo,
   LineaTiempo,
   ListaDatos,
   Separador,
-  Subtitulo,
   Tarjeta,
   TextoTenue,
-  Titulo,
   TituloTarjeta,
   Vacio,
 } from "../componentes/piezas";
@@ -65,6 +62,29 @@ export const ColFicha = () => {
   const { datos: ficha, cargando, error, recargar } = useConsulta(
     ({ signal }) => ObtenerColaborador(id, { signal }),
     [id],
+  );
+
+  /**
+   * Resumen de las otras dos pestañas.
+   *
+   * Se pide desde acá, y no solo dentro de cada pestaña, para poder poner el
+   * contador de pendientes en la pestaña misma: sin eso, RRHH tendría que entrar a
+   * mirar si falta algo. Son dos consultas de lectura y no bloquean la ficha: si
+   * fallan, los contadores quedan en cero y la ficha se ve igual.
+   */
+  const { datos: dotacion } = useConsulta(
+    ({ signal }) => ObtenerDotacionEmpleado(id, { signal }),
+    [id],
+  );
+
+  const { datos: documentacion } = useConsulta(
+    ({ signal }) => ObtenerDocumentacionEmpleado(id, { signal }),
+    [id],
+  );
+
+  const pendientesDotacion = (dotacion?.asignaciones ?? []).reduce(
+    (total, fila) => total + fila.pendientes,
+    0,
   );
 
   const cerrarModal = () => setModal(null);
@@ -121,57 +141,40 @@ export const ColFicha = () => {
 
   return (
     <Contenedor translate="no" className="notranslate">
-      <EnlaceVolver to={`${RUTA_BASE}/empleados`}>← Volver al listado</EnlaceVolver>
-
-      <Encabezado>
-        <div>
-          <Acciones>
-            <Titulo>{ficha.nombresCompletos}</Titulo>
-            <Badge $tono={TONO_ESTADO[ficha.estado] ?? "neutro"}>
-              {activo ? "Activo" : "De baja"}
-            </Badge>
-          </Acciones>
-          <Subtitulo>
-            {ficha.cargo ? `${ficha.cargo} · ` : ""}
-            {ficha.empresa}
-          </Subtitulo>
-        </div>
-        <Acciones>
-          {activo ? (
-            <ButtonUI
-              text="Dar de baja"
-              iconLeft="FaUserSlash"
-              variant="outlined"
-              onClick={() => setModal("baja")}
-            />
-          ) : (
-            <ButtonUI
-              text="Reingresar"
-              iconLeft="FaUserCheck"
-              variant="outlined"
-              onClick={() => setModal("reingreso")}
-            />
-          )}
-          <BotonEnlace to={`${RUTA_BASE}/empleados/${id}/editar`}>
-            <IconUI name="FaPenToSquare" size={14} />
-            Editar
-          </BotonEnlace>
+      <CabeceraFicha ficha={ficha}>
+        {activo ? (
           <ButtonUI
-            text="Eliminar"
-            iconLeft="FaTrashCan"
-            variant="ghost"
-            pcolor={theme?.colors?.error}
-            onClick={() => setModal("eliminar")}
+            text="Dar de baja"
+            iconLeft="FaUserSlash"
+            variant="outlined"
+            onClick={() => setModal("baja")}
           />
-        </Acciones>
-      </Encabezado>
+        ) : (
+          <ButtonUI
+            text="Reingresar"
+            iconLeft="FaUserCheck"
+            variant="outlined"
+            onClick={() => setModal("reingreso")}
+          />
+        )}
+        <BotonEnlace to={`${RUTA_BASE}/empleados/${id}/editar`}>
+          <IconUI name="FaPenToSquare" size={14} />
+          Editar
+        </BotonEnlace>
+        <ButtonUI
+          text="Eliminar"
+          iconLeft="FaTrashCan"
+          variant="ghost"
+          pcolor={theme?.colors?.error}
+          onClick={() => setModal("eliminar")}
+        />
+      </CabeceraFicha>
 
-      {!activo && (
-        <Aviso $tono="peligro">
-          Salió el {formatearFecha(ficha.fechaSalida)}
-          {ficha.motivoSalida ? ` · ${ficha.motivoSalida}` : ""}
-        </Aviso>
-      )}
+      <PestanasFicha
+        id={id}
+        pendientesDotacion={pendientesDotacion}
+        pendientesDocumentos={documentacion?.pendientes ?? 0}
+      />
 
       {activo && !ficha.fechaIngreso && (
         <Aviso $tono="aviso">
@@ -199,6 +202,17 @@ export const ColFicha = () => {
           <Dato etiqueta="Ingreso">
             {ficha.fechaIngreso ? formatearFecha(ficha.fechaIngreso) : null}
           </Dato>
+          <Dato etiqueta="Estado civil">
+            {ficha.estadoCivil
+              ? (ETIQUETA_ESTADO_CIVIL[ficha.estadoCivil] ?? ficha.estadoCivil)
+              : null}
+          </Dato>
+          <Dato etiqueta="Hijos">
+            {ficha.numeroHijos === null || ficha.numeroHijos === undefined
+              ? null
+              : ficha.numeroHijos}
+          </Dato>
+          <Dato etiqueta="Conduce">{ficha.conduce ? "Sí" : "No"}</Dato>
           <Dato etiqueta="Observación">{ficha.observacion}</Dato>
         </ListaDatos>
 
@@ -212,6 +226,44 @@ export const ColFicha = () => {
             : ""}
         </TextoTenue>
       </Tarjeta>
+
+      {/* Resumen de las otras dos pestañas, para no tener que entrar a mirar. */}
+      <Rejilla $min={280}>
+        <Tarjeta>
+          <Acciones style={{ justifyContent: "space-between" }}>
+            <TituloTarjeta style={{ margin: 0 }}>Dotación</TituloTarjeta>
+            <BotonEnlace to={RUTA_DOTACION(id)}>Ver</BotonEnlace>
+          </Acciones>
+          {dotacion === null ? (
+            <TextoTenue>Cargando…</TextoTenue>
+          ) : dotacion.asignaciones.length === 0 ? (
+            <TextoTenue>Sin dotación registrada.</TextoTenue>
+          ) : (
+            <TextoTenue>
+              {dotacion.asignaciones.length} asignación(es) ·{" "}
+              {pendientesDotacion === 0
+                ? "todo entregado"
+                : `${pendientesDotacion} artículo(s) pendiente(s)`}
+            </TextoTenue>
+          )}
+        </Tarjeta>
+
+        <Tarjeta>
+          <Acciones style={{ justifyContent: "space-between" }}>
+            <TituloTarjeta style={{ margin: 0 }}>Documentación</TituloTarjeta>
+            <BotonEnlace to={RUTA_DOCUMENTOS(id)}>Ver</BotonEnlace>
+          </Acciones>
+          {documentacion === null ? (
+            <TextoTenue>Cargando…</TextoTenue>
+          ) : (
+            <TextoTenue>
+              {documentacion.entregados} de {documentacion.totalRequeridos} entregado
+              {documentacion.sinArchivo > 0 &&
+                ` · ${documentacion.sinArchivo} sin digitalizar`}
+            </TextoTenue>
+          )}
+        </Tarjeta>
+      </Rejilla>
 
       <Tarjeta>
         <TituloTarjeta>Historial</TituloTarjeta>

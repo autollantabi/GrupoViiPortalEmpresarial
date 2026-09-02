@@ -5,6 +5,9 @@ import { ColListado } from "./pantallas/ColListado";
 import { ColFicha } from "./pantallas/ColFicha";
 import { ColNuevo } from "./pantallas/ColNuevo";
 import { ColEditar } from "./pantallas/ColEditar";
+import { ColDotacion } from "./pantallas/ColDotacion";
+import { ColDocumentos } from "./pantallas/ColDocumentos";
+import { ColConfiguracion } from "./pantallas/ColConfiguracion";
 import { usePermisosColaboradores } from "./hooks/usePermisos";
 import { RUTA_BASE } from "./utils/constantes";
 
@@ -51,6 +54,16 @@ export const Colaboradores = ({
       <Route path="empleados/nuevo" element={soloGestion(<ColNuevo {...contexto} />)} />
       <Route path="empleados/:id" element={soloGestion(<ColFicha {...contexto} />)} />
       <Route path="empleados/:id/editar" element={soloGestion(<ColEditar {...contexto} />)} />
+      {/* Pestañas de la ficha. Tienen URL propia para que el enlace sea
+          compartible y el botón atrás recorra las pestañas, igual que los filtros
+          del listado viven en la query string. */}
+      <Route path="empleados/:id/dotacion" element={soloGestion(<ColDotacion {...contexto} />)} />
+      <Route path="empleados/:id/documentos" element={soloGestion(<ColDocumentos {...contexto} />)} />
+      {/* La configuración de dotación y documentos vive DENTRO de esta sección y
+          no como opción de menú aparte: así no hay que otorgar un recurso nuevo a
+          cada usuario de RRHH para que la vea. Sus secciones van en la query
+          string (?seccion=), el mismo idioma que usa ColListado. */}
+      <Route path="configuracion" element={soloGestion(<ColConfiguracion {...contexto} />)} />
       <Route path="*" element={<Navigate to={RUTA_BASE} replace />} />
     </Routes>
   );
