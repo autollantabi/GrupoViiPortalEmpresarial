@@ -14,6 +14,7 @@ import {
   nombreCortoEmpresa,
 } from "../utils/constantes";
 import { formatearFecha } from "../utils/fechas";
+import { RUTA_CONFIGURACION } from "../utils/constantesDotacion";
 import {
   Acciones,
   Badge,
@@ -242,11 +243,21 @@ export const ColTablero = () => {
             onClick={() => navigate(`${RUTA_BASE}/empleados`)}
           />
           {puedeGestionar && (
-            <ButtonUI
-              text="Registrar ingreso"
-              iconLeft="FaUserPlus"
-              onClick={() => navigate(`${RUTA_BASE}/empleados/nuevo`)}
-            />
+            <>
+              {/* La configuración de dotación y documentos no tiene ítem de menú
+                  propio: se entra desde acá. */}
+              <ButtonUI
+                text="Configuración"
+                iconLeft="FaGear"
+                variant="outlined"
+                onClick={() => navigate(RUTA_CONFIGURACION)}
+              />
+              <ButtonUI
+                text="Registrar ingreso"
+                iconLeft="FaUserPlus"
+                onClick={() => navigate(`${RUTA_BASE}/empleados/nuevo`)}
+              />
+            </>
           )}
         </Acciones>
       </Encabezado>
