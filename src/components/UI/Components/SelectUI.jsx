@@ -191,6 +191,17 @@ export const SelectUI = ({
       padding: "2px 0",
       backgroundColor: theme.colors?.selectMenuBackground || theme.colors?.selectBackground || theme.colors?.backgroundCard || "#ffffff",
     }),
+    // Con menuPortalTarget, react-select NO usa el estilo `menu` de arriba para
+    // apilar: monta el desplegable en un envoltorio propio, y el z-index de ese
+    // envoltorio es 1 por defecto. ModalUI vive en z-index 1000, asi que sin
+    // esto cualquier SelectUI portalizado dentro de un modal dibuja su menu
+    // DETRAS del modal: se abre, no se ve, y parece que el select estuviera
+    // roto o sin opciones.
+    // 1100 lo deja encima del modal y debajo de los toasts (9999).
+    menuPortal: (provided) => ({
+      ...provided,
+      zIndex: 1100,
+    }),
     singleValue: (provided) => ({
       ...provided,
       whiteSpace: "nowrap",
