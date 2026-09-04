@@ -169,20 +169,51 @@ export const SelectUI = ({
       padding: "2px 4px",
     }),
     menu: (provided, state) => {
-      // Obtener el ancho del control desde el estado o usar el ancho del contenedor
-      const controlWidth = state.selectProps.controlWidth || "100%";
-      
-      // El menú debe ser al menos tan ancho como el control, pero puede expandirse si el contenido lo requiere
-      // Usamos minWidth del control y maxWidth más flexible para permitir expansión
+      const fondo = theme.colors?.selectMenuBackground || theme.colors?.selectBackground || theme.colors?.backgroundCard || "#ffffff";
+
+      // ── PORTALIZADO: el ancho lo pone el envoltorio, no una medición ──────
+      //
+      // react-select posiciona el menú portalizado con @floating-ui, y su
+      // menuPortalCSS ya le da al envoltorio `width: rect.width`, o sea el
+      // ancho exacto del control. Con eso, medir el contenedor para calcular
+      // minWidth no solo es redundante: es un BUCLE.
+      //
+      // El bucle era este. El menú vive en document.body con un minWidth en
+      // píxeles; si queda ancho, la página gana una barra de scroll; la barra
+      // cambia el offsetWidth del contenedor; updateControlWidth hace
+      // setState; el re-render rearma los estilos; floating-ui dispara su
+      // autoUpdate; y vuelta a empezar. React lo corta con "Maximum update
+      // depth exceeded", y el stack lo delata: commitAttachRef -> autoUpdate
+      // -> dispatchSetState.
+      //
+      // Acá el menú simplemente ocupa el 100% de su envoltorio. Y sin maxWidth,
+      // que además arreglaba a medias otro problema: el tope por omisión de
+      // menuMaxWidth son 200px, así que un select ancho recortaba su propio
+      // desplegable.
+      if (menuPortalTarget) {
+        return {
+          ...provided,
+          width: "100%",
+          minWidth: 0,
+          maxWidth: "none",
+          maxHeight: menuMaxHeight,
+          fontSize: "12px",
+          backgroundColor: fondo,
+        };
+      }
+
+      // Sin portal el menú es hijo del contenedor, así que sí hace falta
+      // decirle que sea al menos tan ancho como el control. Este camino queda
+      // como estaba: es el que usa el resto de la aplicación.
       return {
         ...provided,
         zIndex: 10,
         width: "auto",
-        minWidth: controlWidth,
-        maxWidth: menuMaxWidth || "400px", // Permitir expansión hasta un máximo razonable
+        minWidth: state.selectProps.controlWidth || "100%",
+        maxWidth: menuMaxWidth || "400px",
         maxHeight: menuMaxHeight,
         fontSize: "12px",
-        backgroundColor: theme.colors?.selectMenuBackground || theme.colors?.selectBackground || theme.colors?.backgroundCard || "#ffffff",
+        backgroundColor: fondo,
       };
     },
     menuList: (provided) => ({
@@ -232,14 +263,23 @@ export const SelectUI = ({
   const containerRef = React.useRef(null);
   const [controlWidth, setControlWidth] = React.useState("100%");
 
+  // Portalizado no se mide nada: el ancho lo pone @floating-ui en el
+  // envoltorio, y medir es la otra mitad del bucle descrito en el estilo
+  // `menu`. Cortarlo en los dos lados evita que vuelva por otro camino.
+  const necesitaMedir = !menuPortalTarget;
+
   const updateControlWidth = React.useCallback(() => {
+    if (!necesitaMedir) {
+      return;
+    }
+
     if (containerRef.current) {
       const width = containerRef.current.offsetWidth;
       if (width > 0) {
         setControlWidth(`${width}px`);
       }
     }
-  }, []);
+  }, [necesitaMedir]);
 
   React.useEffect(() => {
     updateControlWidth();
