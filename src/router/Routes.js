@@ -87,6 +87,7 @@ import { ClientesEnrutados } from "pages/Areas/Reporteria/ClientesEnrutados/Clie
 import { ReporteAnalisisPorCliente } from "pages/Areas/Reporteria/AnalisisPorCliente/AnalisisPorCliente";
 import { ReporteriaComecialTecnicentroOld } from "pages/Areas/Reporteria/ComercialTecnicentroOld/ReporteriaComercialTecnicentroOld";
 import { ReporteListaPrecios } from "pages/Areas/Reporteria/ListaPrecios/ListaPrecios";
+import { ReportePareto } from "pages/Areas/Reporteria/ReportePareto/ReportePareto";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -511,6 +512,11 @@ export const RoutesConfig = [
     title: "Lista Precios",
     component: ReporteListaPrecios,
     recurso: "reportes.listaprecios",
+  },
+  {
+    title: "Reporte Pareto",
+    component: ReportePareto,
+    recurso: "reportes.reportepareto",
   },
   // ================================= VISITAS =================================
   {
