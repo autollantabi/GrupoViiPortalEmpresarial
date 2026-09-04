@@ -24,7 +24,7 @@ import { SECCION_CONFIGURACION } from "../utils/constantesDotacion";
  */
 
 const SECCIONES = [
-  { valor: SECCION_CONFIGURACION.PLANTILLAS, etiqueta: "Plantillas" },
+  { valor: SECCION_CONFIGURACION.PLANTILLAS, etiqueta: "Reglas de dotación" },
   { valor: SECCION_CONFIGURACION.ITEMS, etiqueta: "Catálogo de artículos" },
   { valor: SECCION_CONFIGURACION.DOCUMENTOS, etiqueta: "Tipos de documento" },
   { valor: SECCION_CONFIGURACION.AREAS, etiqueta: "Áreas y responsables" },

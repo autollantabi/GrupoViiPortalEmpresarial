@@ -150,7 +150,7 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
           })),
         );
       })
-      .catch((e) => !cancelado && toast.error(e.message || "No se pudo cargar la plantilla"))
+      .catch((e) => !cancelado && toast.error(e.message || "No se pudo cargar la regla"))
       .finally(() => !cancelado && setCargando(false));
 
     return () => {
@@ -288,13 +288,13 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
     const nombreFinal = nombreEfectivo.trim();
 
     if (!nombreFinal) {
-      toast.error("Escriba un nombre para la plantilla, o elija un ámbito para que se proponga.");
+      toast.error("Escriba un nombre para la regla, o elija un ámbito para que se proponga.");
       return;
     }
 
     if (!hayAmbito) {
       toast.error(
-        "Elija al menos un cargo, empresa, área o línea. Una plantilla sin ámbito aplicaría a todo el grupo sin decirlo.",
+        "Elija al menos un cargo, empresa, área o línea. Una regla sin ámbito aplicaría a todo el grupo sin decirlo.",
       );
       return;
     }
@@ -330,10 +330,10 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
         ? CrearPlantillaDotacion(carga)
         : ActualizarPlantillaDotacion(plantillaId, carga));
 
-      toast.success("Plantilla guardada.");
+      toast.success("Regla guardada.");
       onGuardado();
     } catch (e) {
-      toast.error(e.message || "No se pudo guardar la plantilla");
+      toast.error(e.message || "No se pudo guardar la regla");
     } finally {
       setEnviando(false);
     }
@@ -391,13 +391,13 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
     <ModalUI
       isOpen={abierto}
       onClose={onCerrar}
-      title={plantillaId === null ? "Nueva plantilla" : "Editar plantilla"}
+      title={plantillaId === null ? "Nueva regla de dotación" : "Editar regla de dotación"}
       width="860px"
       maxWidth="96vw"
       noFooter
     >
       {cargando ? (
-        <LoaderUI text="Cargando la plantilla…" height="200px" />
+        <LoaderUI text="Cargando la regla…" height="200px" />
       ) : (
         <form onSubmit={enviar} noValidate>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -406,7 +406,7 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
 
             <TextoTenue>
               Deje en blanco lo que no quiera fijar: en blanco significa <b>cualquiera</b>. Cuantos
-              más campos llene, más específica es la plantilla y más manda sobre las genéricas.
+              más campos llene, más específica es la regla y más manda sobre las genéricas.
             </TextoTenue>
 
             <FilaFormulario $min={180}>
@@ -505,13 +505,13 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
               <TextoTenue>Calculando…</TextoTenue>
             ) : filasHeredadas.length === 0 ? (
               <TextoTenue>
-                Nada: con este ámbito no hay otra plantilla que aporte artículos, así que todo lo
+                Nada: con este ámbito no hay otra regla que aporte artículos, así que todo lo
                 que reciba sale de esta.
               </TextoTenue>
             ) : (
               <>
                 <TextoTenue>
-                  Otras plantillas ya entregan esto. No hace falta volver a agregarlo; si a esta
+                  Otras reglas ya entregan esto. No hace falta volver a agregarlo; si a esta
                   gente NO le corresponde, quítelo.
                 </TextoTenue>
 
@@ -559,7 +559,7 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
             <Separador />
 
             {/* ── 3. Lo que agrega ──────────────────────────────────────── */}
-            <TituloTarjeta style={{ margin: 0 }}>3 · ¿Qué agrega esta plantilla?</TituloTarjeta>
+            <TituloTarjeta style={{ margin: 0 }}>3 · ¿Qué agrega esta regla?</TituloTarjeta>
 
             <SelectorArticulos
               items={items}
@@ -616,7 +616,7 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
                               text=""
                               iconLeft="FaTrashCan"
                               variant="ghost"
-                              title="Quitar de la plantilla"
+                              title="Quitar de la regla"
                               onClick={() => alternar({ id: renglon.itemId })}
                             />
                           </Td>
@@ -634,7 +634,7 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
               {totalFinal > 0 ? (
                 <>
                   Con este ámbito, un colaborador recibiría <b>{totalFinal} artículo(s)</b>:{" "}
-                  {entregados.length} de esta plantilla
+                  {entregados.length} de esta regla
                   {filasHeredadas.length > 0
                     ? ` y ${filasHeredadas.filter((i) => !idsExcluidos.has(i.itemId)).length} heredado(s)`
                     : ""}
@@ -642,7 +642,7 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
                 </>
               ) : (
                 <>
-                  Con este ámbito no recibiría nada. Una plantilla vacía es válida —sirve para
+                  Con este ámbito no recibiría nada. Una regla vacía es válida —sirve para
                   quitar lo que otra entrega— pero si esperaba entregar algo, márquelo arriba.
                 </>
               )}
@@ -744,7 +744,7 @@ const VistaPrevia = ({ catalogos }) => {
 
           {resolucion.plantillasAplicadas.length === 0 ? (
             <Aviso $tono="aviso">
-              Ninguna plantilla aplica a ese ámbito. A un colaborador así habría que armarle la
+              Ninguna regla aplica a ese ámbito. A un colaborador así habría que armarle la
               dotación a mano.
             </Aviso>
           ) : (
@@ -790,7 +790,7 @@ const VistaPrevia = ({ catalogos }) => {
               {resolucion.items.length === 0 && (
                 <Vacio>
                   <TextoTenue>
-                    Las plantillas aplican pero no dejan ningún artículo: revise si alguna los
+                    Las reglas aplican pero no dejan ningún artículo: revise si alguna los
                     está excluyendo.
                   </TextoTenue>
                 </Vacio>
@@ -856,11 +856,11 @@ export const EditorPlantillas = () => {
       toast.success(`${plantilla.nombre} eliminada.`);
       recargar();
     } catch (e) {
-      toast.error(e.message || "No se pudo eliminar la plantilla");
+      toast.error(e.message || "No se pudo eliminar la regla");
     }
   };
 
-  if (cargando) return <LoaderUI text="Cargando las plantillas…" height="200px" />;
+  if (cargando) return <LoaderUI text="Cargando las reglas…" height="200px" />;
 
   if (error) {
     return (
@@ -873,9 +873,9 @@ export const EditorPlantillas = () => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Aviso $tono="info">
-        Las plantillas se <strong>acumulan</strong>, no se reemplazan: a cada colaborador se le
+        Las reglas se <strong>acumulan</strong>, no se reemplazan: a cada colaborador se le
         aplican todas las que calzan, de la más genérica a la más específica, y para un mismo
-        artículo gana la más específica. Para quitar algo heredado se marca como excluido.
+        artículo gana la más específica. Para quitar algo heredado se usa Quitar.
       </Aviso>
 
       {catalogosFallidos.length > 0 && (
@@ -893,9 +893,9 @@ export const EditorPlantillas = () => {
       <Tarjeta $sinRelleno>
         <div style={{ padding: 16 }}>
           <Acciones style={{ justifyContent: "space-between" }}>
-            <TituloTarjeta style={{ margin: 0 }}>Plantillas</TituloTarjeta>
+            <TituloTarjeta style={{ margin: 0 }}>Reglas de dotación</TituloTarjeta>
             <ButtonUI
-              text="Nueva plantilla"
+              text="Nueva regla"
               iconLeft="FaPlus"
               variant="outlined"
               onClick={() => setEnEdicion(null)}
@@ -905,7 +905,7 @@ export const EditorPlantillas = () => {
 
         {(plantillas ?? []).length === 0 ? (
           <Vacio>
-            <strong>Sin plantillas</strong>
+            <strong>Sin reglas de dotación</strong>
             <TextoTenue>
               Mientras no haya ninguna, los colaboradores nuevos nacen con la dotación vacía y
               hay que armarla a mano.
@@ -916,7 +916,7 @@ export const EditorPlantillas = () => {
             <Tabla>
               <thead>
                 <tr>
-                  <Th>Plantilla</Th>
+                  <Th>Regla</Th>
                   <Th>Ámbito</Th>
                   <Th>Artículos</Th>
                   <Th aria-label="Acciones" />

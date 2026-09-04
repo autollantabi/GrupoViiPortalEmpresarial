@@ -113,8 +113,8 @@ export const ETIQUETA_ESTADO_CIVIL = Object.freeze({
 export const ETIQUETA_TABLA_DOTACION = Object.freeze({
   dotacion_grupos: "grupo de dotación",
   dotacion_items: "artículo de dotación",
-  dotacion_plantillas: "plantilla de dotación",
-  dotacion_plantilla_items: "renglón de plantilla",
+  dotacion_plantillas: "regla de dotación",
+  dotacion_plantilla_items: "renglón de regla",
   dotacion_asignaciones: "dotación",
   dotacion_asignacion_items: "artículo entregado",
   documentos_tipos: "tipo de documento",
