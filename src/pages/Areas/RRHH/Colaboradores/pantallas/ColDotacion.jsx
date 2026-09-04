@@ -4,11 +4,10 @@ import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import IconUI from "components/UI/Components/IconsUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
-import { SelectUI } from "components/UI/Components/SelectUI";
 import { useTheme } from "context/ThemeContext";
 import { ObtenerColaborador } from "services/colaboradoresService";
 import {
-  AgregarItemAsignacion,
+  AgregarItemsAsignacion,
   CrearAsignacionDotacion,
   EntregarTodoAsignacion,
   ListarItemsDotacion,
@@ -18,6 +17,7 @@ import {
   QuitarItemAsignacion,
 } from "services/dotacionService";
 import { CabeceraFicha } from "../componentes/CabeceraFicha";
+import { SelectorArticulos } from "../componentes/SelectorArticulos";
 import { HistorialNotificaciones } from "../componentes/HistorialNotificaciones";
 import { ModalEntregarItem } from "../componentes/ModalEntregarItem";
 import { PestanasFicha } from "../componentes/PestanasFicha";
@@ -60,7 +60,15 @@ export const ColDotacion = () => {
   const [ocupado, setOcupado] = useState(false);
   const [itemEnEdicion, setItemEnEdicion] = useState(null);
   const [asignacionEnEdicion, setAsignacionEnEdicion] = useState(null);
-  const [itemAAgregar, setItemAAgregar] = useState(null);
+  /**
+   * Los artículos marcados, POR ASIGNACIÓN.
+   *
+   * Antes era un solo estado compartido, y las tarjetas de asignación se
+   * dibujan en un map: con una inicial y una complementaria, lo que se elegía
+   * en una aparecía marcado en la otra y los dos botones quedaban habilitados.
+   * La clave del mapa es el id de la asignación.
+   */
+  const [elegidosPorAsignacion, setElegidosPorAsignacion] = useState({});
 
   const { datos: ficha } = useConsulta(({ signal }) => ObtenerColaborador(id, { signal }), [id]);
 
@@ -143,12 +151,40 @@ export const ColDotacion = () => {
       toast.info(mensaje || "Avisos procesados.");
     });
 
+  const elegidosDe = (asignacionId) =>
+    elegidosPorAsignacion[asignacionId] ?? new Set();
+
+  const alternarItem = (asignacionId, item) =>
+    setElegidosPorAsignacion((previo) => {
+      const actuales = new Set(previo[asignacionId] ?? []);
+      if (actuales.has(item.id)) actuales.delete(item.id);
+      else actuales.add(item.id);
+      return { ...previo, [asignacionId]: actuales };
+    });
+
+  /** Marca o desmarca todo un grupo de una vez. */
+  const alternarGrupo = (asignacionId, articulos, marcar) =>
+    setElegidosPorAsignacion((previo) => {
+      const actuales = new Set(previo[asignacionId] ?? []);
+      articulos.forEach((item) => {
+        if (marcar) actuales.add(item.id);
+        else actuales.delete(item.id);
+      });
+      return { ...previo, [asignacionId]: actuales };
+    });
+
   const agregar = (asignacionId) => {
-    if (!itemAAgregar) return;
+    const elegidos = [...elegidosDe(asignacionId)];
+    if (elegidos.length === 0) return;
+
     ejecutar(
-      () => AgregarItemAsignacion(asignacionId, { itemId: itemAAgregar.value }),
-      `${itemAAgregar.label} agregado.`,
-    ).then(() => setItemAAgregar(null));
+      () => AgregarItemsAsignacion(asignacionId, elegidos),
+      `${elegidos.length} artículo(s) agregado(s).`,
+    ).then(() =>
+      // Se limpia solo la de esta asignación: si había algo marcado en otra
+      // tarjeta, no tiene por qué perderse.
+      setElegidosPorAsignacion((previo) => ({ ...previo, [asignacionId]: new Set() })),
+    );
   };
 
   if (cargando) {
@@ -182,11 +218,6 @@ export const ColDotacion = () => {
 
   const pendientes = dotacion.asignaciones.reduce((total, fila) => total + fila.pendientes, 0);
   const tieneInicial = dotacion.asignaciones.some((fila) => fila.tipo === TIPO_ASIGNACION.INICIAL);
-
-  const opcionesCatalogo = (catalogo ?? []).map((item) => ({
-    value: item.id,
-    label: `${item.grupoNombre} · ${item.nombre}`,
-  }));
 
   return (
     <Contenedor translate="no" className="notranslate">
@@ -313,24 +344,34 @@ export const ColDotacion = () => {
 
             <Separador />
 
+            {/* Casillas y no un desplegable de uno en uno: marcar el grupo
+                completo con una casilla y destildar lo que no corresponda es
+                un gesto, y antes eran tantos viajes al desplegable como
+                artículos tuviera el grupo. */}
             <div style={{ padding: 16 }}>
-              <Acciones style={{ alignItems: "flex-end" }}>
-                <div style={{ minWidth: 280, flex: 1 }}>
-                  <SelectUI
-                    options={opcionesCatalogo}
-                    value={itemAAgregar}
-                    onChange={setItemAAgregar}
-                    isSearchable
-                    maxWidth="100%"
-                    placeholder="Agregar un artículo del catálogo…"
-                    menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
-                  />
-                </div>
+              <TituloTarjeta style={{ margin: "0 0 8px" }}>Agregar artículos</TituloTarjeta>
+
+              <SelectorArticulos
+                items={catalogo}
+                elegidos={elegidosDe(asignacion.id)}
+                onAlternar={(item) => alternarItem(asignacion.id, item)}
+                onAlternarGrupo={(articulos, marcar) =>
+                  alternarGrupo(asignacion.id, articulos, marcar)
+                }
+              />
+
+              <div style={{ height: 10 }} />
+
+              <Acciones style={{ justifyContent: "flex-end" }}>
                 <ButtonUI
-                  text="Agregar"
+                  text={
+                    elegidosDe(asignacion.id).size === 0
+                      ? "Agregar"
+                      : `Agregar ${elegidosDe(asignacion.id).size}`
+                  }
                   iconLeft="FaPlus"
                   variant="outlined"
-                  disabled={ocupado || !itemAAgregar}
+                  disabled={ocupado || elegidosDe(asignacion.id).size === 0}
                   onClick={() => agregar(asignacion.id)}
                 />
               </Acciones>

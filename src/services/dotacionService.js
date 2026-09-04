@@ -458,6 +458,29 @@ export const AgregarItemAsignacion = async (asignacionId, datos) => {
   }
 };
 
+/**
+ * Agrega VARIOS articulos de una vez.
+ *
+ * Existe porque la pantalla deja marcar un grupo entero con una casilla, y un
+ * grupo son entre dos y diez articulos. Con el endpoint de a uno eso serian
+ * diez peticiones, y si la septima falla las seis anteriores ya entraron sin
+ * que nadie sepa cuales. El lote es todo o nada.
+ *
+ * @returns {Promise<Asignacion|null>}
+ */
+export const AgregarItemsAsignacion = async (asignacionId, itemIds) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(
+      `${DOTACION}/asignaciones/${asignacionId}/items/lote`,
+      { itemIds },
+    );
+    const asignacion = desenvolver(respuesta);
+    return asignacion ? mapearAsignacion(asignacion) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo agregar los artículos");
+  }
+};
+
 export const MarcarItemAsignacion = async (asignacionId, itemId, datos) => {
   try {
     const respuesta = await axiosInstanceNew.put(
