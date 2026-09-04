@@ -281,6 +281,56 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
           ],
     );
 
+  // OJO: este bloque tiene un useMemo, asi que va ARRIBA del
+  // "if (!abierto) return null" de mas abajo. Con el retorno en medio, el
+  // modal cerrado ejecutaba menos hooks que el abierto y React abortaba con
+  // "Rendered more hooks than during the previous render" al abrirlo.
+  const idsExcluidos = new Set(excluidos.map((renglon) => renglon.itemId));
+
+  /**
+   * La tabla de "lo que ya recibiría", en UNA lista sin repetidos.
+   *
+   * Un artículo heredado que además está quitado pertenece a los dos conjuntos
+   * —sigue siendo herencia, y hay un renglón `excluir` para él—, así que
+   * concatenar las dos listas lo mostraba dos veces con la misma clave. Se
+   * arma una sola lista indexada por itemId: la herencia manda para los datos
+   * (trae cantidad y de qué plantilla viene) y el estado quitado se pinta
+   * aparte con idsExcluidos.
+   */
+  const filasHeredadas = useMemo(() => {
+    const porId = new Map();
+
+    (heredado ?? [])
+      .filter((item) => !elegidos.has(item.itemId))
+      .forEach((item) => porId.set(item.itemId, item));
+
+    // Un artículo quitado que la herencia ya no trae —porque cambió otra
+    // plantilla— seguiría teniendo su renglón `excluir`. Se muestra igual para
+    // que se pueda devolver, en vez de quedar invisible y sin forma de deshacerlo.
+    excluidos.forEach((renglon) => {
+      if (porId.has(renglon.itemId)) return;
+
+      const item = porItem.get(renglon.itemId);
+
+      porId.set(renglon.itemId, {
+        itemId: renglon.itemId,
+        itemNombre: item?.nombre ?? `Artículo ${renglon.itemId}`,
+        grupoNombre: item?.grupoNombre ?? "",
+        cantidad: null,
+        desdePlantilla: "ya no se hereda",
+      });
+    });
+
+    return [...porId.values()];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heredado, renglones, porItem]);
+
+  // Cuántos artículos recibiría de verdad alguien con este ámbito, ya contando
+  // lo heredado, lo que agrega esta plantilla y lo que quita.
+  const totalFinal =
+    entregados.length +
+    filasHeredadas.filter((item) => !idsExcluidos.has(item.itemId)).length;
+
   const enviar = async (evento) => {
     evento.preventDefault();
     if (enviando) return;
@@ -341,51 +391,6 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
 
   if (!abierto) return null;
 
-  const idsExcluidos = new Set(excluidos.map((renglon) => renglon.itemId));
-
-  /**
-   * La tabla de "lo que ya recibiría", en UNA lista sin repetidos.
-   *
-   * Un artículo heredado que además está quitado pertenece a los dos conjuntos
-   * —sigue siendo herencia, y hay un renglón `excluir` para él—, así que
-   * concatenar las dos listas lo mostraba dos veces con la misma clave. Se
-   * arma una sola lista indexada por itemId: la herencia manda para los datos
-   * (trae cantidad y de qué plantilla viene) y el estado quitado se pinta
-   * aparte con idsExcluidos.
-   */
-  const filasHeredadas = useMemo(() => {
-    const porId = new Map();
-
-    (heredado ?? [])
-      .filter((item) => !elegidos.has(item.itemId))
-      .forEach((item) => porId.set(item.itemId, item));
-
-    // Un artículo quitado que la herencia ya no trae —porque cambió otra
-    // plantilla— seguiría teniendo su renglón `excluir`. Se muestra igual para
-    // que se pueda devolver, en vez de quedar invisible y sin forma de deshacerlo.
-    excluidos.forEach((renglon) => {
-      if (porId.has(renglon.itemId)) return;
-
-      const item = porItem.get(renglon.itemId);
-
-      porId.set(renglon.itemId, {
-        itemId: renglon.itemId,
-        itemNombre: item?.nombre ?? `Artículo ${renglon.itemId}`,
-        grupoNombre: item?.grupoNombre ?? "",
-        cantidad: null,
-        desdePlantilla: "ya no se hereda",
-      });
-    });
-
-    return [...porId.values()];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heredado, renglones, porItem]);
-
-  // Cuántos artículos recibiría de verdad alguien con este ámbito, ya contando
-  // lo heredado, lo que agrega esta plantilla y lo que quita.
-  const totalFinal =
-    entregados.length +
-    filasHeredadas.filter((item) => !idsExcluidos.has(item.itemId)).length;
 
   return (
     <ModalUI
