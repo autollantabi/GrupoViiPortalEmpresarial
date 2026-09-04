@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { CheckboxUI } from "components/UI/Components/CheckboxUI";
@@ -23,6 +23,8 @@ import {
   ResolverPlantillasDotacion,
 } from "services/dotacionService";
 import { CampoLabel } from "./CampoLabel";
+import { CamposDinamicos } from "./CamposDinamicos";
+import { SelectorArticulos } from "./SelectorArticulos";
 import { useConsulta } from "../hooks/useConsulta";
 import {
   Acciones,
@@ -69,8 +71,29 @@ const ambitoLegible = (plantilla) => {
   return partes.length > 0 ? partes.join(" · ") : "sin ámbito";
 };
 
+/**
+ * Alta y edición de una plantilla.
+ *
+ * ── POR QUÉ ESTÁ ARMADO EN TRES PASOS ─────────────────────────────────────
+ * La versión anterior pedía las cosas en el orden en que están en la base:
+ * nombre, ámbito, artículos. Eso obligaba a escribir a mano un nombre que
+ * describe el ámbito que todavía no se había elegido, y a agregar los artículos
+ * de a uno por un desplegable.
+ *
+ * Acá el orden es el de las preguntas que uno se hace: para quién es, qué ya
+ * recibiría por otras plantillas, y qué agrega esta. Con eso:
+ *
+ *  - el nombre se propone solo desde el ámbito y queda editable, así que no hay
+ *    que escribir dos veces lo mismo ni puede contradecirse;
+ *  - los artículos se marcan con casillas sobre todo el catálogo a la vez;
+ *  - y "excluir" deja de ser un misterio: solo aparece sobre lo HEREDADO, que
+ *    es lo único que se puede quitar. Antes se ofrecía en cualquier renglón, y
+ *    excluir algo que nadie entrega no hace nada.
+ */
 const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGuardado }) => {
   const [nombre, setNombre] = useState("");
+  const [nombreTocado, setNombreTocado] = useState(false);
+  const [nombreOriginal, setNombreOriginal] = useState("");
   const [cargoId, setCargoId] = useState(null);
   const [empresaId, setEmpresaId] = useState(null);
   const [areaId, setAreaId] = useState(null);
@@ -79,6 +102,9 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
   const [renglones, setRenglones] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [heredado, setHeredado] = useState(null);
+
+  const hayAmbito = Boolean(cargoId || empresaId || areaId || lineaId);
 
   // Se carga el detalle al abrir en modo edición: el listado no trae los
   // renglones, solo cuántos son.
@@ -87,12 +113,15 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
 
     if (plantillaId === null) {
       setNombre("");
+      setNombreTocado(false);
+      setNombreOriginal("");
       setCargoId(null);
       setEmpresaId(null);
       setAreaId(null);
       setLineaId(null);
       setActiva(true);
       setRenglones([]);
+      setHeredado(null);
       return;
     }
 
@@ -103,6 +132,9 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
       .then((plantilla) => {
         if (cancelado || !plantilla) return;
         setNombre(plantilla.nombre);
+        // Editando, el nombre ya lo escribió alguien: no se toca.
+        setNombreTocado(true);
+        setNombreOriginal(plantilla.nombre);
         setCargoId(plantilla.cargoId);
         setEmpresaId(plantilla.empresaId);
         setAreaId(plantilla.areaId);
@@ -126,53 +158,166 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
     };
   }, [abierto, plantillaId]);
 
+  /**
+   * Qué recibiría alguien con este ámbito por las OTRAS plantillas.
+   *
+   * Es el dato que faltaba para poder decidir: sin él uno agrega artículos que
+   * ya venían heredados, y la resolución final los cuenta una sola vez pero la
+   * plantilla queda llena de renglones que no aportan nada.
+   *
+   * Editando se descuenta la propia plantilla, o se vería a sí misma como
+   * herencia. Se compara por el nombre con el que vino del API y no por el del
+   * formulario, que se puede estar editando en este momento.
+   */
+  useEffect(() => {
+    if (!abierto || !hayAmbito) {
+      setHeredado(null);
+      return;
+    }
+
+    let cancelado = false;
+
+    ResolverPlantillasDotacion({ cargoId, empresaId, areaId, lineaId })
+      .then((resolucion) => {
+        if (cancelado) return;
+
+        setHeredado(
+          (resolucion?.items ?? []).filter(
+            (item) => item.desdePlantilla !== nombreOriginal,
+          ),
+        );
+      })
+      .catch(() => !cancelado && setHeredado(null));
+
+    return () => {
+      cancelado = true;
+    };
+  }, [abierto, hayAmbito, cargoId, empresaId, areaId, lineaId, nombreOriginal]);
+
   const opciones = (lista) => (lista ?? []).map((fila) => ({ value: fila.id, label: fila.nombre }));
   const buscar = (lista, id) => opciones(lista).find((opcion) => opcion.value === id) ?? null;
 
-  const opcionesItems = (items ?? []).map((item) => ({
-    value: item.id,
-    label: `${item.grupoNombre} · ${item.nombre}`,
-  }));
+  const porItem = useMemo(
+    () => new Map((items ?? []).map((item) => [item.id, item])),
+    [items],
+  );
 
-  const agregar = (opcion) => {
-    if (!opcion) return;
-    if (renglones.some((renglon) => renglon.itemId === opcion.value)) {
-      toast.info("Ese artículo ya está en la plantilla.");
-      return;
-    }
-    setRenglones([
-      ...renglones,
-      { itemId: opcion.value, cantidad: 1, valores: {}, excluir: false, obligatorio: true },
-    ]);
-  };
+  /**
+   * El nombre que se propone desde el ámbito.
+   *
+   * Se recalcula mientras nadie lo haya escrito a mano. En cuanto alguien
+   * escribe, deja de proponerse: sobrescribir lo que la persona tecleó porque
+   * cambió un select es la clase de cosa que hace desconfiar de un formulario.
+   */
+  const nombreSugerido = useMemo(() => {
+    const partes = [
+      buscar(catalogos.cargos, cargoId)?.label,
+      buscar(catalogos.empresas, empresaId)?.label,
+      buscar(catalogos.areas, areaId)?.label,
+      buscar(catalogos.lineas, lineaId)?.label,
+    ].filter(Boolean);
 
-  const cambiar = (itemId, parche) =>
-    setRenglones(
-      renglones.map((renglon) => (renglon.itemId === itemId ? { ...renglon, ...parche } : renglon)),
+    return partes.join(" · ");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogos, cargoId, empresaId, areaId, lineaId]);
+
+  const nombreEfectivo = nombreTocado ? nombre : nombreSugerido;
+
+  // Los que ESTA plantilla entrega, separados de los que quita.
+  const entregados = renglones.filter((renglon) => !renglon.excluir);
+  const excluidos = renglones.filter((renglon) => renglon.excluir);
+  const elegidos = new Set(entregados.map((renglon) => renglon.itemId));
+
+  const alternar = (item) =>
+    setRenglones((previo) =>
+      previo.some((renglon) => renglon.itemId === item.id && !renglon.excluir)
+        ? previo.filter((renglon) => !(renglon.itemId === item.id && !renglon.excluir))
+        : [
+            ...previo,
+            { itemId: item.id, cantidad: 1, valores: {}, excluir: false, obligatorio: true },
+          ],
     );
 
-  const quitar = (itemId) => setRenglones(renglones.filter((renglon) => renglon.itemId !== itemId));
+  const alternarGrupo = (articulos, marcar) =>
+    setRenglones((previo) => {
+      const ids = new Set(articulos.map((item) => item.id));
+      const resto = previo.filter((renglon) => !(ids.has(renglon.itemId) && !renglon.excluir));
+
+      if (!marcar) return resto;
+
+      const yaExcluidos = new Set(
+        previo.filter((renglon) => renglon.excluir).map((renglon) => renglon.itemId),
+      );
+
+      return [
+        ...resto,
+        ...articulos
+          .filter((item) => !yaExcluidos.has(item.id))
+          .map((item) => ({
+            itemId: item.id,
+            cantidad: 1,
+            valores: {},
+            excluir: false,
+            obligatorio: true,
+          })),
+      ];
+    });
+
+  const cambiar = (itemId, parche) =>
+    setRenglones((previo) =>
+      previo.map((renglon) =>
+        renglon.itemId === itemId && !renglon.excluir ? { ...renglon, ...parche } : renglon,
+      ),
+    );
+
+  /** Quita o devuelve un artículo heredado. Es el único uso real de `excluir`. */
+  const alternarExclusion = (itemId) =>
+    setRenglones((previo) =>
+      previo.some((renglon) => renglon.itemId === itemId && renglon.excluir)
+        ? previo.filter((renglon) => !(renglon.itemId === itemId && renglon.excluir))
+        : [
+            ...previo.filter((renglon) => renglon.itemId !== itemId),
+            { itemId, cantidad: null, valores: {}, excluir: true, obligatorio: true },
+          ],
+    );
 
   const enviar = async (evento) => {
     evento.preventDefault();
     if (enviando) return;
 
-    if (!nombre.trim()) {
-      toast.error("Escriba un nombre para la plantilla.");
+    const nombreFinal = nombreEfectivo.trim();
+
+    if (!nombreFinal) {
+      toast.error("Escriba un nombre para la plantilla, o elija un ámbito para que se proponga.");
       return;
     }
 
-    if (!cargoId && !empresaId && !areaId && !lineaId) {
+    if (!hayAmbito) {
       toast.error(
         "Elija al menos un cargo, empresa, área o línea. Una plantilla sin ámbito aplicaría a todo el grupo sin decirlo.",
       );
       return;
     }
 
+    // Los atributos requeridos se comprueban acá para poder señalar CUÁL falta.
+    // El API los valida igual, pero su mensaje llega después de un viaje y sin
+    // el contexto de la pantalla.
+    for (const renglon of entregados) {
+      const item = porItem.get(renglon.itemId);
+      const faltante = (item?.campos ?? []).find(
+        (campo) => campo.requerido && !String(renglon.valores?.[campo.clave] ?? "").trim(),
+      );
+
+      if (faltante) {
+        toast.error(`Falta ${faltante.etiqueta.toLowerCase()} en ${item.nombre}.`);
+        return;
+      }
+    }
+
     setEnviando(true);
     try {
       const carga = {
-        nombre: nombre.trim().toUpperCase(),
+        nombre: nombreFinal.toUpperCase(),
         cargoId,
         empresaId,
         areaId,
@@ -196,14 +341,58 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
 
   if (!abierto) return null;
 
-  const porItem = new Map((items ?? []).map((item) => [item.id, item]));
+  const idsExcluidos = new Set(excluidos.map((renglon) => renglon.itemId));
+
+  /**
+   * La tabla de "lo que ya recibiría", en UNA lista sin repetidos.
+   *
+   * Un artículo heredado que además está quitado pertenece a los dos conjuntos
+   * —sigue siendo herencia, y hay un renglón `excluir` para él—, así que
+   * concatenar las dos listas lo mostraba dos veces con la misma clave. Se
+   * arma una sola lista indexada por itemId: la herencia manda para los datos
+   * (trae cantidad y de qué plantilla viene) y el estado quitado se pinta
+   * aparte con idsExcluidos.
+   */
+  const filasHeredadas = useMemo(() => {
+    const porId = new Map();
+
+    (heredado ?? [])
+      .filter((item) => !elegidos.has(item.itemId))
+      .forEach((item) => porId.set(item.itemId, item));
+
+    // Un artículo quitado que la herencia ya no trae —porque cambió otra
+    // plantilla— seguiría teniendo su renglón `excluir`. Se muestra igual para
+    // que se pueda devolver, en vez de quedar invisible y sin forma de deshacerlo.
+    excluidos.forEach((renglon) => {
+      if (porId.has(renglon.itemId)) return;
+
+      const item = porItem.get(renglon.itemId);
+
+      porId.set(renglon.itemId, {
+        itemId: renglon.itemId,
+        itemNombre: item?.nombre ?? `Artículo ${renglon.itemId}`,
+        grupoNombre: item?.grupoNombre ?? "",
+        cantidad: null,
+        desdePlantilla: "ya no se hereda",
+      });
+    });
+
+    return [...porId.values()];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heredado, renglones, porItem]);
+
+  // Cuántos artículos recibiría de verdad alguien con este ámbito, ya contando
+  // lo heredado, lo que agrega esta plantilla y lo que quita.
+  const totalFinal =
+    entregados.length +
+    filasHeredadas.filter((item) => !idsExcluidos.has(item.itemId)).length;
 
   return (
     <ModalUI
       isOpen={abierto}
       onClose={onCerrar}
       title={plantillaId === null ? "Nueva plantilla" : "Editar plantilla"}
-      width="820px"
+      width="860px"
       maxWidth="96vw"
       noFooter
     >
@@ -212,29 +401,14 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
       ) : (
         <form onSubmit={enviar} noValidate>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <CampoLabel etiqueta="Nombre" requerido>
-              <InputUI
-                value={nombre}
-                onChange={(valor) => setNombre(valor.toUpperCase())}
-                maxLength={150}
-                placeholder="VENDEDOR LUBRICANTES"
-              />
-            </CampoLabel>
+            {/* ── 1. Para quién ─────────────────────────────────────────── */}
+            <TituloTarjeta style={{ margin: 0 }}>1 · ¿Para quién es?</TituloTarjeta>
 
-            <Aviso $tono="neutro">
-              Deje en blanco lo que no quiera fijar: en blanco significa{" "}
-              <strong>cualquiera</strong>. Una plantilla solo con cargo es la genérica de ese
-              cargo; agregarle empresa y línea la vuelve más específica y gana artículo por
-              artículo sobre la genérica.
-            </Aviso>
+            <TextoTenue>
+              Deje en blanco lo que no quiera fijar: en blanco significa <b>cualquiera</b>. Cuantos
+              más campos llene, más específica es la plantilla y más manda sobre las genéricas.
+            </TextoTenue>
 
-            {/* maxWidth="100%" en los cuatro: el de SelectUI son 250px y las
-                columnas de FilaFormulario son mas anchas, asi que sin esto los
-                selects no llenan su columna y la fila queda despareja.
-                noOptionsMessage dice POR QUE no hay opciones: un desplegable
-                vacio sin explicacion es indistinguible de un select roto, y
-                `lineas` esta legitimamente vacio mientras nadie registre lineas
-                de negocio. */}
             <FilaFormulario $min={180}>
               <CampoLabel etiqueta="Cargo">
                 <SelectUI
@@ -302,51 +476,119 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
               </CampoLabel>
             </FilaFormulario>
 
+            <CampoLabel etiqueta="Nombre" requerido>
+              <InputUI
+                value={nombreEfectivo}
+                onChange={(valor) => {
+                  setNombreTocado(true);
+                  setNombre(valor.toUpperCase());
+                }}
+                maxLength={150}
+                placeholder="Se propone solo al elegir el ámbito"
+              />
+            </CampoLabel>
+
+            {!nombreTocado && nombreSugerido ? (
+              <TextoTenue>
+                Nombre propuesto desde el ámbito. Escriba encima si prefiere otro.
+              </TextoTenue>
+            ) : null}
+
             <Separador />
 
-            <TituloTarjeta style={{ margin: 0 }}>Artículos</TituloTarjeta>
+            {/* ── 2. Lo heredado ────────────────────────────────────────── */}
+            <TituloTarjeta style={{ margin: 0 }}>2 · Lo que ya recibiría</TituloTarjeta>
 
-            <SelectUI
-              options={opcionesItems}
-              value={null}
-              onChange={agregar}
-              isSearchable
-              maxWidth="100%"
-              placeholder="Agregar un artículo…"
-              noOptionsMessage={() =>
-                items === null
-                  ? "Cargando el catálogo…"
-                  : "No hay artículos activos: créelos en la sección Catálogo"
-              }
-              menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
-            />
-
-            {renglones.length === 0 ? (
+            {!hayAmbito ? (
+              <TextoTenue>Elija un ámbito arriba para ver qué se hereda.</TextoTenue>
+            ) : heredado === null ? (
+              <TextoTenue>Calculando…</TextoTenue>
+            ) : filasHeredadas.length === 0 ? (
               <TextoTenue>
-                Sin artículos. Una plantilla vacía es válida: sirve para excluir cosas que
-                otra más genérica sí entrega.
+                Nada: con este ámbito no hay otra plantilla que aporte artículos, así que todo lo
+                que reciba sale de esta.
               </TextoTenue>
             ) : (
+              <>
+                <TextoTenue>
+                  Otras plantillas ya entregan esto. No hace falta volver a agregarlo; si a esta
+                  gente NO le corresponde, quítelo.
+                </TextoTenue>
+
+                <TablaScroll>
+                  <Tabla>
+                    <thead>
+                      <tr>
+                        <Th>Artículo</Th>
+                        <Th>Viene de</Th>
+                        <Th aria-label="Acciones" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filasHeredadas.map((item) => {
+                        const quitado = idsExcluidos.has(item.itemId);
+
+                        return (
+                          <Fila key={`h-${item.itemId}`}>
+                            <Td data-etiqueta="Artículo">
+                              <span style={quitado ? { textDecoration: "line-through", opacity: 0.6 } : undefined}>
+                                {item.grupoNombre} · {item.itemNombre}
+                                {item.cantidad !== null ? ` × ${item.cantidad}` : ""}
+                              </span>
+                            </Td>
+                            <Td data-etiqueta="Viene de">
+                              <TextoTenue>{item.desdePlantilla}</TextoTenue>
+                            </Td>
+                            <Td data-etiqueta="Acciones">
+                              <ButtonUI
+                                text={quitado ? "Devolver" : "Quitar"}
+                                iconLeft={quitado ? "FaRotateLeft" : "FaBan"}
+                                variant="outlined"
+                                onClick={() => alternarExclusion(item.itemId)}
+                              />
+                            </Td>
+                          </Fila>
+                        );
+                      })}
+                    </tbody>
+                  </Tabla>
+                </TablaScroll>
+              </>
+            )}
+
+            <Separador />
+
+            {/* ── 3. Lo que agrega ──────────────────────────────────────── */}
+            <TituloTarjeta style={{ margin: 0 }}>3 · ¿Qué agrega esta plantilla?</TituloTarjeta>
+
+            <SelectorArticulos
+              items={items}
+              elegidos={elegidos}
+              onAlternar={alternar}
+              onAlternarGrupo={alternarGrupo}
+            />
+
+            {entregados.length > 0 ? (
               <TablaScroll>
                 <Tabla>
                   <thead>
                     <tr>
                       <Th>Artículo</Th>
                       <Th>Cantidad</Th>
-                      <Th>Quitar heredado</Th>
+                      <Th>Detalle</Th>
                       <Th aria-label="Acciones" />
                     </tr>
                   </thead>
                   <tbody>
-                    {renglones.map((renglon) => {
+                    {entregados.map((renglon) => {
                       const item = porItem.get(renglon.itemId);
 
                       return (
                         <Fila key={renglon.itemId}>
-                          <Td>
+                          <Td data-etiqueta="Artículo">
                             {item ? `${item.grupoNombre} · ${item.nombre}` : `Artículo ${renglon.itemId}`}
                           </Td>
-                          <Td style={{ maxWidth: 130 }}>
+                          <Td data-etiqueta="Cantidad" style={{ maxWidth: 120 }}>
                             <InputUI
                               type="number"
                               value={renglon.cantidad === null ? "" : String(renglon.cantidad)}
@@ -356,26 +598,26 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
                                 })
                               }
                               min={1}
-                              disabled={renglon.excluir}
                             />
                           </Td>
-                          <Td>
-                            <CheckboxUI
-                              name={`excluir-${renglon.itemId}`}
-                              checked={renglon.excluir === true}
-                              onChange={(_nombre, marcado) =>
-                                cambiar(renglon.itemId, { excluir: marcado })
-                              }
-                              label="Excluir"
-                            />
+                          <Td data-etiqueta="Detalle">
+                            {item?.campos?.length > 0 ? (
+                              <CamposDinamicos
+                                campos={item.campos}
+                                valores={renglon.valores}
+                                onCambiar={(valores) => cambiar(renglon.itemId, { valores })}
+                              />
+                            ) : (
+                              <TextoTenue>—</TextoTenue>
+                            )}
                           </Td>
-                          <Td>
+                          <Td data-etiqueta="Acciones">
                             <ButtonUI
                               text=""
                               iconLeft="FaTrashCan"
                               variant="ghost"
                               title="Quitar de la plantilla"
-                              onClick={() => quitar(renglon.itemId)}
+                              onClick={() => alternar({ id: renglon.itemId })}
                             />
                           </Td>
                         </Fila>
@@ -384,14 +626,27 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
                   </tbody>
                 </Tabla>
               </TablaScroll>
-            )}
+            ) : null}
 
-            {renglones.some((renglon) => renglon.excluir) && (
-              <Aviso $tono="aviso">
-                Los artículos marcados como <strong>excluir</strong> no se entregan: quitan lo
-                que traería una plantilla más genérica. No se les asigna cantidad.
-              </Aviso>
-            )}
+            <Separador />
+
+            <Aviso $tono={totalFinal > 0 ? "exito" : "aviso"}>
+              {totalFinal > 0 ? (
+                <>
+                  Con este ámbito, un colaborador recibiría <b>{totalFinal} artículo(s)</b>:{" "}
+                  {entregados.length} de esta plantilla
+                  {filasHeredadas.length > 0
+                    ? ` y ${filasHeredadas.filter((i) => !idsExcluidos.has(i.itemId)).length} heredado(s)`
+                    : ""}
+                  {excluidos.length > 0 ? `, quitando ${excluidos.length}` : ""}.
+                </>
+              ) : (
+                <>
+                  Con este ámbito no recibiría nada. Una plantilla vacía es válida —sirve para
+                  quitar lo que otra entrega— pero si esperaba entregar algo, márquelo arriba.
+                </>
+              )}
+            </Aviso>
 
             <div style={{ paddingTop: 4 }}>
               <CheckboxUI
@@ -417,6 +672,7 @@ const ModalPlantilla = ({ abierto, plantillaId, catalogos, items, onCerrar, onGu
     </ModalUI>
   );
 };
+
 
 /** Vista previa: qué recibiría alguien con este ámbito. */
 const VistaPrevia = ({ catalogos }) => {
