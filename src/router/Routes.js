@@ -49,6 +49,9 @@ import { ComercialMarketing } from "pages/Areas/Marketing/ComercialMarketing";
 // RRHH
 import { Documentacion } from "pages/Areas/RRHH/Documentacion";
 
+// DDMRP
+import { Ddmrp_Report } from "pages/Areas/Ddmrp/Ddmrp_Report";
+
 import { ReporteriaComercial } from "pages/Areas/Reporteria/Comercial/ReporteriaComercial";
 import { ReporteriaCobranzas } from "pages/Areas/Reporteria/Cobranzas/ReporteriaCobranzas";
 import { ReporteriaTecnicentro } from "pages/Areas/Reporteria/Tecnicentro/ReporteriaTecnicentro";
@@ -323,6 +326,18 @@ export const RoutesConfig = [
     title: "5W2H",
     component: Marketing5w2h,
     recurso: "marketing.5w2h",
+  },
+  // ================================= DDMRP =================================
+  {
+    recurso: "ddmrp",
+    title: "DDMRP",
+    icon: "FaBoxesStacked",
+    rootOnly: true,
+  },
+  {
+    title: "Reporte DDMRP",
+    component: Ddmrp_Report,
+    recurso: "ddmrp.reporte",
   },
   // ================================= MDM =================================
   {
