@@ -58,6 +58,15 @@ const CirculoIcono = styled.div`
     `${$color || theme?.colors?.primary || "#000"}1f`};
 `;
 
+/* TextUI renderiza un <span> inline-block: dos seguidos quedan pegados en la
+   misma línea. Este contenedor los apila y les da aire entre sí. */
+const BloqueTexto = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+`;
+
 const Fila = styled.div`
   display: flex;
   align-items: center;
@@ -130,13 +139,12 @@ export const Ddmrp_Report = () => {
   const [mensajeError, setMensajeError] = useState("");
   const [log, setLog] = useState([]);
   const [transcurrido, setTranscurrido] = useState(0);
-  const [descargando, setDescargando] = useState(false);
+  /* Nombre del archivo que se está bajando, para deshabilitar solo su botón. */
+  const [descargandoNombre, setDescargandoNombre] = useState(null);
 
   const intervaloRef = useRef(null);
   const cronometroRef = useRef(null);
   const inicioRef = useRef(null);
-  /* Evita descargar dos veces si una consulta se solapa con la anterior. */
-  const yaDescargadoRef = useRef(false);
 
   const detenerConsulta = useCallback(() => {
     if (intervaloRef.current) {
@@ -153,26 +161,25 @@ export const Ddmrp_Report = () => {
      actualizando estado sobre un componente que ya no existe. */
   useEffect(() => detenerConsulta, [detenerConsulta]);
 
-  const descargarTodos = useCallback(async (id, lista) => {
-    setDescargando(true);
-    try {
-      // Secuencial y no en paralelo: los navegadores agrupan mejor las
-      // descargas así, y evita dos escrituras simultáneas a disco.
-      for (const archivo of lista) {
-        await DescargarArchivoDdmrp(id, archivo.nombre);
+  /* La descarga la dispara el usuario con el botón de cada archivo. */
+  const descargarUno = useCallback(
+    async (nombre) => {
+      setDescargandoNombre(nombre);
+      try {
+        await DescargarArchivoDdmrp(trabajoId, nombre);
+      } catch (err) {
+        console.error("Error al descargar el archivo DDMRP:", err);
+        const detalle =
+          err?.response?.status === 404
+            ? "El archivo ya no está disponible: el reporte expiró. Generalo de nuevo."
+            : "No se pudo descargar el archivo.";
+        toast.error(detalle);
+      } finally {
+        setDescargandoNombre(null);
       }
-      toast.success(
-        lista.length === 1
-          ? "Archivo descargado"
-          : `${lista.length} archivos descargados`
-      );
-    } catch (err) {
-      console.error("Error al descargar los archivos DDMRP:", err);
-      toast.error("El reporte se generó, pero falló la descarga. Usá los botones de abajo.");
-    } finally {
-      setDescargando(false);
-    }
-  }, []);
+    },
+    [trabajoId]
+  );
 
   const consultar = useCallback(
     async (id) => {
@@ -184,11 +191,6 @@ export const Ddmrp_Report = () => {
           detenerConsulta();
           setEstado("COMPLETADO");
           setArchivos(datos.archivos || []);
-
-          if (!yaDescargadoRef.current) {
-            yaDescargadoRef.current = true;
-            await descargarTodos(id, datos.archivos || []);
-          }
           return;
         }
 
@@ -217,7 +219,7 @@ export const Ddmrp_Report = () => {
         setMensajeError(detalle);
       }
     },
-    [detenerConsulta, descargarTodos]
+    [detenerConsulta]
   );
 
   const generar = useCallback(async () => {
@@ -227,7 +229,6 @@ export const Ddmrp_Report = () => {
     setMensajeError("");
     setLog([]);
     setTranscurrido(0);
-    yaDescargadoRef.current = false;
     inicioRef.current = Date.now();
 
     try {
@@ -260,28 +261,28 @@ export const Ddmrp_Report = () => {
         <CirculoIcono $color={theme?.colors?.primary}>
           <IconUI name="FaChartLine" size={22} color={theme?.colors?.primary} />
         </CirculoIcono>
-        <div>
+        <BloqueTexto>
           <TextUI size="18px" weight="700">
             Reporte DDMRP
           </TextUI>
           <TextUI size="13px" color={theme?.colors?.textSecondary}>
             Maestro de artículos y auditoría DLT / LTF / VF
           </TextUI>
-        </div>
+        </BloqueTexto>
       </Encabezado>
 
       <Tarjeta>
         <TextUI size="13px" color={theme?.colors?.textSecondary}>
           Genera el maestro de artículos consolidando las cinco empresas y la auditoría
           asociada. El proceso consulta SAP HANA y puede tardar varios minutos; los
-          archivos se descargan solos al terminar.
+          archivos quedarán disponibles para descargar al terminar.
         </TextUI>
 
         <Fila>
           <ButtonUI
             text={enProceso ? "Generando reporte..." : "Generar reporte"}
             iconLeft={enProceso ? "FaSpinner" : "FaFileExcel"}
-            disabled={enProceso || descargando}
+            disabled={enProceso}
             onClick={generar}
             pcolor={theme?.colors?.primary}
           />
@@ -298,8 +299,8 @@ export const Ddmrp_Report = () => {
               No cierres esta pestaña
             </TextUI>
             <TextUI size="12px" color={theme?.colors?.textSecondary}>
-              El reporte se está generando en el servidor. Al terminar, los archivos se
-              descargarán automáticamente.
+              El reporte se está generando en el servidor. Al terminar vas a poder
+              descargar los archivos desde aquí.
             </TextUI>
           </Aviso>
         )}
@@ -322,7 +323,7 @@ export const Ddmrp_Report = () => {
                 Reporte generado en {formatearDuracion(transcurrido)}
               </TextUI>
               <TextUI size="12px" color={theme?.colors?.textSecondary}>
-                Si el navegador bloqueó la descarga automática, usá los botones de abajo.
+                Descargá cada archivo con su botón.
               </TextUI>
             </Aviso>
 
@@ -335,21 +336,21 @@ export const Ddmrp_Report = () => {
                       size={16}
                       color={theme?.colors?.success || "#28a745"}
                     />
-                    <div>
+                    <BloqueTexto>
                       <TextUI size="12px" weight="600">
                         {archivo.nombre}
                       </TextUI>
                       <TextUI size="11px" color={theme?.colors?.textSecondary}>
                         {formatearTamano(archivo.bytes)}
                       </TextUI>
-                    </div>
+                    </BloqueTexto>
                   </Fila>
                   <ButtonUI
                     text="Descargar"
                     iconLeft="FaDownload"
                     variant="outlined"
-                    disabled={descargando}
-                    onClick={() => DescargarArchivoDdmrp(trabajoId, archivo.nombre)}
+                    disabled={descargandoNombre === archivo.nombre}
+                    onClick={() => descargarUno(archivo.nombre)}
                     pcolor={theme?.colors?.success || "#28a745"}
                   />
                 </ArchivoFila>
