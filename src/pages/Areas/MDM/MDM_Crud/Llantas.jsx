@@ -467,7 +467,8 @@ const DICCIONARIO_COLOR_LETRA_CODIGO = {
     "01": "LN",
     "02": "OBL",
     "03": "OOL",
-    "04": "RBL"
+    "04": "RBL",
+    "99": "SIN COLOR",
 };
 
 const OPTIONS_COLOR_LETRA = [
@@ -476,6 +477,7 @@ const OPTIONS_COLOR_LETRA = [
     { value: "02", label: "02" },
     { value: "03", label: "03" },
     { value: "04", label: "04" },
+    { value: "99", label: "99" },
 ];
 
 const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {

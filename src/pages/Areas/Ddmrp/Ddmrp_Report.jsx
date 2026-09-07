@@ -358,15 +358,6 @@ export const Ddmrp_Report = () => {
             </ListaArchivos>
           </>
         )}
-
-        {log.length > 0 && (
-          <div>
-            <TextUI size="12px" weight="600" style={{ marginBottom: "6px", display: "block" }}>
-              Avance del proceso
-            </TextUI>
-            <Consola>{log.join("\n")}</Consola>
-          </div>
-        )}
       </Tarjeta>
     </Contenedor>
   );
