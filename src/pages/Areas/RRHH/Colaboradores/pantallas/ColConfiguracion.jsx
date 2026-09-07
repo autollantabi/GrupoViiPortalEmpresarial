@@ -2,6 +2,7 @@ import React from "react";
 import { useSearchParams } from "react-router-dom";
 import { EditorAreasResponsables } from "../componentes/EditorAreasResponsables";
 import { EditorCatalogoItems } from "../componentes/EditorCatalogoItems";
+import { EditorCumpleanios } from "../componentes/EditorCumpleanios";
 import { EditorPlantillas } from "../componentes/EditorPlantillas";
 import { EditorTiposDocumento } from "../componentes/EditorTiposDocumento";
 import { FiltroPastillas } from "../componentes/FiltroPastillas";
@@ -10,7 +11,7 @@ import { RUTA_BASE } from "../utils/constantes";
 import { SECCION_CONFIGURACION } from "../utils/constantesDotacion";
 
 /**
- * Configuración de dotación y documentación.
+ * Configuración de Colaboradores: dotación, documentación y correos.
  *
  * Vive DENTRO de la sección Colaboradores y no como opción de menú aparte: con un
  * ítem propio habría que otorgarle un recurso nuevo a cada usuario de RRHH en
@@ -28,6 +29,7 @@ const SECCIONES = [
   { valor: SECCION_CONFIGURACION.ITEMS, etiqueta: "Catálogo de artículos" },
   { valor: SECCION_CONFIGURACION.DOCUMENTOS, etiqueta: "Tipos de documento" },
   { valor: SECCION_CONFIGURACION.AREAS, etiqueta: "Áreas y responsables" },
+  { valor: SECCION_CONFIGURACION.CUMPLEANIOS, etiqueta: "Correos de cumpleaños" },
 ];
 
 const DESCRIPCION = {
@@ -35,6 +37,8 @@ const DESCRIPCION = {
   [SECCION_CONFIGURACION.ITEMS]: "Los grupos y artículos que se pueden entregar.",
   [SECCION_CONFIGURACION.DOCUMENTOS]: "Los papeles que se le piden a un colaborador.",
   [SECCION_CONFIGURACION.AREAS]: "A quién le llega el aviso de cada grupo.",
+  [SECCION_CONFIGURACION.CUMPLEANIOS]:
+    "La tarjeta del colaborador y el afiche del mes: verlos antes de mandarlos.",
 };
 
 export const ColConfiguracion = () => {
@@ -48,7 +52,7 @@ export const ColConfiguracion = () => {
     const siguientes = new URLSearchParams(parametros);
     siguientes.set("seccion", valor);
     // replace para que cambiar de sección no llene el historial de entradas: el
-    // botón atrás debe volver al tablero, no recorrer las cuatro pestañas.
+    // botón atrás debe volver al tablero, no recorrer las cinco pestañas.
     setParametros(siguientes, { replace: true });
   };
 
@@ -58,7 +62,7 @@ export const ColConfiguracion = () => {
 
       <Encabezado>
         <div>
-          <Titulo>Configuración de dotación y documentos</Titulo>
+          <Titulo>Configuración de Colaboradores</Titulo>
           <Subtitulo>{DESCRIPCION[seccion]}</Subtitulo>
         </div>
       </Encabezado>
@@ -74,6 +78,7 @@ export const ColConfiguracion = () => {
       {seccion === SECCION_CONFIGURACION.ITEMS && <EditorCatalogoItems />}
       {seccion === SECCION_CONFIGURACION.DOCUMENTOS && <EditorTiposDocumento />}
       {seccion === SECCION_CONFIGURACION.AREAS && <EditorAreasResponsables />}
+      {seccion === SECCION_CONFIGURACION.CUMPLEANIOS && <EditorCumpleanios />}
     </Contenedor>
   );
 };

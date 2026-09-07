@@ -136,6 +136,7 @@ export const SECCION_CONFIGURACION = Object.freeze({
   ITEMS: "items",
   DOCUMENTOS: "documentos",
   AREAS: "areas",
+  CUMPLEANIOS: "cumpleanios",
 });
 
 // ── Archivos ────────────────────────────────────────────────────────────────
