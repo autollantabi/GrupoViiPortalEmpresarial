@@ -703,7 +703,7 @@ function Llantas() {
         if (v.startsWith(".")) v = "0" + v;
         const parts = v.split(".");
         if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
-        if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].substring(0, 2);
+        if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].substring(0, 3);
         return v;
     };
 
@@ -2007,7 +2007,7 @@ function Llantas() {
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.rin || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "rin", handleNumericInput(v))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.serie || ""} formatValue={handleOneDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "serie", handleOneDecimalInput(v))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.lonas || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "lonas", handleNumericInput(v))} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.ancho || ""} formatValue={handleOneDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "ancho", handleOneDecimalInput(v))} /></Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.ancho || ""} formatValue={handleRinSerieAncho} onChange={(v) => actualizarCampoFila(item.id, "ancho", handleRinSerieAncho(v))} /></Td>
                                                         <Td $densa>
                                                             <SelectUI
                                                                 options={TIPOS_LLANTAS}
@@ -2309,11 +2309,12 @@ function Llantas() {
                                                                     lineaSeleccionada?.value === "LLANTAS MOTO"
                                                                         ? [{ value: "4011.40.00.00", label: "4011.40.00.00" }]
                                                                         : [
-                                                                            { value: "4011.20.10.00", label: "4011.20.10.00" },
-                                                                            { value: "4011.20.90.00", label: "4011.20.90.00" },
+                                                                            { value: "4011.20.10.10", label: "4011.20.10.10" },
+                                                                            { value: "4011.20.10.90", label: "4011.20.10.90" },
                                                                             { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                            { value: "4011.80.00.12", label: "4011.80.00.12" },
-                                                                            { value: "4011.10.90.00", label: "4011.10.90.00" },
+                                                                            { value: "4011.20.90.90", label: "4011.20.90.90" },
+                                                                            { value: "4011.20.90.10", label: "4011.20.90.10" },
+                                                                            { value: "4011.40.00.00", label: "4011.40.00.00" },
                                                                         ]
                                                                 }
                                                                 value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
