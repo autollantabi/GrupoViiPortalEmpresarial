@@ -2309,11 +2309,11 @@ function Llantas() {
                                                                     lineaSeleccionada?.value === "LLANTAS MOTO"
                                                                         ? [{ value: "4011.40.00.00", label: "4011.40.00.00" }]
                                                                         : [
+                                                                            { value: "4011.10.10.00", label: "4011.10.10.00" },
                                                                             { value: "4011.20.10.10", label: "4011.20.10.10" },
                                                                             { value: "4011.20.10.90", label: "4011.20.10.90" },
-                                                                            { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                            { value: "4011.20.90.90", label: "4011.20.90.90" },
                                                                             { value: "4011.20.90.10", label: "4011.20.90.10" },
+                                                                            { value: "4011.20.90.90", label: "4011.20.90.90" },
                                                                             { value: "4011.40.00.00", label: "4011.40.00.00" },
                                                                         ]
                                                                 }
@@ -2519,21 +2519,7 @@ function Llantas() {
                                                             })()}
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
-                                                        <Td $densa>
-                                                            <SelectUI
-                                                                options={[
-                                                                    { value: "4011.20.10.00", label: "4011.20.10.00" },
-                                                                    { value: "4011.20.90.00", label: "4011.20.90.00" },
-                                                                    { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                    { value: "4011.80.00.12", label: "4011.80.00.12" },
-                                                                    { value: "4011.10.90.00", label: "4011.10.90.00" },
-                                                                ]}
-                                                                value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
                                                         <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
                                                         <Td $densa $align="center">
                                                             <CheckboxUI
@@ -2717,22 +2703,7 @@ function Llantas() {
                                                             })()}
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
-                                                        <Td $densa>
-                                                            <SelectUI
-                                                                options={[
-                                                                    { value: "4011.20.10.00", label: "4011.20.10.00" },
-                                                                    { value: "4011.20.90.00", label: "4011.20.90.00" },
-                                                                    { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                    { value: "4011.80.00.12", label: "4011.80.00.12" },
-                                                                    { value: "4011.10.90.00", label: "4011.10.90.00" },
-
-                                                                ]}
-                                                                value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
                                                         <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
                                                         <Td $densa $align="center">
                                                             <CheckboxUI
