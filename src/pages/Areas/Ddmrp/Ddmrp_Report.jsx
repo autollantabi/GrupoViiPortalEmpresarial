@@ -291,6 +291,19 @@ const formatearPorcentaje = (valor) => {
   return `${(Number(valor) * 100).toFixed(1)}%`;
 };
 
+/* La descripción del artículo vino con distinto nombre de campo entre una
+   versión y otra de /maestro_articulos_resumen (DESCRIPCION, Descripción,
+   Nombre...). Probamos todas las variantes conocidas en vez de apostar a
+   una sola, para no volver a romper esto si el backend cambia el nombre. */
+const CAMPOS_DESCRIPCION = ["DESCRIPCION", "Descripción", "Descripcion", "Nombre"];
+const obtenerDescripcion = (articulo) => {
+  for (const campo of CAMPOS_DESCRIPCION) {
+    const valor = articulo?.[campo];
+    if (valor !== undefined && valor !== null && valor !== "") return valor;
+  }
+  return "";
+};
+
 /* Columnas de la tabla principal (y del Excel exportado). Empresa,
    PrchseItem, InvntItem, LINEA DE NEGOCIO, Código Ítem, MARCA COD., MARCA,
    COD. PROVEEDOR, PROV. 1(+cód.), PROVEEDORES REGISTRADOS(+cód.), DIF. MAX
@@ -306,7 +319,7 @@ const formatearPorcentaje = (valor) => {
    ahora solo Descripción; el offset "left" se calcula más abajo. */
 const COLUMNAS_PRINCIPAL = [
   { tipo: "chevron", fija: true, ancho: 32 },
-  { titulo: "Descripción", campo: "DESCRIPCION", fija: true, ancho: 280 },
+  { titulo: "Descripción", tipo: "descripcion", fija: true, ancho: 280 },
   { titulo: "Código barras", campo: "BARRAS" },
   { titulo: "Diseño", campo: "DISEÑO" },
   { titulo: "TOP", campo: "TOP", tipo: "clase", align: "center" },
