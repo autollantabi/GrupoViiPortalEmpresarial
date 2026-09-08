@@ -111,7 +111,7 @@ export const SelectUI = ({
         borderWidth: "1px",
         borderStyle: "solid",
         minHeight: "38px",
-        height: "38px",
+        height: "auto",
         padding: "0 4px 0 2px",
         boxShadow: "none",
         backgroundColor: theme.colors?.selectBackground || theme.colors?.inputBackground || theme.colors?.backgroundCard || "#ffffff",
@@ -167,6 +167,8 @@ export const SelectUI = ({
     valueContainer: (provided) => ({
       ...provided,
       padding: "2px 4px",
+      flexWrap: "wrap",
+      rowGap: "4px",
     }),
     menu: (provided, state) => {
       // Obtener el ancho del control desde el estado o usar el ancho del contenedor
@@ -205,6 +207,8 @@ export const SelectUI = ({
       padding: "0",
       width: "24px",
       minWidth: "24px",
+      alignSelf: "flex-start",
+      marginTop: "6px",
     }),
     dropdownIndicator: (provided) => ({
       ...provided,
