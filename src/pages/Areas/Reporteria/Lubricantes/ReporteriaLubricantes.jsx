@@ -4,7 +4,7 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 0,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiNzdhMWJjODgtMDQzYS00OTQ0LWJjZDItYjEwNmZmOGYwZjg5IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=52299b7243303e5b5514",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiNTk3NDQwODUtMTJjOC00OGM5LWEzYzEtOWVkYTczZWU3NjhhIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Reporte Lubricantes - GRUPO VII",
     rol: "jefatura",
     linea: "LUBRICANTES",
