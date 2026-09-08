@@ -611,7 +611,7 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
       }
       if (!termino) return true;
       const codigo = String(articulo["Código Ítem"] || "").toLowerCase();
-      const nombre = (articulo.DESCRIPCION || "").toLowerCase();
+      const nombre = obtenerDescripcion(articulo).toLowerCase();
       const diseno = (articulo["DISEÑO"] || "").toLowerCase();
       const barras = (articulo.BARRAS || "").toLowerCase();
       return (
@@ -641,6 +641,10 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
       articulosFiltrados.map((articulo) => {
         const fila = {};
         COLUMNAS_PRINCIPAL.forEach((columna) => {
+          if (columna.tipo === "descripcion") {
+            fila[columna.titulo] = obtenerDescripcion(articulo);
+            return;
+          }
           if (!columna.campo) return;
           fila[columna.titulo] = articulo[columna.campo] ?? "";
         });
@@ -1010,6 +1014,8 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
                         );
                       } else if (columna.tipo === "clase") {
                         contenido = <ClaseBadge valor={articulo.TOP} />;
+                      } else if (columna.tipo === "descripcion") {
+                        contenido = obtenerDescripcion(articulo);
                       } else {
                         contenido = formatearValorPrincipal(columna, articulo);
                       }
@@ -1064,7 +1070,7 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
         onClose={() => setArticuloDetalle(null)}
         title={
           articuloDetalle
-            ? `Detalle ${articuloDetalle["Código Ítem"]} · ${articuloDetalle.DESCRIPCION}`
+            ? `Detalle ${articuloDetalle["Código Ítem"]} · ${obtenerDescripcion(articuloDetalle)}`
             : ""
         }
         width="95vw"
