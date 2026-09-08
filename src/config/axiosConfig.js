@@ -2,6 +2,7 @@ import axios from "axios";
 import {
   API_URL,
   API_URL_NEW,
+  API_URL_DDMRP_MV,
 } from "./env";
 
 // Crear instancias de axios personalizadas
@@ -16,6 +17,19 @@ export const axiosInstance = axios.create({
 export const axiosInstanceNew = axios.create({
   baseURL: API_URL_NEW,
   timeout: 300000, // 300 segundos
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+/**
+ * Backend Python "maestro_articulos" (DDMRP), corre aparte en la misma VM
+ * (192.168.0.68:8502). No usa "id-session": es un servicio interno de
+ * reportería, sin el interceptor 401 de axiosInstanceNew.
+ */
+export const axiosInstanceDdmrpMv = axios.create({
+  baseURL: API_URL_DDMRP_MV,
+  timeout: 600000, // 10 minutos: consulta HANA + Postgres + API externa de Maxximundo
   headers: {
     "Content-Type": "application/json",
   },
@@ -108,9 +122,11 @@ axiosInstanceNew.interceptors.response.use(
 // Aplicar configuración a todas las instancias
 configureInterceptors(axiosInstance);
 configureInterceptors(axiosInstanceNew);
+configureInterceptors(axiosInstanceDdmrpMv);
 
 // Exportar las instancias para uso directo
 export default {
   axiosInstance,
   axiosInstanceNew,
+  axiosInstanceDdmrpMv,
 };

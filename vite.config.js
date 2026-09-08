@@ -43,6 +43,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/apid2/, ""),
         configure: logProxiedRequests("apid2"),
+      },
+      "/apid3": {
+        target: "http://192.168.0.68:8502",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/apid3/, ""),
+        configure: logProxiedRequests("apid3"),
       }
     },
   },

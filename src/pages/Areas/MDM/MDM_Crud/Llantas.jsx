@@ -2307,11 +2307,12 @@ function Llantas() {
                                                                     lineaSeleccionada?.value === "LLANTAS MOTO"
                                                                         ? [{ value: "4011.40.00.00", label: "4011.40.00.00" }]
                                                                         : [
-                                                                            { value: "4011.20.10.00", label: "4011.20.10.00" },
-                                                                            { value: "4011.20.90.00", label: "4011.20.90.00" },
                                                                             { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                            { value: "4011.80.00.12", label: "4011.80.00.12" },
-                                                                            { value: "4011.10.90.00", label: "4011.10.90.00" },
+                                                                            { value: "4011.20.10.10", label: "4011.20.10.10" },
+                                                                            { value: "4011.20.10.90", label: "4011.20.10.90" },
+                                                                            { value: "4011.20.90.10", label: "4011.20.90.10" },
+                                                                            { value: "4011.20.90.90", label: "4011.20.90.90" },
+                                                                            { value: "4011.40.00.00", label: "4011.40.00.00" },
                                                                         ]
                                                                 }
                                                                 value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
