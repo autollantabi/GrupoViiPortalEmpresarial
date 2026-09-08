@@ -309,9 +309,9 @@ const obtenerDescripcion = (articulo) => {
    COD. PROVEEDOR, PROV. 1(+cód.), PROVEEDORES REGISTRADOS(+cód.), DIF. MAX
    AÑO vs TOT. AÑO, ADU, Demanda Calificada, Líneas de Tránsito/Backorder/
    Pedido, Fecha Llegada + Próxima, INV. OPT, DLT, Corte LTF/LTF, Corte VF/VF,
-   COEF. VARIACIÓN - 6M, Zona Verde 1/2/Final, NFP, Cantidad Sugerida de
-   Compra, DESV. EST. (demanda diaria y lead time), Z Nivel Servicio y
-   Transito Internacional no se muestran (a pedido de negocio) -- pero esos
+   COEF. VARIACIÓN - 6M, Zona Verde 1/2/Final, NFP, DESV. EST. (demanda
+   diaria y lead time), Z Nivel Servicio y Transito Internacional no se
+   muestran (a pedido de negocio) -- pero esos
    campos siguen viniendo en `articulos` y se usan igual para los filtros
    (Marca, Línea de negocio, Proveedor, Compra, Producto), que no dependen de
    esta lista de columnas.
@@ -352,6 +352,7 @@ const COLUMNAS_PRINCIPAL = [
   { titulo: "Zona roja total (TOR)", campo: "Zona Roja Total (TOR)", numero: 2, align: "right" },
   { titulo: "Zona amarilla", campo: "Zona Amarilla", numero: 2, align: "right" },
   { titulo: "Zona amarilla total (TOY)", campo: "Zona Amarilla Total (TOY)", numero: 2, align: "right" },
+  { titulo: "Cantidad Sugerida de Compra", campo: "Cantidad Sugerida de Compra", numero: 0, align: "right" },
   { titulo: "Nuevo tamaño pedido", campo: "NUEVO TAMAÑO PEDIDO", numero: 0, align: "right" },
   { titulo: "Fecha última compra", campo: "Fecha Última Compra" },
 ];
