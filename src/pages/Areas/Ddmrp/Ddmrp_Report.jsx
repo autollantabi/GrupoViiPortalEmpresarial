@@ -533,11 +533,18 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
   // request al backend).
   const [busqueda, setBusqueda] = useState("");
 
-  // Filtros de Marca y Línea de negocio: se arman con los valores que ya
-  // vienen en la respuesta de /maestro_articulos_resumen (no hay que pedirle
-  // nada nuevo al backend), en vez de un catálogo aparte.
-  const [marcaSeleccionada, setMarcaSeleccionada] = useState(null);
-  const [lineaNegocioSeleccionada, setLineaNegocioSeleccionada] = useState(null);
+  // Filtros de Marca, Línea de negocio, Proveedor, Compra y Producto: todos
+  // multi-selección (array vacío = sin filtro, es decir "todas"). Marca,
+  // Línea de negocio y Proveedor arman sus opciones con los valores que ya
+  // vienen en la respuesta de /maestro_articulos_resumen (no hay que
+  // pedirle nada nuevo al backend); Compra (PrchseItem) y Producto
+  // (InvntItem) tienen dominio fijo (Y/N/vacío), hardcodeado arriba
+  // (OPCIONES_COMPRA / OPCIONES_PRODUCTO_ACTIVO).
+  const [marcasSeleccionadas, setMarcasSeleccionadas] = useState([]);
+  const [lineasNegocioSeleccionadas, setLineasNegocioSeleccionadas] = useState([]);
+  const [proveedoresSeleccionados, setProveedoresSeleccionados] = useState([]);
+  const [comprasSeleccionadas, setComprasSeleccionadas] = useState([]);
+  const [productosActivosSeleccionados, setProductosActivosSeleccionados] = useState([]);
 
   const opcionesMarca = useMemo(() => {
     const marcas = new Set(articulos.map((a) => a.MARCA).filter(Boolean));
@@ -553,15 +560,6 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
       .map((l) => ({ value: l, label: l }));
   }, [articulos]);
 
-  // Filtro de Proveedor (PROV. 1): igual que Marca/Línea de negocio, se arma
-  // con los valores ya cargados. Compra (PrchseItem) y Producto (InvntItem)
-  // tienen dominio fijo (Y/N/vacío), así que sus opciones van hardcodeadas
-  // arriba (OPCIONES_COMPRA / OPCIONES_PRODUCTO_ACTIVO).
-  const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
-  // null = todas; "Y" | "N" | "" (vacío) = filtro puntual.
-  const [compraSeleccionada, setCompraSeleccionada] = useState(null);
-  const [productoActivoSeleccionado, setProductoActivoSeleccionado] = useState(null);
-
   const opcionesProveedor = useMemo(() => {
     const proveedores = new Set(articulos.map((a) => a["PROV. 1"]).filter(Boolean));
     return Array.from(proveedores)
@@ -569,43 +567,52 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
       .map((p) => ({ value: p, label: p }));
   }, [articulos]);
 
-  // Si cambian los artículos cargados (nueva empresa) y la marca, línea de
-  // negocio o proveedor elegido ya no aparece en el nuevo listado, se limpia.
+  // Si cambian los artículos cargados (nueva empresa) y alguna marca, línea
+  // de negocio o proveedor elegido ya no aparece en el nuevo listado, se
+  // saca de la selección (el resto de las opciones marcadas se mantiene).
   useEffect(() => {
-    if (marcaSeleccionada && !opcionesMarca.some((o) => o.value === marcaSeleccionada)) {
-      setMarcaSeleccionada(null);
-    }
-  }, [opcionesMarca, marcaSeleccionada]);
+    setMarcasSeleccionadas((previas) => previas.filter((m) => opcionesMarca.some((o) => o.value === m)));
+  }, [opcionesMarca]);
 
   useEffect(() => {
-    if (lineaNegocioSeleccionada && !opcionesLineaNegocio.some((o) => o.value === lineaNegocioSeleccionada)) {
-      setLineaNegocioSeleccionada(null);
-    }
-  }, [opcionesLineaNegocio, lineaNegocioSeleccionada]);
+    setLineasNegocioSeleccionadas((previas) =>
+      previas.filter((l) => opcionesLineaNegocio.some((o) => o.value === l))
+    );
+  }, [opcionesLineaNegocio]);
 
   useEffect(() => {
-    if (proveedorSeleccionado && !opcionesProveedor.some((o) => o.value === proveedorSeleccionado)) {
-      setProveedorSeleccionado(null);
-    }
-  }, [opcionesProveedor, proveedorSeleccionado]);
+    setProveedoresSeleccionados((previas) =>
+      previas.filter((p) => opcionesProveedor.some((o) => o.value === p))
+    );
+  }, [opcionesProveedor]);
 
   const articulosFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
     return articulos.filter((articulo) => {
-      if (marcaSeleccionada && articulo.MARCA !== marcaSeleccionada) return false;
+      if (marcasSeleccionadas.length > 0 && !marcasSeleccionadas.includes(articulo.MARCA)) {
+        return false;
+      }
       if (
-        lineaNegocioSeleccionada &&
-        articulo["LINEA DE NEGOCIO"] !== lineaNegocioSeleccionada
+        lineasNegocioSeleccionadas.length > 0 &&
+        !lineasNegocioSeleccionadas.includes(articulo["LINEA DE NEGOCIO"])
       ) {
         return false;
       }
-      if (proveedorSeleccionado && articulo["PROV. 1"] !== proveedorSeleccionado) return false;
-      if (compraSeleccionada !== null && (articulo.PrchseItem || "") !== compraSeleccionada) {
+      if (
+        proveedoresSeleccionados.length > 0 &&
+        !proveedoresSeleccionados.includes(articulo["PROV. 1"])
+      ) {
         return false;
       }
       if (
-        productoActivoSeleccionado !== null &&
-        (articulo.InvntItem || "") !== productoActivoSeleccionado
+        comprasSeleccionadas.length > 0 &&
+        !comprasSeleccionadas.includes(articulo.PrchseItem || "")
+      ) {
+        return false;
+      }
+      if (
+        productosActivosSeleccionados.length > 0 &&
+        !productosActivosSeleccionados.includes(articulo.InvntItem || "")
       ) {
         return false;
       }
@@ -624,11 +631,11 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
   }, [
     articulos,
     busqueda,
-    marcaSeleccionada,
-    lineaNegocioSeleccionada,
-    proveedorSeleccionado,
-    compraSeleccionada,
-    productoActivoSeleccionado,
+    marcasSeleccionadas,
+    lineasNegocioSeleccionadas,
+    proveedoresSeleccionados,
+    comprasSeleccionadas,
+    productosActivosSeleccionados,
   ]);
 
   // Excel de los "totales" (filas principales, sin el detalle de pedidos ni
@@ -663,11 +670,11 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
   }, [
     empresaSeleccionada,
     busqueda,
-    marcaSeleccionada,
-    lineaNegocioSeleccionada,
-    proveedorSeleccionado,
-    compraSeleccionada,
-    productoActivoSeleccionado,
+    marcasSeleccionadas,
+    lineasNegocioSeleccionadas,
+    proveedoresSeleccionados,
+    comprasSeleccionadas,
+    productosActivosSeleccionados,
   ]);
 
   const totalPaginas = Math.max(1, Math.ceil(articulosFiltrados.length / TAMANO_PAGINA));
@@ -888,67 +895,60 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
             <SelectUI
               label="Marca"
               options={opcionesMarca}
-              value={
-                marcaSeleccionada
-                  ? opcionesMarca.find((o) => o.value === marcaSeleccionada)
-                  : null
-              }
-              onChange={(opcion) => setMarcaSeleccionada(opcion ? opcion.value : null)}
+              value={opcionesMarca.filter((o) => marcasSeleccionadas.includes(o.value))}
+              onChange={(opciones) => setMarcasSeleccionadas((opciones || []).map((o) => o.value))}
               placeholder="Todas"
-              isClearable
-              minWidth="180px"
-            />
-            <SelectUI
-              label="Línea de negocio"
-              options={opcionesLineaNegocio}
-              value={
-                lineaNegocioSeleccionada
-                  ? opcionesLineaNegocio.find((o) => o.value === lineaNegocioSeleccionada)
-                  : null
-              }
-              onChange={(opcion) => setLineaNegocioSeleccionada(opcion ? opcion.value : null)}
-              placeholder="Todas"
-              isClearable
-              minWidth="200px"
-            />
-            <SelectUI
-              label="Proveedor"
-              options={opcionesProveedor}
-              value={
-                proveedorSeleccionado
-                  ? opcionesProveedor.find((o) => o.value === proveedorSeleccionado)
-                  : null
-              }
-              onChange={(opcion) => setProveedorSeleccionado(opcion ? opcion.value : null)}
-              placeholder="Todos"
+              isMulti
               isClearable
               minWidth="220px"
             />
             <SelectUI
+              label="Línea de negocio"
+              options={opcionesLineaNegocio}
+              value={opcionesLineaNegocio.filter((o) => lineasNegocioSeleccionadas.includes(o.value))}
+              onChange={(opciones) =>
+                setLineasNegocioSeleccionadas((opciones || []).map((o) => o.value))
+              }
+              placeholder="Todas"
+              isMulti
+              isClearable
+              minWidth="240px"
+            />
+            <SelectUI
+              label="Proveedor"
+              options={opcionesProveedor}
+              value={opcionesProveedor.filter((o) => proveedoresSeleccionados.includes(o.value))}
+              onChange={(opciones) =>
+                setProveedoresSeleccionados((opciones || []).map((o) => o.value))
+              }
+              placeholder="Todos"
+              isMulti
+              isClearable
+              minWidth="260px"
+            />
+            <SelectUI
               label="Compra (PrchseItem)"
               options={OPCIONES_COMPRA}
-              value={
-                compraSeleccionada !== null
-                  ? OPCIONES_COMPRA.find((o) => o.value === compraSeleccionada)
-                  : null
-              }
-              onChange={(opcion) => setCompraSeleccionada(opcion ? opcion.value : null)}
+              value={OPCIONES_COMPRA.filter((o) => comprasSeleccionadas.includes(o.value))}
+              onChange={(opciones) => setComprasSeleccionadas((opciones || []).map((o) => o.value))}
               placeholder="Todas"
+              isMulti
               isClearable
-              minWidth="160px"
+              minWidth="200px"
             />
             <SelectUI
               label="Producto (InvntItem)"
               options={OPCIONES_PRODUCTO_ACTIVO}
-              value={
-                productoActivoSeleccionado !== null
-                  ? OPCIONES_PRODUCTO_ACTIVO.find((o) => o.value === productoActivoSeleccionado)
-                  : null
+              value={OPCIONES_PRODUCTO_ACTIVO.filter((o) =>
+                productosActivosSeleccionados.includes(o.value)
+              )}
+              onChange={(opciones) =>
+                setProductosActivosSeleccionados((opciones || []).map((o) => o.value))
               }
-              onChange={(opcion) => setProductoActivoSeleccionado(opcion ? opcion.value : null)}
               placeholder="Todos"
+              isMulti
               isClearable
-              minWidth="170px"
+              minWidth="210px"
             />
           </Fila>
         )}
