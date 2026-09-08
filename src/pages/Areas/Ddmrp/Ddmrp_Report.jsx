@@ -291,39 +291,29 @@ const formatearPorcentaje = (valor) => {
   return `${(Number(valor) * 100).toFixed(1)}%`;
 };
 
-/* Columnas de la tabla principal, en el orden pedido por negocio. Varias
-   (ADU, Demanda Calificada, DLT, LTF, VF, las zonas del buffer DDMRP, NFP,
-   etc.) todavía no vienen en /maestro_articulos_resumen -- esa versión
-   liviana no calcula la Hoja 2/DDMRP -- así que hasta que el backend las
-   agregue se van a ver en blanco ("-"); quedan ya mapeadas para no tener que
-   tocar esto de nuevo cuando existan.
-   "fija"/"ancho" marca las columnas congeladas (sticky) de la izquierda; el
-   offset "left" de cada una se calcula más abajo, en orden. */
+/* Columnas de la tabla principal (y del Excel exportado). Empresa,
+   PrchseItem, InvntItem, LINEA DE NEGOCIO, Código Ítem, MARCA COD., MARCA,
+   COD. PROVEEDOR, PROV. 1(+cód.), PROVEEDORES REGISTRADOS(+cód.), DIF. MAX
+   AÑO vs TOT. AÑO, ADU, Demanda Calificada, Líneas de Tránsito/Backorder/
+   Pedido, Fecha Llegada + Próxima, INV. OPT, DLT, Corte LTF/LTF, Corte VF/VF,
+   COEF. VARIACIÓN - 6M, Zona Verde 1/2/Final, NFP, Cantidad Sugerida de
+   Compra, DESV. EST. (demanda diaria y lead time), Z Nivel Servicio y
+   Transito Internacional no se muestran (a pedido de negocio) -- pero esos
+   campos siguen viniendo en `articulos` y se usan igual para los filtros
+   (Marca, Línea de negocio, Proveedor, Compra, Producto), que no dependen de
+   esta lista de columnas.
+   "fija"/"ancho" marca la columna congelada (sticky) de la izquierda -- por
+   ahora solo Descripción; el offset "left" se calcula más abajo. */
 const COLUMNAS_PRINCIPAL = [
   { tipo: "chevron", fija: true, ancho: 32 },
-  { titulo: "Empresa", campo: "Empresa", fija: true, ancho: 110 },
-  { titulo: "PrchseItem", campo: "PrchseItem", fija: true, ancho: 90, align: "center" },
-  { titulo: "InvntItem", campo: "InvntItem", fija: true, ancho: 90, align: "center" },
-  { titulo: "Línea de negocio", campo: "LINEA DE NEGOCIO", fija: true, ancho: 140 },
-  { titulo: "Código", campo: "Código Ítem", fija: true, ancho: 110 },
-  { titulo: "Marca cód.", campo: "MARCA COD.", fija: true, ancho: 90, align: "right" },
-  { titulo: "Descripción", campo: "DESCRIPCION", fija: true, ancho: 220 },
-  { titulo: "Marca", campo: "MARCA" },
+  { titulo: "Descripción", campo: "DESCRIPCION", fija: true, ancho: 280 },
   { titulo: "Código barras", campo: "BARRAS" },
-  { titulo: "Cód. proveedor", campo: "COD. PROVEEDOR" },
-  { titulo: "Prov. 1", campo: "PROV. 1" },
-  { titulo: "Prov. 1 cód.", campo: "PROV. 1 COD." },
-  { titulo: "Proveedores registrados", campo: "PROVEEDORES REGISTRADOS" },
-  { titulo: "Proveedores registrados cód.", campo: "PROVEEDORES REGISTRADOS COD." },
   { titulo: "Diseño", campo: "DISEÑO" },
-  { titulo: "TOP", tipo: "clase", align: "center" },
+  { titulo: "TOP", campo: "TOP", tipo: "clase", align: "center" },
   { titulo: "ANT", campo: "ANT" },
   { titulo: "UN(#) año", campo: "UN (#) - AÑO", numero: 0, align: "right" },
   { titulo: "Pico últ. año x factura", campo: "PICO ULT. AÑO X FACTURA", numero: 0, align: "right" },
-  { titulo: "Dif. max año vs tot. año", campo: "DIF. MAX AÑO vs TOT. AÑO" },
   { titulo: "Días inv. 1año", campo: "DIAS INV 1AÑO", numero: 0, align: "right" },
-  { titulo: "ADU", campo: "ADU", numero: 2, align: "right" },
-  { titulo: "Demanda calificada", campo: "Demanda Calificada", numero: 1, align: "right" },
   { titulo: "Demanda mes-año", campo: "DEMANDA MES - AÑO", numero: 1, align: "right" },
   { titulo: "UN(#) 90d", campo: "UN (#) - 90D", numero: 0, align: "right" },
   { titulo: "Días inv. 90d", campo: "DIAS INV 90D", numero: 0, align: "right" },
@@ -332,7 +322,6 @@ const COLUMNAS_PRINCIPAL = [
   { titulo: "Unidades mes anterior", campo: "UNIDADES MES ANTERIOR", numero: 0, align: "right" },
   { titulo: "Stock", campo: "EN STOCK", numero: 0, align: "right" },
   { titulo: "Cantidad en tránsito", campo: "Cantidad en Tránsito", numero: 0, align: "right" },
-  { titulo: "Líneas de tránsito", campo: "Líneas de Tránsito", numero: 0, align: "right" },
   { titulo: "ETD real", campo: "bl_ETD_real" },
   { titulo: "Días en tránsito", campo: "DIAS EN TRANSITO", numero: 0, align: "right" },
   { titulo: "ETA real", campo: "bl_ETA_real" },
@@ -341,36 +330,17 @@ const COLUMNAS_PRINCIPAL = [
   { titulo: "Tránsito 45d", campo: "Transito 45d", numero: 0, align: "right" },
   { titulo: "Tránsito +45d", campo: "Transito +45d", numero: 0, align: "right" },
   { titulo: "Backorders", campo: "BACKORDERS", numero: 0, align: "right" },
-  { titulo: "Líneas en backorder", campo: "Líneas en Backorder", numero: 0, align: "right" },
   { titulo: "Pedidos", campo: "PEDIDOS", numero: 0, align: "right" },
-  { titulo: "Líneas de pedido", campo: "Líneas de Pedido", numero: 0, align: "right" },
-  { titulo: "Fecha llegada + próxima", campo: "Fecha Llegada + Próxima" },
-  { titulo: "Mes. inv. total", campo: "MES. INV. TOTAL", numero: 1, align: "right" },
+  { titulo: "Mes. inv. total", campo: "MES. INV. TOTAL", numero: 2, align: "right" },
   { titulo: "Stock total", campo: "STOCK TOTAL", numero: 0, align: "right" },
-  { titulo: "Inv. opt", campo: "INV. OPT", numero: 0, align: "right" },
-  { titulo: "DLT", campo: "DLT", numero: 0, align: "right" },
-  { titulo: "Corte LTF", campo: "Corte LTF" },
-  { titulo: "LTF", campo: "LTF", numero: 2, align: "right" },
-  { titulo: "Corte VF", campo: "Corte VF" },
-  { titulo: "VF", campo: "VF", numero: 2, align: "right" },
-  { titulo: "Coef.var. 6m", campo: "COEF. VARIACIÓN - 6M", numero: 2, align: "right" },
-  { titulo: "Inv. segu", campo: "INV. SEGU", numero: 0, align: "right" },
-  { titulo: "Zona roja base", campo: "Zona Roja Base", numero: 0, align: "right" },
-  { titulo: "Zona roja de seguridad", campo: "Zona Roja de Seguridad", numero: 0, align: "right" },
-  { titulo: "Zona roja total (TOR)", campo: "Zona Roja Total (TOR)", numero: 0, align: "right" },
-  { titulo: "Zona amarilla", campo: "Zona Amarilla", numero: 0, align: "right" },
-  { titulo: "Zona amarilla total (TOY)", campo: "Zona Amarilla Total (TOY)", numero: 0, align: "right" },
-  { titulo: "Zona verde 1", campo: "Zona Verde 1", numero: 0, align: "right" },
-  { titulo: "Zona verde 2", campo: "Zona Verde 2", numero: 0, align: "right" },
-  { titulo: "Zona verde final", campo: "Zona Verde Final", numero: 0, align: "right" },
-  { titulo: "NFP", campo: "NFP", numero: 0, align: "right" },
-  { titulo: "Cant. sugerida de compra", campo: "Cantidad Sugerida de Compra", numero: 0, align: "right" },
+  { titulo: "Inv. segu", campo: "INV. SEGU", numero: 2, align: "right" },
+  { titulo: "Zona roja base", campo: "Zona Roja Base", numero: 2, align: "right" },
+  { titulo: "Zona roja de seguridad", campo: "Zona Roja de Seguridad", numero: 2, align: "right" },
+  { titulo: "Zona roja total (TOR)", campo: "Zona Roja Total (TOR)", numero: 2, align: "right" },
+  { titulo: "Zona amarilla", campo: "Zona Amarilla", numero: 2, align: "right" },
+  { titulo: "Zona amarilla total (TOY)", campo: "Zona Amarilla Total (TOY)", numero: 2, align: "right" },
   { titulo: "Nuevo tamaño pedido", campo: "NUEVO TAMAÑO PEDIDO", numero: 0, align: "right" },
   { titulo: "Fecha última compra", campo: "Fecha Última Compra" },
-  { titulo: "Desv. est. demanda diaria", campo: "DESV. EST. DEMANDA DIARIA", numero: 2, align: "right" },
-  { titulo: "Desv. est. lead time", campo: "DESV. EST. LEAD TIME", numero: 2, align: "right" },
-  { titulo: "Z nivel servicio", campo: "Z Nivel Servicio", numero: 2, align: "right" },
-  { titulo: "Tránsito internacional", campo: "Transito Internacional" },
 ];
 
 // Offset "left" acumulado de cada columna congelada, en el orden en que
@@ -628,7 +598,7 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
       }
       if (!termino) return true;
       const codigo = String(articulo["Código Ítem"] || "").toLowerCase();
-      const nombre = (articulo.Nombre || "").toLowerCase();
+      const nombre = (articulo.DESCRIPCION || "").toLowerCase();
       const diseno = (articulo["DISEÑO"] || "").toLowerCase();
       const barras = (articulo.BARRAS || "").toLowerCase();
       return (
@@ -649,10 +619,20 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
   ]);
 
   // Excel de los "totales" (filas principales, sin el detalle de pedidos ni
-  // tránsitos) para lo que quedó filtrado en pantalla -- empresa, búsqueda,
-  // marca y línea de negocio.
+  // tránsitos) para lo que quedó filtrado en pantalla. Usa las mismas
+  // columnas que se ven en la tabla (COLUMNAS_PRINCIPAL) -- ni la tabla ni
+  // el Excel muestran los campos que negocio pidió ocultar, aunque esos
+  // campos se sigan usando para los filtros.
   const datosExportacion = useMemo(
-    () => articulosFiltrados.map(({ detalle, ...resto }) => resto),
+    () =>
+      articulosFiltrados.map((articulo) => {
+        const fila = {};
+        COLUMNAS_PRINCIPAL.forEach((columna) => {
+          if (!columna.campo) return;
+          fila[columna.titulo] = articulo[columna.campo] ?? "";
+        });
+        return fila;
+      }),
     [articulosFiltrados]
   );
 
@@ -982,61 +962,66 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
             <Tabla>
               <thead>
                 <tr>
-                  <ThFija $left={IZQ_CHEVRON} $width={ANCHO_CHEVRON} />
-                  <ThFija $left={IZQ_DESCRIPCION} $width={ANCHO_DESCRIPCION}>Descripción</ThFija>
-                  <ThFija $left={IZQ_MARCA} $width={ANCHO_MARCA}>Marca</ThFija>
-                  <ThFija $left={IZQ_SKU} $width={ANCHO_SKU}>Código</ThFija>
-                  <ThFija $left={IZQ_BARRAS} $width={ANCHO_BARRAS} $ultima>Código barras</ThFija>
-                  <Th $align="center">TOP</Th>
-                  <Th>ANT</Th>
-                  <Th $align="right">UN(#) año</Th>
-                  <Th $align="right">Pico últ. año x factura</Th>
-                  <Th>Dif. max año vs tot. año</Th>
-                  <Th $align="right">Días inv. 1año</Th>
-                  <Th $align="right">Demanda mes-año</Th>
-                  <Th $align="right">UN(#) 90d</Th>
-                  <Th $align="right">Días inv. 90d</Th>
-                  <Th $align="right">Demanda mes-90d</Th>
-                  <Th $align="right">%Var. demanda</Th>
-                  <Th $align="right">Unidades mes anterior</Th>
+                  {COLUMNAS_PRINCIPAL.map((columna, indice) => {
+                    const key = columna.campo || columna.tipo || indice;
+                    if (columna.fija) {
+                      return (
+                        <ThFija
+                          key={key}
+                          $left={columna.left}
+                          $width={columna.ancho}
+                          $ultima={columna.ultima}
+                          $align={columna.align}
+                        >
+                          {columna.titulo}
+                        </ThFija>
+                      );
+                    }
+                    return (
+                      <Th key={key} $align={columna.align}>
+                        {columna.titulo}
+                      </Th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {articulosPagina.map((articulo) => (
                   <FilaArticulo key={articulo["Código Ítem"]} onClick={() => setArticuloDetalle(articulo)}>
-                    <TdFija $left={IZQ_CHEVRON} $width={ANCHO_CHEVRON}>
-                      <IconUI name="FaChevronRight" size={12} color={theme?.colors?.primary} />
-                    </TdFija>
-                    <TdFija
-                      $left={IZQ_DESCRIPCION}
-                      $width={ANCHO_DESCRIPCION}
-                      title={articulo.DESCRIPCION}
-                    >
-                      {articulo.DESCRIPCION}
-                    </TdFija>
-                    <TdFija $left={IZQ_MARCA} $width={ANCHO_MARCA} title={articulo.MARCA}>
-                      {articulo.MARCA}
-                    </TdFija>
-                    <TdFija $left={IZQ_SKU} $width={ANCHO_SKU} title={articulo["Código Ítem"]}>
-                      {articulo["Código Ítem"]}
-                    </TdFija>
-                    <TdFija $left={IZQ_BARRAS} $width={ANCHO_BARRAS} $ultima title={articulo.BARRAS}>
-                      {articulo.BARRAS}
-                    </TdFija>
-                    <Td $align="center">
-                      <ClaseBadge valor={articulo.TOP} />
-                    </Td>
-                    <Td>{articulo.ANT}</Td>
-                    <Td $align="right">{formatearNumero(articulo["UN (#) - AÑO"])}</Td>
-                    <Td $align="right">{formatearNumero(articulo["PICO ULT. AÑO X FACTURA"])}</Td>
-                    <Td>{articulo["DIF. MAX AÑO vs TOT. AÑO"]}</Td>
-                    <Td $align="right">{formatearNumero(articulo["DIAS INV 1AÑO"])}</Td>
-                    <Td $align="right">{formatearNumero(articulo["DEMANDA MES - AÑO"], 1)}</Td>
-                    <Td $align="right">{formatearNumero(articulo["UN (#) - 90D"])}</Td>
-                    <Td $align="right">{formatearNumero(articulo["DIAS INV 90D"])}</Td>
-                    <Td $align="right">{formatearNumero(articulo["DEMANDA MES - 90D"], 1)}</Td>
-                    <Td $align="right">{formatearPorcentaje(articulo["% VARIACIÓN DEMANDA"])}</Td>
-                    <Td $align="right">{formatearNumero(articulo["UNIDADES MES ANTERIOR"])}</Td>
+                    {COLUMNAS_PRINCIPAL.map((columna, indice) => {
+                      const key = columna.campo || columna.tipo || indice;
+                      let contenido;
+                      if (columna.tipo === "chevron") {
+                        contenido = (
+                          <IconUI name="FaChevronRight" size={12} color={theme?.colors?.primary} />
+                        );
+                      } else if (columna.tipo === "clase") {
+                        contenido = <ClaseBadge valor={articulo.TOP} />;
+                      } else {
+                        contenido = formatearValorPrincipal(columna, articulo);
+                      }
+                      const esTexto = typeof contenido === "string";
+
+                      if (columna.fija) {
+                        return (
+                          <TdFija
+                            key={key}
+                            $left={columna.left}
+                            $width={columna.ancho}
+                            $ultima={columna.ultima}
+                            $align={columna.align}
+                            title={esTexto ? contenido : undefined}
+                          >
+                            {contenido}
+                          </TdFija>
+                        );
+                      }
+                      return (
+                        <Td key={key} $align={columna.align}>
+                          {contenido}
+                        </Td>
+                      );
+                    })}
                   </FilaArticulo>
                 ))}
               </tbody>
