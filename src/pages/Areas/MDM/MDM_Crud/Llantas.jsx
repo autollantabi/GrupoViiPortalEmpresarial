@@ -1989,7 +1989,26 @@ function Llantas() {
                                                 {idRolPrincipal !== 5 && idRolPrincipal !== 3 && idRolPrincipal !== 4 && (
                                                     <>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.marcaRef || ""} onChange={(v) => actualizarCampoFila(item.id, "marcaRef", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={
+                                                                    lineaSeleccionada?.value === "LLANTAS MOTO"
+                                                                        ? [{ value: "4011.40.00.00", label: "4011.40.00.00" }]
+                                                                        : [
+                                                                            { value: "4011.10.10.00", label: "4011.10.10.00" },
+                                                                            { value: "4011.20.10.10", label: "4011.20.10.10" },
+                                                                            { value: "4011.20.10.90", label: "4011.20.10.90" },
+                                                                            { value: "4011.20.90.10", label: "4011.20.90.10" },
+                                                                            { value: "4011.20.90.90", label: "4011.20.90.90" },
+                                                                            { value: "4011.40.00.00", label: "4011.40.00.00" },
+                                                                        ]
+                                                                }
+                                                                value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
+                                                                minWidth="150px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.medida || ""} onChange={(v) => actualizarCampoFila(item.id, "medida", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.robustez || ""} onChange={(v) => actualizarCampoFila(item.id, "robustez", v)} /></Td>
