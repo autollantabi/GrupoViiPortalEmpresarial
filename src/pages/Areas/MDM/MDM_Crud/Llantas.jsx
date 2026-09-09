@@ -11,7 +11,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas, syncItemsToSap } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas, syncItemsToSap } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
@@ -781,6 +781,13 @@ function Llantas() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
     const debounceTimeouts = useRef({});
+    // Resultado de verificar si el diseño (MARCA + DISEÑO) ya tiene imagen en storage,
+    // indexado por "MARCA|DISEÑO", para no pedirle al coordinador (rol 4) que la vuelva a subir.
+    const [imagenesDisenioExistente, setImagenesDisenioExistente] = useState({});
+    // Diseños cuya verificación contra el backend todavía está en curso: mientras esté aquí,
+    // el input de subida se bloquea para no subir una imagen antes de saber si ya existía una.
+    const [disenioVerificando, setDisenioVerificando] = useState({});
+    const disenioCheckEnCurso = useRef(new Set());
 
     const handleDownloadTemplate = () => {
         if (!lineaSeleccionada) return;
@@ -935,6 +942,9 @@ function Llantas() {
     const [itemToReject, setItemToReject] = useState(null);
     const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false);
     const [detalleItem, setDetalleItem] = useState(null);
+    // Actualización de imágenes de un producto ya aprobado (rol 4), desde el modal de Detalle:
+    // { webp: bool, png: bool } indica si hay una subida en curso para ese tipo de imagen.
+    const [subiendoImagenDetalle, setSubiendoImagenDetalle] = useState({ webp: false, png: false });
     const [selectedRejectionReason, setSelectedRejectionReason] = useState("");
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [itemsToReview, setItemsToReview] = useState([]);
@@ -1230,6 +1240,142 @@ function Llantas() {
         fetchItems();
     }, [fetchItems]);
 
+    // Cuando se reemplaza una imagen ya existente, la key en storage (y por lo tanto la URL) no
+    // cambia: el navegador ya tiene esa URL cacheada y seguiría mostrando la versión vieja hasta
+    // recargar la página. Agregar un parámetro único fuerza a que se pida de nuevo.
+    const agregarCacheBusting = (url) => {
+        if (!url) return url;
+        const separador = url.includes('?') ? '&' : '?';
+        return `${url}${separador}_v=${Date.now()}`;
+    };
+
+    const getDisenioKey = (item) => item?.marca && item?.diseño
+        ? `${String(item.marca).trim().toUpperCase()}|${String(item.diseño).trim().toUpperCase()}`
+        : null;
+
+    // Consulta al backend si el diseño (MARCA + DISEÑO) de `item` ya tiene imagen en storage
+    // (R2/SharePoint) y guarda el resultado en imagenesDisenioExistente, indexado por diseño.
+    // Se usa tanto para la grilla de pendientes (rol 4) como para el modal de Detalle del producto.
+    const verificarImagenDisenio = useCallback((item, linea) => {
+        const clave = getDisenioKey(item);
+        if (!clave || imagenesDisenioExistente[clave] || disenioCheckEnCurso.current.has(clave)) return;
+        disenioCheckEnCurso.current.add(clave);
+        setDisenioVerificando(prev => ({ ...prev, [clave]: true }));
+        checkDesignImage(linea, item.ID ?? item.id)
+            .then(result => {
+                if (result) {
+                    setImagenesDisenioExistente(prev => ({ ...prev, [clave]: result }));
+                }
+            })
+            .catch(err => {
+                console.error(`Error al verificar imagen existente para ${clave}:`, err);
+            })
+            .finally(() => {
+                disenioCheckEnCurso.current.delete(clave);
+                setDisenioVerificando(prev => {
+                    const next = { ...prev };
+                    delete next[clave];
+                    return next;
+                });
+            });
+    }, [imagenesDisenioExistente]);
+
+    // Rol 4 (coordinador de imágenes): las imágenes se suben una vez por diseño (MARCA + DISEÑO),
+    // no por ítem. Antes de forzar la subida, se verifica si el diseño ya tiene imagen en storage
+    // (Cloudflare R2 / SharePoint) para no pedirla nuevamente.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !lineaSeleccionada) return;
+
+        const pendientes = items.filter(it => it.linea === lineaSeleccionada.value && it.marca && it.diseño);
+        const clavesUnicas = new Map();
+        pendientes.forEach(it => {
+            const clave = getDisenioKey(it);
+            if (clave && !clavesUnicas.has(clave)) {
+                clavesUnicas.set(clave, it);
+            }
+        });
+
+        clavesUnicas.forEach(it => verificarImagenDisenio(it, lineaSeleccionada.value));
+    }, [idRolPrincipal, lineaSeleccionada, items, verificarImagenDisenio]);
+
+    // Al abrir el detalle de un producto aprobado (rol 4), se verifica igual el diseño para
+    // poder mostrar las miniaturas de SharePoint/R2 en la ficha, aunque el ítem ya no esté
+    // en la grilla de pendientes.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !detalleItem) return;
+        const linea = detalleItem.linea || detalleItem.LINEA_NEGOCIO || lineaSeleccionada?.value;
+        if (!linea) return;
+        verificarImagenDisenio(detalleItem, linea);
+    }, [idRolPrincipal, detalleItem, lineaSeleccionada, verificarImagenDisenio]);
+
+    // Bloquea la subida mientras no se sepa con certeza si el diseño ya tiene imagen en storage:
+    // subir "a ciegas" durante ese lapso podría generar un archivo huérfano o duplicado.
+    const disenioEstaVerificando = (item) => {
+        const clave = getDisenioKey(item);
+        return clave ? Boolean(disenioVerificando[clave]) : false;
+    };
+    const hayVerificacionesPendientes = (currentItems) => currentItems.some(disenioEstaVerificando);
+
+    // Actualiza la imagen (WebP en R2, o PNG en SharePoint) de un producto ya aprobado, desde el
+    // modal de Detalle del producto. Al ser el mismo diseño, la subida sobrescribe la imagen
+    // existente: es justamente el flujo para corregir/reemplazar una imagen ya publicada.
+    const handleActualizarImagenDetalle = async (tipo, file) => {
+        if (!detalleItem) return;
+        const linea = detalleItem.linea || detalleItem.LINEA_NEGOCIO || lineaSeleccionada?.value;
+        if (!linea) return;
+
+        if (tipo === "webp" && file.type !== "image/webp") {
+            toast.error("Solo se permiten archivos WEBP");
+            return;
+        }
+        if (tipo === "png" && file.type !== "image/png") {
+            toast.error("Solo se permiten archivos PNG");
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error(`La imagen ${tipo.toUpperCase()} no debe superar 2MB`);
+            return;
+        }
+
+        const clave = getDisenioKey(detalleItem);
+        setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: true }));
+        try {
+            if (tipo === "webp") {
+                const res = await uploadItemImages(linea, detalleItem.ID ?? detalleItem.id, detalleItem.marca, detalleItem.diseño, null, file);
+                // Al reemplazar una imagen ya existente, la key (y por lo tanto la URL) es la misma
+                // de antes: sin este parámetro el navegador sirve la versión cacheada y no se ve el
+                // cambio hasta recargar la página.
+                const nuevaUrl = agregarCacheBusting(res?.data?.urls?.webp);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], webp: { exists: true, key: res.data.RUTA_IMAGEN_WEBP, url: nuevaUrl } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_WEBP: nuevaUrl || prev.RUTA_IMAGEN_WEBP } : prev);
+            } else {
+                const empresaToSend = detalleItem.EMPRESA || "";
+                const res = await uploadItemImagesSharepoint(linea, detalleItem.ID ?? detalleItem.id, detalleItem.marca, empresaToSend, detalleItem.diseño, file, null);
+                const nuevaUrl = res?.data?.urls?.png;
+                const nuevaPreview = agregarCacheBusting(res?.data?.urls?.pngPreview || nuevaUrl);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], png: { exists: true, key: res.data.RUTA_IMAGEN_PNG, url: nuevaUrl, previewUrl: nuevaPreview } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_PNG: nuevaUrl || prev.RUTA_IMAGEN_PNG } : prev);
+            }
+            toast.success(`Imagen ${tipo.toUpperCase()} actualizada correctamente.`);
+            fetchItems();
+        } catch (error) {
+            console.error(`Error al actualizar imagen ${tipo}:`, error);
+            toast.error(`Error al actualizar la imagen ${tipo.toUpperCase()}.`);
+        } finally {
+            setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: false }));
+        }
+    };
+
     const handleSyncToSap = async () => {
         const ids = Array.from(selectedApprovedItemIds);
         if (ids.length === 0) {
@@ -1341,6 +1487,13 @@ function Llantas() {
                 }
             } else if (idRolPrincipal === 4) {
                 for (const item of currentItems) {
+                    const empresaToSend = item.EMPRESA || "";
+                    const disenioExistente = imagenesDisenioExistente[getDisenioKey(item)];
+                    // Solo se vincula lo que el diseño ya tiene en storage Y que este ítem no está subiendo de nuevo.
+                    const debeVincularExistente =
+                        (!item.imagenWebp && disenioExistente?.webp?.exists) ||
+                        (!item.imagenPng && disenioExistente?.png?.exists);
+
                     if (item.imagenWebp) {
                         try {
                             await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, item.diseño, null, item.imagenWebp);
@@ -1351,11 +1504,20 @@ function Llantas() {
                     }
                     if (item.imagenPng) {
                         try {
-                            const empresaToSend = item.EMPRESA || "";
                             await uploadItemImagesSharepoint(lineaSeleccionada.value, item.ID, item.marca, empresaToSend, item.diseño, item.imagenPng, null);
                         } catch (uploadError) {
                             console.error(`Error al subir imagen PNG para el ítem ${item.ID}:`, uploadError);
                             toast.error(`Error al subir imagen PNG para ${item.marca} ${item.diseño}`);
+                        }
+                    }
+                    if (debeVincularExistente) {
+                        // Las imágenes se suben una vez por diseño (MARCA + DISEÑO), no por ítem:
+                        // aquí se vincula al ítem la que ya existe en storage, sin volver a subirla.
+                        try {
+                            await linkExistingItemImage(lineaSeleccionada.value, item.ID);
+                        } catch (linkError) {
+                            console.error(`Error al vincular imagen existente para el ítem ${item.ID}:`, linkError);
+                            toast.error(`Error al vincular imagen existente para ${item.marca} ${item.diseño}`);
                         }
                     }
                     await patchItemRole3({
@@ -2140,7 +2302,8 @@ function Llantas() {
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
-                                                                cursor: 'pointer',
+                                                                cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                                opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                                 transition: 'all 0.2s ease',
                                                                 overflow: 'hidden'
                                                             }}
@@ -2152,15 +2315,24 @@ function Llantas() {
                                                                     e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                     e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                                 }}
-                                                                onClick={() => document.getElementById(`png-upload-${item.id}`).click()}
+                                                                onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`png-upload-${item.id}`).click(); }}
+                                                                title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenPng && imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? "Ya existe una imagen PNG para este diseño. Click para reemplazarla." : undefined)}
                                                             >
-                                                                {item.imagenPng ? (
+                                                                {disenioEstaVerificando(item) ? (
+                                                                    <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                                ) : item.imagenPng ? (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                         <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                             {item.imagenPng.name}
                                                                         </TextUI>
                                                                     </div>
+                                                                ) : imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? (
+                                                                    <img
+                                                                        src={imagenesDisenioExistente[getDisenioKey(item)]?.png?.previewUrl || imagenesDisenioExistente[getDisenioKey(item)]?.png?.url}
+                                                                        alt="Imagen PNG existente"
+                                                                        style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                    />
                                                                 ) : (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                         <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>📄</span>
@@ -2171,6 +2343,7 @@ function Llantas() {
                                                                     id={`png-upload-${item.id}`}
                                                                     type="file"
                                                                     accept=".png"
+                                                                    disabled={disenioEstaVerificando(item)}
                                                                     style={{ display: 'none' }}
                                                                     onChange={(e) => {
                                                                         const file = e.target.files[0];
@@ -2200,7 +2373,8 @@ function Llantas() {
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
-                                                                cursor: 'pointer',
+                                                                cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                                opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                                 transition: 'all 0.2s ease',
                                                                 overflow: 'hidden'
                                                             }}
@@ -2212,15 +2386,24 @@ function Llantas() {
                                                                     e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                     e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                                 }}
-                                                                onClick={() => document.getElementById(`webp-upload-${item.id}`).click()}
+                                                                onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`webp-upload-${item.id}`).click(); }}
+                                                                title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenWebp && imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? "Ya existe una imagen WebP para este diseño. Click para reemplazarla." : undefined)}
                                                             >
-                                                                {item.imagenWebp ? (
+                                                                {disenioEstaVerificando(item) ? (
+                                                                    <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                                ) : item.imagenWebp ? (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                         <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                             {item.imagenWebp.name}
                                                                         </TextUI>
                                                                     </div>
+                                                                ) : imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? (
+                                                                    <img
+                                                                        src={imagenesDisenioExistente[getDisenioKey(item)]?.webp?.url}
+                                                                        alt="Imagen WebP existente"
+                                                                        style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                    />
                                                                 ) : (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                         <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>🖼️</span>
@@ -2231,6 +2414,7 @@ function Llantas() {
                                                                     id={`webp-upload-${item.id}`}
                                                                     type="file"
                                                                     accept=".webp"
+                                                                    disabled={disenioEstaVerificando(item)}
                                                                     style={{ display: 'none' }}
                                                                     onChange={(e) => {
                                                                         const file = e.target.files[0];
@@ -2773,12 +2957,13 @@ function Llantas() {
                 {lineaSeleccionada && idRolPrincipal !== 1 && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Enviar a revisión"}
+                            text={isSubmitting ? "Enviando..." : (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))) ? "Verificando imágenes..." : "Enviar a revisión")}
                             iconLeft="FaCheck"
-                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
+                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0 || (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))))}
                             onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
+                                if (idRolPrincipal === 4 && hayVerificacionesPendientes(currentItems)) return;
 
                                 if (idRolPrincipal === 5) {
                                     const createdItems = currentItems.filter(i => !i.fueRechazado);
@@ -2950,6 +3135,11 @@ function Llantas() {
                     const fases = Array.isArray(detalleItem.FASES) ? detalleItem.FASES : [];
                     const rechazada = fases.find(f => f.RECHAZO);
                     const aprobado = detalleItem.APROBADO_MDM === true;
+                    const claveImagenesDetalle = getDisenioKey(detalleItem);
+                    const infoImagenesDetalle = claveImagenesDetalle ? imagenesDisenioExistente[claveImagenesDetalle] : null;
+                    const verificandoImagenesDetalle = claveImagenesDetalle ? Boolean(disenioVerificando[claveImagenesDetalle]) : false;
+                    const webpUrlDetalle = infoImagenesDetalle?.webp?.url || detalleItem.RUTA_IMAGEN_WEBP || null;
+                    const pngUrlDetalle = infoImagenesDetalle?.png?.previewUrl || infoImagenesDetalle?.png?.url || null;
 
                     // El ModalBody de ModalUI scrollea sin padding propio: el padding
                     // de este contenedor evita que las tablas queden pegadas a la barra.
@@ -2990,6 +3180,69 @@ function Llantas() {
                                     </tbody>
                                 </Tabla>
                             </TablaScroll>
+
+                            {/* Imágenes del diseño (SharePoint/PNG y R2/WebP), solo para el coordinador (rol 4):
+                                permite ver la imagen publicada actualmente y reemplazarla sin pasar por el flujo
+                                de revisión completo. */}
+                            {idRolPrincipal === 4 && (
+                                <div>
+                                    <TextUI size="13px" weight="600" style={{ marginBottom: "8px", display: "block" }}>
+                                        Imágenes del diseño
+                                    </TextUI>
+                                    <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                                        {[
+                                            { tipo: "png", etiqueta: "Aplicación (PNG)", src: pngUrlDetalle, accept: ".png" },
+                                            { tipo: "webp", etiqueta: "Portal (WebP)", src: webpUrlDetalle, accept: ".webp" },
+                                        ].map(({ tipo, etiqueta, src, accept }) => (
+                                            <div key={tipo} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                                                <div style={{
+                                                    width: "80px",
+                                                    height: "80px",
+                                                    borderRadius: "8px",
+                                                    border: `1px solid ${theme?.colors?.border || "#eee"}`,
+                                                    backgroundColor: isDark ? "#1e293b" : "#f8fafc",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    overflow: "hidden",
+                                                }}>
+                                                    {verificandoImagenesDetalle ? (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                    ) : src ? (
+                                                        <img
+                                                            src={src}
+                                                            alt={etiqueta}
+                                                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                                            onError={(e) => { e.target.style.display = "none"; }}
+                                                        />
+                                                    ) : (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Sin imagen</TextUI>
+                                                    )}
+                                                </div>
+                                                <TextUI size="11px" weight="600">{etiqueta}</TextUI>
+                                                <ButtonUI
+                                                    text={subiendoImagenDetalle[tipo] ? "Subiendo..." : "Actualizar"}
+                                                    variant="outlined"
+                                                    disabled={subiendoImagenDetalle[tipo] || verificandoImagenesDetalle}
+                                                    style={{ padding: "4px 10px", fontSize: "11px", minWidth: "auto" }}
+                                                    onClick={() => document.getElementById(`detalle-upload-${tipo}`).click()}
+                                                />
+                                                <input
+                                                    id={`detalle-upload-${tipo}`}
+                                                    type="file"
+                                                    accept={accept}
+                                                    style={{ display: "none" }}
+                                                    onChange={(e) => {
+                                                        const file = e.target.files[0];
+                                                        if (file) handleActualizarImagenDetalle(tipo, file);
+                                                        e.target.value = "";
+                                                    }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Trazabilidad por fase */}
                             {fases.length > 0 && (

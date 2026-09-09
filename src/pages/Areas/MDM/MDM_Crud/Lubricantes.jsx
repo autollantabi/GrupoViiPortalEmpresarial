@@ -8,12 +8,164 @@ import { SelectUI } from "components/UI/Components/SelectUI";
 import { TextUI } from "components/UI/Components/TextUI";
 import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
+import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades, syncItemsToSap } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades, syncItemsToSap } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
+import styled from "styled-components";
+
+/* ------------------------------------------------------------------ */
+/* Primitivas de tabla (mismo patrón que Llantas.jsx) — usadas por la   */
+/* sección "Aprobados" y por el modal "Detalle del producto".           */
+/* ------------------------------------------------------------------ */
+
+const TablaScroll = styled.div`
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+
+    &::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    &::-webkit-scrollbar-track {
+        background: ${({ theme }) => theme?.colors?.backgroundLight || "#fafafa"};
+    }
+    &::-webkit-scrollbar-thumb {
+        background: ${({ theme }) => theme?.colors?.borderDark || "#ced4da"};
+        border-radius: 5px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+        background: ${({ theme }) => theme?.colors?.textSecondary || "#6c757d"};
+    }
+    &::-webkit-scrollbar-corner {
+        background: ${({ theme }) => theme?.colors?.backgroundLight || "#fafafa"};
+    }
+`;
+
+const Tabla = styled.table`
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    text-align: left;
+`;
+
+const Th = styled.th`
+    position: sticky;
+    top: 0;
+    z-index: ${({ $fija }) => ($fija ? 5 : 3)};
+    ${({ $fija, $offset }) => ($fija === "left" ? `left: ${$offset || "0"};` : "")}
+    ${({ $fija, $offset }) => ($fija === "right" ? `right: ${$offset || "0"};` : "")}
+    padding: 10px 14px;
+    text-align: ${({ $align }) => $align || "left"};
+    ${({ $min }) => ($min ? `min-width: ${$min};` : "")}
+    ${({ $w, $fija }) =>
+        !$w
+            ? ""
+            : $fija
+                ? `width: ${$w}; min-width: ${$w}; max-width: ${$w};`
+                : `width: ${$w};`}
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background-color: #3c3c3b;
+    color: ${({ theme }) => theme?.colors?.white || "#ffffff"};
+    border-bottom: 2px solid ${({ theme }) => theme?.colors?.white || "#ffffff"};
+    border-right: 1px solid ${({ theme }) => hexToRGBA({ hex: theme?.colors?.white || "#ffffff", alpha: 0.25 })};
+
+    ${({ $fija, theme }) =>
+        $fija === "left"
+            ? `border-right: 2px solid ${theme?.colors?.white || "#ffffff"};`
+            : ""}
+    ${({ $fija, theme }) =>
+        $fija === "right"
+            ? `border-left: 2px solid ${theme?.colors?.white || "#ffffff"};`
+            : ""}
+`;
+
+const Td = styled.td`
+    padding: ${({ $densa }) => ($densa ? "4px 8px" : "9px 14px")};
+    text-align: ${({ $align }) => $align || "left"};
+    vertical-align: middle;
+    max-width: none;
+    border-bottom: 1px solid ${({ theme }) => theme?.colors?.borderLight || "#e9ecef"};
+    border-right: 1px solid ${({ theme }) => theme?.colors?.borderLight || "#e9ecef"};
+
+    ${({ $fija }) =>
+        $fija
+            ? `position: sticky; z-index: 2; background-color: inherit;`
+            : ""}
+    ${({ $fija, $offset }) => ($fija === "left" ? `left: ${$offset || "0"};` : "")}
+    ${({ $fija, $offset }) => ($fija === "right" ? `right: ${$offset || "0"};` : "")}
+    ${({ $w, $fija }) =>
+        $w && $fija ? `width: ${$w}; min-width: ${$w}; max-width: ${$w};` : ""}
+    ${({ $fija, theme }) =>
+        $fija === "left"
+            ? `border-right: 2px solid ${theme?.colors?.border || "#dee2e6"};`
+            : ""}
+    ${({ $fija, theme }) =>
+        $fija === "right"
+            ? `border-left: 2px solid ${theme?.colors?.border || "#dee2e6"};`
+            : ""}
+`;
+
+const FILA_HOVER = { claro: "#eef0f2", oscuro: "#343434" };
+const FILA_SELECCION = { claro: "#e4e7eb", oscuro: "#3d3d3d" };
+
+const tonoFila = (theme, tono) =>
+    theme?.name === "dark" ? tono.oscuro : tono.claro;
+
+const Fila = styled.tr`
+    background-color: ${({ theme, $par }) =>
+        $par
+            ? theme?.colors?.backgroundLight || "#fafafa"
+            : theme?.colors?.background || "#f5f5f5"};
+    transition: background-color 0.12s ease;
+
+    ${({ theme, $sel }) =>
+        $sel ? `background-color: ${tonoFila(theme, FILA_SELECCION)};` : ""}
+
+    &:hover {
+        background-color: ${({ theme }) => tonoFila(theme, FILA_HOVER)};
+    }
+`;
+
+/* Distintivo de estado para el detalle informativo del ítem */
+const TONOS_ETIQUETA = {
+    exito: "success",
+    alerta: "error",
+    info: "info",
+    neutro: "textSecondary",
+};
+
+const Etiqueta = styled.span`
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: ${({ theme, $tono }) => theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d"};
+    background-color: ${({ theme, $tono }) =>
+        hexToRGBA({
+            hex: theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d",
+            alpha: 0.12,
+        })};
+    border: 1px solid ${({ theme, $tono }) =>
+        hexToRGBA({
+            hex: theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d",
+            alpha: 0.35,
+        })};
+`;
 
 const EMPRESA_LUBRICANTES = "MAXXIMUNDO";
 
@@ -123,6 +275,65 @@ const calcularNombreSistemaFinal = (nombreBase, isNew = false) => {
 
 // Línea fija para esta página — definida a nivel módulo para referencia estable
 const LINEA_LUBRICANTES = { value: "LUBRICANTES", label: "LUBRICANTES" };
+
+/* Roles del flujo MDM (id_rol → nombre), usado solo para las etiquetas de
+   fase de la Trazabilidad del modal de Detalle (genérico, igual que en Llantas.jsx). */
+const NOMBRES_ROL = {
+    1: "Comercial",
+    2: "Ventas",
+    3: "Tecnico",
+    4: "Marketing",
+    5: "Compras",
+    6: "Bodega",
+};
+
+/* Cada fase la ejecuta un rol concreto: FASE 1 = creación (rol 5), FASE 2 =
+   revisión técnica (rol 3), FASE 3 = imágenes (rol 4), FASE 4 = aprobación (rol 1). */
+const NOMBRES_FASE = {
+    1: `Creación (${NOMBRES_ROL[5]})`,
+    2: `Revisión técnica (${NOMBRES_ROL[3]})`,
+    3: `Imágenes (${NOMBRES_ROL[4]})`,
+    4: `Aprobación (${NOMBRES_ROL[1]})`,
+};
+
+/* Campos del detalle informativo de un ítem aprobado de Lubricantes.
+   Los ítems se construyen con `...it`, así que conservan tanto los campos
+   normalizados del front (camelCase) como los que devuelve el backend
+   (SCREAMING_SNAKE); se toma el primero disponible. Las filas sin valor no
+   se pintan. No existe campo "diseño" en esta línea de negocio. */
+const CAMPOS_DETALLE = [
+    { label: "Código SAP", get: (it) => it.CODIGO_SAP },
+    { label: "Código de barras", get: (it) => it.codigo || it.CODIGO_BARRAS },
+    { label: "Código proveedor", get: (it) => it.codigoProveedor || it.CODIGO_PROVEEDOR },
+    { label: "Código Shell", get: (it) => it.codigoShell || it.CODIGO_SHELL },
+    { label: "Línea de negocio", get: (it) => it.linea || it.LINEA_NEGOCIO },
+    { label: "Marca", get: (it) => it.marca || it.MARCA },
+    { label: "Nombre del sistema", get: (it) => it.nombreSistema },
+    { label: "Descripción", get: (it) => it.descripcion || it.descripcionRol5 || it.DESCRIPCION || it.NOMBRE },
+    { label: "Nombre extranjero", get: (it) => it.nombreExtranjero || it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO },
+    { label: "Estrategia", get: (it) => it.estrategia || it.ESTRATEGIA },
+    { label: "Origen", get: (it) => it.origen || it.ORIGEN },
+    { label: "Empaque", get: (it) => it.empaque || it.EMPAQUE },
+    { label: "OUM", get: (it) => it.oum || it.OUM || it.uom || it.UOM },
+    { label: "Familia", get: (it) => it.familia || it.FAMILIA },
+    { label: "Viscosidad", get: (it) => it.viscosidad || it.VISCOSIDAD },
+    { label: "Clase", get: (it) => it.clase || it.CLASE },
+    { label: "SAE", get: (it) => it.sae || it.SAE },
+    { label: "ISOVG", get: (it) => it.isovg || it.ISOVG },
+    { label: "API", get: (it) => it.api || it.API },
+    { label: "ACEA", get: (it) => it.acea || it.ACEA },
+    { label: "JASO", get: (it) => it.jaso || it.JASO },
+    { label: "ISO DIN", get: (it) => it.isoDin || it.ISO_DIN },
+    { label: "Pallets", get: (it) => it.pallets || it.PALLETS },
+    { label: "Presentación", get: (it) => it.presentacion || it.PRESENTACION },
+    { label: "Unidades por pallet", get: (it) => it.unidadesPallet || it.UNIDADES_POR_PALLET },
+    { label: "Unidades por caja", get: (it) => it.unidadesCaja || it.UNIDADES_POR_CAJA },
+    { label: "Aplicación", get: (it) => it.aplicacion || it.APLICACION },
+    { label: "Grado de grasa", get: (it) => it.gradoGrasa || it.GRADO_DE_LA_GRASA },
+    { label: "Peso material bruto", get: (it) => it.pesoMaterialBruto || it.PESO_MATERIAL_BRUTO },
+    { label: "Clasificación", get: (it) => it.clasificacion || it.CLASIFICACION },
+    { label: "Observaciones", get: (it) => it.comentarios || it.OBSERVACIONES },
+];
 
 function Lubricantes() {
     const { theme } = useTheme();
@@ -245,6 +456,18 @@ function Lubricantes() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
     const debounceTimeouts = useRef({});
+    // Resultado de verificar si el diseño (MARCA + NOMBRE, clave local del front — no existe
+    // campo DISEÑO en Lubricantes) ya tiene imagen en storage, indexado por esa clave, para no
+    // pedirle al coordinador (rol 4) que la vuelva a subir.
+    const [imagenesDisenioExistente, setImagenesDisenioExistente] = useState({});
+    // Diseños cuya verificación contra el backend todavía está en curso: mientras esté aquí,
+    // el input de subida se bloquea para no subir una imagen antes de saber si ya existía una.
+    const [disenioVerificando, setDisenioVerificando] = useState({});
+    const disenioCheckEnCurso = useRef(new Set());
+    const [detalleItem, setDetalleItem] = useState(null);
+    // Actualización de imágenes de un producto ya aprobado (rol 4), desde el modal de Detalle:
+    // { webp: bool, png: bool } indica si hay una subida en curso para ese tipo de imagen.
+    const [subiendoImagenDetalle, setSubiendoImagenDetalle] = useState({ webp: false, png: false });
 
     const handleDownloadTemplate = () => {
         if (!lineaSeleccionada) return;
@@ -633,6 +856,154 @@ function Lubricantes() {
         fetchItems();
     }, [fetchItems]);
 
+    // Cuando se reemplaza una imagen ya existente, la key en storage (y por lo tanto la URL) no
+    // cambia: el navegador ya tiene esa URL cacheada y seguiría mostrando la versión vieja hasta
+    // recargar la página. Agregar un parámetro único fuerza a que se pida de nuevo.
+    const agregarCacheBusting = (url) => {
+        if (!url) return url;
+        const separador = url.includes('?') ? '&' : '?';
+        return `${url}${separador}_v=${Date.now()}`;
+    };
+
+    // Clave LOCAL (solo de front) para agrupar ítems que comparten la misma imagen: no existe
+    // campo DISEÑO en Lubricantes, así que se usa MARCA + NOMBRE resuelto. El backend resuelve
+    // el identificador real de imagen contra el DWH usando solo el ID del ítem (checkDesignImage/
+    // linkExistingItemImage ya no reciben MARCA/DISEÑO); esta clave únicamente evita llamarlo
+    // varias veces para ítems que, a simple vista del front, comparten diseño. Si el ítem no
+    // tiene nombre resuelto, se usa una clave única por ID para no romper la deduplicación.
+    const getDisenioKey = (item) => {
+        if (!item) return null;
+        const nombre = item.nombreSistema || item.descripcionRol5 || item.descripcion || item.NOMBRE || item.DESCRIPCION;
+        if (item.marca && nombre) {
+            return `${String(item.marca).trim().toUpperCase()}|${String(nombre).trim().toUpperCase()}`;
+        }
+        const id = item.ID ?? item.id;
+        return id !== undefined && id !== null ? `ITEM_${id}` : null;
+    };
+
+    // Consulta al backend si el ítem ya tiene imagen en storage (R2/SharePoint) y guarda el
+    // resultado en imagenesDisenioExistente, indexado por la clave local. Se usa tanto para la
+    // grilla de pendientes (rol 4) como para el modal de Detalle del producto.
+    const verificarImagenDisenio = useCallback((item, linea) => {
+        const clave = getDisenioKey(item);
+        if (!clave || imagenesDisenioExistente[clave] || disenioCheckEnCurso.current.has(clave)) return;
+        disenioCheckEnCurso.current.add(clave);
+        setDisenioVerificando(prev => ({ ...prev, [clave]: true }));
+        checkDesignImage(linea, item.ID ?? item.id)
+            .then(result => {
+                if (result) {
+                    setImagenesDisenioExistente(prev => ({ ...prev, [clave]: result }));
+                }
+            })
+            .catch(err => {
+                console.error(`Error al verificar imagen existente para ${clave}:`, err);
+            })
+            .finally(() => {
+                disenioCheckEnCurso.current.delete(clave);
+                setDisenioVerificando(prev => {
+                    const next = { ...prev };
+                    delete next[clave];
+                    return next;
+                });
+            });
+    }, [imagenesDisenioExistente]);
+
+    // Rol 4 (coordinador de imágenes): las imágenes se suben una vez por diseño, no por ítem.
+    // Antes de forzar la subida, se verifica si el diseño ya tiene imagen en storage (Cloudflare
+    // R2 / SharePoint) para no pedirla nuevamente.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !lineaSeleccionada) return;
+
+        const pendientes = items.filter(it => it.linea === lineaSeleccionada.value && getDisenioKey(it));
+        const clavesUnicas = new Map();
+        pendientes.forEach(it => {
+            const clave = getDisenioKey(it);
+            if (clave && !clavesUnicas.has(clave)) {
+                clavesUnicas.set(clave, it);
+            }
+        });
+
+        clavesUnicas.forEach(it => verificarImagenDisenio(it, lineaSeleccionada.value));
+    }, [idRolPrincipal, lineaSeleccionada, items, verificarImagenDisenio]);
+
+    // Al abrir el detalle de un producto aprobado (rol 4), se verifica igual el diseño para
+    // poder mostrar las miniaturas de SharePoint/R2 en la ficha, aunque el ítem ya no esté
+    // en la grilla de pendientes.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !detalleItem) return;
+        const linea = detalleItem.linea || detalleItem.LINEA_NEGOCIO || lineaSeleccionada?.value;
+        if (!linea) return;
+        verificarImagenDisenio(detalleItem, linea);
+    }, [idRolPrincipal, detalleItem, lineaSeleccionada, verificarImagenDisenio]);
+
+    // Bloquea la subida mientras no se sepa con certeza si el diseño ya tiene imagen en storage:
+    // subir "a ciegas" durante ese lapso podría generar un archivo huérfano o duplicado.
+    const disenioEstaVerificando = (item) => {
+        const clave = getDisenioKey(item);
+        return clave ? Boolean(disenioVerificando[clave]) : false;
+    };
+    const hayVerificacionesPendientes = (currentItems) => currentItems.some(disenioEstaVerificando);
+
+    // Actualiza la imagen (WebP en R2, o PNG en SharePoint) de un producto ya aprobado, desde el
+    // modal de Detalle del producto. Al ser el mismo diseño, la subida sobrescribe la imagen
+    // existente: es justamente el flujo para corregir/reemplazar una imagen ya publicada.
+    const handleActualizarImagenDetalle = async (tipo, file) => {
+        if (!detalleItem) return;
+        const linea = detalleItem.linea || detalleItem.LINEA_NEGOCIO || lineaSeleccionada?.value;
+        if (!linea) return;
+
+        if (tipo === "webp" && file.type !== "image/webp") {
+            toast.error("Solo se permiten archivos WEBP");
+            return;
+        }
+        if (tipo === "png" && file.type !== "image/png") {
+            toast.error("Solo se permiten archivos PNG");
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error(`La imagen ${tipo.toUpperCase()} no debe superar 2MB`);
+            return;
+        }
+
+        const clave = getDisenioKey(detalleItem);
+        setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: true }));
+        try {
+            if (tipo === "webp") {
+                const res = await uploadItemImages(linea, detalleItem.ID ?? detalleItem.id, detalleItem.marca, null, null, file);
+                // Al reemplazar una imagen ya existente, la key (y por lo tanto la URL) es la misma
+                // de antes: sin este parámetro el navegador sirve la versión cacheada y no se ve el
+                // cambio hasta recargar la página.
+                const nuevaUrl = agregarCacheBusting(res?.data?.urls?.webp);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], webp: { exists: true, key: res.data.RUTA_IMAGEN_WEBP, url: nuevaUrl } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_WEBP: nuevaUrl || prev.RUTA_IMAGEN_WEBP } : prev);
+            } else {
+                const empresaToSend = detalleItem.EMPRESA || EMPRESA_LUBRICANTES;
+                const res = await uploadItemImagesSharepoint(linea, detalleItem.ID ?? detalleItem.id, detalleItem.marca, empresaToSend, null, file, null);
+                const nuevaUrl = res?.data?.urls?.png;
+                const nuevaPreview = agregarCacheBusting(res?.data?.urls?.pngPreview || nuevaUrl);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], png: { exists: true, key: res.data.RUTA_IMAGEN_PNG, url: nuevaUrl, previewUrl: nuevaPreview } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_PNG: nuevaUrl || prev.RUTA_IMAGEN_PNG } : prev);
+            }
+            toast.success(`Imagen ${tipo.toUpperCase()} actualizada correctamente.`);
+            fetchItems();
+        } catch (error) {
+            console.error(`Error al actualizar imagen ${tipo}:`, error);
+            toast.error(`Error al actualizar la imagen ${tipo.toUpperCase()}.`);
+        } finally {
+            setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: false }));
+        }
+    };
+
     const handleSyncToSap = async () => {
         const ids = Array.from(selectedApprovedItemIds);
         if (ids.length === 0) {
@@ -755,6 +1126,13 @@ function Lubricantes() {
                 }
             } else if (idRolPrincipal === 4) {
                 for (const item of currentItems) {
+                    const empresaToSend = item.EMPRESA || EMPRESA_LUBRICANTES;
+                    const disenioExistente = imagenesDisenioExistente[getDisenioKey(item)];
+                    // Solo se vincula lo que el diseño ya tiene en storage Y que este ítem no está subiendo de nuevo.
+                    const debeVincularExistente =
+                        (!item.imagenWebp && disenioExistente?.webp?.exists) ||
+                        (!item.imagenPng && disenioExistente?.png?.exists);
+
                     if (item.imagenWebp) {
                         try {
                             await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, null, null, item.imagenWebp);
@@ -765,11 +1143,20 @@ function Lubricantes() {
                     }
                     if (item.imagenPng) {
                         try {
-                            const empresaToSend = item.EMPRESA || "";
                             await uploadItemImagesSharepoint(lineaSeleccionada.value, item.ID, item.marca, empresaToSend, null, item.imagenPng, null);
                         } catch (uploadError) {
                             console.error(`Error al subir imagen PNG para el ítem ${item.ID}:`, uploadError);
                             toast.error(`Error al subir imagen PNG para ${item.marca} ${item.descripcion || ""}`);
+                        }
+                    }
+                    if (debeVincularExistente) {
+                        // Las imágenes se suben una vez por diseño, no por ítem: aquí se vincula
+                        // al ítem la que ya existe en storage, sin volver a subirla.
+                        try {
+                            await linkExistingItemImage(lineaSeleccionada.value, item.ID);
+                        } catch (linkError) {
+                            console.error(`Error al vincular imagen existente para el ítem ${item.ID}:`, linkError);
+                            toast.error(`Error al vincular imagen existente para ${item.marca} ${item.descripcion || ""}`);
                         }
                     }
                     await patchItemRole3({
@@ -1535,7 +1922,8 @@ function Lubricantes() {
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            cursor: 'pointer',
+                                                            cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                            opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                             transition: 'all 0.2s ease',
                                                             overflow: 'hidden'
                                                         }}
@@ -1547,15 +1935,24 @@ function Lubricantes() {
                                                                 e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                 e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                             }}
-                                                            onClick={() => document.getElementById(`png-upload-${item.id}`).click()}
+                                                            onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`png-upload-${item.id}`).click(); }}
+                                                            title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenPng && imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? "Ya existe una imagen PNG para este diseño. Click para reemplazarla." : undefined)}
                                                         >
-                                                            {item.imagenPng ? (
+                                                            {disenioEstaVerificando(item) ? (
+                                                                <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                            ) : item.imagenPng ? (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                     <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                         {item.imagenPng.name}
                                                                     </TextUI>
                                                                 </div>
+                                                            ) : imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? (
+                                                                <img
+                                                                    src={imagenesDisenioExistente[getDisenioKey(item)]?.png?.previewUrl || imagenesDisenioExistente[getDisenioKey(item)]?.png?.url}
+                                                                    alt="Imagen PNG existente"
+                                                                    style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                />
                                                             ) : (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                     <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>📄</span>
@@ -1566,6 +1963,7 @@ function Lubricantes() {
                                                                 id={`png-upload-${item.id}`}
                                                                 type="file"
                                                                 accept=".png"
+                                                                disabled={disenioEstaVerificando(item)}
                                                                 style={{ display: 'none' }}
                                                                 onChange={(e) => {
                                                                     const file = e.target.files[0];
@@ -1595,7 +1993,8 @@ function Lubricantes() {
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            cursor: 'pointer',
+                                                            cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                            opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                             transition: 'all 0.2s ease',
                                                             overflow: 'hidden'
                                                         }}
@@ -1607,15 +2006,24 @@ function Lubricantes() {
                                                                 e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                 e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                             }}
-                                                            onClick={() => document.getElementById(`webp-upload-${item.id}`).click()}
+                                                            onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`webp-upload-${item.id}`).click(); }}
+                                                            title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenWebp && imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? "Ya existe una imagen WebP para este diseño. Click para reemplazarla." : undefined)}
                                                         >
-                                                            {item.imagenWebp ? (
+                                                            {disenioEstaVerificando(item) ? (
+                                                                <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                            ) : item.imagenWebp ? (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                     <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                         {item.imagenWebp.name}
                                                                     </TextUI>
                                                                 </div>
+                                                            ) : imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? (
+                                                                <img
+                                                                    src={imagenesDisenioExistente[getDisenioKey(item)]?.webp?.url}
+                                                                    alt="Imagen WebP existente"
+                                                                    style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                />
                                                             ) : (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                     <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>🖼️</span>
@@ -1626,6 +2034,7 @@ function Lubricantes() {
                                                                 id={`webp-upload-${item.id}`}
                                                                 type="file"
                                                                 accept=".webp"
+                                                                disabled={disenioEstaVerificando(item)}
                                                                 style={{ display: 'none' }}
                                                                 onChange={(e) => {
                                                                     const file = e.target.files[0];
@@ -1772,12 +2181,13 @@ function Lubricantes() {
                 {lineaSeleccionada && idRolPrincipal !== 1 && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Enviar a revisión"}
+                            text={isSubmitting ? "Enviando..." : (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))) ? "Verificando imágenes..." : "Enviar a revisión")}
                             iconLeft="FaCheck"
-                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
+                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0 || (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))))}
                             onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
+                                if (idRolPrincipal === 4 && hayVerificacionesPendientes(currentItems)) return;
 
                                 if (idRolPrincipal === 5) {
                                     const createdItems = currentItems.filter(i => !i.fueRechazado);
@@ -1817,34 +2227,204 @@ function Lubricantes() {
                             Aprobados {lineaSeleccionada ? `de ${lineaSeleccionada.label}` : ""} ({approvedItems.filter(i => i.linea === lineaSeleccionada.value).length})
                         </TextUI>
                     </div>
-                    <div style={{ flex: 1, overflow: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <TablaScroll>
+                        <Tabla>
                             <thead>
                                 <tr>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Empresa</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código SAP</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "250px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de barras</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "350px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripción</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
-
+                                    <Th>Empresa</Th>
+                                    <Th>Código SAP</Th>
+                                    <Th $min="250px">Código de barras</Th>
+                                    <Th $min="350px">Descripción</Th>
+                                    <Th>Marca</Th>
+                                    <Th $align="center" $w="80px" $fija="right">Detalle</Th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {approvedItems.filter(i => i.linea === lineaSeleccionada.value).map(item => (
-                                    <tr key={item.id} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, opacity: 0.8 }}>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{EMPRESA_LUBRICANTES}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.marca || "-"}</TextUI></td>
-
-                                    </tr>
+                                {approvedItems.filter(i => i.linea === lineaSeleccionada.value).map((item, idx) => (
+                                    <Fila key={item.id} $par={idx % 2 === 0}>
+                                        <Td><TextUI size="12px">{EMPRESA_LUBRICANTES}</TextUI></Td>
+                                        <Td><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></Td>
+                                        <Td><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></Td>
+                                        <Td><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></Td>
+                                        <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
+                                        <Td $align="center" $fija="right">
+                                            <IconUI
+                                                name="FaEye"
+                                                size={16}
+                                                color={theme?.colors?.primary}
+                                                title="Ver detalle del producto"
+                                                onClick={() => setDetalleItem(item)}
+                                                style={{ cursor: "pointer" }}
+                                            />
+                                        </Td>
+                                    </Fila>
                                 ))}
                             </tbody>
-                        </table>
-                    </div>
+                        </Tabla>
+                    </TablaScroll>
                 </div>
             )}
+
+            {/* Detalle del ítem aprobado: solo lectura, sin acciones. */}
+            <ModalUI
+                isOpen={Boolean(detalleItem)}
+                onClose={() => setDetalleItem(null)}
+                title="Detalle del producto"
+                width="760px"
+                saveText="Cerrar"
+                onSave={() => setDetalleItem(null)}
+                showCancelButton={false}
+            >
+                {detalleItem && (() => {
+                    const filas = CAMPOS_DETALLE
+                        .map(c => ({ label: c.label, valor: c.get(detalleItem) }))
+                        .filter(f => f.valor !== undefined && f.valor !== null && String(f.valor).trim() !== "");
+
+                    const fases = Array.isArray(detalleItem.FASES) ? detalleItem.FASES : [];
+                    const rechazada = fases.find(f => f.RECHAZO);
+                    const aprobado = detalleItem.APROBADO_MDM === true;
+                    const claveImagenesDetalle = getDisenioKey(detalleItem);
+                    const infoImagenesDetalle = claveImagenesDetalle ? imagenesDisenioExistente[claveImagenesDetalle] : null;
+                    const verificandoImagenesDetalle = claveImagenesDetalle ? Boolean(disenioVerificando[claveImagenesDetalle]) : false;
+                    const webpUrlDetalle = infoImagenesDetalle?.webp?.url || detalleItem.RUTA_IMAGEN_WEBP || null;
+                    const pngUrlDetalle = infoImagenesDetalle?.png?.previewUrl || infoImagenesDetalle?.png?.url || null;
+
+                    // El ModalBody de ModalUI scrollea sin padding propio: el padding
+                    // de este contenedor evita que las tablas queden pegadas a la barra.
+                    return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "18px", padding: "4px 14px 6px 2px" }}>
+                            {/* Estado actual */}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                                <Etiqueta $tono={aprobado ? "exito" : "neutro"}>
+                                    {aprobado ? "Aprobado por MDM" : "En proceso"}
+                                </Etiqueta>
+                                {detalleItem.FASE_ACTUAL !== undefined && detalleItem.FASE_ACTUAL !== null && (
+                                    <Etiqueta $tono="neutro">
+                                        Fase actual: {NOMBRES_FASE[detalleItem.FASE_ACTUAL] || detalleItem.FASE_ACTUAL}
+                                    </Etiqueta>
+                                )}
+                                {rechazada && <Etiqueta $tono="alerta">Tuvo rechazo</Etiqueta>}
+                            </div>
+
+                            {/* Ficha del artículo */}
+                            <TablaScroll style={{ maxHeight: "46vh", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                                <Tabla>
+                                    <thead>
+                                        <tr>
+                                            <Th $w="230px">Campo</Th>
+                                            <Th>Valor</Th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filas.map((f, i) => (
+                                            <Fila key={f.label} $par={i % 2 === 0}>
+                                                <Td><TextUI size="12px" weight="600">{f.label}</TextUI></Td>
+                                                <Td><TextUI size="12px">{String(f.valor)}</TextUI></Td>
+                                            </Fila>
+                                        ))}
+                                    </tbody>
+                                </Tabla>
+                            </TablaScroll>
+
+                            {/* Imágenes del diseño (SharePoint/PNG y R2/WebP), solo para el coordinador (rol 4):
+                                permite ver la imagen publicada actualmente y reemplazarla sin pasar por el flujo
+                                de revisión completo. */}
+                            {idRolPrincipal === 4 && (
+                                <div>
+                                    <TextUI size="13px" weight="600" style={{ marginBottom: "8px", display: "block" }}>
+                                        Imágenes del diseño
+                                    </TextUI>
+                                    <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                                        {[
+                                            { tipo: "png", etiqueta: "Aplicación (PNG)", src: pngUrlDetalle, accept: ".png" },
+                                            { tipo: "webp", etiqueta: "Portal (WebP)", src: webpUrlDetalle, accept: ".webp" },
+                                        ].map(({ tipo, etiqueta, src, accept }) => (
+                                            <div key={tipo} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                                                <div style={{
+                                                    width: "80px",
+                                                    height: "80px",
+                                                    borderRadius: "8px",
+                                                    border: `1px solid ${theme?.colors?.border || "#eee"}`,
+                                                    backgroundColor: isDark ? "#1e293b" : "#f8fafc",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    overflow: "hidden",
+                                                }}>
+                                                    {verificandoImagenesDetalle ? (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                    ) : src ? (
+                                                        <img
+                                                            src={src}
+                                                            alt={etiqueta}
+                                                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                                            onError={(e) => { e.target.style.display = "none"; }}
+                                                        />
+                                                    ) : (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Sin imagen</TextUI>
+                                                    )}
+                                                </div>
+                                                <TextUI size="11px" weight="600">{etiqueta}</TextUI>
+                                                <ButtonUI
+                                                    text={subiendoImagenDetalle[tipo] ? "Subiendo..." : "Actualizar"}
+                                                    variant="outlined"
+                                                    disabled={subiendoImagenDetalle[tipo] || verificandoImagenesDetalle}
+                                                    style={{ padding: "4px 10px", fontSize: "11px", minWidth: "auto" }}
+                                                    onClick={() => document.getElementById(`detalle-upload-${tipo}`).click()}
+                                                />
+                                                <input
+                                                    id={`detalle-upload-${tipo}`}
+                                                    type="file"
+                                                    accept={accept}
+                                                    style={{ display: "none" }}
+                                                    onChange={(e) => {
+                                                        const file = e.target.files[0];
+                                                        if (file) handleActualizarImagenDetalle(tipo, file);
+                                                        e.target.value = "";
+                                                    }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Trazabilidad por fase */}
+                            {fases.length > 0 && (
+                                <div>
+                                    <TextUI size="13px" weight="600" style={{ marginBottom: "8px", display: "block" }}>
+                                        Trazabilidad
+                                    </TextUI>
+                                    <TablaScroll style={{ border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                                        <Tabla>
+                                            <thead>
+                                                <tr>
+                                                    <Th $w="220px">Fase</Th>
+                                                    <Th $w="120px" $align="center">Resultado</Th>
+                                                    <Th>Observaciones</Th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {[...fases].sort((a, b) => (a.FASE || 0) - (b.FASE || 0)).map((f, i) => (
+                                                    <Fila key={f.FASE ?? i} $par={i % 2 === 0}>
+                                                        <Td><TextUI size="12px">{NOMBRES_FASE[f.FASE] || `Fase ${f.FASE}`}</TextUI></Td>
+                                                        <Td $align="center">
+                                                            <Etiqueta $tono={f.RECHAZO ? "alerta" : "exito"}>
+                                                                {f.RECHAZO ? "Rechazado" : "Aprobado"}
+                                                            </Etiqueta>
+                                                        </Td>
+                                                        <Td><TextUI size="12px">{f.OBSERVACIONES || f.MOTIVO_RECHAZO || "-"}</TextUI></Td>
+                                                    </Fila>
+                                                ))}
+                                            </tbody>
+                                        </Tabla>
+                                    </TablaScroll>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
+            </ModalUI>
 
             <ModalUI
                 isOpen={isRejectModalOpen}

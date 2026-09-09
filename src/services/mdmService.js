@@ -153,6 +153,50 @@ export const uploadItemImagesSharepoint = async (lineaNegocio, id, marca, empres
 };
 
 /**
+ * Verifica si el ítem ya tiene imagen (por su diseño/identificador, no por ítem individual) en
+ * Cloudflare R2 (webp) y/o SharePoint (png), sin subir ningún archivo. El backend resuelve MARCA
+ * y el identificador de imagen desde el propio ítem (DISEÑO para LLANTAS/LLANTAS_MOTO, o vía DWH
+ * para LUBRICANTES/HERRAMIENTAS), así que solo hace falta el ID. Aplica a las 3 líneas de negocio.
+ * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LLANTAS_MOTO, LUBRICANTES, HERRAMIENTAS)
+ * @param {number|string} id - ID del ítem
+ * @returns {Promise<{webp: {exists: boolean, url: string|null}, png: {exists: boolean, url: string|null, previewUrl: string|null}}|null>}
+ */
+export const checkDesignImage = async (lineaNegocio, id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/items/check-design-image/${lineaNegocio}`, {
+            params: { ID: id }
+        });
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error en checkDesignImage:", error);
+        throw error;
+    }
+};
+
+/**
+ * Vincula a un ítem la imagen ya existente en storage para su mismo diseño/identificador (sin
+ * volver a subir el archivo), cuando otro ítem con esa misma identidad ya la tiene cargada.
+ * Aplica a las 3 líneas de negocio.
+ * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LLANTAS_MOTO, LUBRICANTES, HERRAMIENTAS)
+ * @param {number|string} id - ID del ítem
+ * @returns {Promise<any>}
+ */
+export const linkExistingItemImage = async (lineaNegocio, id) => {
+    try {
+        const response = await axiosInstanceNew.post(`/mdm/items/link-existing-image/${lineaNegocio}`, {
+            ID: id,
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error en linkExistingItemImage:", error);
+        throw error;
+    }
+};
+
+/**
  * Obtiene los ítems del DWH por línea de negocio.
  * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LUBRICANTES, etc)
  * @returns {Promise<Array>}
