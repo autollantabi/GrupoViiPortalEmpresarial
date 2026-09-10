@@ -839,7 +839,8 @@ function Herramientas() {
                         ALTO_CARTON: item.altoCarton || "",
                         VOLUMEN_CNT: item.volumenCtn || "",
                         GW_CNT: item.gwCtn || "",
-                        PESO: item.peso || "",
+                        // Peso ya no se edita en el front: siempre refleja el valor de GW/CTN
+                        PESO: item.gwCtn || "",
                         ITEM_CODIGO_BARRAS: item.itemCodigoBarras || "",
                         CARTON_CODIGO_BARRAS: item.cartonCodigoBarras || "",
                         PAQUETE_CODIGO_BARRAS: item.paqueteCodigoBarras || "",
@@ -865,13 +866,6 @@ function Herramientas() {
             setIsSubmitting(false);
         }
     };
-
-    // Modal estado para descripcion
-    const [isDescModalOpen, setIsDescModalOpen] = useState(false);
-    const [descModalTitle, setDescModalTitle] = useState("");
-    const [descModalValue, setDescModalValue] = useState("");
-    const [descModalField, setDescModalField] = useState("");
-    const [descModalItemId, setDescModalItemId] = useState(null);
 
     const eliminarItem = (id) => {
         setItems(prev => prev.filter(i => i.id !== id));
@@ -950,10 +944,15 @@ function Herramientas() {
                     if (val !== "" && !/^\d+$/.test(val)) {
                         return it; // Ignorar el tipeo inválido (ej: puntos o letras)
                     }
-                } else if (["largoCarton", "anchoCarton", "altoCarton", "volumenCtn", "gwCtn", "peso"].includes(campo)) {
+                } else if (["largoCarton", "anchoCarton", "altoCarton", "volumenCtn", "gwCtn"].includes(campo)) {
                     if (val !== "" && !/^\d+(\.\d*)?$/.test(val)) {
                         return it; // Ignorar si tiene letras o múltiples puntos
                     }
+                }
+
+                // Peso ya no se edita en el front: siempre refleja el valor de GW/CTN
+                if (campo === "gwCtn") {
+                    return { ...it, gwCtn: val, peso: val };
                 }
 
                 return { ...it, [campo]: val };
@@ -962,29 +961,14 @@ function Herramientas() {
         }));
     };
 
-    const openDescModal = (id, campo, currentVal, title) => {
-        setDescModalItemId(id);
-        setDescModalField(campo);
-        setDescModalValue(currentVal || "");
-        setDescModalTitle(title);
-        setIsDescModalOpen(true);
-    };
-
-    const saveDescModal = () => {
-        if (descModalItemId && descModalField) {
-            actualizarCampoFila(descModalItemId, descModalField, descModalValue);
-        }
-        setIsDescModalOpen(false);
-    };
-
     const handleDownloadTemplate = () => {
         // Mismo orden que las columnas de la tabla del rol 5
         const headers = [
-            "Marca", "Nombre", "Descripcion", "Codigo Proveedor", "Descripcion Proveedor",
+            "Marca", "Nombre", "Codigo Proveedor", "Descripcion Proveedor",
             "Unidad", "Unidades por empaque", "Cajas por empaque", "Unidades por caja",
             "Largo de la caja", "Ancho de la caja", "Alto de la caja",
             "VOL/CTN", "GW/CTN", "Peso",
-            "Item Codigo Barras", "Carton Codigo Barras", "Paquete codigo Barras",
+            "Codigo de Barra Producto", "Codigo de Barra Caja Madre", "Codigo de Barra Caja Hija",
             "Partida Arancelaria", "Es nuevo"
         ];
         const ws = XLSX.utils.aoa_to_sheet([headers]);
@@ -1014,7 +998,6 @@ function Herramientas() {
                     partidaArancelaria: handleNumericInt(row["Partida Arancelaria"] || ""),
                     nombreExt: String(row["Descripcion Proveedor"] || row["Nombre Ext"] || "").trim().toUpperCase(),
                     nombre: String(row["Nombre"] || "").trim().toUpperCase(),
-                    descripcion: String(row["Descripcion"] || "").trim(),
                     unidad: String(row["Unidad"] || "").trim().toUpperCase(),
                     unidadesCarton: handleNumericInt(row["Unidades por empaque"] ?? row["Und x empaque"] ?? ""),
                     empaquesCarton: handleNumericInt(row["Cajas por empaque"] ?? row["Cajas x empaque"] ?? ""),
@@ -1023,11 +1006,12 @@ function Herramientas() {
                     anchoCarton: handleNumericDec(row["Ancho de la caja"] || ""),
                     altoCarton: handleNumericDec(row["Alto de la caja"] || ""),
                     volumenCtn: handleNumericDec(row["VOL/CTN"] || ""),
+                    // Peso ya no se toma del Excel: siempre refleja el valor de GW/CTN
                     gwCtn: handleNumericDec(row["GW/CTN"] || ""),
-                    peso: handleNumericDec(row["Peso"] || ""),
-                    itemCodigoBarras: handleNumericInt(row["Item Codigo Barras"] || ""),
-                    cartonCodigoBarras: handleNumericInt(row["Carton Codigo Barras"] || ""),
-                    paqueteCodigoBarras: handleNumericInt(row["Paquete codigo Barras"] || ""),
+                    peso: handleNumericDec(row["GW/CTN"] || ""),
+                    itemCodigoBarras: handleNumericInt(row["Codigo de Barra Producto"] || ""),
+                    cartonCodigoBarras: handleNumericInt(row["Codigo de Barra Caja Madre"] || ""),
+                    paqueteCodigoBarras: handleNumericInt(row["Codigo de Barra Caja Hija"] || ""),
                     marca: String(row["Marca"] || "").trim().toUpperCase(),
                     isNew: interpretarEsNuevo(row["Es nuevo"]),
                     nombreSistema: calcularNombreSistema(
@@ -1236,9 +1220,9 @@ function Herramientas() {
                                                     { key: 'volumenCtn', label: "VOL/CTN", role: 5 },
                                                     { key: 'gwCtn', label: "GW/CTN", role: 5 },
                                                     { key: 'peso', label: "Peso", role: 5 },
-                                                    { key: 'itemCodigoBarras', label: "Item Codigo Barras", role: 5 },
-                                                    { key: 'cartonCodigoBarras', label: "Carton Codigo Barras", role: 5 },
-                                                    { key: 'paqueteCodigoBarras', label: "Paquete codigo Barras", role: 5 },
+                                                    { key: 'itemCodigoBarras', label: "Codigo de Barra Producto", role: 5 },
+                                                    { key: 'cartonCodigoBarras', label: "Codigo de Barra Caja Madre", role: 5 },
+                                                    { key: 'paqueteCodigoBarras', label: "Codigo de Barra Caja Hija", role: 5 },
                                                     { key: 'marca', label: "Marca", role: 5 },
 
                                                     { key: 'grupo', label: "Grupo", role: 3 },
@@ -1364,7 +1348,6 @@ function Herramientas() {
                                             <>
                                                 <Th $min="150px">Marca</Th>
                                                 <Th $w={ANCHO_COL_NOMBRE} $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
-                                                <Th $align="center" $min="100px">Descripción</Th>
                                                 <Th $min="150px">Codigo Proveedor</Th>
                                                 <Th $min="220px">Proveedor</Th>
                                                 <Th $min="180px">Descripción Proveedor</Th>
@@ -1378,9 +1361,9 @@ function Herramientas() {
                                                 <Th $min="150px">VOL/CTN</Th>
                                                 <Th $min="150px">GW/CTN</Th>
                                                 <Th $min="150px">Peso</Th>
-                                                <Th $min="150px">Item Codigo Barras</Th>
-                                                <Th $min="150px">Carton Codigo Barras</Th>
-                                                <Th $min="150px">Paquete codigo Barras</Th>
+                                                <Th $min="150px">Codigo de Barra Producto</Th>
+                                                <Th $min="150px">Codigo de Barra Caja Madre</Th>
+                                                <Th $min="150px">Codigo de Barra Caja Hija</Th>
                                                 <Th $min="280px">Nombre Del Sistema</Th>
                                                 <Th $align="center" $w="90px">Es nuevo</Th>
                                                 <Th $align="center" $w="140px">Visible EasySales</Th>
@@ -1441,16 +1424,6 @@ function Herramientas() {
                                                             <SelectUI options={OPTIONS_MARCA} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} isCreatable={true} />
                                                         </Td>
                                                         <Td $fija="left" $offset={ANCHO_COL_SELECCION} $w={ANCHO_COL_NOMBRE}><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></Td>
-                                                        <Td $align="center">
-                                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                                                <ButtonUI
-                                                                    iconLeft="FaRegNoteSticky"
-                                                                    variant="outlined"
-                                                                    pcolortext={item.descripcion ? (theme?.colors?.success || '#28a745') : undefined}
-                                                                    onClick={() => openDescModal(item.id, "descripcion", item.descripcion, "Descripción")}
-                                                                />
-                                                            </div>
-                                                        </Td>
                                                         <Td><InputUI value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
                                                         <Td>
                                                             <SelectUI
@@ -1472,7 +1445,7 @@ function Herramientas() {
                                                         <Td><InputUI value={item.altoCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "altoCarton", v)} /></Td>
                                                         <Td><InputUI value={item.volumenCtn || ""} onChange={(v) => actualizarCampoFila(item.id, "volumenCtn", v)} /></Td>
                                                         <Td><InputUI value={item.gwCtn || ""} onChange={(v) => actualizarCampoFila(item.id, "gwCtn", v)} /></Td>
-                                                        <Td><InputUI value={item.peso || ""} onChange={(v) => actualizarCampoFila(item.id, "peso", v)} /></Td>
+                                                        <Td><CeldaLectura title={item.gwCtn || ""}>{item.gwCtn || "-"}</CeldaLectura></Td>
                                                         <Td><InputUI value={item.itemCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "itemCodigoBarras", v)} /></Td>
                                                         <Td><InputUI value={item.cartonCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "cartonCodigoBarras", v)} /></Td>
                                                         <Td>
@@ -2049,34 +2022,6 @@ function Herramientas() {
                         </div>
                     );
                 })()}
-            </ModalUI>
-
-            <ModalUI
-                isOpen={isDescModalOpen}
-                onClose={() => setIsDescModalOpen(false)}
-                title={descModalTitle}
-            >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: '400px' }}>
-                    <textarea
-                        value={descModalValue}
-                        onChange={(e) => setDescModalValue(e.target.value)}
-                        readOnly={!descModalField}
-                        style={{
-                            width: '100%',
-                            minHeight: '150px',
-                            padding: '12px',
-                            borderRadius: '8px',
-                            border: `1px solid ${theme?.colors?.border || '#ccc'}`,
-                            background: theme?.colors?.background || '#fff',
-                            color: theme?.colors?.text || '#000',
-                            resize: 'vertical'
-                        }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                        <ButtonUI text={!descModalField ? "Cerrar" : "Cancelar"} variant="outlined" onClick={() => setIsDescModalOpen(false)} />
-                        {descModalField && <ButtonUI text="Guardar" variant="primary" onClick={saveDescModal} />}
-                    </div>
-                </div>
             </ModalUI>
 
             <ModalUI

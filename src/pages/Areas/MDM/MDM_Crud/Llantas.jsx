@@ -2094,7 +2094,7 @@ function Llantas() {
                                                 <>
                                                     <Th>Marca</Th>
                                                     <Th $min="150px">Diseño</Th>
-                                                    <Th $min="250px">Nombre</Th>
+                                                    <Th $w="250px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                     <Th>Imagen PNG</Th>
                                                     <Th>Imagen WebP</Th>
                                                     <Th $min="200px">Comentarios</Th>
@@ -2105,7 +2105,7 @@ function Llantas() {
                                                 <>
                                                     <Th>Empresa</Th>
                                                     <Th $min="200px">Marca</Th>
-                                                    <Th $min="380px">Nombre</Th>
+                                                    <Th $w="380px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                     <Th $min="150px">Diseño</Th>
                                                     <Th>Letra Diseño</Th>
                                                     <Th>Color Letra</Th>
@@ -2286,7 +2286,7 @@ function Llantas() {
                                                                 {item.diseño || "-"}
                                                             </CeldaLectura>
                                                         </Td>
-                                                        <Td $densa>
+                                                        <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="250px">
                                                             <CeldaLectura>
                                                                 {item.descripcion || "-"}
                                                             </CeldaLectura>
@@ -2476,7 +2476,7 @@ function Llantas() {
                                                                 isCreatable={true}
                                                             />
                                                         </Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
+                                                        <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="380px"><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
                                                         <Td $densa><InputUI maxLength={20} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 20))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></Td>
                                                         <Td $densa>

@@ -818,10 +818,8 @@ export async function ListarPedidosImportacion({
   page = 1,
   size = 15,
   empresa,
-  cuentaSocio = null,
   numeroDocumento = null,
   estado = null,
-  marca = null,
   fechaDesde = null,
   fechaHasta = null,
   backorder = null,
@@ -832,10 +830,8 @@ export async function ListarPedidosImportacion({
         empresa
       )}`,
       {
-        cuentaSocio,
         numeroDocumento,
         estado,
-        marca,
         fechaDesde,
         fechaHasta,
         backorder,

@@ -13,14 +13,12 @@ import { useTheme } from "context/ThemeContext";
 import {
   ListarPedidosImportacion,
   ListarProveedores,
-  ListarMarcas,
 } from "services/importacionesService";
 
 const ESTADOS_PEDIDO = [
-  { value: "NULL", label: "Sin estado" },
-  { value: "PEDIDO", label: "Pedido" },
-  { value: "DESPACHADO", label: "Despachado" },
-  { value: "BACKORDER", label: "Backorder" },
+  { value: "ABIERTO", label: "Abierto" },
+  { value: "CERRADO", label: "Cerrado" },
+  { value: "CANCELADO", label: "Cancelado" },
 ];
 
 const OPCIONES_BACKORDER = [
@@ -43,17 +41,13 @@ const OPCIONES_FILAS = [10, 15, 25, 50, 100].map((n) => ({
 }));
 
 const COLUMNAS_PEDIDOS = [
-  { header: "N° Documento", field: "hfr_numerodocumento" },
-  { header: "Empresa", field: "hfr_empresa" },
-  { header: "Cuenta Socio", field: "hfr_cuentasocio" },
-  { header: "Fecha Documento", field: "hfr_fechadocumento", isDate: true, align: "center" },
-  { header: "Fecha Necesaria", field: "hfr_fechanecesaria", isDate: true, align: "center" },
-  { header: "Fecha Máx. Envío", field: "hfr_fechamaximaenvio", isDate: true, align: "center" },
-  { header: "Tipo", field: "hfr_pedidocompleto", align: "center" },
-  { header: "Estado", field: "hfr_estado", isBadge: true, align: "center" },
-  { header: "Pedido Completo", field: "_pedidoCompleto", align: "center" },
-  { header: "PI(s)", field: "PIs", isList: true, wrap: true },
-  { header: "Marca(s)", field: "Marcas", isList: true, wrap: true },
+  { header: "Proveedor", field: "PROVEEDOR", wrap: true },
+  { header: "N° Documento", field: "hpe_numerodocumento" },
+  { header: "Fecha Documento", field: "hpe_fechadocumento", isDate: true, align: "center" },
+  { header: "Fecha Necesaria", field: "hpe_fechanecesaria", isDate: true, align: "center" },
+  { header: "Fecha Máx. Envío", field: "hpe_fechamaximaenvio", isDate: true, align: "center" },
+  { header: "Estado", field: "ESTADO", isBadge: true, align: "center" },
+  { header: "PI", field: "hpe_numeropi", align: "center" },
   { header: "Líneas", field: "TotalLineas", align: "right" },
   { header: "Cantidad", field: "TotalCantidad", align: "right" },
   { header: "Backorder", field: "TotalBackorder", align: "right" },
@@ -314,7 +308,6 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
 
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState(null);
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
-  const [marcaSeleccionada, setMarcaSeleccionada] = useState(null);
   const [estadoSeleccionado, setEstadoSeleccionado] = useState(null);
   const [backorderSeleccionado, setBackorderSeleccionado] = useState(null);
   const [numeroDocInput, setNumeroDocInput] = useState("");
@@ -326,8 +319,6 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
 
   const [proveedores, setProveedores] = useState([]);
   const [cargandoProveedores, setCargandoProveedores] = useState(false);
-  const [marcas, setMarcas] = useState([]);
-  const [cargandoMarcas, setCargandoMarcas] = useState(false);
 
   const [pedidos, setPedidos] = useState([]);
   const [paginacion, setPaginacion] = useState(null);
@@ -358,7 +349,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     return () => clearTimeout(timeout);
   }, [numeroDocInput]);
 
-  // Código de empresa que espera el servicio de proveedores/marcas (no es el ID interno del portal)
+  // Código de empresa que espera el servicio de proveedores (no es el ID interno del portal)
   const codigoEmpresaProveedores = empresaSeleccionada?.label
     ? CODIGO_EMPRESA_PROVEEDORES[
         String(empresaSeleccionada.label).trim().toUpperCase()
@@ -391,35 +382,6 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     };
   }, [codigoEmpresaProveedores]);
 
-  // Marcas dependientes de empresa + proveedor seleccionados
-  useEffect(() => {
-    if (!codigoEmpresaProveedores || !proveedorSeleccionado?.value) {
-      setMarcas([]);
-      return;
-    }
-    let cancelado = false;
-    (async () => {
-      setCargandoMarcas(true);
-      try {
-        const data = await ListarMarcas(
-          codigoEmpresaProveedores,
-          proveedorSeleccionado.value
-        );
-        if (cancelado) return;
-        setMarcas(
-          (data || []).map(({ value, name }) => ({ value, label: name }))
-        );
-      } catch (err) {
-        if (!cancelado) setMarcas([]);
-      } finally {
-        if (!cancelado) setCargandoMarcas(false);
-      }
-    })();
-    return () => {
-      cancelado = true;
-    };
-  }, [codigoEmpresaProveedores, proveedorSeleccionado]);
-
   const cargarPedidos = useCallback(async () => {
     if (!empresaSeleccionada?.label) return;
 
@@ -430,10 +392,8 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
         page,
         size: filasPorPagina.value,
         empresa: empresaSeleccionada.label,
-        cuentaSocio: proveedorSeleccionado?.value || null,
         numeroDocumento: numeroDocumento ? Number(numeroDocumento) : null,
         estado: estadoSeleccionado?.value || null,
-        marca: marcaSeleccionada?.value || null,
         fechaDesde: formatFechaISO(fechaDesde),
         fechaHasta: formatFechaISO(fechaHasta),
         backorder:
@@ -462,8 +422,6 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     }
   }, [
     empresaSeleccionada,
-    proveedorSeleccionado,
-    marcaSeleccionada,
     estadoSeleccionado,
     backorderSeleccionado,
     numeroDocumento,
@@ -480,18 +438,11 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
   const handleEmpresaChange = (opt) => {
     setEmpresaSeleccionada(opt);
     setProveedorSeleccionado(null);
-    setMarcaSeleccionada(null);
     setPage(1);
   };
 
   const handleProveedorChange = (opt) => {
     setProveedorSeleccionado(opt || null);
-    setMarcaSeleccionada(null);
-    setPage(1);
-  };
-
-  const handleMarcaChange = (opt) => {
-    setMarcaSeleccionada(opt || null);
     setPage(1);
   };
 
@@ -532,9 +483,27 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     setDetalleModal({ visible: false, cabecera: null, detalle: [] });
   };
 
+  // El filtro de proveedor no viaja al backend: el nombre que se busca es el
+  // mismo que ya trae cada pedido (PROVEEDOR, resuelto por el backend contra
+  // dim_socios), así que se filtra sobre lo que ya está en memoria en vez de
+  // intentar cruzar el código de proveedor del selector contra la cuenta socio.
+  const pedidosFiltrados = useMemo(() => {
+    const nombreBuscado = proveedorSeleccionado?.label?.trim().toUpperCase();
+    if (!nombreBuscado) return pedidos;
+    return pedidos.filter((pedido) => {
+      const proveedorPedido = (pedido.Cabecera?.PROVEEDOR || "").trim().toUpperCase();
+      return (
+        proveedorPedido === nombreBuscado ||
+        proveedorPedido.includes(nombreBuscado) ||
+        nombreBuscado.includes(proveedorPedido)
+      );
+    });
+  }, [pedidos, proveedorSeleccionado]);
+
   const colorEstado = (estado) => {
     const valor = (estado || "").toUpperCase();
-    if (valor === "DESPACHADO") return theme.colors.success;
+    if (valor === "CANCELADO") return theme.colors.error;
+    if (valor === "CERRADO" || valor === "DESPACHADO") return theme.colors.success;
     if (valor === "BACKORDER") return theme.colors.warning || theme.colors.error;
     if (valor === "NULL" || !valor) return theme.colors.textSecondary;
     return theme.colors.info || theme.colors.primary;
@@ -612,7 +581,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
       );
     }
 
-    if (!pedidos.length) {
+    if (!pedidosFiltrados.length) {
       return (
         <Vacio>
           <CirculoIcono>
@@ -643,10 +612,10 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
               </tr>
             </thead>
             <tbody>
-              {pedidos.map((pedido, index) => {
+              {pedidosFiltrados.map((pedido, index) => {
                 const cabecera = pedido.Cabecera || {};
                 return (
-                  <Fila key={`${cabecera.hfr_numerodocumento}-${index}`} $par={index % 2 === 0}>
+                  <Fila key={`${cabecera.hpe_numerodocumento}-${index}`} $par={index % 2 === 0}>
                     {COLUMNAS_PEDIDOS.map((columna) => (
                       <Td key={columna.field} $align={columna.align} $wrap={columna.wrap}>
                         {renderCelda(cabecera, columna)}
@@ -668,7 +637,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
 
         <PiePaginacion>
           <TextUI size="13px" color={theme.colors.textSecondary}>
-            Mostrando {pedidos.length} de {paginacion?.total ?? 0} registros
+            Mostrando {pedidosFiltrados.length} de {paginacion?.total ?? 0} registros
           </TextUI>
 
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
@@ -769,24 +738,6 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
           />
 
           <SelectUI
-            label="Marca"
-            options={marcas}
-            value={marcaSeleccionada}
-            onChange={handleMarcaChange}
-            placeholder={
-              !proveedorSeleccionado
-                ? "Seleccione proveedor"
-                : cargandoMarcas
-                ? "Cargando..."
-                : "Todas"
-            }
-            isDisabled={!proveedorSeleccionado || cargandoMarcas}
-            isClearable
-            minWidth="170px"
-            maxWidth="200px"
-          />
-
-          <SelectUI
             label="Estado"
             options={ESTADOS_PEDIDO}
             value={estadoSeleccionado}
@@ -836,7 +787,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
       <ModalUI
         isOpen={detalleModal.visible}
         onClose={cerrarDetalle}
-        title={`Detalle Pedido N° ${detalleModal.cabecera?.hfr_numerodocumento || ""}`}
+        title={`Detalle Pedido N° ${detalleModal.cabecera?.hpe_numerodocumento || ""}`}
         maxWidth="1200px"
         width="95%"
         hideDefaultButtons
@@ -845,21 +796,21 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
           <>
             <DetalleHeader>
               <DetalleHeaderItem>
-                <TextUI size="12px" color={theme.colors.textSecondary}>Empresa</TextUI>
-                <TextUI weight="bold">{detalleModal.cabecera.hfr_empresa}</TextUI>
+                <TextUI size="12px" color={theme.colors.textSecondary}>Proveedor</TextUI>
+                <TextUI weight="bold">{detalleModal.cabecera.PROVEEDOR}</TextUI>
               </DetalleHeaderItem>
               <DetalleHeaderItem>
                 <TextUI size="12px" color={theme.colors.textSecondary}>Cuenta Socio</TextUI>
-                <TextUI weight="bold">{detalleModal.cabecera.hfr_cuentasocio}</TextUI>
+                <TextUI weight="bold">{detalleModal.cabecera.hpe_cuentasocio}</TextUI>
               </DetalleHeaderItem>
               <DetalleHeaderItem>
                 <TextUI size="12px" color={theme.colors.textSecondary}>Fecha Documento</TextUI>
-                <TextUI weight="bold">{formatFecha(detalleModal.cabecera.hfr_fechadocumento)}</TextUI>
+                <TextUI weight="bold">{formatFecha(detalleModal.cabecera.hpe_fechadocumento)}</TextUI>
               </DetalleHeaderItem>
               <DetalleHeaderItem>
                 <TextUI size="12px" color={theme.colors.textSecondary}>Estado</TextUI>
-                <Badge $color={colorEstado(detalleModal.cabecera.hfr_estado)}>
-                  {detalleModal.cabecera.hfr_estado || "—"}
+                <Badge $color={colorEstado(detalleModal.cabecera.ESTADO)}>
+                  {detalleModal.cabecera.ESTADO || "—"}
                 </Badge>
               </DetalleHeaderItem>
               <DetalleHeaderItem>
