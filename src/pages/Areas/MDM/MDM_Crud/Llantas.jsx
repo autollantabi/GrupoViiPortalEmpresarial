@@ -253,6 +253,7 @@ const CATEGORIAS_LLANTAS = {
                     "ON": ["P(PASSENGER)", "RUN FLAT", "UHP (ULTRA HIGH PERFORMANCE)", "HP (HIGH PERFORMANCE)", "HT (HIGHWAY TERRAIN)"],
                     "ON/OFF": ["RT( RUGGED TERRAIN)", "AT(ALL TERRAIN)"],
                     "OFF": ["MT(MUD TERRAIN)"],
+                    "EV": ["HP (HIGH PERFORMANCE)", "UHP (ULTRA HIGH PERFORMANCE)"]
                 },
             },
             "COMERCIAL": {
