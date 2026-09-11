@@ -235,6 +235,7 @@ const CATEGORIAS_LLANTAS = {
                     "PASAJERO": ["P(PASSENGER)", "HP (HIGH PERFORMANCE)", "UHP (ULTRA HIGH PERFORMANCE)"],
                     "TAXI": ["TAXI"],
                     "RUN FLAT": ["RUN FLAT"], //Cambiar eje
+                    "EV": ["HP (HIGH PERFORMANCE)", "UHP (ULTRA HIGH PERFORMANCE)"]
                 },
             },
             "COMPETENCIA": {
