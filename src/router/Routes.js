@@ -91,6 +91,7 @@ import { ReporteAnalisisPorCliente } from "pages/Areas/Reporteria/AnalisisPorCli
 import { ReporteriaComecialTecnicentroOld } from "pages/Areas/Reporteria/ComercialTecnicentroOld/ReporteriaComercialTecnicentroOld";
 import { ReporteListaPrecios } from "pages/Areas/Reporteria/ListaPrecios/ListaPrecios";
 import { ReportePareto } from "pages/Areas/Reporteria/ReportePareto/ReportePareto";
+import { ReportePricingNeumaticos } from "pages/Areas/Reporteria/PricingNeumaticos/PricingNeumaticos";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -532,6 +533,11 @@ export const RoutesConfig = [
     title: "Reporte Pareto",
     component: ReportePareto,
     recurso: "reportes.reportepareto",
+  },
+  {
+    title: "Pricing Neumáticos Nuevo",
+    component: ReportePricingNeumaticos,
+    recurso: "reportes.pricingneumaticos",
   },
   // ================================= VISITAS =================================
   {
