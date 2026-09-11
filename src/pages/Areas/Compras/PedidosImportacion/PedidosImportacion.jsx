@@ -392,6 +392,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
         page,
         size: filasPorPagina.value,
         empresa: empresaSeleccionada.label,
+        proveedor: proveedorSeleccionado?.label || null,
         numeroDocumento: numeroDocumento ? Number(numeroDocumento) : null,
         estado: estadoSeleccionado?.value || null,
         fechaDesde: formatFechaISO(fechaDesde),
@@ -422,6 +423,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
     }
   }, [
     empresaSeleccionada,
+    proveedorSeleccionado,
     estadoSeleccionado,
     backorderSeleccionado,
     numeroDocumento,
@@ -482,23 +484,6 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
   const cerrarDetalle = () => {
     setDetalleModal({ visible: false, cabecera: null, detalle: [] });
   };
-
-  // El filtro de proveedor no viaja al backend: el nombre que se busca es el
-  // mismo que ya trae cada pedido (PROVEEDOR, resuelto por el backend contra
-  // dim_socios), así que se filtra sobre lo que ya está en memoria en vez de
-  // intentar cruzar el código de proveedor del selector contra la cuenta socio.
-  const pedidosFiltrados = useMemo(() => {
-    const nombreBuscado = proveedorSeleccionado?.label?.trim().toUpperCase();
-    if (!nombreBuscado) return pedidos;
-    return pedidos.filter((pedido) => {
-      const proveedorPedido = (pedido.Cabecera?.PROVEEDOR || "").trim().toUpperCase();
-      return (
-        proveedorPedido === nombreBuscado ||
-        proveedorPedido.includes(nombreBuscado) ||
-        nombreBuscado.includes(proveedorPedido)
-      );
-    });
-  }, [pedidos, proveedorSeleccionado]);
 
   const colorEstado = (estado) => {
     const valor = (estado || "").toUpperCase();
@@ -581,7 +566,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
       );
     }
 
-    if (!pedidosFiltrados.length) {
+    if (!pedidos.length) {
       return (
         <Vacio>
           <CirculoIcono>
@@ -612,7 +597,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
               </tr>
             </thead>
             <tbody>
-              {pedidosFiltrados.map((pedido, index) => {
+              {pedidos.map((pedido, index) => {
                 const cabecera = pedido.Cabecera || {};
                 return (
                   <Fila key={`${cabecera.hpe_numerodocumento}-${index}`} $par={index % 2 === 0}>
@@ -637,7 +622,7 @@ export const PedidosImportacion = ({ availableCompanies = [] }) => {
 
         <PiePaginacion>
           <TextUI size="13px" color={theme.colors.textSecondary}>
-            Mostrando {pedidosFiltrados.length} de {paginacion?.total ?? 0} registros
+            Mostrando {pedidos.length} de {paginacion?.total ?? 0} registros
           </TextUI>
 
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>

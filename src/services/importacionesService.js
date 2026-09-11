@@ -818,6 +818,7 @@ export async function ListarPedidosImportacion({
   page = 1,
   size = 15,
   empresa,
+  proveedor = null,
   numeroDocumento = null,
   estado = null,
   fechaDesde = null,
@@ -830,6 +831,7 @@ export async function ListarPedidosImportacion({
         empresa
       )}`,
       {
+        proveedor,
         numeroDocumento,
         estado,
         fechaDesde,
