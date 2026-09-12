@@ -787,8 +787,9 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
 
         <Fila>
           <ButtonUI
-            text={generandoArchivos ? "Generando reporte DDMRP..." : "Generar reporte DDMRP"}
-            iconLeft={generandoArchivos ? "FaSpinner" : "FaFileExcel"}
+            text="Generar reporte DDMRP"
+            iconLeft="FaFileExcel"
+            isAsync
             disabled={generandoArchivos || !empresaSeleccionada}
             onClick={generarArchivos}
             pcolor={theme?.colors?.primary}
@@ -799,18 +800,6 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
             </TextUI>
           )}
         </Fila>
-
-        {generandoArchivos && (
-          <Aviso $color={theme?.colors?.info || "#17a2b8"}>
-            <TextUI size="12px" weight="600">
-              No cierres esta pestaña
-            </TextUI>
-            <TextUI size="12px" color={theme?.colors?.textSecondary}>
-              El reporte se está generando en el servidor. Al terminar vas a poder
-              descargar los archivos desde aquí.
-            </TextUI>
-          </Aviso>
-        )}
 
         {estadoArchivos === "ERROR" && (
           <Aviso $color={theme?.colors?.error || "#dc3545"}>
@@ -825,14 +814,14 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
 
         {estadoArchivos === "COMPLETADO" && archivos.length > 0 && (
           <>
-            <Aviso $color={theme?.colors?.success || "#28a745"}>
-              <TextUI size="12px" weight="600" color={theme?.colors?.success}>
-                Reporte generado en {formatearDuracion(transcurridoArchivos)}
+            <BloqueTexto>
+              <TextUI size="18px" weight="700">
+                Reporte Generado
               </TextUI>
-              <TextUI size="12px" color={theme?.colors?.textSecondary}>
-                Descargá cada archivo con su botón.
+              <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                Descargar archivos
               </TextUI>
-            </Aviso>
+            </BloqueTexto>
 
             <ListaArchivos>
               {archivos.map((archivo) => (
