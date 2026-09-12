@@ -40,11 +40,12 @@ export const ObtenerResumenMaestroArticulos = async (empresa, linea) => {
 /**
  * Arma la URL de descarga de un archivo a partir de la ruta que devuelve el
  * servidor (ej. "/tmp/maestro_articulos_fcsnq4x8/maestro_articulos.xlsx").
- * El backend corre en la misma máquina donde se publica este front, así que
- * basta con anteponer la base configurada para esa API.
+ * Esa ruta es la ubicación en disco del archivo, no una URL servible
+ * directamente (el backend no expone /tmp como archivos estáticos) -- por
+ * eso se pasa como parámetro a un endpoint dedicado de descarga.
  * @param {string} ruta
  */
 export const ConstruirUrlDescargaArchivo = (ruta) => {
   if (!ruta) return "";
-  return `${API_URL_DDMRP_MV}${ruta}`;
+  return `${API_URL_DDMRP_MV}/maestro_articulos_descargar?ruta=${encodeURIComponent(ruta)}`;
 };
