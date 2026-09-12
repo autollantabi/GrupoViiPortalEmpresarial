@@ -14,11 +14,16 @@ import {
   ConstruirUrlDescargaArchivo,
 } from "services/maestroArticulosService";
 
-/* El botón "Generar reporte" (archivos .xlsx armados en el servidor) se
-   oculta de momento -- el pedido ahora es exportar, del lado del cliente,
-   los artículos ya filtrados en pantalla. Se deja el flag para poder
-   reactivarlo fácilmente si hace falta más adelante. */
-const MOSTRAR_GENERAR_ARCHIVOS_SERVIDOR = false;
+/* Nueva versión (aún sin publicar): la sección de generación de archivos
+   .xlsx en el servidor (GET /maestro_articulos_archivos) vuelve a ser lo
+   principal de esta página. */
+const MOSTRAR_GENERAR_ARCHIVOS_SERVIDOR = true;
+
+/* El resumen de artículos con sus filtros (Marca, Línea de negocio,
+   Proveedor, Compra, Producto, búsqueda) y la tabla/Excel asociados se
+   ocultan para la nueva versión -- todavía no se van a publicar. Se deja
+   el flag (y el código) para poder reactivarlos más adelante. */
+const MOSTRAR_RESUMEN_ARTICULOS = false;
 
 /* Dominio fijo de PrchseItem/InvntItem: "Y", "N" o vacío (nulo/""). Se usa
    tal cual para los filtros, en vez de derivarlo de los datos cargados. */
@@ -705,6 +710,7 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
   }, [empresaSeleccionada]);
 
   useEffect(() => {
+    if (!MOSTRAR_RESUMEN_ARTICULOS) return;
     cargarResumen();
   }, [cargarResumen]);
 
@@ -781,7 +787,7 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
 
         <Fila>
           <ButtonUI
-            text={generandoArchivos ? "Generando reporte..." : "Generar reporte"}
+            text={generandoArchivos ? "Generando reporte DDMRP..." : "Generar reporte DDMRP"}
             iconLeft={generandoArchivos ? "FaSpinner" : "FaFileExcel"}
             disabled={generandoArchivos || !empresaSeleccionada}
             onClick={generarArchivos}
@@ -861,6 +867,8 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
       </TarjetaAncha>
       )}
 
+      {MOSTRAR_RESUMEN_ARTICULOS && (
+      <>
       <TarjetaAncha>
         <FilaEncabezado>
           <BloqueTexto>
@@ -1088,6 +1096,8 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
             <DetalleArticulo detalle={articuloDetalle.detalle} />
           ))}
       </ModalUI>
+      </>
+      )}
     </Contenedor>
   );
 };

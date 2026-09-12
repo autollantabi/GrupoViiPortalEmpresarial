@@ -39,7 +39,7 @@ export default defineConfig({
         configure: logProxiedRequests("apip1"),
       },
       "/apid2": {
-        target: "http://localhost:3004",
+        target: "http://192.168.0.68:3003",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/apid2/, ""),
         configure: logProxiedRequests("apid2"),
