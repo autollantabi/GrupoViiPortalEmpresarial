@@ -4,8 +4,8 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 0,
-    url: "https://app.powerbi.com/reportEmbed?reportId=d6049e8d-4895-4088-8e6d-b7e5d2ed01dd&autoAuth=true&ctid=2485af5c-a3e1-4a85-910b-79523940a971",
-    titulo: "Reporte Consolidado",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiNzVjYWI5NjQtOGFmNS00MmU1LTkzNjAtYTkyM2FkYWJiY2ZkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    titulo: "Consolidado Cartera",
     rol: "usuario",
     linea: null,
     empresa: "GRUPOVII",
