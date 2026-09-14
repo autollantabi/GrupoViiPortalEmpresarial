@@ -482,12 +482,33 @@ const OPTIONS_COLOR_LETRA = [
     { value: "99", label: "99" },
 ];
 
-const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {
+// MAXXIS LIVIANO / MAXXIS PESADO son marcas distintas para el resto del sistema
+// (selección, mapeo de codMarca, etc.), pero en el nombre del sistema ambas deben
+// figurar simplemente como "MAXXIS".
+const normalizarMarcaNombreSistema = (marca) => {
+    const m = String(marca || "").trim().toUpperCase();
+    if (!m) return "";
+    if (m === "MAXXIS LIVIANO" || m === "MAXXIS PESADO") return "MAXXIS";
+    return m;
+};
+
+const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false, marca = "") => {
     if (!nombreBase) return "";
     // Limpiamos cualquier "NEW " previo para evitar duplicaciones si se rellama la función
     let baseLimpia = nombreBase.startsWith("NEW ") ? nombreBase.replace(/^NEW\s+/, "") : nombreBase;
+    const marcaNormalizada = normalizarMarcaNombreSistema(marca);
+    // Si nombreBase ya traía la marca (p.ej. porque se reusó el nombreSistema completo como
+    // base, a falta de nombreSistemaBase), se quita para no duplicarla al anteponerla de nuevo.
+    if (marcaNormalizada) {
+        const prefijoEscapado = marcaNormalizada.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        baseLimpia = baseLimpia.replace(new RegExp(`^${prefijoEscapado}\\s+`, "i"), "");
+    }
     const codigo = DICCIONARIO_COLOR_LETRA_CODIGO[colorCod];
-    const res = codigo ? `${baseLimpia} ${codigo}`.trim() : baseLimpia;
+    let res = codigo ? `${baseLimpia} ${codigo}`.trim() : baseLimpia;
+    // El nombre del sistema siempre inicia con la marca seleccionada.
+    if (marcaNormalizada) {
+        res = `${marcaNormalizada} ${res}`.trim();
+    }
     return isNew ? `NEW ${res}` : res;
 };
 
@@ -498,6 +519,7 @@ const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {
 const COLUMNAS_PLANTILLA = [
     { header: "EMPRESA", ancho: 16 },
     { header: "MARCA", ancho: 16 },
+    { header: "TIPO", ancho: 18 },
     { header: "NOMBRE", alias: ["DESCRIPCION"], ancho: 42 },
     { header: "DISENIO", ancho: 18 },
     { header: "LETRA_DISENIO", ancho: 15 },
@@ -544,6 +566,7 @@ const CAMPOS_DETALLE = [
     { label: "Código proveedor", get: (it) => it.codigoProveedor || it.CODIGO_PROVEEDOR },
     { label: "Línea de negocio", get: (it) => it.linea || it.LINEA_NEGOCIO },
     { label: "Marca", get: (it) => it.marca || it.MARCA },
+    { label: "Tipo", get: (it) => it.tipo || it.TIPO },
     { label: "Nombre del sistema", get: (it) => it.nombreSistema },
     { label: "Descripción", get: (it) => it.descripcion || it.DESCRIPCION },
     { label: "Descripción Proveedor", get: (it) => it.nombreExtranjero || it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO },
@@ -636,27 +659,54 @@ function Llantas() {
         fetchCaracteristicas();
     }, []);
 
+    // Tabla CODIGO LETRA (alfabeto español, incluye Ñ y el dígrafo CH)
+    const CODIGO_LETRA_DISENO = {
+        A: "01", B: "02", C: "03", D: "04", E: "05", F: "06", G: "07", H: "08",
+        I: "09", J: "10", K: "11", L: "12", M: "13", N: "14", "Ñ": "15", O: "16",
+        P: "17", Q: "18", R: "19", S: "20", T: "21", U: "22", V: "23", W: "24",
+        X: "25", Y: "26", Z: "27", CH: "28",
+    };
+
+    /* Segmento DISEÑO del código de barras:
+       1) limpia el diseño de caracteres especiales/puntuación (deja solo A-Z/0-9/Ñ)
+       2) si el diseño limpio EMPIEZA con una letra (o el dígrafo CH), esa letra se
+          reemplaza por su código de CODIGO_LETRA_DISENO y se conserva el resto tal cual
+       3) si el diseño limpio NO empieza con una letra (arranca con dígito, ej. "207A"),
+          el segmento es "00" + diseño limpio completo — no se busca ninguna letra
+          más adelante en la cadena para reemplazarla
+       Ej: "KS-062" -> limpio "KS062" -> K=11 -> "11" + "S062" = "11S062"
+       Ej: "207A" -> limpio "207A" (no empieza con letra) -> "00" + "207A" = "00207A" */
+    function construirSegmentoDiseño(diseñoCrudo) {
+        const limpio = String(diseñoCrudo || "").trim().toUpperCase().replace(/[^A-Z0-9Ñ]/g, "");
+        if (!limpio) return "0000";
+        const primero = limpio[0];
+        if (!/[A-ZÑ]/.test(primero)) {
+            return `00${limpio}`;
+        }
+        const esCH = primero === "C" && limpio[1] === "H";
+        const letra = esCH ? "CH" : primero;
+        const codigo = CODIGO_LETRA_DISENO[letra] || "00";
+        const resto = limpio.slice(letra.length);
+        return `${codigo}${resto}`;
+    }
+
 
     const calcularCodigoBarras = useCallback((item) => {
         if (!item) return "";
+
         const mapping = mapeoMarcas.find(m =>
             String(m.marca || "").toUpperCase() === String(item.marca || "").toUpperCase() &&
-            String(m.partida_arancelaria || "").toUpperCase() === String(item.partidaArancelaria || "").toUpperCase()
+            String(m.tipo || "").toUpperCase() === String(item.tipo || "").toUpperCase()
         );
-
         const codMarca = mapping ? mapping.valor : "0000";
-        const parsed = item.parsedData || {};
 
-        // Sin ningún dato cargado el código quedaría en puros ceros (un código
-        // fantasma para una fila vacía), así que no se emite.
         const tieneDatos = Boolean(
             item.marca || item.diseño || item.letraDiseño || item.colorLetra ||
-            Object.keys(parsed).length > 0
+            item.rin || item.ancho || item.serie || item.lonas
         );
         if (!tieneDatos) return "";
 
-        // Los campos ausentes se rellenan con el placeholder "00"; nunca se
-        // concatena el valor crudo, porque String(undefined) => "undefined".
+        const parsed = item.parsedData || {};
         const limpiar = (valor, relleno) => {
             if (valor === undefined || valor === null) return relleno;
             const texto = String(valor).trim();
@@ -664,33 +714,23 @@ function Llantas() {
             return texto;
         };
 
-        const lonas = limpiar(parsed.lonas, "00").padStart(2, "0").slice(0, 2);
-        const firstChar = String(item.diseño || "").charAt(0);
-        const ancho = limpiar(parsed.ancho, "00");
-        const alto = limpiar(parsed.serie, "00");
+        // El rin de camión/agrícola usa medios números (17.5, 22.5, 24.5...) y el
+        // punto SÍ va en el código. Solo se recorta una letra final si trae sufijo.
+        let rin = limpiar(item.rin, limpiar(parsed.rin, "00")).toUpperCase();
+        if (/[A-Z]$/.test(rin)) rin = rin.slice(0, -1);
 
-        // El rin puede venir con punto decimal (rines como 22.5, comunes en llantas de camión);
-        // el código de barras debe quedar solo alfanumérico, así que el punto se quita aquí sin
-        // afectar el valor real de rin que se guarda en el ítem.
-        let rin = String(parsed.rin || "00").replace(/\./g, "");
-        if (rin.charAt(rin.length - 1) >= 'A' && rin.charAt(rin.length - 1) <= 'Z') {
-            rin = rin.substring(0, 2);
-        }
+        const ancho = limpiar(item.ancho, limpiar(parsed.ancho, "00"));
+        const alto = limpiar(item.serie, limpiar(parsed.serie, "00"));
+        const lonas = limpiar(item.lonas, limpiar(parsed.lonas, "00")).padStart(2, "0").slice(0, 2);
 
-        let designNum = "00";
-        if (firstChar) {
-            const c = firstChar.toUpperCase();
-            if (c >= 'A' && c <= 'Z') {
-                designNum = (c.charCodeAt(0) - 64).toString().padStart(2, '0');
-            }
-        }
+        const diseñoSegmento = construirSegmentoDiseño(item.diseño);
+        const letraDiseño = String(item.letraDiseño || "00").trim().toUpperCase();
+        const colorLetra = String(item.colorLetra || "00").trim().toUpperCase();
 
-        const diseño = String(item.diseño || "0000");
-        const letraDiseño = String(item.letraDiseño || "00");
-        const colorLetra = String(item.colorLetra || "00");
-        const carga = String(parsed.carga || "00");
-        const velocidad = String(parsed.velocidad || "00");
-        return `${codMarca}${rin}${ancho}${alto}${lonas}${designNum}${diseño}${letraDiseño}${colorLetra}${carga}${velocidad}`.toUpperCase().replace(/\s+/g, '');
+        // DEFINEMARCA+RIN+ANCHO+ALTO+PR+[CODIGO_LETRA+DISEÑO_SIN_1RA_LETRA]+LETRADEDISEÑOS+COLORDELETRA
+        return `${codMarca}${rin}${ancho}${alto}${lonas}${diseñoSegmento}${letraDiseño}${colorLetra}`
+            .toUpperCase()
+            .replace(/\s+/g, "");
     }, [mapeoMarcas]);
     const isDark = theme?.name === 'dark';
 
@@ -873,6 +913,7 @@ function Llantas() {
                         isNew: interpretarFlagBooleano(valorPlantilla(row, "ES_NUEVO")),
                         visibleEasySales: interpretarFlagBooleano(valorPlantilla(row, "VISIBLE_EASYSALES")),
                         marca: marcaImportada,
+                        tipo: leer("TIPO"),
                         comentarios: leer("COMENTARIOS")
                     };
                 });
@@ -919,7 +960,7 @@ function Llantas() {
                     const itemWithParsed = {
                         ...it,
                         nombreSistemaBase: baseName,
-                        nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra, esNuevo(it)),
+                        nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra, esNuevo(it), it.marca),
                         parsedData: parsed
                     };
                     delete itemWithParsed.proveedorNombreImportado;
@@ -1163,11 +1204,12 @@ function Llantas() {
                                 descripcion: it.DESCRIPCION || "",
                                 parsedData: parsed,
                                 nombreSistemaBase: parsed.NOMBRE || it.DESCRIPCION || "",
-                                nombreSistema: calcularNombreSistemaFinal(parsed.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", banderaNueva ?? false),
+                                nombreSistema: calcularNombreSistemaFinal(parsed.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", banderaNueva ?? false, it.MARCA || ""),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
                                 proveedor: it.ID_PROVEEDOR || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                tipo: it.TIPO || "",
                                 marca: it.MARCA || "",
                                 diseño: it.DISENIO || "",
                                 letraDiseño: it.LETRA_DISENIO || "",
@@ -1202,6 +1244,7 @@ function Llantas() {
                                 cubicaje: it.CUBICAJE || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                tipo: it.TIPO || "",
                                 rin: it.RIN || "",
                                 serie: it.SERIE || "",
                                 lonas: it.LONAS || "",
@@ -1440,6 +1483,7 @@ function Llantas() {
                             ID_PROVEEDOR: item.proveedor || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                            TIPO: item.tipo || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
                             LINEA_NEGOCIO: lineaSeleccionada.value,
@@ -1458,6 +1502,7 @@ function Llantas() {
                             ID_PROVEEDOR: item.proveedor || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                            TIPO: item.tipo || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
                             LINEA_NEGOCIO: lineaSeleccionada.value,
@@ -1609,14 +1654,30 @@ function Llantas() {
         return uniqueBrands.map(b => ({ value: b, label: b }));
     }, [getMarcasForEmpresa, idRolPrincipal, lineaSeleccionada]);
 
+    // Opciones de "Tipo" (AUTO/CAMIONETA, INDUSTRIAL, CAMION, MOTO) válidas para una marca:
+    // se derivan de mapeoMarcas (dim_caracteristicas_neumaticos), así que solo se ofrecen
+    // combinaciones marca+tipo que realmente tienen un codMarca definido.
+    const getTipoOptionsForMarca = useCallback((marca) => {
+        if (!marca) return [];
+        const tipos = mapeoMarcas
+            .filter(m => String(m.marca || "").toUpperCase() === String(marca).toUpperCase())
+            .map(m => m.tipo)
+            .filter(Boolean);
+        const uniqueTipos = Array.from(new Set(tipos));
+        return uniqueTipos.map(t => ({ value: t, label: t }));
+    }, [mapeoMarcas]);
+
     const actualizarCampoFila = (id, campo, valor) => {
         let val = typeof valor === 'string' ? valor.toUpperCase() : valor;
 
-        if (idRolPrincipal === 3) {
-            if (["rin", "serie", "ancho"].includes(campo)) val = handleRinSerieAncho(valor);
-            else if (campo === "lonas") val = handleNumericInput(valor);
-            else if (campo === "carga") val = handleCargaInput(valor);
-            else if (campo === "velocidad") val = handleVelocidadInput(valor);
+        if (idRolPrincipal === 3 && ["rin", "serie", "ancho", "lonas"].includes(campo)) {
+            setItems(prev => prev.map(it => {
+                if (it.id !== id) return it;
+                const baseItem = { ...it, [campo]: val };
+                baseItem.codigo = calcularCodigoBarras(baseItem);
+                return baseItem;
+            }));
+            return;
         }
 
         if (idRolPrincipal === 5 && campo === "isNew") {
@@ -1627,7 +1688,8 @@ function Llantas() {
                 baseItem.nombreSistema = calcularNombreSistemaFinal(
                     it.nombreSistemaBase || it.nombreSistema || "",
                     it.colorLetra,
-                    baseItem.isNew
+                    baseItem.isNew,
+                    it.marca
                 );
                 return baseItem;
             }));
@@ -1642,8 +1704,23 @@ function Llantas() {
                     const brandIsAllowed = allowedMarcas.some(b => String(b).trim().toUpperCase() === String(it.marca).trim().toUpperCase());
                     if (it.marca && !brandIsAllowed && lineaSeleccionada?.value !== 'LLANTAS MOTO') {
                         baseItem.marca = "";
-                        baseItem.codigo = calcularCodigoBarras(baseItem);
                     }
+                    // El tipo depende de marca+empresa: al cambiar de empresa se reinicia
+                    // siempre para forzar a recargar/reelegir con la nueva combinación.
+                    if (it.tipo) {
+                        baseItem.tipo = "";
+                    }
+                    // El nombre del sistema inicia con la marca: si esta se limpió por el
+                    // cambio de empresa, se recalcula para que deje de mostrarla.
+                    if (baseItem.marca !== it.marca) {
+                        baseItem.nombreSistema = calcularNombreSistemaFinal(
+                            it.nombreSistemaBase || it.nombreSistema || "",
+                            it.colorLetra,
+                            esNuevo(it),
+                            baseItem.marca
+                        );
+                    }
+                    baseItem.codigo = calcularCodigoBarras(baseItem);
                     return baseItem;
                 }
                 return it;
@@ -1673,6 +1750,23 @@ function Llantas() {
                         }
                     }
 
+                    // El tipo (AUTO/CAMIONETA, INDUSTRIAL, CAMION, MOTO) depende de la marca: al
+                    // cambiar a una marca distinta se reinicia siempre, para forzar a recargar/
+                    // reelegir el tipo con las opciones de la nueva marca (no solo cuando el valor
+                    // previo queda inválido).
+                    const marcaCambio = String(it.marca || "").trim().toUpperCase() !== String(val || "").trim().toUpperCase();
+                    if (it.tipo && marcaCambio) {
+                        baseItem.tipo = "";
+                    }
+
+                    // El nombre del sistema siempre inicia con la marca seleccionada actualmente.
+                    baseItem.nombreSistema = calcularNombreSistemaFinal(
+                        it.nombreSistemaBase || it.nombreSistema || "",
+                        it.colorLetra,
+                        esNuevo(it),
+                        val
+                    );
+
                     baseItem.codigo = calcularCodigoBarras(baseItem);
                     return baseItem;
                 }
@@ -1697,7 +1791,7 @@ function Llantas() {
                                     ...it,
                                     parsedData: parsed,
                                     nombreSistemaBase: parsedName,
-                                    nombreSistema: calcularNombreSistemaFinal(parsedName, it.colorLetra, esNuevo(it))
+                                    nombreSistema: calcularNombreSistemaFinal(parsedName, it.colorLetra, esNuevo(it), it.marca)
                                 };
                                 return {
                                     ...baseItem,
@@ -1716,13 +1810,13 @@ function Llantas() {
         }
 
         if (idRolPrincipal === 5) {
-            const barcodeFields = ["partidaArancelaria", "diseño", "letraDiseño", "colorLetra"];
+            const barcodeFields = ["partidaArancelaria", "tipo", "diseño", "letraDiseño", "colorLetra", "rin", "ancho", "serie", "lonas"];
             if (barcodeFields.includes(campo)) {
                 setItems(prev => prev.map(it => {
                     if (it.id === id) {
                         const baseItem = { ...it, [campo]: val };
                         if (campo === "colorLetra") {
-                            baseItem.nombreSistema = calcularNombreSistemaFinal(it.nombreSistemaBase || it.nombreSistema || "", val, esNuevo(it));
+                            baseItem.nombreSistema = calcularNombreSistemaFinal(it.nombreSistemaBase || it.nombreSistema || "", val, esNuevo(it), it.marca);
                         }
                         return {
                             ...baseItem,
@@ -1809,7 +1903,7 @@ function Llantas() {
                                 style={{ display: "none" }}
                                 ref={fileInputRef}
                                 onChange={handleImportExcel}
-                            />  
+                            />
                             <ButtonUI
                                 text="Importar desde Excel"
                                 iconLeft="FaFileExcel"
@@ -2110,6 +2204,7 @@ function Llantas() {
                                                 <>
                                                     <Th>Empresa</Th>
                                                     <Th $min="200px">Marca</Th>
+                                                    <Th $min="140px">Tipo</Th>
                                                     <Th $w="380px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                     <Th $min="150px">Diseño</Th>
                                                     <Th>Letra Diseño</Th>
@@ -2481,6 +2576,15 @@ function Llantas() {
                                                                 isCreatable={true}
                                                             />
                                                         </Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={getTipoOptionsForMarca(item.marca)}
+                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value)}
+                                                                minWidth="160px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </Td>
                                                         <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="380px"><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
                                                         <Td $densa><InputUI maxLength={20} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 20))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></Td>
@@ -2614,6 +2718,7 @@ function Llantas() {
                                                 <>
                                                     <Th>Empresa</Th>
                                                     <Th $min="200px">Marca</Th>
+                                                    <Th $min="140px">Tipo</Th>
                                                     <Th $min="380px">Nombre</Th>
                                                     <Th $min="150px">Diseño</Th>
                                                     <Th>Letra Diseño</Th>
@@ -2695,6 +2800,15 @@ function Llantas() {
                                                                 minWidth="200px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                                 isCreatable={true}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={getTipoOptionsForMarca(item.marca)}
+                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value)}
+                                                                minWidth="160px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
@@ -2802,6 +2916,7 @@ function Llantas() {
                                                 <>
                                                     <Th>Empresa</Th>
                                                     <Th $min="200px">Marca</Th>
+                                                    <Th $min="140px">Tipo</Th>
                                                     <Th $min="380px">Nombre</Th>
                                                     <Th $min="150px">Diseño</Th>
                                                     <Th>Letra Diseño</Th>
@@ -2879,6 +2994,15 @@ function Llantas() {
                                                                 minWidth="200px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                                 isCreatable={true}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={getTipoOptionsForMarca(item.marca)}
+                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value)}
+                                                                minWidth="160px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
