@@ -32,14 +32,14 @@ export default defineConfig({
     port: 5000, // Mantén el mismo puerto si quieres,
     headers: securityHeaders,
     proxy: {
-      "/apip1": {
-        target: "http://192.168.0.68:3001",
+      "/apid1": {
+        target: "http://192.168.0.68:3002",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/apip1/, ""),
-        configure: logProxiedRequests("apip1"),
+        rewrite: (path) => path.replace(/^\/apid1/, ""),
+        configure: logProxiedRequests("apid1"),
       },
       "/apid2": {
-        target: "http://localhost:3004",
+        target: "http://192.168.0.68:3004",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/apid2/, ""),
         configure: logProxiedRequests("apid2"),

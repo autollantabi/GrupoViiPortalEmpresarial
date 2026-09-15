@@ -114,7 +114,7 @@ const REPORTES = [
   },
   {
     id: 14,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiN2Y5ODMxNzYtODRhMS00NmI5LWIwZGMtYmQzYTNkZDAwMjYwIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiNDJkNDI3ZTEtODU5Ni00ZmM1LWJhNDctN2E5MjM4NGUyNjBlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (Supervisor)",
     rol: "supervisor",
     linea: "HERRAMIENTAS",
