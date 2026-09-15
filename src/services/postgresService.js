@@ -120,5 +120,29 @@ export const postgresService = {
         message: errorData.message || "Error al guardar el cambio",
       };
     }
+  },
+
+  /**
+   * core.dim_empresa_linea_marca: combinaciones válidas de empresa, línea de
+   * negocio y marca, usadas para armar en cascada los filtros del reporte
+   * DDMRP (empresa -> línea de negocio -> marca(s)).
+   */
+  obtenerEmpresaLineaMarca: async () => {
+    try {
+      const response = await axiosInstanceNew.get("/dwh-postgres/empresa-linea-marca");
+      return {
+        success: true,
+        data: response.data.data || [],
+        message: response.data.message || "Successfully fetched empresa linea marca!",
+      };
+    } catch (error) {
+      console.error("Error al obtener empresa-linea-marca:", error);
+      const errorData = error.response ? error.response.data : {};
+      return {
+        success: false,
+        data: [],
+        message: errorData.message || "Error al conectar con el servidor",
+      };
+    }
   }
 };
