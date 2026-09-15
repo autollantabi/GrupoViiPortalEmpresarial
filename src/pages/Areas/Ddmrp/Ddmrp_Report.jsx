@@ -11,8 +11,9 @@ import { ExportToExcelUI } from "components/UI/Components/ExportarAExcelUI";
 import {
   ObtenerArchivosMaestroArticulos,
   ObtenerResumenMaestroArticulos,
-  ConstruirUrlDescargaArchivo,
+  ConstruirUrlDescarga,
 } from "services/maestroArticulosService";
+import { postgresService } from "services/postgresService";
 
 /* Nueva versión (aún sin publicar): la sección de generación de archivos
    .xlsx en el servidor (GET /maestro_articulos_archivos) vuelve a ser lo
@@ -38,6 +39,20 @@ const OPCIONES_PRODUCTO_ACTIVO = [
   { value: "N", label: "Inactivo" },
   { value: "", label: "Vacío" },
 ];
+
+/* El backend puede devolver el detalle de error de dos formas:
+   - 400: {"detail": "mensaje"} (string)
+   - 422: {"detail": [{type, loc, msg, input}, ...]} (validación de Pydantic)
+   Esta función normaliza ambos casos (y el caso genérico de axios/network)
+   a un string simple para mostrar en pantalla. */
+const extraerMensajeError = (err) => {
+  const detail = err?.response?.data?.detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => d?.msg || JSON.stringify(d)).join("; ");
+  }
+  if (typeof detail === "string" && detail) return detail;
+  return err?.response?.data?.message || err.message;
+};
 
 const Contenedor = styled.div`
   padding: 24px;
@@ -446,17 +461,53 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
   const { theme } = useTheme();
 
   // ---------------------------------------------------------------------
-  // Filtro: empresa (mismo origen de datos que reportes.flashventas:
-  // contextos/permisos del usuario, inyectados por el router como props).
-  // El filtro de "Línea" a nivel de API se sacó de acá -- ahora se filtra
-  // por "Línea de negocio" en el cliente, junto a la tabla de resumen.
+  // core.dim_empresa_linea_marca: combinaciones válidas de empresa, línea de
+  // negocio y marca. Arman en cascada los tres filtros de esta página
+  // (empresa única -> línea de negocio única -> una o más marcas), en vez de
+  // depender de un dominio fijo en el frontend.
+  // ---------------------------------------------------------------------
+  const [empresaLineaMarca, setEmpresaLineaMarca] = useState([]);
+  const [cargandoEmpresaLineaMarca, setCargandoEmpresaLineaMarca] = useState(false);
+  const [errorEmpresaLineaMarca, setErrorEmpresaLineaMarca] = useState("");
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      setCargandoEmpresaLineaMarca(true);
+      setErrorEmpresaLineaMarca("");
+      const resultado = await postgresService.obtenerEmpresaLineaMarca();
+      if (cancelado) return;
+      if (resultado.success) {
+        setEmpresaLineaMarca(resultado.data);
+      } else {
+        setErrorEmpresaLineaMarca(resultado.message);
+      }
+      setCargandoEmpresaLineaMarca(false);
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  // ---------------------------------------------------------------------
+  // Filtro: empresa (intersección entre los permisos del usuario --
+  // availableCompanies, inyectado por el router-- y las empresas que de
+  // verdad tienen registros en dim_empresa_linea_marca). Mientras la tabla
+  // todavía no responde no se filtra, para no dejar el select vacío de
+  // entrada.
   // ---------------------------------------------------------------------
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState(null);
 
-  const opcionesEmpresas = useMemo(
-    () => (availableCompanies || []).map((e) => ({ value: e.nombre, label: e.nombre })),
-    [availableCompanies]
+  const empresasConParametros = useMemo(
+    () => new Set(empresaLineaMarca.map((d) => d.DELM_EMPRESA)),
+    [empresaLineaMarca]
   );
+
+  const opcionesEmpresas = useMemo(() => {
+    const base = (availableCompanies || []).map((e) => ({ value: e.nombre, label: e.nombre }));
+    if (empresaLineaMarca.length === 0) return base;
+    return base.filter((o) => empresasConParametros.has(o.value));
+  }, [availableCompanies, empresaLineaMarca, empresasConParametros]);
 
   useEffect(() => {
     if (opcionesEmpresas.length === 0) {
@@ -471,12 +522,80 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
   const handleEmpresaChange = (opcion) => setEmpresaSeleccionada(opcion ? opcion.value : null);
 
   // ---------------------------------------------------------------------
-  // Fila 1: generación de los archivos Excel (GET /maestro_articulos_archivos)
+  // Fila 1: generación de los archivos Excel (POST /maestro_articulos_archivos)
   // ---------------------------------------------------------------------
   const [estadoArchivos, setEstadoArchivos] = useState("INACTIVO"); // INACTIVO | EN_PROCESO | COMPLETADO | ERROR
   const [archivos, setArchivos] = useState([]);
   const [errorArchivos, setErrorArchivos] = useState("");
   const [transcurridoArchivos, setTranscurridoArchivos] = useState(0);
+
+  // Línea de negocio (única) y marca (una o más): ambas obligatorias para el
+  // nuevo contrato de POST /maestro_articulos_archivos, y ambas en cascada
+  // sobre dim_empresa_linea_marca (línea depende de la empresa; marca
+  // depende de empresa + línea).
+  const [lineaNegocioArchivos, setLineaNegocioArchivos] = useState(null);
+  const [marcasArchivos, setMarcasArchivos] = useState([]);
+
+  const opcionesLineaNegocioArchivos = useMemo(() => {
+    if (!empresaSeleccionada) return [];
+    const lineas = new Set(
+      empresaLineaMarca
+        .filter((d) => d.DELM_EMPRESA === empresaSeleccionada)
+        .map((d) => d.DELM_LINEA_NEGOCIO)
+    );
+    return Array.from(lineas)
+      .sort((a, b) => a.localeCompare(b))
+      .map((l) => ({ value: l, label: l }));
+  }, [empresaLineaMarca, empresaSeleccionada]);
+
+  // El valor que se envía al backend (y que se usa como "value" del select)
+  // es siempre DELM_MARCA; DELM_MARCA_VISIBLE es solo el texto a mostrar, y
+  // si viene vacío se cae a DELM_MARCA.
+  const opcionesMarcasArchivos = useMemo(() => {
+    if (!empresaSeleccionada || !lineaNegocioArchivos) return [];
+    const porMarca = new Map();
+    empresaLineaMarca
+      .filter(
+        (d) => d.DELM_EMPRESA === empresaSeleccionada && d.DELM_LINEA_NEGOCIO === lineaNegocioArchivos
+      )
+      .forEach((d) => {
+        if (!porMarca.has(d.DELM_MARCA)) {
+          porMarca.set(d.DELM_MARCA, d.DELM_MARCA_VISIBLE || d.DELM_MARCA);
+        }
+      });
+    return Array.from(porMarca, ([value, label]) => ({ value, label })).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
+  }, [empresaLineaMarca, empresaSeleccionada, lineaNegocioArchivos]);
+
+  // Si cambia la empresa y la línea elegida ya no aplica, se limpia (misma
+  // idea que el resto de filtros en cascada de esta página).
+  useEffect(() => {
+    if (lineaNegocioArchivos && !opcionesLineaNegocioArchivos.some((o) => o.value === lineaNegocioArchivos)) {
+      setLineaNegocioArchivos(null);
+    }
+  }, [opcionesLineaNegocioArchivos, lineaNegocioArchivos]);
+
+  // Marca(s) depende de línea de negocio: cada vez que la línea cambia (o se
+  // limpia), las marcas elegidas para la línea anterior dejan de tener
+  // sentido, así que se resetean por completo en vez de solo podar las que
+  // ya no existan.
+  useEffect(() => {
+    setMarcasArchivos([]);
+  }, [lineaNegocioArchivos]);
+
+  const handleLineaNegocioArchivosChange = (opcion) =>
+    setLineaNegocioArchivos(opcion ? opcion.value : null);
+
+  const handleMarcasArchivosChange = (opciones) =>
+    setMarcasArchivos((opciones || []).map((o) => o.value));
+
+  // Empresa es siempre obligatoria; línea de negocio y marca(s) son
+  // opcionales pero acumulativos (no se puede elegir marca sin línea -- la UI
+  // ya lo impide dejando el select de marca deshabilitado hasta elegir una
+  // línea). Los 3 modos válidos: solo empresa, empresa+línea, o
+  // empresa+línea+marca(s).
+  const puedeGenerarArchivos = !!empresaSeleccionada;
 
   const cronometroArchivosRef = useRef(null);
   const inicioArchivosRef = useRef(null);
@@ -489,7 +608,7 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
   );
 
   const generarArchivos = useCallback(async () => {
-    if (!empresaSeleccionada) return;
+    if (!puedeGenerarArchivos) return;
 
     if (cronometroArchivosRef.current) clearInterval(cronometroArchivosRef.current);
     setEstadoArchivos("EN_PROCESO");
@@ -502,22 +621,24 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
     }, 1000);
 
     try {
-      const datos = await ObtenerArchivosMaestroArticulos(empresaSeleccionada);
+      const datos = await ObtenerArchivosMaestroArticulos(
+        empresaSeleccionada,
+        lineaNegocioArchivos,
+        marcasArchivos
+      );
       setArchivos(datos.archivos || []);
       setEstadoArchivos("COMPLETADO");
     } catch (err) {
       setEstadoArchivos("ERROR");
-      setErrorArchivos(
-        err?.response?.data?.detail || err?.response?.data?.message || err.message
-      );
+      setErrorArchivos(extraerMensajeError(err));
     } finally {
       clearInterval(cronometroArchivosRef.current);
       cronometroArchivosRef.current = null;
     }
-  }, [empresaSeleccionada]);
+  }, [puedeGenerarArchivos, empresaSeleccionada, lineaNegocioArchivos, marcasArchivos]);
 
   const descargarArchivo = (archivo) => {
-    const url = ConstruirUrlDescargaArchivo(archivo.ruta);
+    const url = ConstruirUrlDescarga(archivo);
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -771,18 +892,64 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
           }
           onChange={handleEmpresaChange}
           placeholder="Selecciona una empresa..."
-          isDisabled={opcionesEmpresas.length === 0}
+          isDisabled={opcionesEmpresas.length === 0 || cargandoEmpresaLineaMarca}
           isSearchable={false}
           minWidth="220px"
         />
+        <SelectUI
+          label="Línea de negocio (opcional)"
+          options={opcionesLineaNegocioArchivos}
+          value={
+            lineaNegocioArchivos
+              ? opcionesLineaNegocioArchivos.find((o) => o.value === lineaNegocioArchivos)
+              : null
+          }
+          onChange={handleLineaNegocioArchivosChange}
+          placeholder={empresaSeleccionada ? "Todas" : "Primero selecciona una empresa"}
+          isSearchable={false}
+          isClearable
+          isDisabled={generandoArchivos || !empresaSeleccionada}
+          minWidth="220px"
+        />
+        <SelectUI
+          label="Marca(s) (opcional)"
+          options={opcionesMarcasArchivos}
+          value={opcionesMarcasArchivos.filter((o) => marcasArchivos.includes(o.value))}
+          onChange={handleMarcasArchivosChange}
+          placeholder={lineaNegocioArchivos ? "Todas" : "Primero selecciona una línea"}
+          isMulti
+          isClearable
+          isDisabled={generandoArchivos || !lineaNegocioArchivos}
+          minWidth="280px"
+          maxWidth="420px"
+        />
+        {cargandoEmpresaLineaMarca && (
+          <TextUI size="12px" color={theme?.colors?.textSecondary}>
+            Cargando líneas de negocio y marcas...
+          </TextUI>
+        )}
       </FilaFiltros>
+
+      {errorEmpresaLineaMarca && (
+        <Aviso $color={theme?.colors?.error || "#dc3545"}>
+          <TextUI size="12px" weight="600" color={theme?.colors?.error}>
+            No se pudieron cargar las líneas de negocio y marcas disponibles
+          </TextUI>
+          <TextUI size="12px" color={theme?.colors?.textSecondary}>
+            {errorEmpresaLineaMarca}
+          </TextUI>
+        </Aviso>
+      )}
 
       {MOSTRAR_GENERAR_ARCHIVOS_SERVIDOR && (
       <TarjetaAncha>
         <TextUI size="13px" color={theme?.colors?.textSecondary}>
           Genera el maestro de artículos y la auditoría asociada para la empresa
-          seleccionada. El proceso consulta SAP HANA y puede tardar varios
-          minutos; los archivos quedarán disponibles para descargar al terminar.
+          seleccionada. Línea de negocio y marca(s) son opcionales: podés
+          buscar solo por empresa, empresa + línea de negocio, o acotar además
+          a una o más marcas. El proceso consulta SAP HANA y puede tardar
+          varios minutos; los archivos quedarán disponibles para descargar al
+          terminar.
         </TextUI>
 
         <Fila>
@@ -790,7 +957,7 @@ export const Ddmrp_Report = ({ availableCompanies = [] }) => {
             text="Generar reporte DDMRP"
             iconLeft="FaFileExcel"
             isAsync
-            disabled={generandoArchivos || !empresaSeleccionada}
+            disabled={generandoArchivos || !puedeGenerarArchivos}
             onClick={generarArchivos}
             pcolor={theme?.colors?.primary}
           />
