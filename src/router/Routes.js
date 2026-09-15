@@ -344,7 +344,7 @@ export const RoutesConfig = [
   {
     recurso: "mdm",
     title: "MDM",
-    icon: "FaDatabase",
+    icon: "FaCheck",
     rootOnly: true,
   },
   {
