@@ -33,7 +33,7 @@ export default defineConfig({
     headers: securityHeaders,
     proxy: {
       "/apid1": {
-        target: "http://192.168.0.68:3002",
+        target: "http://192.168.0.68:3001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/apid1/, ""),
         configure: logProxiedRequests("apid1"),

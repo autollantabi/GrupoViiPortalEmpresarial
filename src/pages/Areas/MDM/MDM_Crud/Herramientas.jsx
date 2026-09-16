@@ -12,7 +12,6 @@ import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
 import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas, syncItemsToSap } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
-import { ListarProveedores } from "services/importacionesService";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
 
@@ -187,15 +186,29 @@ const Etiqueta = styled.span`
         })};
 `;
 
+/* Sufijo de marca que se agrega al nombre del sistema para ciertas marcas puntuales. */
+const SUFIJO_NOMBRE_POR_MARCA = {
+    UYUSTOOLS: "UYUS",
+    SATA: "SATA",
+};
+
 /* Nombre del sistema: el nombre tal como llega al backend, con el prefijo
-   "NEW " cuando el producto se marca como nuevo. Equivale a
+   "NEW " cuando el producto se marca como nuevo y, para ciertas marcas
+   (ver SUFIJO_NOMBRE_POR_MARCA), un sufijo fijo al final. Equivale a
    calcularNombreSistemaFinal de Llantas.jsx, pero herramientas no tiene
    parser de medidas ni letra de diseño, así que se compone solo del nombre. */
-const calcularNombreSistema = (nombreBase, isNew = false) => {
+const calcularNombreSistema = (nombreBase, isNew = false, marca = "") => {
     if (!nombreBase) return "";
-    // Se limpia un "NEW " previo para no duplicarlo al recalcular
-    const limpio = String(nombreBase).replace(/^NEW\s+/i, "").trim();
-    return isNew ? `NEW ${limpio}` : limpio;
+    // Se limpia un "NEW " previo y un sufijo de marca previo para no duplicarlos al recalcular
+    let limpio = String(nombreBase).replace(/^NEW\s+/i, "").trim();
+    const sufijos = Object.values(SUFIJO_NOMBRE_POR_MARCA);
+    const sufijoRegex = new RegExp(`\\s+(${sufijos.join("|")})$`, "i");
+    limpio = limpio.replace(sufijoRegex, "").trim();
+
+    const sufijoMarca = SUFIJO_NOMBRE_POR_MARCA[String(marca || "").trim().toUpperCase()];
+    const conSufijo = sufijoMarca ? `${limpio} ${sufijoMarca}` : limpio;
+
+    return isNew ? `NEW ${conSufijo}` : conSufijo;
 };
 
 /* Interpreta la columna "Es nuevo" del Excel: admite SI/NO, TRUE/FALSE, 1/0 y X.
@@ -225,14 +238,9 @@ const esVisibleEasySales = (item) =>
 
 const EMPRESA_HERRAMIENTAS = 'IKONIX';
 
-// Código numérico de empresa que espera el servicio web de proveedores (distinto del ID interno del portal).
-const CODIGO_EMPRESA_PROVEEDORES = {
-    AUTOLLANTA: 1,
-    MAXXIMUNDO: 2,
-    STOX: 3,
-    IKONIX: 4,
-    AUTOMAX: 5,
-};
+// Herramientas ya no busca proveedores por empresa en el servicio web de importaciones: todo
+// item de esta línea usa siempre MAXXIMUNDO CIA. LTDA. como proveedor por defecto.
+const PROVEEDOR_DEFECTO_HERRAMIENTAS = { value: 'P0190350533001', label: 'MAXXIMUNDO CIA. LTDA.' };
 
 const DICCIONARIO_ROLES = {
     1: 'Comercial', // Jefatura
@@ -331,7 +339,7 @@ function Herramientas() {
 
     const [opcionesPallets, setOpcionesPallets] = useState([]);
     const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
-    const [opcionesProveedores, setOpcionesProveedores] = useState([]);
+    const opcionesProveedores = [PROVEEDOR_DEFECTO_HERRAMIENTAS];
 
     useEffect(() => {
         const fetchPalletsOptions = async () => {
@@ -361,20 +369,8 @@ function Herramientas() {
             }
         };
 
-        const fetchProveedoresOptions = async () => {
-            try {
-                const codigoEmpresa = CODIGO_EMPRESA_PROVEEDORES[EMPRESA_HERRAMIENTAS];
-                const data = await ListarProveedores(codigoEmpresa);
-                setOpcionesProveedores(Array.isArray(data) ? data.map(({ value, name }) => ({ value, label: name })) : []);
-            } catch (error) {
-                console.error(`Error fetching proveedores options for ${EMPRESA_HERRAMIENTAS}:`, error);
-                setOpcionesProveedores([]);
-            }
-        };
-
         fetchPalletsOptions();
         fetchGruposHerramientas();
-        fetchProveedoresOptions();
     }, []);
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
     const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
@@ -509,7 +505,7 @@ function Herramientas() {
                             isNew: it.ES_NUEVO !== undefined && it.ES_NUEVO !== null ? Boolean(it.ES_NUEVO) : undefined,
                             // Mismo criterio que ES_NUEVO: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
                             visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
-                            nombreSistema: calcularNombreSistema(it.NOMBRE || "", Boolean(it.ES_NUEVO)),
+                            nombreSistema: calcularNombreSistema(it.NOMBRE || "", Boolean(it.ES_NUEVO), it.MARCA || ""),
                             descripcion: it.DESCRIPCION || "",
                             unidad: it.UNIDAD || "",
                             unidadPaquete: it.UNIDAD_PAQUETE || "",
@@ -932,11 +928,12 @@ function Herramientas() {
                     val = valor.toUpperCase();
                 }
 
-                // El nombre del sistema deriva del nombre y de la bandera "es nuevo"
-                if (campo === "nombre" || campo === "isNew") {
+                // El nombre del sistema deriva del nombre, de la bandera "es nuevo" y de la marca
+                if (campo === "nombre" || campo === "isNew" || campo === "marca") {
                     const base = campo === "nombre" ? val : it.nombre;
                     const nuevo = campo === "isNew" ? Boolean(val) : esNuevo(it);
-                    return { ...it, [campo]: val, nombreSistema: calcularNombreSistema(base, nuevo) };
+                    const marcaActual = campo === "marca" ? val : it.marca;
+                    return { ...it, [campo]: val, nombreSistema: calcularNombreSistema(base, nuevo, marcaActual) };
                 }
 
                 // Aplicar restricciones estrictas para escritura
@@ -994,6 +991,7 @@ function Herramientas() {
 
                 const newItems = data.map(row => ({
                     id: Date.now() + Math.random(),
+                    proveedor: PROVEEDOR_DEFECTO_HERRAMIENTAS.value,
                     codigoProveedor: String(row["Codigo Proveedor"] || "").trim().toUpperCase(),
                     partidaArancelaria: handleNumericInt(row["Partida Arancelaria"] || ""),
                     nombreExt: String(row["Descripcion Proveedor"] || row["Nombre Ext"] || "").trim().toUpperCase(),
@@ -1016,7 +1014,8 @@ function Herramientas() {
                     isNew: interpretarEsNuevo(row["Es nuevo"]),
                     nombreSistema: calcularNombreSistema(
                         String(row["Nombre"] || "").trim().toUpperCase(),
-                        interpretarEsNuevo(row["Es nuevo"])
+                        interpretarEsNuevo(row["Es nuevo"]),
+                        String(row["Marca"] || "").trim().toUpperCase()
                     ),
                 }));
 
@@ -1073,7 +1072,7 @@ function Herramientas() {
                                 iconLeft="FaPlus"
                                 pcolor={theme?.colors?.primary}
                                 onClick={() => {
-                                    setItems(prev => [...prev, { id: Date.now() }]);
+                                    setItems(prev => [...prev, { id: Date.now(), proveedor: PROVEEDOR_DEFECTO_HERRAMIENTAS.value }]);
                                 }}
                             />
                             <input

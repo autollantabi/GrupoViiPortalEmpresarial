@@ -40,7 +40,7 @@ export const LINEAS_NEGOCIO_MAESTRO_ARTICULOS = ["LLANTAS", "LLANTAS MOTOS", "HE
  * @returns {Promise<{empresa: string, linea_negocio: string|null, marca: string[]|null, carpeta: string, archivos: Array<{tipo: string, nombre: string, ruta: string, url_descarga: string, tamano_bytes: number}>}>}
  */
 export const ObtenerArchivosMaestroArticulos = async (empresa, lineaNegocio, marcas) => {
-  const response = await axiosInstanceDdmrpMv.post("/maestro_articulos_archivos", {
+  const response = await axiosInstanceDdmrpMv.post("/ddmrp/maestro_articulos_archivos", {
     empresa,
     linea_negocio: lineaNegocio || null,
     marca: marcas && marcas.length > 0 ? marcas : null,
@@ -54,7 +54,7 @@ export const ObtenerArchivosMaestroArticulos = async (empresa, lineaNegocio, mar
  * @returns {Promise<{empresa: string, linea: string|null, total_articulos: number, articulos: Array}>}
  */
 export const ObtenerResumenMaestroArticulos = async (empresa, linea) => {
-  const response = await axiosInstanceDdmrpMv.get("/maestro_articulos_resumen", {
+  const response = await axiosInstanceDdmrpMv.get("/ddmrp/maestro_articulos_resumen", {
     params: { empresa, linea: linea || undefined },
   });
   return response.data;
@@ -70,7 +70,7 @@ export const ObtenerResumenMaestroArticulos = async (empresa, linea) => {
  */
 export const ConstruirUrlDescargaArchivo = (ruta) => {
   if (!ruta) return "";
-  return `${API_URL_DDMRP_MV}/maestro_articulos_descargar?ruta=${encodeURIComponent(ruta)}`;
+  return `${API_URL_DDMRP_MV}/ddmrp/maestro_articulos_descargar?ruta=${encodeURIComponent(ruta)}`;
 };
 
 /**
