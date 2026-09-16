@@ -214,6 +214,32 @@ const NumeroFila = styled.span`
     font-variant-numeric: tabular-nums;
 `;
 
+/* Pestañas de la sección "Sin aprobar / Aprobados" (mismo look que MantenimientoPermisosNuevos) */
+const TabButton = styled.button`
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    background: transparent;
+    color: ${({ theme, $active }) => ($active ? theme?.colors?.primary : theme?.colors?.textSecondary || "#666")};
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+        color: ${({ theme }) => theme?.colors?.primary};
+    }
+
+    ${({ $active, theme }) =>
+        $active &&
+        `
+        color: ${theme?.colors?.primary};
+        border-bottom-color: ${theme?.colors?.primary};
+    `}
+`;
+
 const LINEAS_NEGOCIO = [
     { value: "LLANTAS", label: "LLANTAS" },
     { value: "LUBRICANTES", label: "LUBRICANTES" },
@@ -1005,6 +1031,15 @@ function Llantas() {
     const [isSyncingSap, setIsSyncingSap] = useState(false);
     const [searchTermExport, setSearchTermExport] = useState("");
 
+    // Sección "Sin aprobar / Aprobados": pestaña activa, buscador compartido entre ambas y
+    // estado de refresco (spinner del botón mientras fetchItems está en curso).
+    const [tabAprobados, setTabAprobados] = useState("sinAprobar");
+    const [searchTermAprobados, setSearchTermAprobados] = useState("");
+    const [isRefrescandoAprobados, setIsRefrescandoAprobados] = useState(false);
+    // Todos los ítems no aprobados de la línea (cualquier fase), independiente de lo que el rol
+    // actual tenga filtrado en `items` para trabajar. Alimenta solo la pestaña "Sin aprobar".
+    const [itemsSinAprobarTodos, setItemsSinAprobarTodos] = useState([]);
+
     const filteredItemsToReview = useMemo(() => {
         if (!searchTermReview) return itemsToReview;
         const lowSearch = searchTermReview.toLowerCase();
@@ -1054,6 +1089,8 @@ function Llantas() {
     const esLubricantes = lineaSeleccionada?.value === "LUBRICANTES";
     const esHerramientas = lineaSeleccionada?.value === "HERRAMIENTAS";
 
+    useEffect(() => { setSearchTermAprobados(""); }, [lineaSeleccionada]);
+
     // Proveedores por empresa (rol 5): la empresa se selecciona por fila, así que se cachean por código de empresa.
     const [proveedoresPorEmpresa, setProveedoresPorEmpresa] = useState({});
     const proveedoresEnCargaRef = useRef(new Set());
@@ -1102,6 +1139,26 @@ function Llantas() {
                 if (rawData) {
                     const data = rawData;
                     let processedItems = data;
+
+                    // Vista informativa de la pestaña "Sin aprobar": TODOS los ítems no aprobados de
+                    // la línea, sin importar en qué fase estén ni si son accionables para el rol
+                    // actual (a diferencia de `items`, que cada rol filtra a solo lo que le toca
+                    // revisar/corregir). Se conserva el objeto crudo (...it) para que el modal de
+                    // Detalle pueda leer todos sus campos por el fallback SCREAMING_SNAKE de CAMPOS_DETALLE.
+                    const todosNoAprobados = data.filter(it => !it.APROBADO_MDM).map(it => ({
+                        ...it,
+                        id: it.ID,
+                        linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                        idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
+                        codigo: it.CODIGO_BARRAS || "",
+                        marca: it.MARCA || "",
+                        diseño: it.DISENIO || "",
+                        nombreSistema: it.DESCRIPCION || it.NOMBRE || "",
+                        comentarios: it.OBSERVACIONES || "",
+                        fueRechazado: Array.isArray(it.FASES) && it.FASES.some(f => f.RECHAZO),
+                    }));
+                    setItemsSinAprobarTodos(todosNoAprobados);
+
                     if (idRolPrincipal === 3) {
                         const filtered = data.filter(it =>
                             it.APROBADO_MDM ||
@@ -1287,6 +1344,29 @@ function Llantas() {
     useEffect(() => {
         fetchItems();
     }, [fetchItems]);
+
+    // Refresco manual de la sección "Sin aprobar / Aprobados", sin recargar el resto de la página.
+    const handleRefrescarAprobados = async () => {
+        setIsRefrescandoAprobados(true);
+        try {
+            await fetchItems();
+        } finally {
+            setIsRefrescandoAprobados(false);
+        }
+    };
+
+    // Búsqueda compartida por la sección "Sin aprobar / Aprobados": código de barras, código
+    // SAP (si el ítem ya lo tiene), diseño o nombre.
+    const filtrarSeccionAprobados = (lista, termino) => {
+        if (!termino) return lista;
+        const t = termino.toLowerCase();
+        return lista.filter(item =>
+            String(item.codigo || item.CODIGO_BARRAS || "").toLowerCase().includes(t) ||
+            String(item.codigoSap || item.CODIGO_SAP || "").toLowerCase().includes(t) ||
+            String(item.diseño || item.DISENIO || "").toLowerCase().includes(t) ||
+            String(item.nombreSistema || item.descripcionRol5 || item.descripcion || "").toLowerCase().includes(t)
+        );
+    };
 
     // Cuando se reemplaza una imagen ya existente, la key en storage (y por lo tanto la URL) no
     // cambia: el navegador ya tiene esa URL cacheada y seguiría mostrando la versión vieja hasta
@@ -3127,53 +3207,107 @@ function Llantas() {
                 )}
             </div>
 
-            {/* Sección de Aprobados */}
-            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && approvedItems.filter(i => i.linea === lineaSeleccionada.value).length > 0 && (
-                <div style={{ backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 auto", maxHeight: "45vh", marginBottom: "16px" }}>
-                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.success + "11", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <TextUI size="14px" weight="600" color={theme?.colors?.success}>
-                            Aprobados {lineaSeleccionada ? `de ${lineaSeleccionada.label}` : ""} ({approvedItems.filter(i => i.linea === lineaSeleccionada.value).length})
-                        </TextUI>
+            {/* Sección de Sin aprobar / Aprobados */}
+            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && (() => {
+                const itemsSinAprobarSeccion = itemsSinAprobarTodos.filter(i => i.linea === lineaSeleccionada.value);
+                const itemsAprobadosSeccion = approvedItems.filter(i => i.linea === lineaSeleccionada.value);
+                const listaActivaSeccion = tabAprobados === "aprobados" ? itemsAprobadosSeccion : itemsSinAprobarSeccion;
+                const listaFiltradaSeccion = filtrarSeccionAprobados(listaActivaSeccion, searchTermAprobados);
+
+                return (
+                    <div style={{ backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 auto", maxHeight: "45vh", marginBottom: "16px" }}>
+                        <div style={{ padding: "0 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.backgroundLight || "#fafafa" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                                <div style={{ display: "flex" }}>
+                                    <TabButton type="button" $active={tabAprobados === "sinAprobar"} onClick={() => setTabAprobados("sinAprobar")}>
+                                        Sin aprobar ({itemsSinAprobarSeccion.length})
+                                    </TabButton>
+                                    <TabButton type="button" $active={tabAprobados === "aprobados"} onClick={() => setTabAprobados("aprobados")}>
+                                        Aprobados ({itemsAprobadosSeccion.length})
+                                    </TabButton>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "8px 0" }}>
+                                    <InputUI
+                                        placeholder="Buscar por código de barras, código SAP, diseño o nombre..."
+                                        value={searchTermAprobados}
+                                        onChange={(v) => setSearchTermAprobados(v)}
+                                        iconLeft="FaSearch"
+                                        style={{ minWidth: "320px" }}
+                                    />
+                                    <ButtonUI
+                                        iconLeft="FaArrowsRotate"
+                                        onClick={handleRefrescarAprobados}
+                                        disabled={isRefrescandoAprobados}
+                                        pcolor={theme?.colors?.primary}
+                                        title="Actualizar listado"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <TablaScroll>
+                            <Tabla>
+                                <thead>
+                                    <tr>
+                                        <Th>Empresa</Th>
+                                        <Th $min="250px">Código de barras</Th>
+                                        <Th $min="350px">Nombre</Th>
+                                        <Th>Marca</Th>
+                                        <Th $min="150px">Diseño</Th>
+                                        {tabAprobados === "aprobados" ? (
+                                            <Th>Código SAP</Th>
+                                        ) : (
+                                            <Th $min="180px">Fase actual</Th>
+                                        )}
+                                        <Th $align="center" $w="80px" $fija="right">Detalle</Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {listaFiltradaSeccion.length === 0 ? (
+                                        <tr>
+                                            <Td colSpan={7} $align="center">
+                                                <TextUI size="12px" color={theme?.colors?.textSecondary}>
+                                                    {listaActivaSeccion.length === 0
+                                                        ? (tabAprobados === "aprobados" ? "No hay ítems aprobados." : "No hay ítems sin aprobar.")
+                                                        : "No se encontraron ítems que coincidan con la búsqueda."}
+                                                </TextUI>
+                                            </Td>
+                                        </tr>
+                                    ) : (
+                                        listaFiltradaSeccion.map((item, idx) => (
+                                            <Fila key={item.id} $par={idx % 2 === 0}>
+                                                <Td><TextUI size="12px">{diccionarioEmpresas[item.idEmpresa] || item.EMPRESA || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.diseño || item.DISENIO || "-"}</TextUI></Td>
+                                                {tabAprobados === "aprobados" ? (
+                                                    <Td><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></Td>
+                                                ) : (
+                                                    <Td>
+                                                        <Etiqueta $tono={item.fueRechazado ? "alerta" : "info"}>
+                                                            {NOMBRES_FASE[item.FASE_ACTUAL] || (item.FASE_ACTUAL ? `Fase ${item.FASE_ACTUAL}` : "-")}
+                                                        </Etiqueta>
+                                                    </Td>
+                                                )}
+                                                <Td $align="center" $fija="right">
+                                                    <IconUI
+                                                        name="FaEye"
+                                                        size={16}
+                                                        color={theme?.colors?.primary}
+                                                        title="Ver detalle del producto"
+                                                        onClick={() => setDetalleItem(item)}
+                                                        style={{ cursor: "pointer" }}
+                                                    />
+                                                </Td>
+                                            </Fila>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Tabla>
+                        </TablaScroll>
                     </div>
-                    <TablaScroll>
-                        <Tabla>
-                            <thead>
-                                <tr>
-                                    <Th>Empresa</Th>
-                                    <Th>Código SAP</Th>
-                                    <Th $min="250px">Código de barras</Th>
-                                    <Th $min="350px">Nombre</Th>
-                                    <Th>Marca</Th>
-                                    <Th $min="150px">Diseño</Th>
-                                    <Th $align="center" $w="80px" $fija="right">Detalle</Th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {approvedItems.filter(i => i.linea === lineaSeleccionada.value).map((item, idx) => (
-                                    <Fila key={item.id} $par={idx % 2 === 0}>
-                                        <Td><TextUI size="12px">{diccionarioEmpresas[item.idEmpresa] || item.EMPRESA || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.diseño || item.DISENIO || "-"}</TextUI></Td>
-                                        <Td $align="center" $fija="right">
-                                            <IconUI
-                                                name="FaEye"
-                                                size={16}
-                                                color={theme?.colors?.primary}
-                                                title="Ver detalle del producto"
-                                                onClick={() => setDetalleItem(item)}
-                                                style={{ cursor: "pointer" }}
-                                            />
-                                        </Td>
-                                    </Fila>
-                                ))}
-                            </tbody>
-                        </Tabla>
-                    </TablaScroll>
-                </div>
-            )}
+                );
+            })()}
 
             <ModalUI
                 isOpen={isRejectModalOpen}
