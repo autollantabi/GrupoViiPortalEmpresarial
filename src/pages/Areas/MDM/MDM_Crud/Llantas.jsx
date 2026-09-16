@@ -3228,7 +3228,7 @@ function Llantas() {
                                 </div>
                                 <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "8px 0" }}>
                                     <InputUI
-                                        placeholder="Buscar por código de barras, código SAP, diseño o nombre..."
+                                        placeholder="Buscar"
                                         value={searchTermAprobados}
                                         onChange={(v) => setSearchTermAprobados(v)}
                                         iconLeft="FaSearch"
