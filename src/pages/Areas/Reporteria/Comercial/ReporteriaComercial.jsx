@@ -95,7 +95,7 @@ const REPORTES = [
   },
   {
     id: 8,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiMGMzMTYwMWYtMDljMy00MjQyLWFmNTctM2Q0MzEwZjY1OWI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiYmZjM2Y4OTUtYWEyYS00MzgwLWIxOTktMTYxMmRhZmI5NjI2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Comercial V2 Neumáticos - Autollanta (JEFATURA)",
     rol: "jefatura",
     linea: "LLANTAS",
