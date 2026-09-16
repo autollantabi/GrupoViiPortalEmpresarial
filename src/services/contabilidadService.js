@@ -22,11 +22,21 @@ export async function ObtenerReporteComisionesMayoristas({
   anio,
 }) {
   try {
-    const res = await axiosInstance.get(
-      `/comisiones/obtenerComisiones/${codigoEmpresa}/${mes}/${anio}`
+    const res = await axiosInstanceNew.get(
+      `/contabilidad/comisionesMayoristas/${codigoEmpresa}/${mes}/${anio}`
     );
     if (res.status === 200) {
-      return res.data;
+      const data = res.data.data || res.data;
+      return data.map((fila) => ({
+        VENDEDOR: fila.vendedor,
+        VTAS: Number(fila.vtas),
+        PPTO: Number(fila.ppto),
+        CPTO_P: Number(fila.cpto_pct),
+        VEN_RIN_PEQUENIO: Number(fila.rin_pequenio),
+        VEN_RIN_GRANDE: Number(fila.rin_grande),
+        VEN_RIN_CAMION: Number(fila.rin_camion),
+        CODIGO: fila.codigo,
+      }));
     }
 
     return [];
