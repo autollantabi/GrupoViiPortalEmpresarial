@@ -852,7 +852,6 @@ function Herramientas() {
             toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
             setItems(prev => prev.filter(i => !selectedItemIds.has(i.id)));
             setSelectedItemIds(new Set());
-            setIsSAPModalOpen(false);
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
             toast.error("Error al enviar los ítems a revisión.");
