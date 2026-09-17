@@ -8,11 +8,14 @@ import { globalConst } from "config/constants";
 import { useAuthContext } from "context/authContext";
 import { useTheme } from "context/ThemeContext";
 import { useSidebar } from "context/SidebarContext";
+import { useIsMobile, MOBILE_BREAKPOINT } from "hooks/useIsMobile";
 import { SeparatorUI } from "components/UI/Components/SeparatorUI";
 import ToggleThemeButtonUI from "components/UI/Components/ToggleThemeButtonUI";
 import IconUI from "components/UI/Components/IconsUI";
 
-const SidebarContainer = styled.div`
+const SidebarContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => !["$isexpanded"].includes(prop),
+})`
   position: fixed;
   width: auto;
   min-width: 40px;
@@ -22,6 +25,44 @@ const SidebarContainer = styled.div`
   top: 0;
   left: 0;
   z-index: 1000;
+
+  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+    box-shadow: ${(props) => (props.$isexpanded ? "2px 0 12px rgba(0, 0, 0, 0.35)" : "none")};
+    transform: translateX(${(props) => (props.$isexpanded ? "0" : "-100%")});
+  }
+`;
+
+const MobileOverlay = styled.div`
+  display: none;
+
+  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+`;
+
+const MobileToggleButton = styled.button`
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  background-color: ${(props) => props.theme.colors.sidebarBackground || props.theme.colors.secondary};
+  color: ${(props) => props.theme.colors.white};
+  cursor: pointer;
+  z-index: 1001;
+
+  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+    display: flex;
+  }
 `;
 
 const MenuItemContainer = styled.div.withConfig({
@@ -176,6 +217,7 @@ const MenuItem = ({
   level = 0,
   activeMenu,
   setActiveMenu,
+  onNavigate,
 }) => {
   // const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate(); // Hook para navegación manual
@@ -215,6 +257,7 @@ const MenuItem = ({
     if (item.path) {
       navigate(item.path); // Navegación manual usando useNavigate
       setActiveMenu(new Set());
+      if (onNavigate) onNavigate();
     }
   };
 
@@ -265,6 +308,7 @@ const MenuItem = ({
                 level={level + 1} // Incrementar el nivel para los submenús
                 activeMenu={activeMenu}
                 setActiveMenu={setActiveMenu}
+                onNavigate={onNavigate}
               />
               {isexpanded && index < item.children.length - 1 && (
                 <div style={{ 
@@ -330,6 +374,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { isExpanded, setIsExpanded } = useSidebar();
+  const isMobile = useIsMobile();
 
   const [activeMenu, setActiveMenu] = useState(new Set());
   // Obtener items del sidebar desde la configuración centralizada
@@ -338,11 +383,15 @@ const Sidebar = () => {
   const menuItems = getSidebarItems(userContexts);
 
   const handleMouseEnter = () => {
-    setIsExpanded(true);
+    if (!isMobile) setIsExpanded(true);
   };
 
   const handleMouseLeave = () => {
-    setIsExpanded(false);
+    if (!isMobile) setIsExpanded(false);
+  };
+
+  const handleToggleMobile = () => {
+    setIsExpanded((prev) => !prev);
   };
 
   const handleCerrarSesion = () => {
@@ -363,41 +412,55 @@ const Sidebar = () => {
   }, [isExpanded]);
 
   return (
-    <SidebarContainer
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <ContenedorMenu $isexpanded={isExpanded}>
-        <MenuItemsScroll>
-          {menuItems.map((item, index) => (
-            <MenuItem
-              key={index}
-              item={item}
-              isexpanded={isExpanded}
-              activeMenu={activeMenu}
-              setActiveMenu={setActiveMenu}
+    <>
+      <MobileToggleButton
+        type="button"
+        onClick={handleToggleMobile}
+        aria-label={isExpanded ? "Cerrar menú" : "Abrir menú"}
+      >
+        <IconUI name={isExpanded ? "FaXmark" : "FaBars"} color="#fff" />
+      </MobileToggleButton>
+      {isMobile && isExpanded && (
+        <MobileOverlay onClick={() => setIsExpanded(false)} />
+      )}
+      <SidebarContainer
+        $isexpanded={isExpanded}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <ContenedorMenu $isexpanded={isExpanded}>
+          <MenuItemsScroll>
+            {menuItems.map((item, index) => (
+              <MenuItem
+                key={index}
+                item={item}
+                isexpanded={isExpanded}
+                activeMenu={activeMenu}
+                setActiveMenu={setActiveMenu}
+                onNavigate={isMobile ? () => setIsExpanded(false) : undefined}
+              />
+            ))}
+          </MenuItemsScroll>
+          <ContenedorFlex
+            $flexDirection="column"
+            $justifyContent="flex-start"
+            $width="100%"
+            $gap="5px"
+            $padding="0 0 10px 0"
+            style={{ flexShrink: 0 }}
+          >
+            <SeparatorUI
+              color={hexToRGBA({ hex: theme.colors.white, alpha: 0.2 })}
             />
-          ))}
-        </MenuItemsScroll>
-        <ContenedorFlex
-          $flexDirection="column"
-          $justifyContent="flex-start"
-          $width="100%"
-          $gap="5px"
-          $padding="0 0 10px 0"
-          style={{ flexShrink: 0 }}
-        >
-          <SeparatorUI
-            color={hexToRGBA({ hex: theme.colors.white, alpha: 0.2 })}
-          />
-          <ToggleThemeButtonUI isexpanded={isExpanded} />
-          <MenuSecondary
-            isexpanded={isExpanded}
-            item={itemsSecondary.cierre_sesion}
-          />
-        </ContenedorFlex>
-      </ContenedorMenu>
-    </SidebarContainer>
+            <ToggleThemeButtonUI isexpanded={isExpanded} />
+            <MenuSecondary
+              isexpanded={isExpanded}
+              item={itemsSecondary.cierre_sesion}
+            />
+          </ContenedorFlex>
+        </ContenedorMenu>
+      </SidebarContainer>
+    </>
   );
 };
 
