@@ -187,28 +187,14 @@ const Etiqueta = styled.span`
 `;
 
 /* Sufijo de marca que se agrega al nombre del sistema para ciertas marcas puntuales. */
-const SUFIJO_NOMBRE_POR_MARCA = {
-    UYUSTOOLS: "UYUS",
-    SATA: "SATA",
-};
-
 /* Nombre del sistema: el nombre tal como llega al backend, con el prefijo
-   "NEW " cuando el producto se marca como nuevo y, para ciertas marcas
-   (ver SUFIJO_NOMBRE_POR_MARCA), un sufijo fijo al final. Equivale a
-   calcularNombreSistemaFinal de Llantas.jsx, pero herramientas no tiene
-   parser de medidas ni letra de diseño, así que se compone solo del nombre. */
-const calcularNombreSistema = (nombreBase, isNew = false, marca = "") => {
+   "NEW " cuando el producto se marca como nuevo. No se le agrega la marca
+   ni ningún otro sufijo al final. */
+const calcularNombreSistema = (nombreBase, isNew = false) => {
     if (!nombreBase) return "";
-    // Se limpia un "NEW " previo y un sufijo de marca previo para no duplicarlos al recalcular
-    let limpio = String(nombreBase).replace(/^NEW\s+/i, "").trim();
-    const sufijos = Object.values(SUFIJO_NOMBRE_POR_MARCA);
-    const sufijoRegex = new RegExp(`\\s+(${sufijos.join("|")})$`, "i");
-    limpio = limpio.replace(sufijoRegex, "").trim();
-
-    const sufijoMarca = SUFIJO_NOMBRE_POR_MARCA[String(marca || "").trim().toUpperCase()];
-    const conSufijo = sufijoMarca ? `${limpio} ${sufijoMarca}` : limpio;
-
-    return isNew ? `NEW ${conSufijo}` : conSufijo;
+    // Se limpia un "NEW " previo para no duplicarlo al recalcular
+    const limpio = String(nombreBase).replace(/^NEW\s+/i, "").trim();
+    return isNew ? `NEW ${limpio}` : limpio;
 };
 
 /* Interpreta la columna "Es nuevo" del Excel: admite SI/NO, TRUE/FALSE, 1/0 y X.
@@ -503,7 +489,7 @@ function Herramientas() {
                             isNew: it.ES_NUEVO !== undefined && it.ES_NUEVO !== null ? Boolean(it.ES_NUEVO) : undefined,
                             // Mismo criterio que ES_NUEVO: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
                             visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
-                            nombreSistema: calcularNombreSistema(it.NOMBRE || "", Boolean(it.ES_NUEVO), it.MARCA || ""),
+                            nombreSistema: calcularNombreSistema(it.NOMBRE || "", Boolean(it.ES_NUEVO)),
                             descripcion: it.DESCRIPCION || "",
                             unidad: it.UNIDAD || "",
                             unidadPaquete: it.UNIDAD_PAQUETE || "",
@@ -925,12 +911,11 @@ function Herramientas() {
                     val = valor.toUpperCase();
                 }
 
-                // El nombre del sistema deriva del nombre, de la bandera "es nuevo" y de la marca
-                if (campo === "nombre" || campo === "isNew" || campo === "marca") {
+                // El nombre del sistema deriva del nombre y de la bandera "es nuevo"
+                if (campo === "nombre" || campo === "isNew") {
                     const base = campo === "nombre" ? val : it.nombre;
                     const nuevo = campo === "isNew" ? Boolean(val) : esNuevo(it);
-                    const marcaActual = campo === "marca" ? val : it.marca;
-                    return { ...it, [campo]: val, nombreSistema: calcularNombreSistema(base, nuevo, marcaActual) };
+                    return { ...it, [campo]: val, nombreSistema: calcularNombreSistema(base, nuevo) };
                 }
 
                 // Aplicar restricciones estrictas para escritura
@@ -1011,8 +996,7 @@ function Herramientas() {
                     isNew: interpretarEsNuevo(row["Es nuevo"]),
                     nombreSistema: calcularNombreSistema(
                         String(row["Nombre"] || "").trim().toUpperCase(),
-                        interpretarEsNuevo(row["Es nuevo"]),
-                        String(row["Marca"] || "").trim().toUpperCase()
+                        interpretarEsNuevo(row["Es nuevo"])
                     ),
                 }));
 
