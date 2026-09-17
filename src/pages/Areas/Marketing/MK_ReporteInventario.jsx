@@ -18,7 +18,7 @@ export const MK_ReporteInventario = () => {
       id: 0,
       tituloBtn: "Inventario Artículos Publicitarios",
       titulo: "Inventario Artículos Publicitarios - Grupo Automax",
-      url: "https://app.powerbi.com/view?r=eyJrIjoiMzRjNjUwMTMtYTJlZC00NjkzLWFiMDUtMjU2ZWJlYTY4YWNjIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=02b2d542b27f008f1716",
+      url: "https://app.powerbi.com/view?r=eyJrIjoiOWExNTNiMDUtY2EwYi00OGQ1LWIyMGYtYjc3MTM4OThmNGEzIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     },
   ];
 
