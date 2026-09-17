@@ -372,8 +372,6 @@ function Herramientas() {
         fetchPalletsOptions();
         fetchGruposHerramientas();
     }, []);
-    const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
-    const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
@@ -1761,34 +1759,7 @@ function Herramientas() {
                                 if (currentItems.length === 0) return;
                                 if (idRolPrincipal === 4 && hayVerificacionesPendientes(currentItems)) return;
 
-                                if (idRolPrincipal === 5) {
-                                    const createdItems = currentItems.filter(i => !i.fueRechazado);
-                                    if (createdItems.length > 0) {
-                                        const grouped = {};
-                                        createdItems.forEach(item => {
-                                            const companyName = EMPRESA_HERRAMIENTAS;
-                                            if (!grouped[companyName]) grouped[companyName] = [];
-                                            grouped[companyName].push({
-                                                CODIGO_PROVEEDOR: item.codigoProveedor,
-                                                ID_PROVEEDOR: item.proveedor,
-                                                LINEA_NEGOCIO: "HERRAMIENTAS",
-                                                NOMBRE_EXTRANJERO: item.nombreExt,
-                                                DESCRIPCION: item.nombre,
-                                                PARTIDA_ARANCELARIA: item.partidaArancelaria,
-                                                CODIGO_BARRAS: item.itemCodigoBarras,
-                                                CARTON_CODIGO_BARRAS: item.cartonCodigoBarras,
-                                                PAQUETE_CODIGO_BARRAS: item.paqueteCodigoBarras,
-                                                MARCA: item.marca
-                                            });
-                                        });
-                                        setGroupedItemsByCompany(grouped);
-                                        setIsSAPModalOpen(true);
-                                    } else {
-                                        await handleFinalSubmit(currentItems);
-                                    }
-                                } else {
-                                    await handleFinalSubmit(currentItems);
-                                }
+                                await handleFinalSubmit(currentItems);
                             }}
                             pcolor={theme?.colors?.primary}
                         />
@@ -2237,45 +2208,6 @@ function Herramientas() {
                                     console.error("Error al crear ítems desde DWH:", error);
                                     toast.error("Error al procesar algunos ítems.");
                                 }
-                            }}
-                        />
-                    </div>
-                </div>
-            </ModalUI>
-
-            <ModalUI
-                isOpen={isSAPModalOpen}
-                onClose={() => setIsSAPModalOpen(false)}
-                title="Descargar datos para subir a SAP"
-                width="500px"
-            >
-                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                    <TextUI text="Se han generado los siguientes archivos por empresa. Por favor descargue cada uno para subir a SAP antes de continuar." variant="small" />
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
-                        {Object.keys(groupedItemsByCompany).map(companyName => (
-                            <ButtonUI
-                                key={EMPRESA_HERRAMIENTAS}
-                                text={`Descargar ${EMPRESA_HERRAMIENTAS}`}
-                                iconLeft="FaDownload"
-                                onClick={() => {
-                                    generateSAPExport(EMPRESA_HERRAMIENTAS, groupedItemsByCompany[companyName], {});
-                                }}
-                            />
-                        ))}
-                    </div>
-                    <div style={{ borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, paddingTop: "16px", marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                        <ButtonUI
-                            text="Cancelar"
-                            variant="outlined"
-                            onClick={() => setIsSAPModalOpen(false)}
-                        />
-                        <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Continuar con el envío"}
-                            pcolor={theme?.colors?.primary}
-                            disabled={isSubmitting}
-                            onClick={async () => {
-                                const currentItems = items.filter(i => selectedItemIds.has(i.id));
-                                handleFinalSubmit(currentItems);
                             }}
                         />
                     </div>
