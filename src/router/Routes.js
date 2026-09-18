@@ -353,7 +353,7 @@ export const RoutesConfig = [
   },
 
   {
-    title: "Colaboradores",
+    title: "Directorio personal",
     icon: "FaUsers",
     component: Colaboradores,
     // Dos niveles de acceso, igual que xcoin.admin / xcoin.viewer:
