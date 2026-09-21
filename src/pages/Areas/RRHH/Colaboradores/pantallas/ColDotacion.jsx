@@ -4,12 +4,15 @@ import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import IconUI from "components/UI/Components/IconsUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
+import { ModalConfirmacionUI } from "components/UI/Components/ModalConfirmacionUI";
 import { useTheme } from "context/ThemeContext";
 import { ObtenerColaborador } from "services/colaboradoresService";
 import {
+  AbrirActaAsignacion,
   AgregarItemsAsignacion,
   CrearAsignacionDotacion,
   EntregarTodoAsignacion,
+  ListarGruposDotacion,
   ListarItemsDotacion,
   MarcarItemAsignacion,
   NotificarAsignacion,
@@ -20,6 +23,7 @@ import { CabeceraFicha } from "../componentes/CabeceraFicha";
 import { SelectorArticulos } from "../componentes/SelectorArticulos";
 import { HistorialNotificaciones } from "../componentes/HistorialNotificaciones";
 import { ModalEntregarItem } from "../componentes/ModalEntregarItem";
+import { ModalNuevaComplementaria } from "../componentes/ModalNuevaComplementaria";
 import { PestanasFicha } from "../componentes/PestanasFicha";
 import { ProgresoDotacion, TablaDotacion } from "../componentes/TablaDotacion";
 import { useConsulta } from "../hooks/useConsulta";
@@ -60,13 +64,22 @@ export const ColDotacion = () => {
   const [ocupado, setOcupado] = useState(false);
   const [itemEnEdicion, setItemEnEdicion] = useState(null);
   const [asignacionEnEdicion, setAsignacionEnEdicion] = useState(null);
+  const [nuevaComplementariaAbierta, setNuevaComplementariaAbierta] = useState(false);
+  /** Id de la asignación para la que se está confirmando "Generar e imprimir acta". */
+  const [confirmarActaId, setConfirmarActaId] = useState(null);
   /**
    * Los artículos marcados, POR ASIGNACIÓN.
    *
    * Antes era un solo estado compartido, y las tarjetas de asignación se
    * dibujan en un map: con una inicial y una complementaria, lo que se elegía
    * en una aparecía marcado en la otra y los dos botones quedaban habilitados.
-   * La clave del mapa es el id de la asignación.
+   * La clave externa es el id de la asignación.
+   *
+   * El valor ya no es un Set de ids: es un Map itemId -> {cantidad, vigente,
+   * entregas, motivoBajaId, reemplazaItemId}. Cada artículo marcado necesita su
+   * propia cantidad, y los que ya tienen una entrega vigente (SelectorArticulos
+   * lo averigua al marcarlos) necesitan además el motivo de la baja antes de
+   * poder agregarse: por eso viaja todo junto en la misma entrada.
    */
   const [elegidosPorAsignacion, setElegidosPorAsignacion] = useState({});
 
@@ -84,6 +97,18 @@ export const ColDotacion = () => {
   const { datos: catalogo } = useConsulta(
     ({ signal }) => ListarItemsDotacion({ soloActivos: true, signal }),
     [],
+  );
+
+  // Los grupos del catálogo, solo para saber cuáles son "cartera" (esMonetario)
+  // y pintarles un distintivo. Es una consulta chica y ya cacheada por
+  // useConsulta, así que no vale la pena duplicar ese dato dentro de cada
+  // artículo del catálogo.
+  const { datos: gruposCatalogo } = useConsulta(
+    ({ signal }) => ListarGruposDotacion({ signal }),
+    [],
+  );
+  const gruposMonetarios = new Set(
+    (gruposCatalogo ?? []).filter((grupo) => grupo.esMonetario).map((grupo) => grupo.nombre),
   );
 
   const camposDelItem = (item) =>
@@ -115,14 +140,16 @@ export const ColDotacion = () => {
       toast.info(mensaje || "Dotación generada.");
     });
 
-  const crearComplementaria = () =>
-    ejecutar(async () => {
-      await CrearAsignacionDotacion(id, {
-        tipo: TIPO_ASIGNACION.COMPLEMENTARIA,
-        fecha: hoyIso(),
-        desdePlantilla: false,
-      });
-    }, "Dotación complementaria creada. Agréguele los artículos.");
+  const confirmarNuevaComplementaria = async (datos) => {
+    await CrearAsignacionDotacion(id, {
+      tipo: TIPO_ASIGNACION.COMPLEMENTARIA,
+      desdePlantilla: false,
+      ...datos,
+    });
+    setNuevaComplementariaAbierta(false);
+    toast.success("Dotación complementaria creada. Agréguele los artículos.");
+    recargar();
+  };
 
   const confirmarMarcado = async (carga) => {
     await MarcarItemAsignacion(asignacionEnEdicion, itemEnEdicion.id, carga);
@@ -152,40 +179,81 @@ export const ColDotacion = () => {
     });
 
   const elegidosDe = (asignacionId) =>
-    elegidosPorAsignacion[asignacionId] ?? new Set();
+    elegidosPorAsignacion[asignacionId] ?? new Map();
+
+  /** La entrada por omisión de un artículo recién marcado: aún no se sabe si está vigente. */
+  const entradaPorOmision = () => ({
+    cantidad: 1,
+    vigente: false,
+    entregas: [],
+    motivoBajaId: null,
+    reemplazaItemId: null,
+  });
 
   const alternarItem = (asignacionId, item) =>
     setElegidosPorAsignacion((previo) => {
-      const actuales = new Set(previo[asignacionId] ?? []);
+      const actuales = new Map(previo[asignacionId] ?? []);
       if (actuales.has(item.id)) actuales.delete(item.id);
-      else actuales.add(item.id);
+      else actuales.set(item.id, entradaPorOmision());
       return { ...previo, [asignacionId]: actuales };
     });
 
   /** Marca o desmarca todo un grupo de una vez. */
   const alternarGrupo = (asignacionId, articulos, marcar) =>
     setElegidosPorAsignacion((previo) => {
-      const actuales = new Set(previo[asignacionId] ?? []);
+      const actuales = new Map(previo[asignacionId] ?? []);
       articulos.forEach((item) => {
-        if (marcar) actuales.add(item.id);
-        else actuales.delete(item.id);
+        if (marcar) {
+          if (!actuales.has(item.id)) actuales.set(item.id, entradaPorOmision());
+        } else {
+          actuales.delete(item.id);
+        }
       });
       return { ...previo, [asignacionId]: actuales };
     });
 
+  /** Cambios de campo sobre un artículo ya marcado: cantidad, vigencia o motivo de baja. */
+  const cambiarSeleccion = (asignacionId, item, parcial) =>
+    setElegidosPorAsignacion((previo) => {
+      const actuales = new Map(previo[asignacionId] ?? []);
+      if (!actuales.has(item.id)) return previo;
+      actuales.set(item.id, { ...actuales.get(item.id), ...parcial });
+      return { ...previo, [asignacionId]: actuales };
+    });
+
   const agregar = (asignacionId) => {
-    const elegidos = [...elegidosDe(asignacionId)];
-    if (elegidos.length === 0) return;
+    const mapa = elegidosDe(asignacionId);
+    if (mapa.size === 0) return;
+
+    // Un artículo con entrega vigente necesita el motivo de la baja antes de
+    // poder mandarse: sin eso no hay reemplazaItemId, y el backend lo tomaría
+    // como una alta simple de algo que ya estaba (que se ignora en silencio, sin
+    // avisar que faltó elegir el motivo).
+    const sinMotivo = [...mapa.values()].some((datos) => datos.vigente && !datos.motivoBajaId);
+    if (sinMotivo) {
+      toast.error("Elija el motivo de baja de los artículos que ya tienen una entrega vigente.");
+      return;
+    }
+
+    const items = [...mapa.entries()].map(([itemId, datos]) => ({
+      itemId,
+      cantidad: datos.cantidad,
+      ...(datos.reemplazaItemId
+        ? { reemplazaItemId: datos.reemplazaItemId, motivoBajaId: datos.motivoBajaId }
+        : {}),
+    }));
 
     ejecutar(
-      () => AgregarItemsAsignacion(asignacionId, elegidos),
-      `${elegidos.length} artículo(s) agregado(s).`,
+      () => AgregarItemsAsignacion(asignacionId, items),
+      `${items.length} artículo(s) agregado(s).`,
     ).then(() =>
       // Se limpia solo la de esta asignación: si había algo marcado en otra
       // tarjeta, no tiene por qué perderse.
-      setElegidosPorAsignacion((previo) => ({ ...previo, [asignacionId]: new Set() })),
+      setElegidosPorAsignacion((previo) => ({ ...previo, [asignacionId]: new Map() })),
     );
   };
+
+  const abrirActa = (asignacionId) => ejecutar(() => AbrirActaAsignacion(asignacionId));
 
   if (cargando) {
     return (
@@ -235,7 +303,7 @@ export const ColDotacion = () => {
           iconLeft="FaPlus"
           variant="outlined"
           disabled={ocupado}
-          onClick={crearComplementaria}
+          onClick={() => setNuevaComplementariaAbierta(true)}
         />
       </CabeceraFicha>
 
@@ -315,6 +383,43 @@ export const ColDotacion = () => {
                       />
                     </>
                   )}
+
+                  {/* El acta bloquea la edición al generarse (salvo reemplazos), así
+                      que solo se ofrece "Generar e imprimir acta" cuando ya no hay
+                      nada pendiente: es la manera de asegurarse de que el PDF
+                      refleje una dotación resuelta y no una a medio entregar. */}
+                  {!asignacion.impresa && asignacion.pendientes === 0 && (
+                    <ButtonUI
+                      text="Generar e imprimir acta"
+                      iconLeft="FaFileInvoice"
+                      variant="outlined"
+                      disabled={ocupado}
+                      onClick={() => setConfirmarActaId(asignacion.id)}
+                    />
+                  )}
+                  {!asignacion.impresa && asignacion.pendientes > 0 && (
+                    <ButtonUI
+                      text="Generar e imprimir acta"
+                      iconLeft="FaFileInvoice"
+                      variant="outlined"
+                      disabled
+                      title="Resuelva los artículos pendientes antes de generar el acta"
+                    />
+                  )}
+                  {asignacion.impresa && (
+                    <>
+                      <Badge $tono="info">
+                        Acta impresa · {formatearFecha(asignacion.fechaImpresion)}
+                      </Badge>
+                      <ButtonUI
+                        text="Ver acta"
+                        iconLeft="FaFileInvoice"
+                        variant="ghost"
+                        disabled={ocupado}
+                        onClick={() => abrirActa(asignacion.id)}
+                      />
+                    </>
+                  )}
                 </Acciones>
               </Acciones>
 
@@ -334,6 +439,8 @@ export const ColDotacion = () => {
               <TablaDotacion
                 asignacion={asignacion}
                 ocupado={ocupado}
+                bloqueado={asignacion.impresa}
+                gruposMonetarios={gruposMonetarios}
                 onMarcar={(item) => {
                   setAsignacionEnEdicion(asignacion.id);
                   setItemEnEdicion(item);
@@ -351,13 +458,24 @@ export const ColDotacion = () => {
             <div style={{ padding: 16 }}>
               <TituloTarjeta style={{ margin: "0 0 8px" }}>Agregar artículos</TituloTarjeta>
 
+              {asignacion.impresa && (
+                <Aviso $tono="neutro" style={{ marginBottom: 8 }}>
+                  Esta dotación ya tiene el acta impresa. Solo se puede agregar un artículo
+                  aquí como <strong>reemplazo</strong> de uno ya entregado: márquelo, la
+                  pantalla avisará que ya está entregado y pedirá el motivo de la baja.
+                </Aviso>
+              )}
+
               <SelectorArticulos
                 items={catalogo}
                 elegidos={elegidosDe(asignacion.id)}
+                empleadoId={id}
+                gruposMonetarios={gruposMonetarios}
                 onAlternar={(item) => alternarItem(asignacion.id, item)}
                 onAlternarGrupo={(articulos, marcar) =>
                   alternarGrupo(asignacion.id, articulos, marcar)
                 }
+                onCambiar={(item, parcial) => cambiarSeleccion(asignacion.id, item, parcial)}
               />
 
               <div style={{ height: 10 }} />
@@ -390,6 +508,27 @@ export const ColDotacion = () => {
         campos={camposDelItem(itemEnEdicion)}
         onCerrar={() => setItemEnEdicion(null)}
         onConfirmar={confirmarMarcado}
+      />
+
+      <ModalNuevaComplementaria
+        abierto={nuevaComplementariaAbierta}
+        onCerrar={() => setNuevaComplementariaAbierta(false)}
+        onConfirmar={confirmarNuevaComplementaria}
+      />
+
+      <ModalConfirmacionUI
+        isOpen={confirmarActaId !== null}
+        onClose={() => setConfirmarActaId(null)}
+        onConfirm={() => {
+          const asignacionId = confirmarActaId;
+          setConfirmarActaId(null);
+          abrirActa(asignacionId);
+        }}
+        title="Generar e imprimir acta"
+        message="Se genera el PDF del acta de entrega y queda archivada: desde ese momento la dotación no se puede seguir editando, salvo para reemplazar un artículo ya entregado. ¿Continuar?"
+        confirmText="Generar acta"
+        cancelText="Cancelar"
+        iconName="FaFileInvoice"
       />
     </Contenedor>
   );

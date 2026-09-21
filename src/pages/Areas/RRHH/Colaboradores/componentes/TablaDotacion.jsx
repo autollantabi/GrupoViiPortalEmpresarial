@@ -12,6 +12,11 @@ import {
 import { formatearFecha } from "../utils/fechas";
 import { Acciones, Badge, Fila, Tabla, TablaScroll, Td, TextoTenue, Th } from "./piezas";
 
+/** Renglón de un artículo dado de baja: atenuado, sin acciones de edición. */
+const FilaBaja = styled(Fila)`
+  opacity: 0.6;
+`;
+
 /**
  * Los artículos de una dotación, agrupados por grupo.
  *
@@ -65,7 +70,14 @@ const TablaAdaptable = styled(Tabla)`
   }
 `;
 
-export const TablaDotacion = ({ asignacion, onMarcar, onQuitar, ocupado }) => {
+/**
+ * `bloqueado` (= asignacion.impresa) oculta las acciones de editar/marcar/quitar
+ * de cada renglón: una vez impresa el acta, la única escritura permitida sobre
+ * esa asignación es el reemplazo, y ese flujo vive en SelectorArticulos, no acá.
+ * Los renglones "Baja" nunca tienen acciones, esté impresa o no: son un renglón
+ * cerrado, reemplazado por el que vino después.
+ */
+export const TablaDotacion = ({ asignacion, onMarcar, onQuitar, ocupado, bloqueado, gruposMonetarios }) => {
   const { theme } = useTheme();
 
   if (!asignacion?.grupos?.length) return null;
@@ -89,20 +101,30 @@ export const TablaDotacion = ({ asignacion, onMarcar, onQuitar, ocupado }) => {
               <CabeceraGrupo>
                 <th colSpan={6} scope="colgroup">
                   {grupo.grupoNombre}{" "}
+                  {gruposMonetarios?.has(grupo.grupoNombre) && (
+                    <Badge $tono="info" title="Dotación cartera: valores en dinero">
+                      $
+                    </Badge>
+                  )}{" "}
                   <TextoTenue>
                     · {grupo.entregados} de {grupo.totalItems} entregado
                     {grupo.noAplica > 0 ? ` · ${grupo.noAplica} no aplica` : ""}
+                    {grupo.bajas > 0 ? ` · ${grupo.bajas} de baja` : ""}
                   </TextoTenue>
                 </th>
               </CabeceraGrupo>
 
               {grupo.items.map((item) => {
                 const detalle = describirValores(item.valores);
+                const deBaja = item.estado === ESTADO_ENTREGA.BAJA;
+                const ComponenteFila = deBaja ? FilaBaja : Fila;
 
                 return (
-                  <Fila key={item.id}>
+                  <ComponenteFila key={item.id}>
                     <Td data-etiqueta="Artículo">
-                      {item.itemNombre}
+                      <span style={deBaja ? { textDecoration: "line-through" } : undefined}>
+                        {item.itemNombre}
+                      </span>
                       {/* itemId nulo = el artículo se dio de baja del catálogo. El
                           renglón sobrevive con su nombre copiado, y conviene
                           decirlo para que nadie lo busque en Configuración. */}
@@ -115,9 +137,19 @@ export const TablaDotacion = ({ asignacion, onMarcar, onQuitar, ocupado }) => {
                     </Td>
                     <Td data-etiqueta="Detalle">{detalle || "—"}</Td>
                     <Td data-etiqueta="Estado">
-                      <Badge $tono={TONO_ENTREGA[item.estado] ?? "neutro"}>
-                        {ETIQUETA_ENTREGA[item.estado] ?? item.estado}
-                      </Badge>
+                      {deBaja ? (
+                        <Badge
+                          $tono={TONO_ENTREGA[ESTADO_ENTREGA.BAJA]}
+                          title={item.dadoBajaPor ? `Dado de baja por ${item.dadoBajaPor}` : undefined}
+                        >
+                          Dado de baja — {item.motivoBajaNombre ?? "sin motivo"} ·{" "}
+                          {formatearFecha(item.fechaBaja)}
+                        </Badge>
+                      ) : (
+                        <Badge $tono={TONO_ENTREGA[item.estado] ?? "neutro"}>
+                          {ETIQUETA_ENTREGA[item.estado] ?? item.estado}
+                        </Badge>
+                      )}
                     </Td>
                     <Td data-etiqueta="Entrega">
                       {item.estado === ESTADO_ENTREGA.ENTREGADO ? (
@@ -130,28 +162,36 @@ export const TablaDotacion = ({ asignacion, onMarcar, onQuitar, ocupado }) => {
                       )}
                     </Td>
                     <Td data-etiqueta="Acciones">
-                      <Acciones>
-                        <ButtonUI
-                          text={item.estado === ESTADO_ENTREGA.ENTREGADO ? "Editar" : "Entregar"}
-                          iconLeft={
-                            item.estado === ESTADO_ENTREGA.ENTREGADO ? "FaPenToSquare" : "FaCheck"
-                          }
-                          variant="outlined"
-                          disabled={ocupado}
-                          onClick={() => onMarcar?.(item)}
-                        />
-                        <ButtonUI
-                          text=""
-                          iconLeft="FaTrashCan"
-                          variant="ghost"
-                          pcolor={theme?.colors?.error}
-                          disabled={ocupado}
-                          title="Quitar de la dotación"
-                          onClick={() => onQuitar?.(item)}
-                        />
-                      </Acciones>
+                      {deBaja ? (
+                        <TextoTenue>—</TextoTenue>
+                      ) : bloqueado ? (
+                        <TextoTenue title="Acta impresa: ya no se puede editar este renglón.">
+                          Acta impresa
+                        </TextoTenue>
+                      ) : (
+                        <Acciones>
+                          <ButtonUI
+                            text={item.estado === ESTADO_ENTREGA.ENTREGADO ? "Editar" : "Entregar"}
+                            iconLeft={
+                              item.estado === ESTADO_ENTREGA.ENTREGADO ? "FaPenToSquare" : "FaCheck"
+                            }
+                            variant="outlined"
+                            disabled={ocupado}
+                            onClick={() => onMarcar?.(item)}
+                          />
+                          <ButtonUI
+                            text=""
+                            iconLeft="FaTrashCan"
+                            variant="ghost"
+                            pcolor={theme?.colors?.error}
+                            disabled={ocupado}
+                            title="Quitar de la dotación"
+                            onClick={() => onQuitar?.(item)}
+                          />
+                        </Acciones>
+                      )}
                     </Td>
-                  </Fila>
+                  </ComponenteFila>
                 );
               })}
             </React.Fragment>
@@ -168,7 +208,11 @@ export const ProgresoDotacion = ({ asignacion }) => {
 
   if (!asignacion || asignacion.totalItems === 0) return null;
 
-  const cerrados = asignacion.entregados + asignacion.noAplica;
+  // Un renglón "Baja" ya está cerrado (fue reemplazado por otro renglón), así
+  // que cuenta para el avance igual que un entregado o un no aplica. Sin esto la
+  // barra se veía estancada por debajo del 100% en una dotación completamente
+  // resuelta que tuvo algún reemplazo.
+  const cerrados = asignacion.entregados + asignacion.noAplica + (asignacion.bajas ?? 0);
   const porcentaje = Math.round((cerrados / asignacion.totalItems) * 100);
 
   return (
@@ -198,6 +242,7 @@ export const ProgresoDotacion = ({ asignacion }) => {
       <TextoTenue>
         {asignacion.entregados} de {asignacion.totalItems}
         {asignacion.noAplica > 0 ? ` (${asignacion.noAplica} no aplica)` : ""}
+        {asignacion.bajas > 0 ? ` (${asignacion.bajas} de baja)` : ""}
       </TextoTenue>
       {asignacion.pendientes === 0 && (
         <IconUI name="FaCircleCheck" size={14} color={theme?.colors?.success} />

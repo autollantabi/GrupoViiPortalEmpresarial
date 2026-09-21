@@ -53,6 +53,7 @@ const ModalGrupo = ({ abierto, grupo, areas, onCerrar, onGuardar }) => {
   const [correo, setCorreo] = useState("");
   const [orden, setOrden] = useState("0");
   const [activo, setActivo] = useState(true);
+  const [esMonetario, setEsMonetario] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
@@ -63,6 +64,7 @@ const ModalGrupo = ({ abierto, grupo, areas, onCerrar, onGuardar }) => {
     setCorreo(grupo?.correoResponsable ?? "");
     setOrden(String(grupo?.orden ?? 0));
     setActivo(grupo?.activo ?? true);
+    setEsMonetario(grupo?.esMonetario ?? false);
     setEnviando(false);
   }, [abierto, grupo]);
 
@@ -84,6 +86,7 @@ const ModalGrupo = ({ abierto, grupo, areas, onCerrar, onGuardar }) => {
         correoResponsable: correo.trim().toLowerCase() || null,
         orden: Number(orden) || 0,
         activo,
+        esMonetario,
       });
     } catch (e) {
       toast.error(e.message || "No se pudo guardar el grupo");
@@ -169,6 +172,21 @@ const ModalGrupo = ({ abierto, grupo, areas, onCerrar, onGuardar }) => {
               />
             </div>
           </FilaFormulario>
+
+          <div>
+            <CheckboxUI
+              name="grupo-monetario"
+              checked={esMonetario}
+              onChange={(_nombre, marcado) => setEsMonetario(marcado)}
+              label="Es monetario (cartera)"
+            />
+          </div>
+          {esMonetario && (
+            <Aviso $tono="neutro">
+              Los artículos de este grupo se tratan como valores en dinero (dotación
+              cartera), no como bienes físicos que se entregan y firman.
+            </Aviso>
+          )}
 
           <Acciones>
             <ButtonUI
@@ -403,6 +421,14 @@ export const EditorCatalogoItems = () => {
                       <>
                         {" "}
                         <Badge $tono="neutro">Inactivo</Badge>
+                      </>
+                    )}
+                    {grupo.esMonetario && (
+                      <>
+                        {" "}
+                        <Badge $tono="info" title="Dotación cartera: valores en dinero">
+                          $ Cartera
+                        </Badge>
                       </>
                     )}
                   </Td>
