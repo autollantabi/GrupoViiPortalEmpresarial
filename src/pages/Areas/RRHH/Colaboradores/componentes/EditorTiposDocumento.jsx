@@ -52,6 +52,14 @@ const CONDICIONES = [
   { value: CONDICION_DOCUMENTO.CASADO, label: `Casado — ${ETIQUETA_CONDICION.Casado}` },
   { value: CONDICION_DOCUMENTO.CON_HIJOS, label: `Con hijos — ${ETIQUETA_CONDICION.ConHijos}` },
   { value: CONDICION_DOCUMENTO.CONDUCE, label: `Conduce — ${ETIQUETA_CONDICION.Conduce}` },
+  {
+    value: CONDICION_DOCUMENTO.UNION_LIBRE,
+    label: `Unión libre — ${ETIQUETA_CONDICION.UnionLibre}`,
+  },
+  {
+    value: CONDICION_DOCUMENTO.SUSTITUTO_DISCAPACIDAD,
+    label: `Sustituto de discapacidad — ${ETIQUETA_CONDICION.SustitutoDiscapacidad}`,
+  },
 ];
 
 const ModalTipo = ({ abierto, tipo, cargos, onCerrar, onGuardar }) => {
