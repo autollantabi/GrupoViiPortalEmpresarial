@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { InputUI } from "components/UI/Components/InputUI";
@@ -24,7 +25,15 @@ import {
   TituloTarjeta,
 } from "./piezas";
 import { hoyIso } from "../utils/fechas";
-import { ESTADO_CIVIL, ETIQUETA_ESTADO_CIVIL } from "../utils/constantesDotacion";
+import {
+  ESTADO_CIVIL,
+  ETIQUETA_ESTADO_CIVIL,
+  ETIQUETA_PARENTESCO_SUSTITUTO,
+  ETIQUETA_TIPO_DISCAPACIDAD,
+  PARENTESCO_SUSTITUTO,
+  RUTA_CARGAS_FAMILIARES,
+  TIPO_DISCAPACIDAD,
+} from "../utils/constantesDotacion";
 
 /**
  * Formulario único de alta y edición de una ficha.
@@ -48,6 +57,16 @@ const OPCIONES_ESTADO_CIVIL = ESTADO_CIVIL.map((valor) => ({
   label: ETIQUETA_ESTADO_CIVIL[valor] ?? valor,
 }));
 
+const OPCIONES_TIPO_DISCAPACIDAD = TIPO_DISCAPACIDAD.map((valor) => ({
+  value: valor,
+  label: ETIQUETA_TIPO_DISCAPACIDAD[valor] ?? valor,
+}));
+
+const OPCIONES_PARENTESCO = PARENTESCO_SUSTITUTO.map((valor) => ({
+  value: valor,
+  label: ETIQUETA_PARENTESCO_SUSTITUTO[valor] ?? valor,
+}));
+
 const VACIO = {
   apellidos: "",
   nombres: "",
@@ -61,6 +80,13 @@ const VACIO = {
   estadoCivil: null,
   numeroHijos: "",
   conduce: false,
+  tieneDiscapacidad: false,
+  porcentajeDiscapacidad: "",
+  tipoDiscapacidad: null,
+  esSustitutoDiscapacidad: false,
+  sustitutoCedula: "",
+  sustitutoNombre: "",
+  sustitutoParentesco: null,
   correoCorporativo: "",
   extension: "",
   telefonoEmpresarial: "",
@@ -89,6 +115,16 @@ const desdeFicha = (ficha) =>
             ? ""
             : String(ficha.numeroHijos),
         conduce: ficha.conduce === true,
+        tieneDiscapacidad: ficha.tieneDiscapacidad === true,
+        porcentajeDiscapacidad:
+          ficha.porcentajeDiscapacidad === null || ficha.porcentajeDiscapacidad === undefined
+            ? ""
+            : String(ficha.porcentajeDiscapacidad),
+        tipoDiscapacidad: ficha.tipoDiscapacidad ?? null,
+        esSustitutoDiscapacidad: ficha.esSustitutoDiscapacidad === true,
+        sustitutoCedula: ficha.sustitutoCedula ?? "",
+        sustitutoNombre: ficha.sustitutoNombre ?? "",
+        sustitutoParentesco: ficha.sustitutoParentesco ?? null,
         correoCorporativo: ficha.correoCorporativo ?? "",
         extension: ficha.extension ?? "",
         telefonoEmpresarial: ficha.telefonoEmpresarial ?? "",
@@ -100,6 +136,11 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
   const [valores, setValores] = useState(() => desdeFicha(ficha));
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
+
+  // Una vez que la persona tiene cargas familiares registradas en su propia
+  // pestaña, "Número de hijos" deja de ser un campo libre: lo calcula el
+  // backend a partir de esa lista, y editarlo acá lo desincronizaría.
+  const cargasGestionadas = ficha?.cargasFamiliaresGestionadas === true;
 
   const [catalogos, setCatalogos] = useState(null);
   const [cargandoCatalogos, setCargandoCatalogos] = useState(true);
@@ -141,6 +182,38 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
     setErrores((previos) => (previos[clave] ? { ...previos, [clave]: undefined } : previos));
   };
 
+  /**
+   * Discapacidad propia y ser sustituto son mutuamente excluyentes: marcar una
+   * apaga la otra, además de deshabilitar su casilla mientras tanto. Sin esto el
+   * checkbox deshabilitado de la UI podría desincronizarse del estado si alguien
+   * marca las dos casi al mismo tiempo.
+   */
+  const marcarDiscapacidad = (marcado) => {
+    setValores((previos) => ({
+      ...previos,
+      tieneDiscapacidad: marcado,
+      esSustitutoDiscapacidad: marcado ? false : previos.esSustitutoDiscapacidad,
+    }));
+    setErrores((previos) => ({
+      ...previos,
+      tieneDiscapacidad: undefined,
+      esSustitutoDiscapacidad: undefined,
+    }));
+  };
+
+  const marcarSustituto = (marcado) => {
+    setValores((previos) => ({
+      ...previos,
+      esSustitutoDiscapacidad: marcado,
+      tieneDiscapacidad: marcado ? false : previos.tieneDiscapacidad,
+    }));
+    setErrores((previos) => ({
+      ...previos,
+      esSustitutoDiscapacidad: undefined,
+      tieneDiscapacidad: undefined,
+    }));
+  };
+
   const opcionesEmpresa = useMemo(
     () => (catalogos?.empresas ?? []).map((e) => ({ value: e.id, label: e.nombre })),
     [catalogos],
@@ -163,6 +236,36 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
     if (modo === "crear" && !valores.fechaIngreso) {
       nuevos.fechaIngreso = "Indique la fecha de ingreso.";
     }
+
+    // Mismas tres reglas que valida el backend, repetidas acá para que el error
+    // aparezca junto al campo en vez de esperar el rechazo del API.
+    if (valores.tieneDiscapacidad) {
+      const porcentaje = Number(valores.porcentajeDiscapacidad);
+      if (
+        valores.porcentajeDiscapacidad === "" ||
+        !Number.isFinite(porcentaje) ||
+        porcentaje <= 0 ||
+        porcentaje > 100
+      ) {
+        nuevos.porcentajeDiscapacidad = "Indique el porcentaje de discapacidad.";
+      }
+    }
+
+    if (valores.esSustitutoDiscapacidad) {
+      if (!valores.sustitutoCedula.trim()) {
+        nuevos.sustitutoCedula = "Indique la cédula de la persona sustituida.";
+      }
+      if (!valores.sustitutoNombre.trim()) {
+        nuevos.sustitutoNombre = "Indique el nombre de la persona sustituida.";
+      }
+    }
+
+    if (valores.tieneDiscapacidad && valores.esSustitutoDiscapacidad) {
+      nuevos.tieneDiscapacidad = "No puede tener discapacidad propia y ser sustituto a la vez.";
+      nuevos.esSustitutoDiscapacidad =
+        "No puede ser sustituto y tener discapacidad propia a la vez.";
+    }
+
     setErrores(nuevos);
     return Object.keys(nuevos).length === 0;
   };
@@ -194,6 +297,18 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
       estadoCivil: valores.estadoCivil ?? null,
       numeroHijos: valores.numeroHijos === "" ? null : Number(valores.numeroHijos),
       conduce: valores.conduce === true,
+      tieneDiscapacidad: valores.tieneDiscapacidad === true,
+      porcentajeDiscapacidad:
+        valores.tieneDiscapacidad && valores.porcentajeDiscapacidad !== ""
+          ? Number(valores.porcentajeDiscapacidad)
+          : null,
+      tipoDiscapacidad: valores.tieneDiscapacidad ? (valores.tipoDiscapacidad ?? null) : null,
+      esSustitutoDiscapacidad: valores.esSustitutoDiscapacidad === true,
+      sustitutoCedula: valores.esSustitutoDiscapacidad ? aTexto(valores.sustitutoCedula) : null,
+      sustitutoNombre: valores.esSustitutoDiscapacidad ? aTexto(valores.sustitutoNombre) : null,
+      sustitutoParentesco: valores.esSustitutoDiscapacidad
+        ? (valores.sustitutoParentesco ?? null)
+        : null,
       correoCorporativo: aTexto(valores.correoCorporativo),
       extension: aTexto(valores.extension),
       telefonoEmpresarial: aTexto(valores.telefonoEmpresarial),
@@ -281,7 +396,16 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
 
             <CampoLabel
               etiqueta="Número de hijos"
-              ayuda="Déjelo vacío si no se sabe. Un 0 afirma que no tiene."
+              ayuda={
+                cargasGestionadas ? (
+                  <>
+                    Se calcula desde la pestaña{" "}
+                    <Link to={RUTA_CARGAS_FAMILIARES(ficha.id)}>Cargas familiares</Link>.
+                  </>
+                ) : (
+                  "Déjelo vacío si no se sabe. Un 0 afirma que no tiene."
+                )
+              }
             >
               <InputUI
                 type="number"
@@ -289,6 +413,7 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
                 onChange={(valor) => campo("numeroHijos")(soloDigitos(valor))}
                 min={0}
                 max={30}
+                disabled={cargasGestionadas}
               />
             </CampoLabel>
 
@@ -302,6 +427,127 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
               />
             </div>
           </FilaFormulario>
+        </Tarjeta>
+
+        <Tarjeta>
+          <TituloTarjeta>Discapacidad</TituloTarjeta>
+          <Aviso $tono="info">
+            Estos datos habilitan los beneficios legales de discapacidad. Si marca cualquiera
+            de las dos casillas, se le pedirá el documento de respaldo en la pestaña
+            Documentos una vez guardada la ficha.
+          </Aviso>
+
+          <FilaFormulario>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <CheckboxUI
+                name="tieneDiscapacidad"
+                checked={valores.tieneDiscapacidad === true}
+                onChange={(_nombre, marcado) => marcarDiscapacidad(marcado)}
+                label="Tiene discapacidad"
+                disabled={valores.esSustitutoDiscapacidad === true}
+              />
+            </div>
+
+            {valores.tieneDiscapacidad && (
+              <CampoLabel
+                etiqueta="% de discapacidad"
+                requerido
+                error={errores.porcentajeDiscapacidad}
+              >
+                <InputUI
+                  type="number"
+                  value={valores.porcentajeDiscapacidad}
+                  onChange={campo("porcentajeDiscapacidad")}
+                  min={0.01}
+                  max={100}
+                  step="0.01"
+                />
+              </CampoLabel>
+            )}
+
+            {valores.tieneDiscapacidad && (
+              <CampoLabel etiqueta="Tipo de discapacidad">
+                <SelectUI
+                  options={OPCIONES_TIPO_DISCAPACIDAD}
+                  value={
+                    OPCIONES_TIPO_DISCAPACIDAD.find(
+                      (opcion) => opcion.value === valores.tipoDiscapacidad,
+                    ) ?? null
+                  }
+                  onChange={(opcion) => campo("tipoDiscapacidad")(opcion?.value ?? null)}
+                  isClearable
+                  placeholder="Sin registrar"
+                  menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
+                />
+              </CampoLabel>
+            )}
+          </FilaFormulario>
+
+          <Separador />
+
+          <div>
+            <CheckboxUI
+              name="esSustitutoDiscapacidad"
+              checked={valores.esSustitutoDiscapacidad === true}
+              onChange={(_nombre, marcado) => marcarSustituto(marcado)}
+              label="Sustituto de persona con discapacidad"
+              disabled={valores.tieneDiscapacidad === true}
+            />
+          </div>
+          <Aviso $tono="neutro">
+            El sustituto es una figura legal: una persona SIN discapacidad propia que tiene
+            bajo su cuidado o dependencia económica a alguien que sí la tiene, y por eso
+            recibe los mismos beneficios laborales que un colaborador con discapacidad.
+          </Aviso>
+
+          {valores.esSustitutoDiscapacidad && (
+            <>
+              <FilaFormulario>
+                <CampoLabel
+                  etiqueta="Cédula de la persona sustituida"
+                  requerido
+                  error={errores.sustitutoCedula}
+                  ayuda="Solo números."
+                >
+                  <InputUI
+                    value={valores.sustitutoCedula}
+                    onChange={(valor) => campo("sustitutoCedula")(soloDigitos(valor))}
+                    maxLength={20}
+                  />
+                </CampoLabel>
+                <CampoLabel
+                  etiqueta="Nombre de la persona sustituida"
+                  requerido
+                  error={errores.sustitutoNombre}
+                >
+                  <InputUI
+                    value={valores.sustitutoNombre}
+                    onChange={(valor) => campo("sustitutoNombre")(valor.toUpperCase())}
+                    maxLength={150}
+                  />
+                </CampoLabel>
+                <CampoLabel etiqueta="Parentesco">
+                  <SelectUI
+                    options={OPCIONES_PARENTESCO}
+                    value={
+                      OPCIONES_PARENTESCO.find(
+                        (opcion) => opcion.value === valores.sustitutoParentesco,
+                      ) ?? null
+                    }
+                    onChange={(opcion) => campo("sustitutoParentesco")(opcion?.value ?? null)}
+                    isClearable
+                    placeholder="Sin registrar"
+                    menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
+                  />
+                </CampoLabel>
+              </FilaFormulario>
+
+              <Aviso $tono="aviso">
+                Se solicitará el documento de validación de sustituto en la pestaña
+                Documentos una vez guardada la ficha.
+              </Aviso>
+            </>
+          )}
         </Tarjeta>
 
         <Tarjeta>
