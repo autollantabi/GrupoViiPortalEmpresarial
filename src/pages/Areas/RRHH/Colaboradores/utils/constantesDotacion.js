@@ -11,11 +11,19 @@ import { RUTA_BASE } from "./constantes";
  * por las pantallas.
  */
 
-/** Estado de un artículo de dotación o de un documento. */
+/**
+ * Estado de un artículo de dotación o de un documento.
+ *
+ * BAJA solo aplica a artículos de dotación (nunca a documentos): es lo que queda
+ * un artículo reemplazado, con el reemplazo viajando como una fila nueva. No es
+ * un estado que se elija a mano en ModalEntregarItem, sino uno que pone el
+ * backend cuando se agrega un artículo con reemplazaItemId.
+ */
 export const ESTADO_ENTREGA = Object.freeze({
   PENDIENTE: "Pendiente",
   ENTREGADO: "Entregado",
   NO_APLICA: "NoAplica",
+  BAJA: "Baja",
 });
 
 /** Estado de la cabecera de una asignación. Lo calcula el backend. */
@@ -120,12 +128,14 @@ export const ETIQUETA_ENTREGA = Object.freeze({
   [ESTADO_ENTREGA.PENDIENTE]: "Pendiente",
   [ESTADO_ENTREGA.ENTREGADO]: "Entregado",
   [ESTADO_ENTREGA.NO_APLICA]: "No aplica",
+  [ESTADO_ENTREGA.BAJA]: "Dado de baja",
 });
 
 export const TONO_ENTREGA = Object.freeze({
   [ESTADO_ENTREGA.PENDIENTE]: "aviso",
   [ESTADO_ENTREGA.ENTREGADO]: "exito",
   [ESTADO_ENTREGA.NO_APLICA]: "neutro",
+  [ESTADO_ENTREGA.BAJA]: "peligro",
 });
 
 export const ETIQUETA_ASIGNACION = Object.freeze({
@@ -191,6 +201,7 @@ export const SECCION_CONFIGURACION = Object.freeze({
   ITEMS: "items",
   DOCUMENTOS: "documentos",
   AREAS: "areas",
+  MOTIVOS_BAJA: "motivos-baja",
   CUMPLEANIOS: "cumpleanios",
 });
 

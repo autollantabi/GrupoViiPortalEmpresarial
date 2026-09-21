@@ -33,6 +33,7 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {number} orden
  * @property {boolean} activo
  * @property {number} totalItems
+ * @property {boolean} esMonetario  Grupo de dotación cartera (valores en dinero, no artículos físicos)
  *
  * @typedef {Object} DotacionItem
  * @property {number} id
@@ -49,14 +50,66 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {number} id
  * @property {number|null} itemId
  * @property {string} grupoCodigo
+ * @property {string} grupoNombre
  * @property {string} itemNombre
  * @property {string|null} unidad
  * @property {number|null} cantidad
  * @property {Object} valores
- * @property {"Pendiente"|"Entregado"|"NoAplica"} estado
+ * @property {"Pendiente"|"Entregado"|"NoAplica"|"Baja"} estado
  * @property {string|null} fechaEntrega
  * @property {string|null} entregadoPor
  * @property {string|null} observacion
+ * @property {number} orden
+ * @property {string|null} motivoBajaNombre  Solo lleno si estado='Baja'
+ * @property {string|null} fechaBaja  Solo lleno si estado='Baja'
+ * @property {string|null} dadoBajaPor  Solo lleno si estado='Baja'
+ *
+ * @typedef {Object} AsignacionGrupo
+ * @property {string} grupoCodigo
+ * @property {string} grupoNombre
+ * @property {number} totalItems
+ * @property {number} entregados
+ * @property {number} pendientes
+ * @property {number} noAplica
+ * @property {number} bajas
+ * @property {AsignacionItem[]} items
+ *
+ * @typedef {Object} Asignacion
+ * @property {number} id
+ * @property {number} empleadoId
+ * @property {"Inicial"|"Complementaria"} tipo
+ * @property {string|null} motivo
+ * @property {"Pendiente"|"Parcial"|"Entregada"} estado
+ * @property {"Plantilla"|"Manual"|"Historico"} origen
+ * @property {string} fecha
+ * @property {Object[]} plantillasAplicadas
+ * @property {string|null} observacion
+ * @property {number} totalItems
+ * @property {number} entregados
+ * @property {number} pendientes
+ * @property {number} noAplica
+ * @property {number} bajas
+ * @property {AsignacionGrupo[]} grupos
+ * @property {Object} auditoria
+ * @property {boolean} impresa  Si el acta ya se generó: bloquea la edición salvo reemplazos
+ * @property {string|null} fechaImpresion
+ * @property {string|null} impresaPor
+ *
+ * @typedef {Object} EntregaVigenteItem
+ * @property {number} asignacionItemId  El id que va en reemplazaItemId al reemplazarlo
+ * @property {number} asignacionId
+ * @property {"Inicial"|"Complementaria"} tipo
+ * @property {string} fecha
+ * @property {"Pendiente"|"Entregado"|"NoAplica"} estado
+ * @property {string|null} fechaEntrega
+ * @property {number|null} cantidad
+ *
+ * @typedef {Object} MotivoBaja
+ * @property {number} id
+ * @property {string} codigo
+ * @property {string} nombre
+ * @property {number} orden
+ * @property {boolean} activo
  *
  * @typedef {Object} EmpleadoDocumento
  * @property {number|null} id  Nulo si se exige pero aún no tiene fila
@@ -108,6 +161,13 @@ const mapearGrupo = (grupo) => ({
   areaResponsableId: numero(grupo.areaResponsableId),
   orden: numero(grupo.orden) ?? 0,
   totalItems: numero(grupo.totalItems) ?? 0,
+  esMonetario: Boolean(grupo.esMonetario),
+});
+
+const mapearMotivoBaja = (motivo) => ({
+  ...motivo,
+  id: numero(motivo.id),
+  orden: numero(motivo.orden) ?? 0,
 });
 
 const mapearItem = (item) => ({
@@ -168,6 +228,8 @@ const mapearAsignacion = (asignacion) => ({
   entregados: numero(asignacion.entregados) ?? 0,
   pendientes: numero(asignacion.pendientes) ?? 0,
   noAplica: numero(asignacion.noAplica) ?? 0,
+  bajas: numero(asignacion.bajas) ?? 0,
+  impresa: Boolean(asignacion.impresa),
   plantillasAplicadas: (asignacion.plantillasAplicadas ?? []).map((plantilla) => ({
     ...plantilla,
     id: numero(plantilla.id),
@@ -178,6 +240,7 @@ const mapearAsignacion = (asignacion) => ({
     entregados: numero(grupo.entregados) ?? 0,
     pendientes: numero(grupo.pendientes) ?? 0,
     noAplica: numero(grupo.noAplica) ?? 0,
+    bajas: numero(grupo.bajas) ?? 0,
     items: (grupo.items ?? []).map((item) => ({
       ...item,
       id: numero(item.id),
@@ -185,6 +248,7 @@ const mapearAsignacion = (asignacion) => ({
       cantidad: numero(item.cantidad),
       valores: item.valores ?? {},
       fechaEntrega: soloFecha(item.fechaEntrega),
+      fechaBaja: soloFecha(item.fechaBaja),
       orden: numero(item.orden) ?? 0,
     })),
   })),
@@ -459,25 +523,64 @@ export const AgregarItemAsignacion = async (asignacionId, datos) => {
 };
 
 /**
- * Agrega VARIOS articulos de una vez.
+ * Agrega VARIOS artículos de una vez, cada uno con su cantidad y, si reemplaza
+ * una entrega ya vigente, con `reemplazaItemId` y `motivoBajaId`.
  *
  * Existe porque la pantalla deja marcar un grupo entero con una casilla, y un
  * grupo son entre dos y diez articulos. Con el endpoint de a uno eso serian
  * diez peticiones, y si la septima falla las seis anteriores ya entraron sin
  * que nadie sepa cuales. El lote es todo o nada.
  *
+ * `cantidad` es obligatoria en cada fila: el backend ya no le pone un 1 por
+ * omisión. `reemplazaItemId` y `motivoBajaId` viajan siempre juntos o ninguno.
+ *
+ * @param {number} asignacionId
+ * @param {Array<{itemId:number, cantidad:number, reemplazaItemId?:number, motivoBajaId?:number}>} items
  * @returns {Promise<Asignacion|null>}
  */
-export const AgregarItemsAsignacion = async (asignacionId, itemIds) => {
+export const AgregarItemsAsignacion = async (asignacionId, items) => {
   try {
     const respuesta = await axiosInstanceNew.post(
       `${DOTACION}/asignaciones/${asignacionId}/items/lote`,
-      { itemIds },
+      { items },
     );
     const asignacion = desenvolver(respuesta);
     return asignacion ? mapearAsignacion(asignacion) : null;
   } catch (error) {
     return propagar(error, "No se pudo agregar los artículos");
+  }
+};
+
+/**
+ * Si un artículo del catálogo ya tiene una entrega vigente para este empleado.
+ *
+ * Se consulta al marcar el artículo en el selector, no de entrada para todo el
+ * catálogo: con treinta y cinco artículos activos eso serían treinta y cinco
+ * peticiones por cada carga de pantalla para un dato que la mayoría de las veces
+ * no hace falta.
+ *
+ * @returns {Promise<{vigente:boolean, entregas:EntregaVigenteItem[]}>}
+ */
+export const ObtenerEntregaVigente = async (empleadoId, itemCatalogoId, { signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(
+      `${DOTACION}/empleados/${empleadoId}/items/${itemCatalogoId}/vigente`,
+      { signal },
+    );
+    const datos = desenvolver(respuesta);
+    return {
+      vigente: Boolean(datos?.vigente),
+      entregas: (datos?.entregas ?? []).map((entrega) => ({
+        ...entrega,
+        asignacionItemId: numero(entrega.asignacionItemId),
+        asignacionId: numero(entrega.asignacionId),
+        fecha: soloFecha(entrega.fecha),
+        fechaEntrega: soloFecha(entrega.fechaEntrega),
+        cantidad: numero(entrega.cantidad),
+      })),
+    };
+  } catch (error) {
+    return propagar(error, "No se pudo consultar si el artículo ya tiene entrega vigente");
   }
 };
 
@@ -560,6 +663,99 @@ export const ListarNotificacionesAsignacion = async (asignacionId, { signal } = 
     return (desenvolver(respuesta) ?? []).map(mapearNotificacion);
   } catch (error) {
     return propagar(error, "No se pudo obtener el historial de avisos");
+  }
+};
+
+/**
+ * Abre el acta de entrega en una pestaña nueva, en el visor de PDF del navegador.
+ *
+ * NO es un `window.open(url)` directo al backend: esa ruta exige la cabecera
+ * id-session que pone axiosInstanceNew (no hay cookie de sesión), y un enlace
+ * directo no la manda — el mismo motivo por el que DescargarArchivoDocumento va
+ * por blob. La diferencia con esa función es que acá NO se fuerza la descarga
+ * (el backend ya manda Content-Disposition: inline): se abre el object URL en
+ * una pestaña para que se vea en el visor, no que se baje un archivo.
+ *
+ * El object URL se revoca a los 60s y no de inmediato: hay que darle tiempo a la
+ * pestaña nueva a terminar de cargar el PDF antes de invalidarlo.
+ *
+ * La pestaña se abre EN BLANCO como primera instrucción, antes de cualquier
+ * `await`: si se abriera recién con la URL del blob, ya lista, el navegador
+ * la bloquearía como pop-up (Chrome/Firefox solo permiten window.open() sin
+ * bloqueo dentro del mismo tick sincrónico del gesto del usuario que originó
+ * el click; tras un `await` a la respuesta del backend ese contexto ya se
+ * perdió). Acá se abre primero y solo se le asigna la URL cuando está lista.
+ */
+export const AbrirActaAsignacion = async (asignacionId) => {
+  const ventana = window.open("", "_blank");
+  try {
+    const respuesta = await axiosInstanceNew.get(
+      `${DOTACION}/asignaciones/${asignacionId}/acta`,
+      { responseType: "blob" },
+    );
+    const blob = new Blob([respuesta.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+    if (ventana) {
+      ventana.location.href = url;
+    } else {
+      // El navegador igual bloqueó la apertura en blanco (poco común, pero
+      // posible con configuraciones muy estrictas): se intenta una vez más
+      // ya con la URL final, que al menos algunos navegadores sí permiten.
+      window.open(url, "_blank");
+    }
+    setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    ventana?.close();
+    // Con responseType blob, el JSON de error también llega como blob (ver
+    // leerErrorBlob más abajo: mismo problema que en DescargarArchivoDocumento).
+    const mensaje = await leerErrorBlob(error);
+    throw new Error(mensaje || "No se pudo abrir el acta");
+  }
+};
+
+// ── Motivos de baja ─────────────────────────────────────────────────────────
+
+const MOTIVOS_BAJA = `${DOTACION}/motivos-baja`;
+
+/** @returns {Promise<MotivoBaja[]>} */
+export const ObtenerMotivosBaja = async ({ soloActivos, signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(MOTIVOS_BAJA, {
+      params: soloConValor({ soloActivos: soloActivos ? "true" : undefined }),
+      signal,
+    });
+    return (desenvolver(respuesta) ?? []).map(mapearMotivoBaja);
+  } catch (error) {
+    return propagar(error, "No se pudo obtener los motivos de baja");
+  }
+};
+
+export const CrearMotivoBaja = async (datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(MOTIVOS_BAJA, datos);
+    const motivo = desenvolver(respuesta);
+    return motivo ? mapearMotivoBaja(motivo) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo crear el motivo de baja");
+  }
+};
+
+export const ActualizarMotivoBaja = async (id, datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.put(`${MOTIVOS_BAJA}/${id}`, datos);
+    const motivo = desenvolver(respuesta);
+    return motivo ? mapearMotivoBaja(motivo) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo actualizar el motivo de baja");
+  }
+};
+
+/** 409 si el motivo ya está en uso: no se puede borrar, solo desactivar. */
+export const EliminarMotivoBaja = async (id) => {
+  try {
+    await axiosInstanceNew.delete(`${MOTIVOS_BAJA}/${id}`);
+  } catch (error) {
+    propagar(error, "No se pudo eliminar el motivo de baja");
   }
 };
 

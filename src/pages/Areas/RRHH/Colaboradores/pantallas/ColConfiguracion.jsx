@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { EditorAreasResponsables } from "../componentes/EditorAreasResponsables";
 import { EditorCatalogoItems } from "../componentes/EditorCatalogoItems";
 import { EditorCumpleanios } from "../componentes/EditorCumpleanios";
+import { EditorMotivosBaja } from "../componentes/EditorMotivosBaja";
 import { EditorPlantillas } from "../componentes/EditorPlantillas";
 import { EditorTiposDocumento } from "../componentes/EditorTiposDocumento";
 import { FiltroPastillas } from "../componentes/FiltroPastillas";
@@ -29,6 +30,7 @@ const SECCIONES = [
   { valor: SECCION_CONFIGURACION.ITEMS, etiqueta: "Catálogo de artículos" },
   { valor: SECCION_CONFIGURACION.DOCUMENTOS, etiqueta: "Tipos de documento" },
   { valor: SECCION_CONFIGURACION.AREAS, etiqueta: "Áreas y responsables" },
+  { valor: SECCION_CONFIGURACION.MOTIVOS_BAJA, etiqueta: "Motivos de baja" },
   { valor: SECCION_CONFIGURACION.CUMPLEANIOS, etiqueta: "Correos de cumpleaños" },
 ];
 
@@ -37,6 +39,7 @@ const DESCRIPCION = {
   [SECCION_CONFIGURACION.ITEMS]: "Los grupos y artículos que se pueden entregar.",
   [SECCION_CONFIGURACION.DOCUMENTOS]: "Los papeles que se le piden a un colaborador.",
   [SECCION_CONFIGURACION.AREAS]: "A quién le llega el aviso de cada grupo.",
+  [SECCION_CONFIGURACION.MOTIVOS_BAJA]: "Por qué se reemplaza un artículo ya entregado.",
   [SECCION_CONFIGURACION.CUMPLEANIOS]:
     "La tarjeta del colaborador y el afiche del mes: verlos antes de mandarlos.",
 };
@@ -78,6 +81,7 @@ export const ColConfiguracion = () => {
       {seccion === SECCION_CONFIGURACION.ITEMS && <EditorCatalogoItems />}
       {seccion === SECCION_CONFIGURACION.DOCUMENTOS && <EditorTiposDocumento />}
       {seccion === SECCION_CONFIGURACION.AREAS && <EditorAreasResponsables />}
+      {seccion === SECCION_CONFIGURACION.MOTIVOS_BAJA && <EditorMotivosBaja />}
       {seccion === SECCION_CONFIGURACION.CUMPLEANIOS && <EditorCumpleanios />}
     </Contenedor>
   );
