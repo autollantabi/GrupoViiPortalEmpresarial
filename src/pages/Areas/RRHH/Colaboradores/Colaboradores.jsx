@@ -7,6 +7,7 @@ import { ColNuevo } from "./pantallas/ColNuevo";
 import { ColEditar } from "./pantallas/ColEditar";
 import { ColDotacion } from "./pantallas/ColDotacion";
 import { ColDocumentos } from "./pantallas/ColDocumentos";
+import { ColCargasFamiliares } from "./pantallas/ColCargasFamiliares";
 import { ColConfiguracion } from "./pantallas/ColConfiguracion";
 import { usePermisosColaboradores } from "./hooks/usePermisos";
 import { RUTA_BASE } from "./utils/constantes";
@@ -59,6 +60,10 @@ export const Colaboradores = ({
           del listado viven en la query string. */}
       <Route path="empleados/:id/dotacion" element={soloGestion(<ColDotacion {...contexto} />)} />
       <Route path="empleados/:id/documentos" element={soloGestion(<ColDocumentos {...contexto} />)} />
+      <Route
+        path="empleados/:id/cargas-familiares"
+        element={soloGestion(<ColCargasFamiliares {...contexto} />)}
+      />
       {/* La configuración de dotación y documentos vive DENTRO de esta sección y
           no como opción de menú aparte: así no hay que otorgar un recurso nuevo a
           cada usuario de RRHH para que la vea. Sus secciones van en la query

@@ -2,7 +2,12 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import styled from "styled-components";
 import { hexToRGBA } from "utils/colors";
-import { RUTA_DOCUMENTOS, RUTA_DOTACION, RUTA_FICHA } from "../utils/constantesDotacion";
+import {
+  RUTA_CARGAS_FAMILIARES,
+  RUTA_DOCUMENTOS,
+  RUTA_DOTACION,
+  RUTA_FICHA,
+} from "../utils/constantesDotacion";
 
 /**
  * Pestañas de la ficha: Datos, Dotación y Documentos.
@@ -85,6 +90,7 @@ export const PestanasFicha = ({ id, pendientesDotacion = 0, pendientesDocumentos
       Documentos
       {pendientesDocumentos > 0 && <Contador title="Documentos pendientes">{pendientesDocumentos}</Contador>}
     </Pestana>
+    <Pestana to={RUTA_CARGAS_FAMILIARES(id)}>Cargas familiares</Pestana>
   </Barra>
 );
 

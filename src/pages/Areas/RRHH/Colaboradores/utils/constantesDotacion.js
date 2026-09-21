@@ -40,6 +40,58 @@ export const CONDICION_DOCUMENTO = Object.freeze({
   CASADO: "Casado",
   CON_HIJOS: "ConHijos",
   CONDUCE: "Conduce",
+  // Union libre reutiliza el mismo valor que ya existe en estado_civil: el back
+  // lo compara contra ese campo, igual que hace con Casado.
+  UNION_LIBRE: "UnionLibre",
+  // Este NO se lee de estado_civil ni de ningún otro dato de "situación
+  // personal": se dispara por el flag esSustitutoDiscapacidad de la ficha.
+  SUSTITUTO_DISCAPACIDAD: "SustitutoDiscapacidad",
+});
+
+/**
+ * Tipos de discapacidad. Los valores viajan en inglés-clave sin tilde porque son
+ * el contrato exacto con el backend (columna CHECK), y las tildes solo van en la
+ * etiqueta que se muestra.
+ */
+export const TIPO_DISCAPACIDAD = Object.freeze([
+  "Fisica",
+  "Intelectual",
+  "Auditiva",
+  "Visual",
+  "Psicosocial",
+  "Multiple",
+]);
+
+export const ETIQUETA_TIPO_DISCAPACIDAD = Object.freeze({
+  Fisica: "Física",
+  Intelectual: "Intelectual",
+  Auditiva: "Auditiva",
+  Visual: "Visual",
+  Psicosocial: "Psicosocial",
+  Multiple: "Múltiple",
+});
+
+/**
+ * Parentesco de la persona sustituida, para el formulario de la ficha.
+ *
+ * El contrato de backend no fija un enum para este campo (a diferencia de
+ * estado_civil o tipo_discapacidad), así que estos códigos son una decisión de
+ * este frontend: conviene revisarlos contra lo que el backend termine aceptando.
+ */
+export const PARENTESCO_SUSTITUTO = Object.freeze([
+  "HijoA",
+  "Conyuge",
+  "PadreMadre",
+  "HermanoA",
+  "Otro",
+]);
+
+export const ETIQUETA_PARENTESCO_SUSTITUTO = Object.freeze({
+  HijoA: "Hijo/a",
+  Conyuge: "Cónyuge",
+  PadreMadre: "Padre/Madre",
+  HermanoA: "Hermano/a",
+  Otro: "Otro",
 });
 
 export const MOTIVO_DOCUMENTO = Object.freeze({
@@ -99,6 +151,8 @@ export const ETIQUETA_CONDICION = Object.freeze({
   [CONDICION_DOCUMENTO.CASADO]: "solo si es casado",
   [CONDICION_DOCUMENTO.CON_HIJOS]: "solo si tiene hijos",
   [CONDICION_DOCUMENTO.CONDUCE]: "solo si conduce",
+  [CONDICION_DOCUMENTO.UNION_LIBRE]: "solo si vive en unión libre",
+  [CONDICION_DOCUMENTO.SUSTITUTO_DISCAPACIDAD]: "solo si es sustituto de discapacidad",
 });
 
 export const ETIQUETA_ESTADO_CIVIL = Object.freeze({
@@ -127,6 +181,7 @@ export const ETIQUETA_TABLA_DOTACION = Object.freeze({
 
 export const RUTA_DOTACION = (id) => `${RUTA_BASE}/empleados/${id}/dotacion`;
 export const RUTA_DOCUMENTOS = (id) => `${RUTA_BASE}/empleados/${id}/documentos`;
+export const RUTA_CARGAS_FAMILIARES = (id) => `${RUTA_BASE}/empleados/${id}/cargas-familiares`;
 export const RUTA_FICHA = (id) => `${RUTA_BASE}/empleados/${id}`;
 export const RUTA_CONFIGURACION = `${RUTA_BASE}/configuracion`;
 
