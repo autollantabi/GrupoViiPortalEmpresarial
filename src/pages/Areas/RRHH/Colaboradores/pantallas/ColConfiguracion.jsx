@@ -1,9 +1,12 @@
 import React from "react";
 import { useSearchParams } from "react-router-dom";
+import { EditorAreasPazSalvo } from "../componentes/EditorAreasPazSalvo";
 import { EditorAreasResponsables } from "../componentes/EditorAreasResponsables";
 import { EditorCatalogoItems } from "../componentes/EditorCatalogoItems";
 import { EditorCumpleanios } from "../componentes/EditorCumpleanios";
+import { EditorInduccion } from "../componentes/EditorInduccion";
 import { EditorMotivosBaja } from "../componentes/EditorMotivosBaja";
+import { EditorPerfilesCargo } from "../componentes/EditorPerfilesCargo";
 import { EditorPlantillas } from "../componentes/EditorPlantillas";
 import { EditorTiposDocumento } from "../componentes/EditorTiposDocumento";
 import { FiltroPastillas } from "../componentes/FiltroPastillas";
@@ -32,6 +35,9 @@ const SECCIONES = [
   { valor: SECCION_CONFIGURACION.AREAS, etiqueta: "Áreas y responsables" },
   { valor: SECCION_CONFIGURACION.MOTIVOS_BAJA, etiqueta: "Motivos de baja" },
   { valor: SECCION_CONFIGURACION.CUMPLEANIOS, etiqueta: "Correos de cumpleaños" },
+  { valor: SECCION_CONFIGURACION.PERFILES_CARGO, etiqueta: "Perfiles de cargo" },
+  { valor: SECCION_CONFIGURACION.INDUCCION, etiqueta: "Cronograma de inducción" },
+  { valor: SECCION_CONFIGURACION.PAZ_SALVO_AREAS, etiqueta: "Áreas de paz y salvo" },
 ];
 
 const DESCRIPCION = {
@@ -42,6 +48,11 @@ const DESCRIPCION = {
   [SECCION_CONFIGURACION.MOTIVOS_BAJA]: "Por qué se reemplaza un artículo ya entregado.",
   [SECCION_CONFIGURACION.CUMPLEANIOS]:
     "La tarjeta del colaborador y el afiche del mes: verlos antes de mandarlos.",
+  [SECCION_CONFIGURACION.PERFILES_CARGO]:
+    "Funciones, requisitos, competencias y línea de reporte de cada cargo.",
+  [SECCION_CONFIGURACION.INDUCCION]:
+    "Las actividades que se le programan a un colaborador nuevo, por área.",
+  [SECCION_CONFIGURACION.PAZ_SALVO_AREAS]: "Las áreas que deben dar el visto bueno en una baja.",
 };
 
 export const ColConfiguracion = () => {
@@ -83,6 +94,9 @@ export const ColConfiguracion = () => {
       {seccion === SECCION_CONFIGURACION.AREAS && <EditorAreasResponsables />}
       {seccion === SECCION_CONFIGURACION.MOTIVOS_BAJA && <EditorMotivosBaja />}
       {seccion === SECCION_CONFIGURACION.CUMPLEANIOS && <EditorCumpleanios />}
+      {seccion === SECCION_CONFIGURACION.PERFILES_CARGO && <EditorPerfilesCargo />}
+      {seccion === SECCION_CONFIGURACION.INDUCCION && <EditorInduccion />}
+      {seccion === SECCION_CONFIGURACION.PAZ_SALVO_AREAS && <EditorAreasPazSalvo />}
     </Contenedor>
   );
 };

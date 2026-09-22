@@ -9,6 +9,9 @@ import { ColDotacion } from "./pantallas/ColDotacion";
 import { ColDocumentos } from "./pantallas/ColDocumentos";
 import { ColCargasFamiliares } from "./pantallas/ColCargasFamiliares";
 import { ColConfiguracion } from "./pantallas/ColConfiguracion";
+import { ColInduccion } from "./pantallas/ColInduccion";
+import { ColPazSalvo } from "./pantallas/ColPazSalvo";
+import { ReporteIngresosSalidas } from "./pantallas/ReporteIngresosSalidas";
 import { usePermisosColaboradores } from "./hooks/usePermisos";
 import { RUTA_BASE } from "./utils/constantes";
 
@@ -63,6 +66,17 @@ export const Colaboradores = ({
       <Route
         path="empleados/:id/cargas-familiares"
         element={soloGestion(<ColCargasFamiliares {...contexto} />)}
+      />
+      <Route path="empleados/:id/induccion" element={soloGestion(<ColInduccion {...contexto} />)} />
+      {/* Paz y salvo solo tiene sentido con la ficha de baja: la propia pantalla
+          redirige si el empleado sigue activo. */}
+      <Route path="empleados/:id/paz-salvo" element={soloGestion(<ColPazSalvo {...contexto} />)} />
+      {/* Reporte de ingresos y salidas: va ANTES de "configuracion" por legibilidad,
+          aunque React Router ya prioriza los segmentos estáticos igual que con
+          "empleados/nuevo". */}
+      <Route
+        path="reportes/ingresos-salidas"
+        element={soloGestion(<ReporteIngresosSalidas {...contexto} />)}
       />
       {/* La configuración de dotación y documentos vive DENTRO de esta sección y
           no como opción de menú aparte: así no hay que otorgar un recurso nuevo a

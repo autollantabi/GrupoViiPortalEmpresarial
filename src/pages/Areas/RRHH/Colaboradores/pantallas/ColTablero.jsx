@@ -5,7 +5,10 @@ import { ButtonUI } from "components/UI/Components/ButtonUI";
 import IconUI from "components/UI/Components/IconsUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
 import { useTheme } from "context/ThemeContext";
-import { ObtenerResumenColaboradores } from "services/colaboradoresService";
+import {
+  ObtenerPeriodoPruebaPendientes,
+  ObtenerResumenColaboradores,
+} from "services/colaboradoresService";
 import { useConsulta } from "../hooks/useConsulta";
 import { usePermisosColaboradores } from "../hooks/usePermisos";
 import {
@@ -13,8 +16,8 @@ import {
   TONO_MOVIMIENTO,
   nombreCortoEmpresa,
 } from "../utils/constantes";
-import { formatearFecha } from "../utils/fechas";
-import { RUTA_CONFIGURACION } from "../utils/constantesDotacion";
+import { diasHasta, formatearFecha } from "../utils/fechas";
+import { RUTA_CONFIGURACION, RUTA_REPORTE_INGRESOS_SALIDAS } from "../utils/constantesDotacion";
 import {
   Acciones,
   Badge,
@@ -103,6 +106,13 @@ export const ColTablero = () => {
     [],
   );
 
+  // Widget de período de prueba: solo tiene sentido para quien gestiona (con
+  // consulta no se cuenta con el detalle de cada empleado activo).
+  const { datos: periodoPrueba } = useConsulta(
+    ({ signal }) => (puedeGestionar ? ObtenerPeriodoPruebaPendientes({ signal }) : Promise.resolve([])),
+    [puedeGestionar],
+  );
+
   const renderContenido = () => {
     if (cargando) {
       return (
@@ -166,6 +176,39 @@ export const ColTablero = () => {
             </Kpi>
           )}
         </Rejilla>
+
+        {puedeGestionar && periodoPrueba && periodoPrueba.length > 0 && (
+          <Tarjeta>
+            <Acciones style={{ justifyContent: "space-between" }}>
+              <TituloTarjeta style={{ margin: 0 }}>En período de prueba</TituloTarjeta>
+              <Badge $tono="aviso">{periodoPrueba.length}</Badge>
+            </Acciones>
+            <ListaEmpresas>
+              {periodoPrueba.map((fila) => {
+                const restantes = diasHasta(fila.fechaFinPeriodoPrueba);
+                return (
+                  <FilaEmpresa
+                    key={fila.empleadoId}
+                    to={`${RUTA_BASE}/empleados/${fila.empleadoId}`}
+                    title={fila.nombresCompletos}
+                  >
+                    <CuerpoEmpresa>
+                      <NombreEmpresa>{fila.nombresCompletos}</NombreEmpresa>
+                      <DetalleEmpresa>
+                        {fila.cargo || fila.empresa}
+                        {" · vence "}
+                        {formatearFecha(fila.fechaFinPeriodoPrueba)}
+                      </DetalleEmpresa>
+                    </CuerpoEmpresa>
+                    <Badge $tono={restantes !== null && restantes <= 7 ? "peligro" : "aviso"}>
+                      {restantes === 0 ? "hoy" : `${restantes} d.`}
+                    </Badge>
+                  </FilaEmpresa>
+                );
+              })}
+            </ListaEmpresas>
+          </Tarjeta>
+        )}
 
         <Tarjeta>
           <TituloTarjeta>Personal por empresa</TituloTarjeta>
@@ -244,6 +287,12 @@ export const ColTablero = () => {
           />
           {puedeGestionar && (
             <>
+              <ButtonUI
+                text="Ingresos y salidas"
+                iconLeft="FaFileArrowDown"
+                variant="outlined"
+                onClick={() => navigate(RUTA_REPORTE_INGRESOS_SALIDAS)}
+              />
               {/* La configuración de dotación y documentos no tiene ítem de menú
                   propio: se entra desde acá. */}
               <ButtonUI

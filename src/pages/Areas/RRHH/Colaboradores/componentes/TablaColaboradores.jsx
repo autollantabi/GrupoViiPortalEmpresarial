@@ -2,6 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { Badge, Fila, Tabla, TablaScroll, Td, Th } from "./piezas";
 import { ESTADO, TONO_ESTADO } from "../utils/constantes";
+import { diasHasta } from "../utils/fechas";
 
 /**
  * Las nueve columnas del listado de colaboradores.
@@ -81,6 +82,26 @@ const Correo = styled.span`
 `;
 
 /**
+ * Insignia de período de prueba: solo se dibuja si `fechaFinPeriodoPrueba` no es
+ * null y todavía no venció (hoy o futuro). Un valor ya vencido significa que el
+ * período terminó, así que no aporta alertar sobre algo que ya pasó.
+ */
+const InsigniaPeriodoPrueba = ({ fechaFinPeriodoPrueba }) => {
+  if (!fechaFinPeriodoPrueba) return null;
+
+  const restantes = diasHasta(fechaFinPeriodoPrueba);
+  if (restantes === null || restantes < 0) return null;
+
+  return (
+    <Badge $tono={restantes <= 7 ? "peligro" : "aviso"}>
+      {restantes === 0
+        ? "Período de prueba · vence hoy"
+        : `Período de prueba · faltan ${restantes} día${restantes === 1 ? "" : "s"}`}
+    </Badge>
+  );
+};
+
+/**
  * @param {Object} props
  * @param {boolean} [props.puedeGestionar] Con false: sin columna Estado (todos son
  *   activos) y sin fila clicable, porque no hay ficha que abrir.
@@ -93,6 +114,7 @@ export const TablaColaboradores = ({ filas = [], onAbrir, puedeGestionar = true 
           {CELDAS.map((celda) => (
             <Th key={celda.clave}>{celda.etiqueta}</Th>
           ))}
+          <Th>Período de prueba</Th>
           {puedeGestionar && <Th>Estado</Th>}
         </tr>
       </thead>
@@ -115,6 +137,10 @@ export const TablaColaboradores = ({ filas = [], onAbrir, puedeGestionar = true 
             </Td>
             <Td data-etiqueta="Ext.">{fila.extension || "—"}</Td>
             <Td data-etiqueta="Tel. empresarial">{fila.telefonoEmpresarial || "—"}</Td>
+            <Td data-etiqueta="Período de prueba">
+              <InsigniaPeriodoPrueba fechaFinPeriodoPrueba={fila.fechaFinPeriodoPrueba} />
+              {!fila.fechaFinPeriodoPrueba && "—"}
+            </Td>
             {puedeGestionar && (
               <Td data-etiqueta="Estado">
                 <Badge $tono={TONO_ESTADO[fila.estado] ?? "neutro"}>

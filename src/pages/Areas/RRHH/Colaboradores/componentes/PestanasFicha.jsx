@@ -7,6 +7,8 @@ import {
   RUTA_DOCUMENTOS,
   RUTA_DOTACION,
   RUTA_FICHA,
+  RUTA_INDUCCION,
+  RUTA_PAZ_SALVO,
 } from "../utils/constantesDotacion";
 
 /**
@@ -77,7 +79,18 @@ const Contador = styled.span`
     hexToRGBA({ hex: theme?.colors?.warningDark ?? "#b45309", alpha: 0.16 })};
 `;
 
-export const PestanasFicha = ({ id, pendientesDotacion = 0, pendientesDocumentos = 0 }) => (
+/**
+ * @param {Object} props
+ * @param {boolean} [props.mostrarPazSalvo] Solo tiene sentido con la ficha de
+ *   baja: con un empleado activo no hay checklist de salida que revisar.
+ */
+export const PestanasFicha = ({
+  id,
+  pendientesDotacion = 0,
+  pendientesDocumentos = 0,
+  pendientesInduccion = 0,
+  mostrarPazSalvo = false,
+}) => (
   <Barra aria-label="Secciones de la ficha">
     <Pestana to={RUTA_FICHA(id)} end>
       Datos
@@ -91,6 +104,11 @@ export const PestanasFicha = ({ id, pendientesDotacion = 0, pendientesDocumentos
       {pendientesDocumentos > 0 && <Contador title="Documentos pendientes">{pendientesDocumentos}</Contador>}
     </Pestana>
     <Pestana to={RUTA_CARGAS_FAMILIARES(id)}>Cargas familiares</Pestana>
+    <Pestana to={RUTA_INDUCCION(id)}>
+      Inducción
+      {pendientesInduccion > 0 && <Contador title="Actividades pendientes">{pendientesInduccion}</Contador>}
+    </Pestana>
+    {mostrarPazSalvo && <Pestana to={RUTA_PAZ_SALVO(id)}>Paz y salvo</Pestana>}
   </Barra>
 );
 

@@ -1,24 +1,33 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import styled from "styled-components";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import IconUI from "components/UI/Components/IconsUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
+import { ModalUI } from "components/UI/Components/ModalUI";
 import { useTheme } from "context/ThemeContext";
 import {
+  CambiarCargoEmpleado,
   DarDeBajaColaborador,
   EliminarColaborador,
+  ListarPerfilesCargo,
   ObtenerColaborador,
+  ObtenerHistorialCargos,
   ReingresarColaborador,
+  SubrogarEmpleado,
 } from "services/colaboradoresService";
 import { BitacoraAuditoria } from "../componentes/BitacoraAuditoria";
 import { CabeceraFicha } from "../componentes/CabeceraFicha";
+import { HistorialCargos } from "../componentes/HistorialCargos";
 import { ModalBajaReingreso } from "../componentes/ModalBajaReingreso";
+import { ModalCambiarCargo } from "../componentes/ModalCambiarCargo";
 import { ModalEliminar } from "../componentes/ModalEliminar";
+import { ModalSubrogacion } from "../componentes/ModalSubrogacion";
 import { PestanasFicha } from "../componentes/PestanasFicha";
 import { useConsulta } from "../hooks/useConsulta";
 import { ESTADO, RUTA_BASE, TONO_MOVIMIENTO } from "../utils/constantes";
-import { formatearFecha, formatearMomento } from "../utils/fechas";
+import { diasHasta, formatearFecha, formatearMomento } from "../utils/fechas";
 import { ObtenerDocumentacionEmpleado, ObtenerDotacionEmpleado } from "services/dotacionService";
 import { ETIQUETA_ESTADO_CIVIL, RUTA_DOCUMENTOS, RUTA_DOTACION } from "../utils/constantesDotacion";
 import { Rejilla } from "../componentes/piezas";
@@ -43,6 +52,74 @@ import {
   Vacio,
 } from "../componentes/piezas";
 
+/** Modal de solo lectura para ver un perfil de cargo desde la ficha. */
+const ModalVerPerfilCargo = ({ abierto, perfil, onCerrar }) => {
+  if (!abierto || !perfil) return null;
+
+  return (
+    <ModalUI
+      isOpen={abierto}
+      onClose={onCerrar}
+      title={`Perfil de ${perfil.cargo}`}
+      width="560px"
+      maxWidth="94vw"
+      noFooter
+    >
+      <ListaDatos>
+        <DatoContenedor>
+          <DatoEtiqueta>Nivel</DatoEtiqueta>
+          <DatoValor>{perfil.nivel || "—"}</DatoValor>
+        </DatoContenedor>
+        <DatoContenedor>
+          <DatoEtiqueta>Reporta a</DatoEtiqueta>
+          <DatoValor>{perfil.reportaACargo || "—"}</DatoValor>
+        </DatoContenedor>
+        <DatoContenedor>
+          <DatoEtiqueta>Rango salarial</DatoEtiqueta>
+          <DatoValor>
+            {perfil.rangoSalarialMin != null || perfil.rangoSalarialMax != null
+              ? `${perfil.rangoSalarialMin ?? "—"} – ${perfil.rangoSalarialMax ?? "—"}`
+              : "—"}
+          </DatoValor>
+        </DatoContenedor>
+      </ListaDatos>
+      <Separador />
+      <ListaDatos style={{ gridTemplateColumns: "1fr" }}>
+        <DatoContenedor>
+          <DatoEtiqueta>Funciones</DatoEtiqueta>
+          <DatoValor>{perfil.funciones || "—"}</DatoValor>
+        </DatoContenedor>
+        <DatoContenedor>
+          <DatoEtiqueta>Requisitos</DatoEtiqueta>
+          <DatoValor>{perfil.requisitos || "—"}</DatoValor>
+        </DatoContenedor>
+        <DatoContenedor>
+          <DatoEtiqueta>Competencias</DatoEtiqueta>
+          <DatoValor>{perfil.competencias || "—"}</DatoValor>
+        </DatoContenedor>
+      </ListaDatos>
+      <div style={{ marginTop: 14 }}>
+        <ButtonUI text="Cerrar" variant="outlined" onClick={onCerrar} />
+      </div>
+    </ModalUI>
+  );
+};
+
+/** "Ver perfil de cargo": un enlace con pinta de texto, sin ir a otra pantalla. */
+const BotonEnlaceTexto = styled.button`
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: ${({ theme }) => theme?.colors?.primary};
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 /** Un dato de la ficha, con guion largo cuando está vacío. */
 const Dato = ({ etiqueta, children }) => (
   <DatoContenedor>
@@ -57,11 +134,23 @@ export const ColFicha = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
 
-  const [modal, setModal] = useState(null); // 'baja' | 'reingreso' | 'eliminar'
+  const [modal, setModal] = useState(null); // 'baja' | 'reingreso' | 'eliminar' | 'cambiarCargo' | 'subrogar'
+  const [verPerfilAbierto, setVerPerfilAbierto] = useState(false);
 
   const { datos: ficha, cargando, error, recargar } = useConsulta(
     ({ signal }) => ObtenerColaborador(id, { signal }),
     [id],
+  );
+
+  /** Historial de cargos y perfiles: para la línea de tiempo y el enlace "Ver perfil de cargo". */
+  const { datos: historialCargos, recargar: recargarHistorialCargos } = useConsulta(
+    ({ signal }) => ObtenerHistorialCargos(id, { signal }),
+    [id],
+  );
+
+  const { datos: perfilesCargo } = useConsulta(
+    ({ signal }) => ListarPerfilesCargo({ signal }),
+    [],
   );
 
   /**
@@ -109,6 +198,25 @@ export const ColFicha = () => {
     navigate(`${RUTA_BASE}/empleados`, { replace: true });
   };
 
+  const confirmarCambioCargo = async (carga) => {
+    await CambiarCargoEmpleado(id, carga);
+    toast.success("Cargo actualizado.");
+    cerrarModal();
+    recargar();
+    recargarHistorialCargos();
+  };
+
+  const confirmarSubrogacion = async (carga) => {
+    const resultado = await SubrogarEmpleado(id, carga);
+    toast.success("Subrogación registrada.");
+    cerrarModal();
+    if (resultado?.destino?.id) {
+      navigate(`${RUTA_BASE}/empleados/${resultado.destino.id}`);
+    } else {
+      recargar();
+    }
+  };
+
   if (cargando) {
     return (
       <Contenedor>
@@ -139,6 +247,11 @@ export const ColFicha = () => {
 
   const activo = ficha.estado === ESTADO.ACTIVO;
 
+  const diasPeriodoPrueba = diasHasta(ficha.fechaFinPeriodoPrueba);
+  const enPeriodoPrueba = activo && diasPeriodoPrueba !== null && diasPeriodoPrueba >= 0;
+
+  const perfilActual = (perfilesCargo ?? []).find((perfil) => perfil.cargoId === ficha.cargoId) ?? null;
+
   return (
     <Contenedor translate="no" className="notranslate">
       <CabeceraFicha ficha={ficha}>
@@ -155,6 +268,22 @@ export const ColFicha = () => {
             iconLeft="FaUserCheck"
             variant="outlined"
             onClick={() => setModal("reingreso")}
+          />
+        )}
+        {activo && (
+          <ButtonUI
+            text="Cambiar cargo"
+            iconLeft="FaBriefcase"
+            variant="outlined"
+            onClick={() => setModal("cambiarCargo")}
+          />
+        )}
+        {activo && (
+          <ButtonUI
+            text="Subrogar a otra empresa"
+            iconLeft="FaRightLeft"
+            variant="outlined"
+            onClick={() => setModal("subrogar")}
           />
         )}
         <BotonEnlace to={`${RUTA_BASE}/empleados/${id}/editar`}>
@@ -174,6 +303,7 @@ export const ColFicha = () => {
         id={id}
         pendientesDotacion={pendientesDotacion}
         pendientesDocumentos={documentacion?.pendientes ?? 0}
+        mostrarPazSalvo={!activo}
       />
 
       {activo && !ficha.fechaIngreso && (
@@ -183,9 +313,30 @@ export const ColFicha = () => {
         </Aviso>
       )}
 
+      {enPeriodoPrueba && (
+        <Aviso $tono={diasPeriodoPrueba <= 7 ? "peligro" : "aviso"}>
+          {diasPeriodoPrueba === 0
+            ? "El período de prueba vence hoy."
+            : `En período de prueba: faltan ${diasPeriodoPrueba} día${
+                diasPeriodoPrueba === 1 ? "" : "s"
+              } (vence el ${formatearFecha(ficha.fechaFinPeriodoPrueba)}).`}
+        </Aviso>
+      )}
+
       <Tarjeta>
         <TituloTarjeta>Datos</TituloTarjeta>
         <ListaDatos>
+          <Dato etiqueta="Cargo">
+            {ficha.cargo}
+            {perfilActual && (
+              <>
+                {" "}
+                <BotonEnlaceTexto type="button" onClick={() => setVerPerfilAbierto(true)}>
+                  Ver perfil de cargo
+                </BotonEnlaceTexto>
+              </>
+            )}
+          </Dato>
           <Dato etiqueta="Área">{ficha.area}</Dato>
           <Dato etiqueta="Línea de negocio">{ficha.linea}</Dato>
           <Dato etiqueta="Ciudad">{ficha.ciudad}</Dato>
@@ -266,6 +417,11 @@ export const ColFicha = () => {
       </Rejilla>
 
       <Tarjeta>
+        <TituloTarjeta>Historial de cargos</TituloTarjeta>
+        <HistorialCargos historial={historialCargos ?? []} />
+      </Tarjeta>
+
+      <Tarjeta>
         <TituloTarjeta>Historial</TituloTarjeta>
         {ficha.movimientos.length === 0 ? (
           <TextoTenue>No hay movimientos registrados.</TextoTenue>
@@ -304,6 +460,26 @@ export const ColFicha = () => {
         ficha={ficha}
         onCerrar={cerrarModal}
         onConfirmar={confirmarEliminacion}
+      />
+
+      <ModalCambiarCargo
+        abierto={modal === "cambiarCargo"}
+        ficha={ficha}
+        onCerrar={cerrarModal}
+        onConfirmar={confirmarCambioCargo}
+      />
+
+      <ModalSubrogacion
+        abierto={modal === "subrogar"}
+        ficha={ficha}
+        onCerrar={cerrarModal}
+        onConfirmar={confirmarSubrogacion}
+      />
+
+      <ModalVerPerfilCargo
+        abierto={verPerfilAbierto}
+        perfil={perfilActual}
+        onCerrar={() => setVerPerfilAbierto(false)}
       />
     </Contenedor>
   );
