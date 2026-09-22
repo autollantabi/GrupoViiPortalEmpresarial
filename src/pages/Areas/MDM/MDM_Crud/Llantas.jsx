@@ -11,7 +11,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas, syncItemsToSap } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemsRole5Bulk, patchItemsRole3Bulk, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas, syncItemsToSap } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
@@ -1551,10 +1551,15 @@ function Llantas() {
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
+            let erroresCount = 0;
+            const idsConError = new Set();
+
             if (idRolPrincipal === 5) {
+                const payloadsNuevos = [];
+                const payloadsReenvio = [];
                 for (const item of currentItems) {
                     if (item.fueRechazado) {
-                        const payload = {
+                        payloadsReenvio.push({
                             ID: item.id,
                             EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
                             CODIGO_BARRAS: item.codigo || "",
@@ -1571,10 +1576,10 @@ function Llantas() {
                             VISIBLE_EASYSALES: esVisibleEasySales(item),
                             RECHAZO: false,
                             FASE: 1
-                        };
-                        await patchItemRole3(payload);
+                        });
                     } else {
-                        const payload = {
+                        payloadsNuevos.push({
+                            __localId: item.id,
                             EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
                             CODIGO_BARRAS: item.codigo || "",
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
@@ -1588,34 +1593,43 @@ function Llantas() {
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             ES_NUEVO: esNuevo(item),
                             VISIBLE_EASYSALES: esVisibleEasySales(item),
-                        };
-                        await saveItemRole5(payload);
+                        });
                     }
                 }
+
+                const [respReenvio, respNuevos] = await Promise.all([
+                    payloadsReenvio.length > 0 ? patchItemsRole3Bulk(payloadsReenvio) : Promise.resolve(null),
+                    payloadsNuevos.length > 0 ? saveItemsRole5Bulk(payloadsNuevos.map(({ __localId, ...p }) => p)) : Promise.resolve(null),
+                ]);
+
+                (respReenvio?.errors || []).forEach(e => idsConError.add(e.id));
+                (respNuevos?.errors || []).forEach(e => idsConError.add(payloadsNuevos[e.index]?.__localId));
+                erroresCount = idsConError.size;
             } else if (idRolPrincipal === 3) {
-                for (const item of currentItems) {
-                    const payload = {
-                        ID: item.ID,
-                        DISENIO: item.diseño || "",
-                        ANCHO: item.ancho || "",
-                        LONAS: item.lonas || "",
-                        NOMENCLATURA: item.nomenclatura || "",
-                        CARGA: item.carga || "",
-                        VELOCIDAD: item.velocidad || "",
-                        RIN: item.rin || "",
-                        SERIE: item.serie || "",
-                        OBSERVACIONES: item.comentarios || "",
-                        FASE: 2,
-                        CATEGORIA: item.categoria || "",
-                        SEGMENTO: item.segmento || "",
-                        APLICACION: item.aplicacion || "",
-                        EJE: item.eje || "",
-                        LINEA_NEGOCIO: lineaSeleccionada.value,
-                        ...(item.fueRechazado && { RECHAZO: false })
-                    };
-                    await patchItemRole3(payload);
-                }
+                const payloads = currentItems.map(item => ({
+                    ID: item.ID,
+                    DISENIO: item.diseño || "",
+                    ANCHO: item.ancho || "",
+                    LONAS: item.lonas || "",
+                    NOMENCLATURA: item.nomenclatura || "",
+                    CARGA: item.carga || "",
+                    VELOCIDAD: item.velocidad || "",
+                    RIN: item.rin || "",
+                    SERIE: item.serie || "",
+                    OBSERVACIONES: item.comentarios || "",
+                    FASE: 2,
+                    CATEGORIA: item.categoria || "",
+                    SEGMENTO: item.segmento || "",
+                    APLICACION: item.aplicacion || "",
+                    EJE: item.eje || "",
+                    LINEA_NEGOCIO: lineaSeleccionada.value,
+                    ...(item.fueRechazado && { RECHAZO: false })
+                }));
+                const response = await patchItemsRole3Bulk(payloads);
+                (response?.errors || []).forEach(e => idsConError.add(e.id));
+                erroresCount = idsConError.size;
             } else if (idRolPrincipal === 4) {
+                const payloadsFase3 = [];
                 for (const item of currentItems) {
                     const empresaToSend = item.EMPRESA || "";
                     const disenioExistente = imagenesDisenioExistente[getDisenioKey(item)];
@@ -1650,7 +1664,7 @@ function Llantas() {
                             toast.error(`Error al vincular imagen existente para ${item.marca} ${item.diseño}`);
                         }
                     }
-                    await patchItemRole3({
+                    payloadsFase3.push({
                         ID: item.ID,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
@@ -1658,11 +1672,29 @@ function Llantas() {
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
                 }
+                const response = await patchItemsRole3Bulk(payloadsFase3);
+                (response?.errors || []).forEach(e => idsConError.add(e.id));
+                erroresCount = idsConError.size;
             }
 
-            toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
-            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))));
-            setSelectedItemIds(new Set());
+            const enviados = currentItems.length - erroresCount;
+            if (erroresCount === 0) {
+                toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
+            } else if (enviados > 0) {
+                toast.warning(`Se enviaron ${enviados} de ${currentItems.length} ítems a revisión. ${erroresCount} fallaron y quedaron pendientes.`);
+            } else {
+                toast.error(`No se pudo enviar ningún ítem a revisión.`);
+            }
+
+            const idsEnviados = new Set(
+                currentItems.filter(i => !idsConError.has(i.id)).map(i => i.id)
+            );
+            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && idsEnviados.has(i.id))));
+            setSelectedItemIds(prev => {
+                const next = new Set(prev);
+                idsEnviados.forEach(id => next.delete(id));
+                return next;
+            });
             setIsSAPModalOpen(false);
         } catch (error) {
             console.error("Error al enviar a revisión:", error);

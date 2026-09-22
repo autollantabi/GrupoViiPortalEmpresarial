@@ -10,7 +10,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas, syncItemsToSap } from "services/mdmService";
+import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas, syncItemsToSap } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
@@ -741,26 +741,35 @@ function Herramientas() {
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
-            for (const item of currentItems) {
-                if (idRolPrincipal === 3) {
-                    const payloadRole3 = {
-                        ID: item.id,
-                        LINEA_NEGOCIO: "HERRAMIENTAS",
-                        GRUPO: item.grupo || "",
-                        SUBGRUPO: item.subgrupo || "",
-                        SUBGRUPO1: item.subgrupo1 || "",
-                        PALLETS: item.pallets || "",
-                        TIPO: item.tipo || "",
-                        FASE: 2,
-                        OBSERVACIONES: item.comentarios || "",
-                        ...(item.fueRechazado && { RECHAZO: false })
-                    };
-                    await patchItemRole3(payloadRole3);
-                } else if (idRolPrincipal === 4) {
-                    // Las imágenes se suben una vez por diseño, no por ítem: se resuelve aquí si
-                    // ya existe una imagen para este diseño (verificada por checkDesignImage) y el
-                    // usuario no seleccionó un archivo nuevo para ese tipo, en cuyo caso se vincula
-                    // la existente en vez de volver a subirla. Mismo patrón que Llantas.jsx.
+            let erroresCount = 0;
+            let idsConError = new Set();
+
+            if (idRolPrincipal === 3) {
+                const payloads = currentItems.map(item => ({
+                    ID: item.id,
+                    LINEA_NEGOCIO: "HERRAMIENTAS",
+                    GRUPO: item.grupo || "",
+                    SUBGRUPO: item.subgrupo || "",
+                    SUBGRUPO1: item.subgrupo1 || "",
+                    PALLETS: item.pallets || "",
+                    TIPO: item.tipo || "",
+                    FASE: 2,
+                    OBSERVACIONES: item.comentarios || "",
+                    ...(item.fueRechazado && { RECHAZO: false })
+                }));
+                const response = await patchItemsRole3Bulk(payloads);
+                const errores = response?.errors || [];
+                erroresCount = errores.length;
+                idsConError = new Set(errores.map(e => e.id));
+            } else if (idRolPrincipal === 4) {
+                // Las imágenes se suben una vez por diseño, no por ítem: se resuelve aquí si
+                // ya existe una imagen para este diseño (verificada por checkDesignImage) y el
+                // usuario no seleccionó un archivo nuevo para ese tipo, en cuyo caso se vincula
+                // la existente en vez de volver a subirla. Mismo patrón que Llantas.jsx.
+                // Los uploads siguen siendo por ítem (son archivos individuales), pero el avance
+                // de fase se agrupa en un solo llamado al final para no disparar un correo por ítem.
+                const payloadsFase3 = [];
+                for (const item of currentItems) {
                     const disenioExistente = imagenesDisenioExistente[getDisenioKey(item)];
                     const debeVincularExistente =
                         (!item.imagenWebp && disenioExistente?.webp?.exists) ||
@@ -791,14 +800,22 @@ function Herramientas() {
                             toast.error(`Error al vincular imagen existente para ${item.marca || item.id}`);
                         }
                     }
-                    await patchItemRole3({
+                    payloadsFase3.push({
                         ID: item.id,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
                         LINEA_NEGOCIO: "HERRAMIENTAS",
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
-                } else {
+                }
+                const response = await patchItemsRole3Bulk(payloadsFase3);
+                const errores = response?.errors || [];
+                erroresCount = errores.length;
+                idsConError = new Set(errores.map(e => e.id));
+            } else {
+                const payloadsNuevos = [];
+                const payloadsReenvio = [];
+                for (const item of currentItems) {
                     const payload = {
                         LINEA_NEGOCIO: "HERRAMIENTAS",
                         EMPRESA: EMPRESA_HERRAMIENTAS,
@@ -829,15 +846,44 @@ function Herramientas() {
                     };
 
                     if (item.fueRechazado) {
-                        await patchItemRole3({ ...payload, ID: item.id, RECHAZO: false, FASE: 1 });
+                        payloadsReenvio.push({ ...payload, ID: item.id, RECHAZO: false, FASE: 1 });
                     } else {
-                        await saveItemRole5(payload);
+                        payloadsNuevos.push({ ...payload, __localId: item.id });
                     }
                 }
+
+                const [respReenvio, respNuevos] = await Promise.all([
+                    payloadsReenvio.length > 0 ? patchItemsRole3Bulk(payloadsReenvio) : Promise.resolve(null),
+                    payloadsNuevos.length > 0 ? saveItemsRole5Bulk(payloadsNuevos.map(({ __localId, ...p }) => p)) : Promise.resolve(null),
+                ]);
+
+                const erroresReenvio = respReenvio?.errors || [];
+                erroresCount += erroresReenvio.length;
+                erroresReenvio.forEach(e => idsConError.add(e.id));
+
+                const erroresNuevos = respNuevos?.errors || [];
+                erroresCount += erroresNuevos.length;
+                erroresNuevos.forEach(e => idsConError.add(payloadsNuevos[e.index]?.__localId));
             }
-            toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
-            setItems(prev => prev.filter(i => !selectedItemIds.has(i.id)));
-            setSelectedItemIds(new Set());
+
+            const enviados = currentItems.length - erroresCount;
+            if (erroresCount === 0) {
+                toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
+            } else if (enviados > 0) {
+                toast.warning(`Se enviaron ${enviados} de ${currentItems.length} ítems a revisión. ${erroresCount} fallaron y quedaron pendientes.`);
+            } else {
+                toast.error(`No se pudo enviar ningún ítem a revisión.`);
+            }
+
+            const idsEnviados = new Set(
+                currentItems.filter(i => !idsConError.has(i.id)).map(i => i.id)
+            );
+            setItems(prev => prev.filter(i => !idsEnviados.has(i.id)));
+            setSelectedItemIds(prev => {
+                const next = new Set(prev);
+                idsEnviados.forEach(id => next.delete(id));
+                return next;
+            });
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
             toast.error("Error al enviar los ítems a revisión.");

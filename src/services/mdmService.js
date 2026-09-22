@@ -60,6 +60,25 @@ export const saveItemRole5 = async (item) => {
 };
 
 /**
+ * Crea varios ítems nuevos en un solo request (específico para Rol 5).
+ * El backend guarda todos los ítems y envía UNA sola notificación por correo listando
+ * todos, en vez de una por ítem. Para HERRAMIENTAS sincroniza a SAP de inmediato (todos
+ * los ítems en un solo llamado); LLANTAS/LUBRICANTES no se sincronizan hasta la
+ * aprobación de Jefatura.
+ * @param {Array<Object>} items - Ítems mapeados, mismo shape que `saveItemRole5`
+ * @returns {Promise<{status:string, message:string, data:Array, errors?:Array, sapSync?:Object}>}
+ */
+export const saveItemsRole5Bulk = async (items) => {
+    try {
+        const response = await axiosInstanceNew.post("/mdm/items/bulk", { items });
+        return response.data;
+    } catch (error) {
+        console.error("Error en saveItemsRole5Bulk:", error);
+        throw error;
+    }
+};
+
+/**
  * Actualiza un ítem (específico para Rol 3).
  * @param {Object} item - Datos del ítem mapeados
  * @returns {Promise<any>}
@@ -70,6 +89,24 @@ export const patchItemRole3 = async (item) => {
         return response.data;
     } catch (error) {
         console.error("Error en patchItemRole3:", error);
+        throw error;
+    }
+};
+
+/**
+ * Actualiza varios ítems en un solo request (avance de fase / reenvío tras rechazo).
+ * El backend agrupa los ítems que avanzan a la misma fase (y los reenviados tras
+ * rechazo) y envía UNA sola notificación por grupo listando todos sus ítems, en vez de
+ * una por ítem.
+ * @param {Array<Object>} items - Ítems mapeados, mismo shape que `patchItemRole3`
+ * @returns {Promise<{status:string, message:string, data:null, errors?:Array}>}
+ */
+export const patchItemsRole3Bulk = async (items) => {
+    try {
+        const response = await axiosInstanceNew.patch("/mdm/items/bulk", { items });
+        return response.data;
+    } catch (error) {
+        console.error("Error en patchItemsRole3Bulk:", error);
         throw error;
     }
 };

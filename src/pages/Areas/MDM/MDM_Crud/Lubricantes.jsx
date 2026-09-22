@@ -11,7 +11,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades, syncItemsToSap } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades, syncItemsToSap } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
@@ -1051,10 +1051,15 @@ function Lubricantes() {
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
+            let erroresCount = 0;
+            const idsConError = new Set();
+
             if (idRolPrincipal === 5) {
+                const payloadsNuevos = [];
+                const payloadsReenvio = [];
                 for (const item of currentItems) {
                     if (item.fueRechazado) {
-                        const payload = {
+                        payloadsReenvio.push({
                             ID: item.id,
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
@@ -1072,10 +1077,10 @@ function Lubricantes() {
                             VISIBLE_EASYSALES: esVisibleEasySales(item),
                             RECHAZO: false,
                             FASE: 1
-                        };
-                        await patchItemRole3(payload);
+                        });
                     } else {
-                        const payload = {
+                        payloadsNuevos.push({
+                            __localId: item.id,
                             LINEA_NEGOCIO: lineaSeleccionada.value,
                             NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
@@ -1092,39 +1097,48 @@ function Lubricantes() {
                             EMPRESA: EMPRESA_LUBRICANTES,
                             OBSERVACIONES: item.comentarios || "",
                             VISIBLE_EASYSALES: esVisibleEasySales(item),
-                        };
-                        await saveItemRole5(payload);
+                        });
                     }
                 }
+
+                const [respReenvio, respNuevos] = await Promise.all([
+                    payloadsReenvio.length > 0 ? patchItemsRole3Bulk(payloadsReenvio) : Promise.resolve(null),
+                    payloadsNuevos.length > 0 ? saveItemsRole5Bulk(payloadsNuevos.map(({ __localId, ...p }) => p)) : Promise.resolve(null),
+                ]);
+
+                (respReenvio?.errors || []).forEach(e => idsConError.add(e.id));
+                (respNuevos?.errors || []).forEach(e => idsConError.add(payloadsNuevos[e.index]?.__localId));
+                erroresCount = idsConError.size;
             } else if (idRolPrincipal === 3) {
-                for (const item of currentItems) {
-                    const payload = {
-                        ID: item.ID,
-                        LINEA_NEGOCIO: lineaSeleccionada.value,
-                        FAMILIA: item.familia || "",
-                        VISCOSIDAD: item.viscosidad || "",
-                        CLASE: item.clase || "",
-                        SAE: item.sae || "",
-                        ISOVG: item.isovg || "",
-                        API: item.api || "",
-                        ACEA: item.acea || "",
-                        JASO: item.jaso || "",
-                        ISO_DIN: item.isoDin || item.iso_din || "",
-                        PALLETS: item.pallets || "",
-                        PRESENTACION: item.presentacion || "",
-                        UNIDADES_POR_PALLET: item.unidades_por_pallet || item.unidadesPallet || "",
-                        UNIDADES_POR_CAJA: item.unidades_por_caja || item.unidadesCaja || "",
-                        APLICACION: item.aplicacion || "",
-                        GRADO_DE_LA_GRASA: item.grado_de_la_grasa || item.gradoGrasa || "",
-                        PESO_MATERIAL_BRUTO: item.pesoMaterialBruto || item.peso_material_bruto || item.pesoBruto || "",
-                        CLASIFICACION: item.clasificacion || "",
-                        OBSERVACIONES: item.comentarios || "",
-                        FASE: 2,
-                        ...(item.fueRechazado && { RECHAZO: false })
-                    };
-                    await patchItemRole3(payload);
-                }
+                const payloads = currentItems.map(item => ({
+                    ID: item.ID,
+                    LINEA_NEGOCIO: lineaSeleccionada.value,
+                    FAMILIA: item.familia || "",
+                    VISCOSIDAD: item.viscosidad || "",
+                    CLASE: item.clase || "",
+                    SAE: item.sae || "",
+                    ISOVG: item.isovg || "",
+                    API: item.api || "",
+                    ACEA: item.acea || "",
+                    JASO: item.jaso || "",
+                    ISO_DIN: item.isoDin || item.iso_din || "",
+                    PALLETS: item.pallets || "",
+                    PRESENTACION: item.presentacion || "",
+                    UNIDADES_POR_PALLET: item.unidades_por_pallet || item.unidadesPallet || "",
+                    UNIDADES_POR_CAJA: item.unidades_por_caja || item.unidadesCaja || "",
+                    APLICACION: item.aplicacion || "",
+                    GRADO_DE_LA_GRASA: item.grado_de_la_grasa || item.gradoGrasa || "",
+                    PESO_MATERIAL_BRUTO: item.pesoMaterialBruto || item.peso_material_bruto || item.pesoBruto || "",
+                    CLASIFICACION: item.clasificacion || "",
+                    OBSERVACIONES: item.comentarios || "",
+                    FASE: 2,
+                    ...(item.fueRechazado && { RECHAZO: false })
+                }));
+                const response = await patchItemsRole3Bulk(payloads);
+                (response?.errors || []).forEach(e => idsConError.add(e.id));
+                erroresCount = idsConError.size;
             } else if (idRolPrincipal === 4) {
+                const payloadsFase3 = [];
                 for (const item of currentItems) {
                     const empresaToSend = item.EMPRESA || EMPRESA_LUBRICANTES;
                     const disenioExistente = imagenesDisenioExistente[getDisenioKey(item)];
@@ -1159,7 +1173,7 @@ function Lubricantes() {
                             toast.error(`Error al vincular imagen existente para ${item.marca} ${item.descripcion || ""}`);
                         }
                     }
-                    await patchItemRole3({
+                    payloadsFase3.push({
                         ID: item.ID,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
@@ -1167,11 +1181,29 @@ function Lubricantes() {
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
                 }
+                const response = await patchItemsRole3Bulk(payloadsFase3);
+                (response?.errors || []).forEach(e => idsConError.add(e.id));
+                erroresCount = idsConError.size;
             }
 
-            toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
-            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))));
-            setSelectedItemIds(new Set());
+            const enviados = currentItems.length - erroresCount;
+            if (erroresCount === 0) {
+                toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
+            } else if (enviados > 0) {
+                toast.warning(`Se enviaron ${enviados} de ${currentItems.length} ítems a revisión. ${erroresCount} fallaron y quedaron pendientes.`);
+            } else {
+                toast.error(`No se pudo enviar ningún ítem a revisión.`);
+            }
+
+            const idsEnviados = new Set(
+                currentItems.filter(i => !idsConError.has(i.id)).map(i => i.id)
+            );
+            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && idsEnviados.has(i.id))));
+            setSelectedItemIds(prev => {
+                const next = new Set(prev);
+                idsEnviados.forEach(id => next.delete(id));
+                return next;
+            });
             setIsSAPModalOpen(false);
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
