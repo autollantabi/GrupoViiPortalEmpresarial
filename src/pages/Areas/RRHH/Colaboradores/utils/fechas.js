@@ -55,6 +55,28 @@ export const formatearMomento = (iso) => {
 };
 
 /**
+ * Días de HOY a `iso` (puede ser negativo si `iso` ya pasó). Se usa para las
+ * alertas de período de prueba: "faltan N días".
+ *
+ * Sí entra a Date acá, pero con Date.UTC y las tres partes por separado (nunca
+ * `new Date(iso)`), así que no cae en la trampa de interpretación UTC que evita
+ * el resto de este archivo: ambos lados de la resta están en el mismo huso.
+ */
+export const diasHasta = (iso) => {
+  if (!iso) return null;
+  const [anio, mes, dia] = String(iso).slice(0, 10).split("-").map(Number);
+  if (!anio || !mes || !dia) return null;
+
+  const [anioHoy, mesHoy, diaHoy] = hoyIso().split("-").map(Number);
+
+  const msPorDia = 24 * 60 * 60 * 1000;
+  const destino = Date.UTC(anio, mes - 1, dia);
+  const hoy = Date.UTC(anioHoy, mesHoy - 1, diaHoy);
+
+  return Math.round((destino - hoy) / msPorDia);
+};
+
+/**
  * Recorta cualquier cosa a 'AAAA-MM-DD'.
  *
  * Red de seguridad del contrato: si el backend devolviera un datetime en vez de

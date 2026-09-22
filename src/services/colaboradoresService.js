@@ -130,6 +130,9 @@ const mapearListItem = (fila) => ({
   id: numero(fila.id),
   fechaIngreso: soloFecha(fila.fechaIngreso),
   fechaSalida: soloFecha(fila.fechaSalida),
+  // Fase 3: fecha de ingreso + 70 días, null si no aplica (p. ej. inactivo). Los
+  // "días restantes" se calculan en el cliente contra la fecha de hoy.
+  fechaFinPeriodoPrueba: soloFecha(fila.fechaFinPeriodoPrueba),
 });
 
 const mapearDetalle = (ficha) => ({
@@ -149,6 +152,7 @@ const mapearDetalle = (ficha) => ({
   conduce: ficha.conduce === true,
   fechaIngreso: soloFecha(ficha.fechaIngreso),
   fechaSalida: soloFecha(ficha.fechaSalida),
+  fechaFinPeriodoPrueba: soloFecha(ficha.fechaFinPeriodoPrueba),
   movimientos: (ficha.movimientos ?? []).map((mov) => ({
     ...mov,
     id: numero(mov.id),
@@ -379,5 +383,402 @@ export const ListarEstados = async ({ signal } = {}) => {
     return desenvolver(respuesta) ?? [];
   } catch (error) {
     return propagar(error, "No se pudo obtener los estados");
+  }
+};
+
+// ── Fase 3: ciclo de vida laboral y reportes ───────────────────────────────
+//
+// Mismo criterio que el resto del archivo: acá se desenvuelve el envoltorio y se
+// normalizan ids y fechas, y las pantallas reciben objetos ya listos.
+
+/**
+ * @typedef {Object} PerfilCargo
+ * @property {number} id
+ * @property {number} cargoId
+ * @property {string} cargo
+ * @property {string|null} nivel
+ * @property {string|null} funciones
+ * @property {string|null} requisitos
+ * @property {string|null} competencias
+ * @property {number|null} rangoSalarialMin
+ * @property {number|null} rangoSalarialMax
+ * @property {number|null} reportaACargoId
+ * @property {string|null} reportaACargo
+ *
+ * @typedef {Object} CambioCargo
+ * @property {number} id
+ * @property {number} cargoId
+ * @property {string} cargo
+ * @property {string} fechaInicio
+ * @property {string|null} fechaFin
+ * @property {string|null} observacion
+ * @property {boolean} vigente
+ *
+ * @typedef {Object} InduccionCatalogoItem
+ * @property {number} id
+ * @property {number|null} areaId  Nulo = aplica a todas las áreas
+ * @property {string|null} area
+ * @property {number} orden
+ * @property {string} nombreActividad
+ * @property {number} diaRelativoIngreso
+ * @property {string|null} responsable
+ * @property {boolean} activo
+ *
+ * @typedef {Object} InduccionEmpleadoItem
+ * @property {number} id
+ * @property {number} empleadoId
+ * @property {number} actividadId
+ * @property {string} actividadNombre
+ * @property {number} diaRelativoIngreso
+ * @property {string|null} responsable
+ * @property {number} orden
+ * @property {string|null} fechaProgramada
+ * @property {"Pendiente"|"Completada"} estado
+ * @property {string|null} fechaCompletado
+ * @property {string|null} completadoPor
+ * @property {string|null} observacion
+ *
+ * @typedef {Object} PazSalvoAreaConfig
+ * @property {number} id
+ * @property {string} areaNombre
+ * @property {number|null} cantidadResponsables  Informativo, no una lista de contactos
+ * @property {string|null} correoNotificacion
+ * @property {boolean} activo
+ *
+ * @typedef {Object} PazSalvoEmpleadoItem
+ * @property {number} id
+ * @property {number} empleadoId
+ * @property {number} movimientoId
+ * @property {number} areaConfigId
+ * @property {string} areaNombre
+ * @property {"Pendiente"|"Resuelto"} estado
+ * @property {string|null} observacion
+ * @property {string|null} fechaResolucion
+ * @property {string|null} resueltoPor
+ */
+
+// ── 3.1 — Reporte de ingresos y salidas ─────────────────────────────────────
+
+/**
+ * @param {Object} filtros empresaId (opcional), fechaInicio y fechaFin (AAAA-MM-DD, obligatorias)
+ * @returns {Promise<Object[]>}
+ */
+export const ObtenerReporteIngresosSalidas = async (filtros = {}, { signal } = {}) => {
+  try {
+    const params = {};
+    Object.entries(filtros).forEach(([clave, valor]) => {
+      if (valor !== undefined && valor !== null && valor !== "") params[clave] = valor;
+    });
+
+    const respuesta = await axiosInstanceNew.get(`${BASE}/reportes/ingresos-salidas`, {
+      params,
+      signal,
+    });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      empleadoId: numero(fila.empleadoId),
+      fecha: soloFecha(fila.fecha),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el reporte de ingresos y salidas");
+  }
+};
+
+// ── 3.2 — Perfiles de cargo ──────────────────────────────────────────────────
+
+const mapearPerfilCargo = (perfil) => ({
+  ...perfil,
+  id: numero(perfil.id),
+  cargoId: numero(perfil.cargoId),
+  reportaACargoId: numero(perfil.reportaACargoId),
+  rangoSalarialMin: numero(perfil.rangoSalarialMin),
+  rangoSalarialMax: numero(perfil.rangoSalarialMax),
+});
+
+/** @returns {Promise<PerfilCargo[]>} */
+export const ListarPerfilesCargo = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/perfiles-cargo`, { signal });
+    return (desenvolver(respuesta) ?? []).map(mapearPerfilCargo);
+  } catch (error) {
+    return propagar(error, "No se pudo obtener los perfiles de cargo");
+  }
+};
+
+export const CrearPerfilCargo = async (datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(`${BASE}/perfiles-cargo`, datos);
+    const perfil = desenvolver(respuesta);
+    return perfil ? mapearPerfilCargo(perfil) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo crear el perfil de cargo");
+  }
+};
+
+export const ActualizarPerfilCargo = async (id, datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.put(`${BASE}/perfiles-cargo/${id}`, datos);
+    const perfil = desenvolver(respuesta);
+    return perfil ? mapearPerfilCargo(perfil) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo actualizar el perfil de cargo");
+  }
+};
+
+export const EliminarPerfilCargo = async (id) => {
+  try {
+    await axiosInstanceNew.delete(`${BASE}/perfiles-cargo/${id}`);
+  } catch (error) {
+    propagar(error, "No se pudo eliminar el perfil de cargo");
+  }
+};
+
+// ── 3.3 — Historial de cambios de cargo ─────────────────────────────────────
+
+/** @returns {Promise<CambioCargo[]>} */
+export const ObtenerHistorialCargos = async (empleadoId, { signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(
+      `${BASE}/empleados/${empleadoId}/cambios-cargo`,
+      { signal },
+    );
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      id: numero(fila.id),
+      cargoId: numero(fila.cargoId),
+      fechaInicio: soloFecha(fila.fechaInicio),
+      fechaFin: soloFecha(fila.fechaFin),
+      vigente: Boolean(fila.vigente),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el historial de cargos");
+  }
+};
+
+/**
+ * Cierra el renglón vigente y abre uno nuevo. Responde con la ficha actualizada,
+ * igual que DarDeBajaColaborador/ReingresarColaborador.
+ * @returns {Promise<EmpleadoDetalle>}
+ */
+export const CambiarCargoEmpleado = async (empleadoId, datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(
+      `${BASE}/empleados/${empleadoId}/cambios-cargo`,
+      datos,
+    );
+    const ficha = desenvolver(respuesta);
+    return ficha ? mapearDetalle(ficha) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo registrar el cambio de cargo");
+  }
+};
+
+// ── 3.4 — Alertas de período de prueba ──────────────────────────────────────
+
+/** Empleados activos dentro de la ventana de aviso. @returns {Promise<Object[]>} */
+export const ObtenerPeriodoPruebaPendientes = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/periodo-prueba/pendientes`, { signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      empleadoId: numero(fila.empleadoId),
+      fechaIngreso: soloFecha(fila.fechaIngreso),
+      fechaFinPeriodoPrueba: soloFecha(fila.fechaFinPeriodoPrueba),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el período de prueba pendiente");
+  }
+};
+
+/** Dispara el envío manual de avisos de período de prueba. */
+export const EjecutarAvisoPeriodoPrueba = async () => {
+  try {
+    const respuesta = await axiosInstanceNew.post(`${BASE}/periodo-prueba/ejecutar`);
+    return respuesta?.data?.message ?? "";
+  } catch (error) {
+    return propagar(error, "No se pudo ejecutar el envío de avisos de período de prueba");
+  }
+};
+
+// ── 3.5 — Cronograma de inducción por área ──────────────────────────────────
+
+const mapearInduccionCatalogoItem = (item) => ({
+  ...item,
+  id: numero(item.id),
+  areaId: numero(item.areaId),
+  orden: numero(item.orden) ?? 0,
+  diaRelativoIngreso: numero(item.diaRelativoIngreso),
+  activo: item.activo !== false,
+});
+
+/** @returns {Promise<InduccionCatalogoItem[]>} */
+export const ListarInduccionCatalogo = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/induccion/catalogo`, { signal });
+    return (desenvolver(respuesta) ?? []).map(mapearInduccionCatalogoItem);
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el catálogo de inducción");
+  }
+};
+
+export const CrearInduccionCatalogoItem = async (datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(`${BASE}/induccion/catalogo`, datos);
+    const item = desenvolver(respuesta);
+    return item ? mapearInduccionCatalogoItem(item) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo crear la actividad de inducción");
+  }
+};
+
+export const ActualizarInduccionCatalogoItem = async (id, datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.put(`${BASE}/induccion/catalogo/${id}`, datos);
+    const item = desenvolver(respuesta);
+    return item ? mapearInduccionCatalogoItem(item) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo actualizar la actividad de inducción");
+  }
+};
+
+export const EliminarInduccionCatalogoItem = async (id) => {
+  try {
+    await axiosInstanceNew.delete(`${BASE}/induccion/catalogo/${id}`);
+  } catch (error) {
+    propagar(error, "No se pudo eliminar la actividad de inducción");
+  }
+};
+
+/** @returns {Promise<InduccionEmpleadoItem[]>} */
+export const ObtenerInduccionEmpleado = async (empleadoId, { signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(
+      `${BASE}/induccion/empleados/${empleadoId}`,
+      { signal },
+    );
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      id: numero(fila.id),
+      empleadoId: numero(fila.empleadoId),
+      actividadId: numero(fila.actividadId),
+      diaRelativoIngreso: numero(fila.diaRelativoIngreso),
+      orden: numero(fila.orden) ?? 0,
+      fechaProgramada: soloFecha(fila.fechaProgramada),
+      fechaCompletado: soloFecha(fila.fechaCompletado),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener la inducción del colaborador");
+  }
+};
+
+/**
+ * Marca una actividad de inducción. No se depende de la forma exacta de la
+ * respuesta: la pantalla vuelve a pedir la lista con recargar(), igual que hace
+ * ColDocumentos tras marcar un documento.
+ */
+export const MarcarInduccionItem = async (empleadoId, itemId, datos) => {
+  try {
+    await axiosInstanceNew.put(`${BASE}/induccion/empleados/${empleadoId}/${itemId}`, datos);
+  } catch (error) {
+    propagar(error, "No se pudo actualizar la actividad de inducción");
+  }
+};
+
+// ── 3.6 — Subrogación ────────────────────────────────────────────────────────
+
+/**
+ * Traslada a un empleado a otra empresa conservando la antigüedad. Responde con
+ * las DOS fichas completas: la de origen (que queda de baja por subrogación) y la
+ * de destino (la nueva, activa).
+ * @returns {Promise<{origen: EmpleadoDetalle, destino: EmpleadoDetalle}|null>}
+ */
+export const SubrogarEmpleado = async (empleadoId, datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(
+      `${BASE}/empleados/${empleadoId}/subrogacion`,
+      datos,
+    );
+    const resultado = desenvolver(respuesta);
+    if (!resultado) return null;
+    return {
+      origen: resultado.origen ? mapearDetalle(resultado.origen) : null,
+      destino: resultado.destino ? mapearDetalle(resultado.destino) : null,
+    };
+  } catch (error) {
+    return propagar(error, "No se pudo registrar la subrogación");
+  }
+};
+
+// ── 3.7 — Paz y salvo ────────────────────────────────────────────────────────
+
+const mapearPazSalvoAreaConfig = (area) => ({
+  ...area,
+  id: numero(area.id),
+  cantidadResponsables: numero(area.cantidadResponsables),
+  activo: area.activo !== false,
+});
+
+/** @returns {Promise<PazSalvoAreaConfig[]>} */
+export const ListarPazSalvoAreasConfig = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/paz-salvo/areas-config`, { signal });
+    return (desenvolver(respuesta) ?? []).map(mapearPazSalvoAreaConfig);
+  } catch (error) {
+    return propagar(error, "No se pudo obtener la configuración de áreas de paz y salvo");
+  }
+};
+
+export const CrearPazSalvoAreaConfig = async (datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(`${BASE}/paz-salvo/areas-config`, datos);
+    const area = desenvolver(respuesta);
+    return area ? mapearPazSalvoAreaConfig(area) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo crear el área de paz y salvo");
+  }
+};
+
+/** No hay DELETE: se desactiva con activo:false. */
+export const ActualizarPazSalvoAreaConfig = async (id, datos) => {
+  try {
+    const respuesta = await axiosInstanceNew.put(`${BASE}/paz-salvo/areas-config/${id}`, datos);
+    const area = desenvolver(respuesta);
+    return area ? mapearPazSalvoAreaConfig(area) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo actualizar el área de paz y salvo");
+  }
+};
+
+/** @returns {Promise<PazSalvoEmpleadoItem[]>} */
+export const ObtenerPazSalvoEmpleado = async (empleadoId, { signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/empleados/${empleadoId}/paz-salvo`, {
+      signal,
+    });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      id: numero(fila.id),
+      empleadoId: numero(fila.empleadoId),
+      movimientoId: numero(fila.movimientoId),
+      areaConfigId: numero(fila.areaConfigId),
+      fechaResolucion: soloFecha(fila.fechaResolucion),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el paz y salvo del colaborador");
+  }
+};
+
+/**
+ * Marca un área como Resuelto. Es unidireccional: el backend no ofrece
+ * "des-resolver".
+ */
+export const ResolverPazSalvoItem = async (empleadoId, areaConfigId, datos) => {
+  try {
+    await axiosInstanceNew.put(
+      `${BASE}/empleados/${empleadoId}/paz-salvo/${areaConfigId}`,
+      datos,
+    );
+  } catch (error) {
+    propagar(error, "No se pudo marcar el área como resuelta");
   }
 };

@@ -195,6 +195,11 @@ export const RUTA_CARGAS_FAMILIARES = (id) => `${RUTA_BASE}/empleados/${id}/carg
 export const RUTA_FICHA = (id) => `${RUTA_BASE}/empleados/${id}`;
 export const RUTA_CONFIGURACION = `${RUTA_BASE}/configuracion`;
 
+// Fase 3: ciclo de vida laboral y reportes.
+export const RUTA_INDUCCION = (id) => `${RUTA_BASE}/empleados/${id}/induccion`;
+export const RUTA_PAZ_SALVO = (id) => `${RUTA_BASE}/empleados/${id}/paz-salvo`;
+export const RUTA_REPORTE_INGRESOS_SALIDAS = `${RUTA_BASE}/reportes/ingresos-salidas`;
+
 /** Secciones de la pantalla de configuración. Van en la query string. */
 export const SECCION_CONFIGURACION = Object.freeze({
   PLANTILLAS: "plantillas",
@@ -203,6 +208,10 @@ export const SECCION_CONFIGURACION = Object.freeze({
   AREAS: "areas",
   MOTIVOS_BAJA: "motivos-baja",
   CUMPLEANIOS: "cumpleanios",
+  // Fase 3.
+  PERFILES_CARGO: "perfiles-cargo",
+  INDUCCION: "induccion",
+  PAZ_SALVO_AREAS: "paz-salvo-areas",
 });
 
 // ── Archivos ────────────────────────────────────────────────────────────────
