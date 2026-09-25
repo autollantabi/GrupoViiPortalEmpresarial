@@ -62,7 +62,7 @@ const REPORTES = [
   },
   {
     id: 43,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiMjZhYzIyNjQtNzVlNS00ODgzLTk4YmQtNWIzZjIwZThhN2MyIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiYWM1ZGI2YTQtY2MxMC00NTg3LWFiNWYtNTAzYzA0Zjc2YzE4IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA) B2B",
     rol: "jefatura",
     linea: "LUBRICANTES",
