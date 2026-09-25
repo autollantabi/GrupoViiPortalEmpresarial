@@ -11,7 +11,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemsRole5Bulk, patchItemsRole3Bulk, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas, syncItemsToSap } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemsRole5Bulk, patchItemsRole3Bulk, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas, syncItemsToSap, getMarcaProveedorProcedencia } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
@@ -553,6 +553,7 @@ const COLUMNAS_PLANTILLA = [
     { header: "CODIGO_BARRAS", ancho: 28 },
     { header: "CODIGO_PROVEEDOR", ancho: 20 },
     { header: "PROVEEDOR", ancho: 28 },
+    { header: "PROCEDENCIA", ancho: 18 },
     { header: "DESCRIPCION_PROVEEDOR", alias: ["NOMBRE_EXTRANJERO"], ancho: 34 },
     { header: "PARTIDA_ARANCELARIA", ancho: 22 },
     { header: "ES_NUEVO", ancho: 11 },
@@ -590,6 +591,7 @@ const CAMPOS_DETALLE = [
     { label: "Código SAP", get: (it) => it.CODIGO_SAP },
     { label: "Código de barras", get: (it) => it.codigo || it.CODIGO_BARRAS },
     { label: "Código proveedor", get: (it) => it.codigoProveedor || it.CODIGO_PROVEEDOR },
+    { label: "Procedencia", get: (it) => it.procedencia || it.PROCEDENCIA },
     { label: "Línea de negocio", get: (it) => it.linea || it.LINEA_NEGOCIO },
     { label: "Marca", get: (it) => it.marca || it.MARCA },
     { label: "Tipo", get: (it) => it.tipo || it.TIPO },
@@ -659,6 +661,10 @@ function Llantas() {
     const { user } = useAuthContext();
     const [mapeoMarcas, setMapeoMarcas] = useState([]);
     const [caracteristicasMDM, setCaracteristicasMDM] = useState({});
+    // Combinaciones marca -> proveedor -> procedencia por empresa y línea de negocio,
+    // desde core.dim_marca_proveedor_procedencia (DWH postgres). Reemplaza a MARCAS_POR_EMPRESA
+    // y a ListarProveedores como origen de datos para el MDM de Llantas/Llantas Moto.
+    const [marcaProveedorProcedencia, setMarcaProveedorProcedencia] = useState([]);
 
 
     useEffect(() => {
@@ -671,6 +677,18 @@ function Llantas() {
             }
         };
         fetchMapeo();
+    }, []);
+
+    useEffect(() => {
+        const fetchMarcaProveedorProcedencia = async () => {
+            try {
+                const data = await getMarcaProveedorProcedencia();
+                setMarcaProveedorProcedencia(data || []);
+            } catch (error) {
+                console.error("Error fetching marca-proveedor-procedencia:", error);
+            }
+        };
+        fetchMarcaProveedorProcedencia();
     }, []);
 
     useEffect(() => {
@@ -904,15 +922,24 @@ function Llantas() {
                     let marcaImportada = leer("MARCA");
 
                     if (idEmpresa) {
-                        const companyName = String(diccionarioEmpresas[idEmpresa]).trim().toUpperCase();
-                        const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key =>
-                            companyName === key || companyName.includes(key) || key.includes(companyName)
-                        );
-                        const allowedMarcas = matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
-                        const marcaEsValida = allowedMarcas.some(b => b.toUpperCase() === marcaImportada);
+                        if (esLlantas) {
+                            // Marca válida = existe en dim_marca_proveedor_procedencia para esta empresa+línea.
+                            const marcasValidas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmpresa], lineaSeleccionada.value)
+                                .map(f => String(f.DMPP_MARCA || "").toUpperCase());
+                            if (!marcasValidas.includes(marcaImportada)) {
+                                marcaImportada = "";
+                            }
+                        } else {
+                            const companyName = String(diccionarioEmpresas[idEmpresa]).trim().toUpperCase();
+                            const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key =>
+                                companyName === key || companyName.includes(key) || key.includes(companyName)
+                            );
+                            const allowedMarcas = matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
+                            const marcaEsValida = allowedMarcas.some(b => b.toUpperCase() === marcaImportada);
 
-                        if (!marcaEsValida && lineaSeleccionada.value !== 'LLANTAS MOTO') {
-                            marcaImportada = "";
+                            if (!marcaEsValida && lineaSeleccionada.value !== 'LLANTAS MOTO') {
+                                marcaImportada = "";
+                            }
                         }
                     } else {
                         idEmpresa = "";
@@ -930,6 +957,8 @@ function Llantas() {
                         codigoProveedor: leer("CODIGO_PROVEEDOR"),
                         proveedorNombreImportado: String(valorPlantilla(row, "PROVEEDOR") || "").trim(),
                         proveedor: "", // se resuelve más abajo contra el listado real de proveedores de la empresa
+                        procedenciaImportada: String(valorPlantilla(row, "PROCEDENCIA") || "").trim(),
+                        procedencia: "", // se resuelve más abajo (Llantas/Llantas Moto)
                         nombreExtranjero: leer("DESCRIPCION_PROVEEDOR"),
                         partidaArancelaria: leer("PARTIDA_ARANCELARIA"),
                         diseño: leer("DISENIO").slice(0, 20),
@@ -944,30 +973,72 @@ function Llantas() {
                     };
                 });
 
-                // Resolver "Proveedor" (selección real, distinta de Código Proveedor libre)
-                // contra el listado de proveedores de cada empresa, igual que hace el
-                // selector de la tabla. Solo se consulta una vez por empresa presente en el archivo.
-                const empresasAResolver = Array.from(new Set(baseItems.map(it => it.idEmpresa).filter(Boolean)));
-                const proveedoresPorEmpresaImportados = {};
-                for (const idEmp of empresasAResolver) {
-                    const codigoEmpresaProveedor = getCodigoProveedorEmpresa(idEmp);
-                    if (!codigoEmpresaProveedor) continue;
-                    try {
-                        const proveedoresResp = await ListarProveedores(codigoEmpresaProveedor);
-                        proveedoresPorEmpresaImportados[idEmp] = Array.isArray(proveedoresResp)
-                            ? proveedoresResp.map(({ value, name }) => ({ value, label: name }))
-                            : [];
-                    } catch (err) {
-                        console.error(`Error al obtener proveedores para importar (empresa ${idEmp}):`, err);
-                        proveedoresPorEmpresaImportados[idEmp] = [];
+                if (esLlantas) {
+                    // Resolver Proveedor y Procedencia contra core.dim_marca_proveedor_procedencia,
+                    // igual que los selectores en cascada de la tabla.
+                    baseItems.forEach(it => {
+                        if (!it.marca) return;
+                        if (it.proveedorNombreImportado) {
+                            const opcionesProveedor = getProveedorOptions(it.idEmpresa, it.marca);
+                            const matchProveedor = opcionesProveedor.find(
+                                o => String(o.label).trim().toUpperCase() === it.proveedorNombreImportado.toUpperCase()
+                            );
+                            it.proveedor = matchProveedor ? matchProveedor.value : "";
+                        }
+                        if (it.proveedor) {
+                            const opcionesProcedencia = getProcedenciaOptions(it.idEmpresa, it.marca, it.proveedor);
+                            if (it.procedenciaImportada) {
+                                const matchProcedencia = opcionesProcedencia.find(
+                                    o => String(o.label).trim().toUpperCase() === it.procedenciaImportada.toUpperCase()
+                                );
+                                it.procedencia = matchProcedencia ? matchProcedencia.value : "";
+                            } else if (opcionesProcedencia.length === 1) {
+                                it.procedencia = opcionesProcedencia[0].value;
+                            }
+                        }
+                    });
+
+                    // Partida arancelaria: ya no es un valor libre del Excel, se deriva del tipo
+                    // (core.dim_partidas_arancelarias). Si el tipo tiene una sola partida válida se
+                    // usa esa; si tiene más de una, se respeta la del Excel solo si es una opción
+                    // válida para ese tipo, y si no se limpia (se completa manualmente en la tabla).
+                    baseItems.forEach(it => {
+                        const opcionesPartida = getPartidaArancelariaOptionsForTipo(it.tipo);
+                        if (opcionesPartida.length === 1) {
+                            it.partidaArancelaria = opcionesPartida[0].value;
+                        } else if (opcionesPartida.length > 1) {
+                            const matchPartida = opcionesPartida.find(o => o.value === it.partidaArancelaria);
+                            it.partidaArancelaria = matchPartida ? matchPartida.value : "";
+                        } else {
+                            it.partidaArancelaria = "";
+                        }
+                    });
+                } else {
+                    // Resolver "Proveedor" (selección real, distinta de Código Proveedor libre)
+                    // contra el listado de proveedores de cada empresa, igual que hace el
+                    // selector de la tabla. Solo se consulta una vez por empresa presente en el archivo.
+                    const empresasAResolver = Array.from(new Set(baseItems.map(it => it.idEmpresa).filter(Boolean)));
+                    const proveedoresPorEmpresaImportados = {};
+                    for (const idEmp of empresasAResolver) {
+                        const codigoEmpresaProveedor = getCodigoProveedorEmpresa(idEmp);
+                        if (!codigoEmpresaProveedor) continue;
+                        try {
+                            const proveedoresResp = await ListarProveedores(codigoEmpresaProveedor);
+                            proveedoresPorEmpresaImportados[idEmp] = Array.isArray(proveedoresResp)
+                                ? proveedoresResp.map(({ value, name }) => ({ value, label: name }))
+                                : [];
+                        } catch (err) {
+                            console.error(`Error al obtener proveedores para importar (empresa ${idEmp}):`, err);
+                            proveedoresPorEmpresaImportados[idEmp] = [];
+                        }
                     }
+                    baseItems.forEach(it => {
+                        if (!it.proveedorNombreImportado) return;
+                        const opciones = proveedoresPorEmpresaImportados[it.idEmpresa] || [];
+                        const match = opciones.find(o => String(o.label).trim().toUpperCase() === it.proveedorNombreImportado.toUpperCase());
+                        it.proveedor = match ? match.value : "";
+                    });
                 }
-                baseItems.forEach(it => {
-                    if (!it.proveedorNombreImportado) return;
-                    const opciones = proveedoresPorEmpresaImportados[it.idEmpresa] || [];
-                    const match = opciones.find(o => String(o.label).trim().toUpperCase() === it.proveedorNombreImportado.toUpperCase());
-                    it.proveedor = match ? match.value : "";
-                });
 
                 // Ejecutar parseLlantas para los ítems importados
                 const descripciones = baseItems.map(it => it.descripcion);
@@ -990,6 +1061,7 @@ function Llantas() {
                         parsedData: parsed
                     };
                     delete itemWithParsed.proveedorNombreImportado;
+                    delete itemWithParsed.procedenciaImportada;
                     return {
                         ...itemWithParsed,
                         codigo: it.codigo ? it.codigo : calcularCodigoBarras(itemWithParsed) // <-- Prioriza el del Excel, si no viene lo calcula
@@ -1264,6 +1336,7 @@ function Llantas() {
                                 nombreSistema: calcularNombreSistemaFinal(parsed.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", banderaNueva ?? false, it.MARCA || ""),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
                                 proveedor: it.ID_PROVEEDOR || "",
+                                procedencia: it.PROCEDENCIA || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
                                 tipo: it.TIPO || "",
@@ -1298,6 +1371,7 @@ function Llantas() {
                                 descripcionRol5: it.DESCRIPCION || "",
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
                                 proveedor: it.ID_PROVEEDOR || "",
+                                procedencia: it.PROCEDENCIA || "",
                                 cubicaje: it.CUBICAJE || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
@@ -1566,6 +1640,7 @@ function Llantas() {
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
                             ID_PROVEEDOR: item.proveedor || "",
+                            PROCEDENCIA: item.procedencia || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                             TIPO: item.tipo || "",
@@ -1585,6 +1660,7 @@ function Llantas() {
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
                             ID_PROVEEDOR: item.proveedor || "",
+                            PROCEDENCIA: item.procedencia || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                             TIPO: item.tipo || "",
@@ -1753,10 +1829,26 @@ function Llantas() {
         return matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
     }, [diccionarioEmpresas]);
 
+    // Filas activas de core.dim_marca_proveedor_procedencia para una empresa + línea de negocio
+    // dadas. Es la fuente de Marca/Proveedor/Procedencia para Llantas y Llantas Moto.
+    const getFilasMarcaProveedorProcedencia = useCallback((nombreEmpresa, linea) => {
+        if (!nombreEmpresa || !linea) return [];
+        const empresaNorm = String(nombreEmpresa).trim().toUpperCase();
+        const lineaNorm = String(linea).trim().toUpperCase();
+        return marcaProveedorProcedencia.filter(row =>
+            row.DMPP_ACTIVO !== false &&
+            String(row.DMPP_EMPRESA || "").trim().toUpperCase() === empresaNorm &&
+            String(row.DMPP_LINEA_NEGOCIO || "").trim().toUpperCase() === lineaNorm
+        );
+    }, [marcaProveedorProcedencia]);
+
     const getBrandOptions = useCallback((idEmp) => {
-        if (idRolPrincipal === 5 && lineaSeleccionada?.value === "LLANTAS MOTO") {
-            return ["CST", "KEYSTONE", "MAXXIS MOTO"].map(b => ({ value: b, label: b }));
+        if (esLlantas) {
+            const filas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmp], lineaSeleccionada?.value);
+            const marcas = Array.from(new Set(filas.map(f => f.DMPP_MARCA).filter(Boolean)));
+            return marcas.map(m => ({ value: m, label: m }));
         }
+        // LUBRICANTES / HERRAMIENTAS conservan el listado histórico hardcodeado.
         const brands = getMarcasForEmpresa(idEmp);
         if (brands.length > 0) {
             return brands.map(b => ({ value: b, label: b }));
@@ -1764,7 +1856,30 @@ function Llantas() {
         const allBrands = Object.values(MARCAS_POR_EMPRESA).flat();
         const uniqueBrands = Array.from(new Set(allBrands));
         return uniqueBrands.map(b => ({ value: b, label: b }));
-    }, [getMarcasForEmpresa, idRolPrincipal, lineaSeleccionada]);
+    }, [esLlantas, diccionarioEmpresas, lineaSeleccionada, getFilasMarcaProveedorProcedencia, getMarcasForEmpresa]);
+
+    // Opciones de "Proveedor" válidas para una marca (Llantas/Llantas Moto), desde
+    // core.dim_marca_proveedor_procedencia.
+    const getProveedorOptions = useCallback((idEmp, marca) => {
+        if (!marca) return [];
+        const filas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmp], lineaSeleccionada?.value)
+            .filter(f => String(f.DMPP_MARCA || "").trim().toUpperCase() === String(marca).trim().toUpperCase());
+        const proveedores = Array.from(new Set(filas.map(f => f.DMPP_PROVEEDOR).filter(Boolean)));
+        return proveedores.map(p => ({ value: p, label: p }));
+    }, [diccionarioEmpresas, lineaSeleccionada, getFilasMarcaProveedorProcedencia]);
+
+    // Opciones de "Procedencia" válidas para una combinación marca+proveedor (Llantas/Llantas
+    // Moto), desde core.dim_marca_proveedor_procedencia. Puede no haber ninguna (procedencia nula).
+    const getProcedenciaOptions = useCallback((idEmp, marca, proveedor) => {
+        if (!marca || !proveedor) return [];
+        const filas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmp], lineaSeleccionada?.value)
+            .filter(f =>
+                String(f.DMPP_MARCA || "").trim().toUpperCase() === String(marca).trim().toUpperCase() &&
+                String(f.DMPP_PROVEEDOR || "").trim().toUpperCase() === String(proveedor).trim().toUpperCase()
+            );
+        const procedencias = Array.from(new Set(filas.map(f => f.DMPP_PROCEDENCIA).filter(Boolean)));
+        return procedencias.map(p => ({ value: p, label: p }));
+    }, [diccionarioEmpresas, lineaSeleccionada, getFilasMarcaProveedorProcedencia]);
 
     // Opciones de "Tipo" (AUTO/CAMIONETA, INDUSTRIAL, CAMION, MOTO) válidas para una marca:
     // se derivan de mapeoMarcas (dim_caracteristicas_neumaticos), así que solo se ofrecen
@@ -1777,6 +1892,17 @@ function Llantas() {
             .filter(Boolean);
         const uniqueTipos = Array.from(new Set(tipos));
         return uniqueTipos.map(t => ({ value: t, label: t }));
+    }, [mapeoMarcas]);
+
+    // Partidas arancelarias válidas para un tipo de neumático (core.dim_partidas_arancelarias,
+    // vía /dwh-postgres/neumaticos). La mayoría de tipos tiene una sola partida (se autocompleta
+    // sin mostrar select); AUTO/CAMIONETA y CAMION tienen 2, así que ahí sí se muestra el select
+    // ya acotado a esas opciones en vez del listado fijo por línea de negocio que había antes.
+    const getPartidaArancelariaOptionsForTipo = useCallback((tipo) => {
+        if (!tipo) return [];
+        const fila = mapeoMarcas.find(m => String(m.tipo || "").toUpperCase() === String(tipo).toUpperCase());
+        const partidas = Array.from(new Set(fila?.partidas_arancelarias || []));
+        return partidas.map(p => ({ value: p, label: p }));
     }, [mapeoMarcas]);
 
     const actualizarCampoFila = (id, campo, valor) => {
@@ -1845,20 +1971,26 @@ function Llantas() {
                 if (it.id === id) {
                     const baseItem = { ...it, marca: val };
 
-                    const brandName = String(val).trim().toUpperCase();
-                    let companyKey = null;
-                    for (const [comp, brands] of Object.entries(MARCAS_POR_EMPRESA)) {
-                        if (brands.some(b => b.toUpperCase() === brandName)) {
-                            companyKey = comp;
-                            break;
+                    // Para Llantas/Llantas Moto la empresa se elige primero y la marca ya viene
+                    // filtrada por esa empresa (dim_marca_proveedor_procedencia), así que no debe
+                    // reinferirse la empresa a partir de la marca (eso solo aplica al listado
+                    // hardcodeado histórico de Lubricantes/Herramientas).
+                    if (!esLlantas) {
+                        const brandName = String(val).trim().toUpperCase();
+                        let companyKey = null;
+                        for (const [comp, brands] of Object.entries(MARCAS_POR_EMPRESA)) {
+                            if (brands.some(b => b.toUpperCase() === brandName)) {
+                                companyKey = comp;
+                                break;
+                            }
                         }
-                    }
-                    if (companyKey && lineaSeleccionada?.value !== 'LLANTAS MOTO') {
-                        const companyId = Object.keys(diccionarioEmpresas).find(
-                            k => String(diccionarioEmpresas[k]).trim().toUpperCase() === companyKey
-                        );
-                        if (companyId) {
-                            baseItem.idEmpresa = companyId;
+                        if (companyKey && lineaSeleccionada?.value !== 'LLANTAS MOTO') {
+                            const companyId = Object.keys(diccionarioEmpresas).find(
+                                k => String(diccionarioEmpresas[k]).trim().toUpperCase() === companyKey
+                            );
+                            if (companyId) {
+                                baseItem.idEmpresa = companyId;
+                            }
                         }
                     }
 
@@ -1869,6 +2001,13 @@ function Llantas() {
                     const marcaCambio = String(it.marca || "").trim().toUpperCase() !== String(val || "").trim().toUpperCase();
                     if (it.tipo && marcaCambio) {
                         baseItem.tipo = "";
+                    }
+
+                    // Proveedor y procedencia dependen de la marca (dim_marca_proveedor_procedencia):
+                    // al cambiar de marca se reinician para forzar a reelegir con la nueva combinación.
+                    if (esLlantas && marcaCambio) {
+                        baseItem.proveedor = "";
+                        baseItem.procedencia = "";
                     }
 
                     // El nombre del sistema siempre inicia con la marca seleccionada actualmente.
@@ -1883,6 +2022,19 @@ function Llantas() {
                     return baseItem;
                 }
                 return it;
+            }));
+            return;
+        }
+
+        if (idRolPrincipal === 5 && esLlantas && campo === "proveedor") {
+            setItems(prev => prev.map(it => {
+                if (it.id !== id) return it;
+                const baseItem = { ...it, proveedor: val };
+                // Si la combinación marca+proveedor solo tiene una procedencia posible, se
+                // autocompleta; si no, se limpia para que se vuelva a elegir manualmente.
+                const opcionesProcedencia = getProcedenciaOptions(it.idEmpresa, it.marca, val);
+                baseItem.procedencia = opcionesProcedencia.length === 1 ? opcionesProcedencia[0].value : "";
+                return baseItem;
             }));
             return;
         }
@@ -1929,6 +2081,13 @@ function Llantas() {
                         const baseItem = { ...it, [campo]: val };
                         if (campo === "colorLetra") {
                             baseItem.nombreSistema = calcularNombreSistemaFinal(it.nombreSistemaBase || it.nombreSistema || "", val, esNuevo(it), it.marca);
+                        }
+                        if (campo === "tipo") {
+                            // La partida arancelaria depende del tipo (core.dim_partidas_arancelarias):
+                            // si hay una sola opción se autocompleta; si hay más de una (hoy solo pasa
+                            // con AUTO/CAMIONETA y CAMION) se limpia para que se elija en el select acotado.
+                            const opcionesPartida = getPartidaArancelariaOptionsForTipo(val);
+                            baseItem.partidaArancelaria = opcionesPartida.length === 1 ? opcionesPartida[0].value : "";
                         }
                         return {
                             ...baseItem,
@@ -2151,6 +2310,7 @@ function Llantas() {
                                                     { key: 'idEmpresa', label: "Empresa", role: 5 },
                                                     { key: 'codigoProveedor', label: "Cód. Proveedor", role: 5 },
                                                     { key: 'proveedor', label: "Proveedor", role: 5 },
+                                                    { key: 'procedencia', label: "Procedencia", role: 5 },
                                                     { key: 'cubicaje', label: "Cubicaje", role: 5 },
                                                     { key: 'descripcionRol5', label: "Descripción Comercial", role: 5 },
                                                     { key: 'nombreExtranjero', label: "Descripción Proveedor", role: 5 },
@@ -2169,7 +2329,11 @@ function Llantas() {
                                                     { key: 'aplicacion', label: "Aplicación", role: 3 },
                                                     { key: 'eje', label: "Eje", role: 3 },
                                                 ].map(({ key, label, role }) => {
-                                                    const value = key === 'proveedor'
+                                                    // Para Llantas/Llantas Moto, "proveedor" ya es el nombre legible
+                                                    // (dim_marca_proveedor_procedencia); el resto de líneas siguen
+                                                    // usando el código de proveedor de SAP, que se muestra con su nombre.
+                                                    const esLlantasItem = item.linea === "LLANTAS" || item.linea === "LLANTAS MOTO";
+                                                    const value = key === 'proveedor' && !esLlantasItem
                                                         ? (item.proveedor ? `${item.proveedor} - ${(proveedoresPorEmpresa[getCodigoProveedorEmpresa(item.idEmpresa)] || []).find(o => o.value === item.proveedor)?.label || ''}` : '')
                                                         : item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
@@ -2324,6 +2488,7 @@ function Llantas() {
                                                     <Th $min="300px">Código Barras</Th>
                                                     <Th>Código Proveedor</Th>
                                                     <Th $min="220px">Proveedor</Th>
+                                                    <Th $min="160px">Procedencia</Th>
                                                     <Th>Descripción Proveedor</Th>
                                                     <Th>Partida Arancelaria</Th>
                                                     <Th $min="380px">Nombre Del Sistema</Th>
@@ -2712,40 +2877,47 @@ function Llantas() {
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
                                                         <Td $densa>
-                                                            {(() => {
-                                                                const codigoEmpresaProveedor = getCodigoProveedorEmpresa(item.idEmpresa);
-                                                                const opcionesProveedor = codigoEmpresaProveedor ? (proveedoresPorEmpresa[codigoEmpresaProveedor] || []) : [];
-                                                                return (
-                                                                    <SelectUI
-                                                                        options={opcionesProveedor}
-                                                                        value={item.proveedor ? { value: item.proveedor, label: opcionesProveedor.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
-                                                                        onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
-                                                                        minWidth="200px"
-                                                                        style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
-                                                                    />
-                                                                );
-                                                            })()}
+                                                            <SelectUI
+                                                                options={getProveedorOptions(item.idEmpresa, item.marca)}
+                                                                value={item.proveedor ? { value: item.proveedor, label: item.proveedor } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                minWidth="200px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={getProcedenciaOptions(item.idEmpresa, item.marca, item.proveedor)}
+                                                                value={item.procedencia ? { value: item.procedencia, label: item.procedencia } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "procedencia", v?.value)}
+                                                                minWidth="160px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
                                                         <Td $densa>
-                                                            <SelectUI
-                                                                options={
-                                                                    lineaSeleccionada?.value === "LLANTAS MOTO"
-                                                                        ? [{ value: "4011.40.00.00", label: "4011.40.00.00" }]
-                                                                        : [
-                                                                            { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                            { value: "4011.20.10.10", label: "4011.20.10.10" },
-                                                                            { value: "4011.20.10.90", label: "4011.20.10.90" },
-                                                                            { value: "4011.20.90.10", label: "4011.20.90.10" },
-                                                                            { value: "4011.20.90.90", label: "4011.20.90.90" },
-                                                                            { value: "4011.40.00.00", label: "4011.40.00.00" },
-                                                                        ]
+                                                            {(() => {
+                                                                // Ya no se elige libremente: se deriva del tipo (core.dim_partidas_arancelarias).
+                                                                // Solo se muestra un select cuando el tipo tiene más de una partida válida
+                                                                // (hoy: AUTO/CAMIONETA y CAMION); si tiene una sola, se muestra de solo lectura.
+                                                                const opcionesPartida = getPartidaArancelariaOptionsForTipo(item.tipo);
+                                                                if (opcionesPartida.length > 1) {
+                                                                    return (
+                                                                        <SelectUI
+                                                                            options={opcionesPartida}
+                                                                            value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
+                                                                            onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
+                                                                            minWidth="140px"
+                                                                            style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                                        />
+                                                                    );
                                                                 }
-                                                                value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
+                                                                return (
+                                                                    <div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "12px", minWidth: "140px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap" }}>
+                                                                        {item.partidaArancelaria || "—"}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </Td>
                                                         <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
                                                         <Td $densa $align="center">

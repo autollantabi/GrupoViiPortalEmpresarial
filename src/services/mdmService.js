@@ -302,6 +302,24 @@ export const getNeumaticosDWH = async () => {
 };
 
 /**
+ * Obtiene las combinaciones de marca, proveedor y procedencia por empresa y línea de negocio,
+ * desde core.dim_marca_proveedor_procedencia (DWH Postgres).
+ * @returns {Promise<Array>}
+ */
+export const getMarcaProveedorProcedencia = async () => {
+    try {
+        const response = await axiosInstanceNew.get("/dwh-postgres/marca-proveedor-procedencia");
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getMarcaProveedorProcedencia:", error);
+        throw error;
+    }
+};
+
+/**
  * Obtiene las características de los ítems (categorías, segmentos, aplicaciones, ejes).
  * @returns {Promise<Object>}
  */
