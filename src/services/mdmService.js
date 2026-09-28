@@ -421,3 +421,47 @@ export const getGruposHerramientas = async () => {
         return [];
     }
 };
+
+/* ------------------------------------------------------------------ */
+/* MDM de Clientes                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Listado paginado de los clientes del MDM.
+ *
+ * La paginación y los filtros los resuelve la base de datos: la tabla
+ * portal_empresarial_dev.item_cliente puede crecer mucho y nunca se trae
+ * completa al navegador.
+ *
+ * @param {Object} filtros
+ * @param {number} [filtros.page=1] - Página solicitada (1 en adelante)
+ * @param {number} [filtros.size=15] - Registros por página
+ * @param {string} [filtros.empresa] - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @param {string} [filtros.estado] - PENDIENTE | APROBADO | RECHAZADO
+ * @param {string} [filtros.busqueda] - Texto libre; busca por código o nombre
+ * @returns {Promise<{Paginacion: Object, Clientes: Array}>}
+ */
+export const getClientesMDM = async ({
+    page = 1,
+    size = 15,
+    empresa = null,
+    estado = null,
+    busqueda = null,
+} = {}) => {
+    try {
+        const params = { page, size };
+        if (empresa) params.empresa = empresa;
+        if (estado) params.estado = estado;
+        if (busqueda) params.busqueda = busqueda;
+
+        const response = await axiosInstanceNew.get("/mdm/clientes", { params });
+
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return { Paginacion: null, Clientes: [] };
+    } catch (error) {
+        console.error("Error en getClientesMDM:", error);
+        throw error;
+    }
+};
