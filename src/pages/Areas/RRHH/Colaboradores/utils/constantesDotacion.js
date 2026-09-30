@@ -228,6 +228,18 @@ export const MIME_PERMITIDOS = Object.freeze(["application/pdf", "image/jpeg", "
 /** Para el atributo accept del input, que además filtra el diálogo del sistema. */
 export const ACCEPT_ARCHIVOS = ".pdf,.jpg,.jpeg,.png";
 
+/** Un monto de cartera, como '$ 350.00'. Dólares: es la moneda del país de la operación. */
+export const formatearMonto = (valor) => {
+  const numero = Number(valor);
+  if (!Number.isFinite(numero)) return "—";
+  return numero.toLocaleString("es-EC", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
 export const formatearTamanio = (bytes) => {
   const valor = Number(bytes);
   if (!Number.isFinite(valor) || valor <= 0) return "—";

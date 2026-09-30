@@ -25,6 +25,7 @@ import { HistorialNotificaciones } from "../componentes/HistorialNotificaciones"
 import { ModalEntregarItem } from "../componentes/ModalEntregarItem";
 import { ModalNuevaComplementaria } from "../componentes/ModalNuevaComplementaria";
 import { PestanasFicha } from "../componentes/PestanasFicha";
+import { SeccionCartera } from "../componentes/SeccionCartera";
 import { ProgresoDotacion, TablaDotacion } from "../componentes/TablaDotacion";
 import { useConsulta } from "../hooks/useConsulta";
 import {
@@ -497,6 +498,11 @@ export const ColDotacion = () => {
           </Tarjeta>
         ))
       )}
+
+      {/* No se muestra en absoluto si el empleado no tiene ningún crédito de
+          cartera: la sección misma decide eso, para no tener que resolver acá
+          "¿tiene dotación monetaria?" con una consulta aparte. */}
+      <SeccionCartera empleadoId={id} />
 
       {dotacion.asignaciones.length > 0 && (
         <HistorialNotificaciones notificaciones={dotacion.notificaciones} />

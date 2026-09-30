@@ -122,6 +122,29 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {string|null} fechaEntrega
  * @property {Object|null} archivo
  * @property {number} totalVersiones
+ *
+ * @typedef {Object} CreditoCartera
+ * @property {number} id
+ * @property {number} asignacionItemId
+ * @property {number} empleadoId
+ * @property {string} itemNombre
+ * @property {string|null} fechaEntrega
+ * @property {number} montoTotal
+ * @property {number} totalAbonado
+ * @property {number} saldoPendiente
+ * @property {string|null} observacion
+ * @property {Object} auditoria
+ *
+ * @typedef {Object} AbonoCartera
+ * @property {number} id
+ * @property {number} creditoId
+ * @property {number} monto
+ * @property {string} fecha
+ * @property {string|null} observacion
+ * @property {string|null} registradoPor
+ * @property {string} creadoEn
+ *
+ * @typedef {CreditoCartera & {abonos: AbonoCartera[]}} CreditoCarteraDetalle
  */
 
 const DOTACION = "/rrhh/dotacion";
@@ -294,6 +317,30 @@ const mapearDocumento = (documento) => ({
         tamanioBytes: numero(documento.archivo.tamanioBytes) ?? 0,
       }
     : null,
+});
+
+const mapearAbonoCartera = (abono) => ({
+  ...abono,
+  id: numero(abono.id),
+  creditoId: numero(abono.creditoId),
+  monto: numero(abono.monto),
+  fecha: soloFecha(abono.fecha),
+});
+
+const mapearCreditoCartera = (credito) => ({
+  ...credito,
+  id: numero(credito.id),
+  asignacionItemId: numero(credito.asignacionItemId),
+  empleadoId: numero(credito.empleadoId),
+  fechaEntrega: soloFecha(credito.fechaEntrega),
+  montoTotal: numero(credito.montoTotal),
+  totalAbonado: numero(credito.totalAbonado),
+  saldoPendiente: numero(credito.saldoPendiente),
+});
+
+const mapearCreditoCarteraDetalle = (detalle) => ({
+  ...mapearCreditoCartera(detalle),
+  abonos: (detalle.abonos ?? []).map(mapearAbonoCartera),
 });
 
 const mapearDocumentacion = (datos) => ({
@@ -710,6 +757,74 @@ export const AbrirActaAsignacion = async (asignacionId) => {
     // leerErrorBlob más abajo: mismo problema que en DescargarArchivoDocumento).
     const mensaje = await leerErrorBlob(error);
     throw new Error(mensaje || "No se pudo abrir el acta");
+  }
+};
+
+// ── Cartera de crédito ──────────────────────────────────────────────────────
+
+/**
+ * Créditos de cartera de un colaborador.
+ *
+ * NO hay un "crear crédito": nace solo en el backend cuando un renglón de un
+ * grupo `esMonetario` (ver ListarGruposDotacion) se marca como Entregado con
+ * MarcarItemAsignacion. Esta sección solo lee esos créditos y registra o borra
+ * abonos sobre ellos.
+ */
+const CARTERA = `${DOTACION}/cartera`;
+
+/** @returns {Promise<CreditoCartera[]>} */
+export const ObtenerCreditosCartera = async (empleadoId, { signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${CARTERA}/empleados/${empleadoId}`, { signal });
+    return (desenvolver(respuesta) ?? []).map(mapearCreditoCartera);
+  } catch (error) {
+    return propagar(error, "No se pudo obtener los créditos de cartera del colaborador");
+  }
+};
+
+/** @returns {Promise<CreditoCarteraDetalle|null>} */
+export const ObtenerDetalleCreditoCartera = async (creditoId, { signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${CARTERA}/creditos/${creditoId}`, { signal });
+    const detalle = desenvolver(respuesta);
+    return detalle ? mapearCreditoCarteraDetalle(detalle) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el detalle del crédito");
+  }
+};
+
+/**
+ * 409 si `monto` supera el `saldoPendiente`: el backend arma un mensaje legible
+ * ("El abono de $X supera el saldo pendiente de $Y" o similar) y `propagar` lo
+ * deja pasar tal cual en `error.message`; la pantalla lo muestra sin reescribirlo.
+ *
+ * @returns {Promise<CreditoCarteraDetalle|null>}
+ */
+export const RegistrarAbonoCartera = async (creditoId, { monto, fecha, observacion }) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(`${CARTERA}/creditos/${creditoId}/abonos`, {
+      monto,
+      fecha,
+      observacion: observacion || null,
+    });
+    const detalle = desenvolver(respuesta);
+    return detalle ? mapearCreditoCarteraDetalle(detalle) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo registrar el abono");
+  }
+};
+
+/** Borrado lógico de un abono mal registrado: el backend le devuelve el saldo al crédito. */
+export const EliminarAbonoCartera = async (creditoId, abonoId, motivo) => {
+  try {
+    const respuesta = await axiosInstanceNew.delete(
+      `${CARTERA}/creditos/${creditoId}/abonos/${abonoId}`,
+      { data: { motivo } },
+    );
+    const detalle = desenvolver(respuesta);
+    return detalle ? mapearCreditoCarteraDetalle(detalle) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo eliminar el abono");
   }
 };
 
