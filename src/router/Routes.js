@@ -92,6 +92,7 @@ import { ReporteriaComecialTecnicentroOld } from "pages/Areas/Reporteria/Comerci
 import { ReporteListaPrecios } from "pages/Areas/Reporteria/ListaPrecios/ListaPrecios";
 import { ReportePareto } from "pages/Areas/Reporteria/ReportePareto/ReportePareto";
 import { ReportePricingNeumaticos } from "pages/Areas/Reporteria/PricingNeumaticos/PricingNeumaticos";
+import { ReporteAutomaxNeumaticos } from "pages/Areas/Reporteria/AutomaxNeumaticos/ReporteAutomaxNeumaticos";
 
 
 // Configuración centralizada - Una sola fuente de verdad
