@@ -496,7 +496,7 @@ const DICCIONARIO_COLOR_LETRA_CODIGO = {
     "02": "OBL",
     "03": "OOL",
     "04": "RBL",
-    "99": "SIN COLOR",
+    "99": "",
 };
 
 const OPTIONS_COLOR_LETRA = [
@@ -1201,7 +1201,19 @@ function Llantas() {
     }, [items, idRolPrincipal, lineaSeleccionada, getCodigoProveedorEmpresa, asegurarProveedoresEmpresa]);
 
     if (idRolPrincipal === 5 && lineaSeleccionada?.value === "LLANTAS MOTO") {
-        opcionesEmpresasPermitidas = opcionesEmpresasPermitidas.filter(opt => opt.label && opt.label.toUpperCase().includes("MAXXIMUNDO"));
+        // Solo se muestran las empresas que tienen al menos una combinación activa
+        // marca/proveedor/procedencia configurada para LLANTAS MOTO.
+        const empresasConLlantasMoto = new Set(
+            marcaProveedorProcedencia
+                .filter(row =>
+                    row.DMPP_ACTIVO !== false &&
+                    String(row.DMPP_LINEA_NEGOCIO || "").trim().toUpperCase() === "LLANTAS MOTO"
+                )
+                .map(row => String(row.DMPP_EMPRESA || "").trim().toUpperCase())
+        );
+        opcionesEmpresasPermitidas = opcionesEmpresasPermitidas.filter(opt =>
+            opt.label && empresasConLlantasMoto.has(String(opt.label).trim().toUpperCase())
+        );
     }
 
     const fetchItems = useCallback(async () => {

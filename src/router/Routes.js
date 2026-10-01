@@ -539,6 +539,11 @@ export const RoutesConfig = [
     component: ReportePricingNeumaticos,
     recurso: "reportes.pricingneumaticos",
   },
+  {
+    title: "Automax Neumáticos",
+    component: ReporteAutomaxNeumaticos,
+    recurso: "reportes.automaxneumaticos",
+  },
   // ================================= VISITAS =================================
   {
     recurso: "visitas",
