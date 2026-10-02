@@ -14,6 +14,7 @@ import {
   getClienteMDM,
   getCotizacionMDM,
   getCotizacionesCliente,
+  getRutasMDM,
   getVendedoresMDM,
 } from "services/mdmService";
 
@@ -781,30 +782,6 @@ function CampoCatalogo({
   );
 }
 
-/**
- * Selector sin catálogo todavía (vendedores, rutas). Se muestra para que la
- * ficha quede completa, pero no hay de dónde sacar las opciones: si el cliente
- * ya tiene un valor guardado, ese es el único que aparece.
- */
-function CampoSelect({ label, valor, opciones, onChange, theme, placeholder, fila }) {
-  const seleccionado = valor ? { value: valor, label: valor } : null;
-
-  return (
-    <Campo label={label} theme={theme} fila={fila}>
-      <SelectUI
-        options={opciones}
-        value={seleccionado}
-        onChange={(opt) => onChange(opt?.value || null)}
-        placeholder={placeholder}
-        isClearable
-        minWidth="100%"
-        maxWidth="100%"
-        menuPortalTarget={typeof document !== "undefined" ? document.body : null}
-      />
-    </Campo>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Componente                                                          */
 /* ------------------------------------------------------------------ */
@@ -832,6 +809,9 @@ function ClienteDetalle() {
   /* Vendedores activos de la empresa del cliente. null = todavía no llegaron;
      [] = llegaron y la empresa no tiene ninguno. */
   const [vendedores, setVendedores] = useState(null);
+
+  /* Rutas activas de la empresa del cliente, con la misma convención. */
+  const [rutas, setRutas] = useState(null);
 
   /* Cotizaciones del cliente: se cargan al abrir la pestaña, no antes */
   const [cotizaciones, setCotizaciones] = useState(null);
@@ -865,7 +845,9 @@ function ClienteDetalle() {
       // no, se conserva lo que el cliente tenía para no perderlo al guardar.
       VENDEDOR_CODIGO: data.VENDEDOR_COINCIDENCIA?.CODIGO ?? data.VENDEDOR_CODIGO ?? null,
       VENDEDOR: data.VENDEDOR_COINCIDENCIA?.NOMBRE ?? data.VENDEDOR ?? null,
-      RUTA: data.RUTA ?? null,
+      // La ruta se identifica por su serial (dr_serial), igual que el vendedor.
+      RUTA_SERIAL: data.RUTA_COINCIDENCIA?.SERIAL ?? data.RUTA_SERIAL ?? null,
+      RUTA: data.RUTA_COINCIDENCIA?.NOMBRE ?? data.RUTA ?? null,
       COMENTARIOS: data.COMENTARIOS ?? "",
       ACTIVO: data.ACTIVO !== false,
       // Localización Ecuador / ATS
@@ -972,6 +954,7 @@ function ClienteDetalle() {
       VENDEDOR: recortarONulo(form.VENDEDOR),
       VENDEDOR_CODIGO: recortarONulo(form.VENDEDOR_CODIGO),
       RUTA: recortarONulo(form.RUTA),
+      RUTA_SERIAL: form.RUTA_SERIAL ?? null,
       COMENTARIOS: recortar(form.COMENTARIOS),
       ACTIVO: form.ACTIVO === true,
       TIPO_SOCIO_NEGOCIO: form.TIPO_SOCIO_NEGOCIO,
@@ -1070,6 +1053,29 @@ function ClienteDetalle() {
     };
   }, [empresaCliente]);
 
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setRutas(null);
+
+    (async () => {
+      try {
+        const data = await getRutasMDM(empresaCliente);
+        if (!cancelado) setRutas(data);
+      } catch (err) {
+        if (!cancelado) {
+          setRutas([]);
+          toast.error("No se pudo cargar el listado de rutas");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
+
   /* Valor con el que el selector identifica al vendedor actual: su código. Un
      cliente con nombre pero sin código (ingresó por la integración con el nombre
      escrito a mano y no hubo coincidencia) no tiene código; para esos se usa el
@@ -1114,6 +1120,50 @@ function ClienteDetalle() {
       ...actual,
       VENDEDOR_CODIGO: elegido.CODIGO,
       VENDEDOR: elegido.NOMBRE,
+    }));
+  };
+
+  /* Ruta: mismo esquema que el vendedor, con el serial como identidad. Una ruta
+     con texto pero sin serial (ingresó por la integración y no coincidió con el
+     maestro) usa el texto con prefijo para no chocar con un serial real. */
+  const valorRuta =
+    form?.RUTA_SERIAL != null
+      ? String(form.RUTA_SERIAL)
+      : form?.RUTA
+        ? `${PREFIJO_SIN_CODIGO}${form.RUTA}`
+        : null;
+
+  const opcionesRuta = useMemo(() => {
+    const lista = (rutas || []).map((r) => ({ value: String(r.SERIAL), label: r.NOMBRE }));
+
+    if (valorRuta && !lista.some((o) => o.value === valorRuta)) {
+      return [
+        {
+          value: valorRuta,
+          label: rutas === null ? form.RUTA : `${form.RUTA} (no está en el listado)`,
+        },
+        ...lista,
+      ];
+    }
+
+    return lista;
+  }, [rutas, valorRuta, form?.RUTA]);
+
+  /* Al elegir se guardan el serial y la descripción juntos. */
+  const elegirRuta = (valor) => {
+    if (!valor) {
+      setForm((actual) => ({ ...actual, RUTA_SERIAL: null, RUTA: null }));
+      return;
+    }
+    if (valor.startsWith(PREFIJO_SIN_CODIGO)) return;
+
+    const elegida = (rutas || []).find((r) => String(r.SERIAL) === valor);
+    if (!elegida) return;
+
+    setForm((actual) => ({
+      ...actual,
+      RUTA_SERIAL: elegida.SERIAL,
+      RUTA: elegida.NOMBRE,
     }));
   };
 
@@ -1313,13 +1363,19 @@ function ClienteDetalle() {
                   : "Seleccione un vendedor"
             }
           />
-          <CampoSelect
+          <CampoCatalogo
             theme={theme}
             label="Ruta"
-            valor={form.RUTA}
-            opciones={form.RUTA ? [{ value: form.RUTA, label: form.RUTA }] : []}
-            onChange={(v) => actualizarCampo("RUTA", v)}
-            placeholder="Sin catálogo disponible"
+            valor={valorRuta}
+            catalogo={opcionesRuta}
+            onChange={elegirRuta}
+            placeholder={
+              rutas === null
+                ? "Cargando rutas..."
+                : rutas.length === 0
+                  ? "Sin rutas para esta empresa"
+                  : "Seleccione una ruta"
+            }
           />
         </Rejilla>
       </Seccion>

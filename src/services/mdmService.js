@@ -539,6 +539,25 @@ export const getCotizacionMDM = async (id) => {
 };
 
 /**
+ * Rutas activas de una empresa (core.dim_rutas). Cada una trae su SERIAL, que es
+ * lo que se guarda en el cliente.
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{SERIAL: number, NOMBRE: string}>>}
+ */
+export const getRutasMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/rutas/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getRutasMDM:", error);
+        throw error;
+    }
+};
+
+/**
  * Vendedores activos de una empresa (core.dim_vendedores, activos y de EasySales).
  * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
  * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
