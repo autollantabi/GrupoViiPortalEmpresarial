@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import { toast } from "react-toastify";
 import { useTheme } from "context/ThemeContext";
@@ -32,6 +33,12 @@ const OPCIONES_ESTADO = [
   { value: ESTADO_APROBADO, label: "Aprobados" },
   { value: ESTADO_RECHAZADO, label: "Rechazados" },
 ];
+
+/* Los filtros viven en la URL para que al volver desde el detalle (o al
+   recargar, o con el botón atrás del navegador) se vea exactamente el mismo
+   listado. Como la ausencia del parámetro significa "Pendientes" —el filtro por
+   defecto—, hace falta un valor explícito para decir "todos los estados". */
+const ESTADO_TODOS = "TODOS";
 
 const OPCIONES_FILAS = [10, 15, 25, 50, 100].map((n) => ({
   value: n,
@@ -191,6 +198,7 @@ const Td = styled.td`
 
 const Fila = styled.tr`
   background: ${({ theme, $par }) => ($par ? theme.colors.backgroundLight : "transparent")};
+  cursor: ${({ $clickable }) => ($clickable ? "pointer" : "default")};
 
   &:hover {
     background: ${({ theme }) => theme.colors.primary}12;
@@ -275,15 +283,53 @@ const CajaMotivo = styled.div`
 function Clientes() {
   const { theme } = useTheme();
   const { user } = useAuthContext();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [diccionarioEmpresas, setDiccionarioEmpresas] = useState({});
 
-  const [empresaSeleccionada, setEmpresaSeleccionada] = useState(null);
-  const [estadoSeleccionado, setEstadoSeleccionado] = useState(OPCIONES_ESTADO[0]);
-  const [busquedaInput, setBusquedaInput] = useState("");
-  const [busqueda, setBusqueda] = useState("");
-  const [page, setPage] = useState(1);
-  const [filasPorPagina, setFilasPorPagina] = useState(OPCIONES_FILAS[1]);
+  /* Filtros leídos de la URL: es la única fuente de verdad, así no hay forma de
+     que la pantalla muestre un listado distinto al que describe la dirección. */
+  const empresaFiltro = searchParams.get("empresa") || null;
+  const estadoParam = searchParams.get("estado") || ESTADO_PENDIENTE;
+  const estadoFiltro = estadoParam === ESTADO_TODOS ? null : estadoParam;
+  const busqueda = searchParams.get("busqueda") || "";
+  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const size = Number(searchParams.get("size")) || OPCIONES_FILAS[1].value;
+
+  const empresaSeleccionada = empresaFiltro
+    ? { value: empresaFiltro, label: empresaFiltro }
+    : null;
+  const estadoSeleccionado =
+    OPCIONES_ESTADO.find((opt) => opt.value === estadoFiltro) || null;
+  const filasPorPagina =
+    OPCIONES_FILAS.find((opt) => opt.value === size) || OPCIONES_FILAS[1];
+
+  const [busquedaInput, setBusquedaInput] = useState(busqueda);
+
+  /**
+   * Escribe los filtros en la URL. `replace` evita llenar el historial con un
+   * paso por cada tecla del buscador; el botón atrás sigue llevando a la
+   * pantalla anterior y no a un filtro intermedio.
+   */
+  const actualizarFiltros = useCallback(
+    (cambios, { reiniciarPagina = true } = {}) => {
+      const params = new URLSearchParams(searchParams);
+
+      Object.entries(cambios).forEach(([clave, valor]) => {
+        if (valor === null || valor === undefined || valor === "") {
+          params.delete(clave);
+        } else {
+          params.set(clave, String(valor));
+        }
+      });
+
+      if (reiniciarPagina) params.delete("page");
+
+      setSearchParams(params, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
 
   const [clientes, setClientes] = useState([]);
   const [paginacion, setPaginacion] = useState(null);
@@ -335,15 +381,18 @@ function Clientes() {
   }, [user, diccionarioEmpresas]);
 
   /* Búsqueda por texto: se espera a que el usuario deje de escribir antes de
-     consultar, para no disparar un request por cada tecla. */
+     consultar, para no disparar un request por cada tecla. Si lo escrito ya
+     coincide con la URL no se hace nada, así el efecto no vuelve a disparar al
+     montar la pantalla con un filtro ya aplicado. */
   useEffect(() => {
     const timeout = setTimeout(() => {
-      setBusqueda(busquedaInput.trim());
-      setPage(1);
+      const texto = busquedaInput.trim();
+      if (texto === busqueda) return;
+      actualizarFiltros({ busqueda: texto });
     }, DEBOUNCE_BUSQUEDA_MS);
 
     return () => clearTimeout(timeout);
-  }, [busquedaInput]);
+  }, [busquedaInput, busqueda, actualizarFiltros]);
 
   const cargarClientes = useCallback(async () => {
     setLoading(true);
@@ -351,9 +400,9 @@ function Clientes() {
     try {
       const data = await getClientesMDM({
         page,
-        size: filasPorPagina.value,
-        empresa: empresaSeleccionada?.value || null,
-        estado: estadoSeleccionado?.value || null,
+        size,
+        empresa: empresaFiltro,
+        estado: estadoFiltro,
         busqueda: busqueda || null,
       });
 
@@ -368,39 +417,43 @@ function Clientes() {
     } finally {
       setLoading(false);
     }
-  }, [page, filasPorPagina, empresaSeleccionada, estadoSeleccionado, busqueda]);
+  }, [page, size, empresaFiltro, estadoFiltro, busqueda]);
 
   useEffect(() => {
     cargarClientes();
   }, [cargarClientes]);
 
   const handleEmpresaChange = (opt) => {
-    setEmpresaSeleccionada(opt || null);
-    setPage(1);
+    actualizarFiltros({ empresa: opt?.value || null });
   };
 
   const handleEstadoChange = (opt) => {
-    setEstadoSeleccionado(opt || null);
-    setPage(1);
+    /* Sin opción seleccionada el usuario quiere ver todos los estados, que no
+       es lo mismo que "sin filtro elegido todavía" (eso son los pendientes). */
+    actualizarFiltros({ estado: opt?.value || ESTADO_TODOS });
   };
 
   const handleFilasPorPagina = (opt) => {
-    setFilasPorPagina(opt);
-    setPage(1);
+    actualizarFiltros({ size: opt.value });
+  };
+
+  /* Al abrir el detalle se arrastran los filtros actuales en la dirección, para
+     que la flecha de volver reconstruya este mismo listado. */
+  const abrirDetalle = (cliente) => {
+    const filtros = searchParams.toString();
+    navigate(`/mdm/clientes/${cliente.ID}${filtros ? `?${filtros}` : ""}`);
   };
 
   /* Las columnas dependen del estado filtrado: el código de SAP solo existe
      cuando el cliente ya fue aprobado, y la razón solo cuando fue rechazado.
      Sin filtro de estado se muestran ambas, vacías donde no aplican. */
   const columnas = useMemo(() => {
-    const estado = estadoSeleccionado?.value;
-
-    if (estado === ESTADO_APROBADO) return [...COLUMNAS_BASE, COLUMNA_CODIGO_SAP];
-    if (estado === ESTADO_RECHAZADO) return [...COLUMNAS_BASE, COLUMNA_RAZON];
-    if (estado === ESTADO_PENDIENTE) return COLUMNAS_BASE;
+    if (estadoFiltro === ESTADO_APROBADO) return [...COLUMNAS_BASE, COLUMNA_CODIGO_SAP];
+    if (estadoFiltro === ESTADO_RECHAZADO) return [...COLUMNAS_BASE, COLUMNA_RAZON];
+    if (estadoFiltro === ESTADO_PENDIENTE) return COLUMNAS_BASE;
 
     return [...COLUMNAS_BASE, COLUMNA_CODIGO_SAP, COLUMNA_RAZON];
-  }, [estadoSeleccionado]);
+  }, [estadoFiltro]);
 
   const colorEstado = (estado) => {
     const valor = (estado || "").toUpperCase();
@@ -426,7 +479,11 @@ function Clientes() {
           text="Ver razón"
           iconLeft="FaCircleInfo"
           variant="outlined"
-          onClick={() => abrirMotivoRechazo(cliente)}
+          /* La fila abre el detalle: este botón tiene que quedarse en el modal */
+          onClick={(e) => {
+            e?.stopPropagation?.();
+            abrirMotivoRechazo(cliente);
+          }}
         />
       );
     }
@@ -446,7 +503,8 @@ function Clientes() {
   const totalPaginas = paginacion?.totalPages || 1;
 
   const irAPagina = (nuevaPagina) => {
-    setPage(Math.min(Math.max(1, nuevaPagina), totalPaginas));
+    const pagina = Math.min(Math.max(1, nuevaPagina), totalPaginas);
+    actualizarFiltros({ page: pagina === 1 ? null : pagina }, { reiniciarPagina: false });
   };
 
   const renderContenidoTabla = () => {
@@ -502,7 +560,13 @@ function Clientes() {
             </thead>
             <tbody>
               {clientes.map((cliente, index) => (
-                <Fila key={cliente.ID} $par={index % 2 === 0}>
+                <Fila
+                  key={cliente.ID}
+                  $par={index % 2 === 0}
+                  $clickable
+                  onClick={() => abrirDetalle(cliente)}
+                  title="Ver detalle del cliente"
+                >
                   {columnas.map((columna) => (
                     <Td key={columna.field} $align={columna.align} $wrap={columna.wrap}>
                       {renderCelda(cliente, columna)}

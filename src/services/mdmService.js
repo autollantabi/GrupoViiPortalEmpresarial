@@ -439,6 +439,8 @@ export const getGruposHerramientas = async () => {
  * @param {string} [filtros.empresa] - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
  * @param {string} [filtros.estado] - PENDIENTE | APROBADO | RECHAZADO
  * @param {string} [filtros.busqueda] - Texto libre; busca por código o nombre
+ * @param {string} [filtros.identificacion] - Número de identificación exacto (sin "C" inicial)
+ * @param {string} [filtros.nombre] - Nombre del cliente; coincidencia parcial
  * @returns {Promise<{Paginacion: Object, Clientes: Array}>}
  */
 export const getClientesMDM = async ({
@@ -447,12 +449,16 @@ export const getClientesMDM = async ({
     empresa = null,
     estado = null,
     busqueda = null,
+    identificacion = null,
+    nombre = null,
 } = {}) => {
     try {
         const params = { page, size };
         if (empresa) params.empresa = empresa;
         if (estado) params.estado = estado;
         if (busqueda) params.busqueda = busqueda;
+        if (identificacion) params.identificacion = identificacion;
+        if (nombre) params.nombre = nombre;
 
         const response = await axiosInstanceNew.get("/mdm/clientes", { params });
 
@@ -462,6 +468,25 @@ export const getClientesMDM = async ({
         return { Paginacion: null, Clientes: [] };
     } catch (error) {
         console.error("Error en getClientesMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Detalle de un cliente del MDM (cabecera + direcciones).
+ * @param {number|string} id - ic_serial del cliente
+ * @returns {Promise<Object|null>}
+ */
+export const getClienteMDM = async (id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/clientes/${id}`);
+
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error en getClienteMDM:", error);
         throw error;
     }
 };
