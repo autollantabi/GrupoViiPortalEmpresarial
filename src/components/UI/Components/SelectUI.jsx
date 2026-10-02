@@ -205,12 +205,20 @@ export const SelectUI = ({
     indicatorsContainer: (provided) => ({
       ...provided,
       padding: "0",
-      width: "24px",
+      // Sin ancho fijo: con isClearable hay dos iconos (limpiar y desplegar) y
+      // con 24px el segundo se salía del borde del control.
       minWidth: "24px",
-      alignSelf: "flex-start",
-      marginTop: "6px",
+      // En los multi-select el contenedor de valores crece hacia abajo, así que
+      // los iconos se anclan arriba; en el resto van centrados con el texto.
+      ...(isMulti
+        ? { alignSelf: "flex-start", marginTop: "6px" }
+        : { alignSelf: "stretch", alignItems: "center" }),
     }),
     dropdownIndicator: (provided) => ({
+      ...provided,
+      padding: "2px",
+    }),
+    clearIndicator: (provided) => ({
       ...provided,
       padding: "2px",
     }),

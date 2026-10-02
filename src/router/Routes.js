@@ -73,6 +73,8 @@ import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import Llantas from "pages/Areas/MDM/MDM_Crud/Llantas";
 import Lubricantes from "pages/Areas/MDM/MDM_Crud/Lubricantes";
 import Herramientas from "pages/Areas/MDM/MDM_Crud/Herramientas";
+import Clientes from "pages/Areas/MDM/MDM_Crud/Clientes";
+import ClienteDetalle from "pages/Areas/MDM/MDM_Crud/ClienteDetalle";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
@@ -362,6 +364,20 @@ export const RoutesConfig = [
     title: "Herramientas",
     component: Herramientas,
     recurso: "mdm.herramientas",
+  },
+  {
+    title: "Clientes",
+    component: Clientes,
+    recurso: "mdm.clientes",
+  },
+  {
+    // Se abre al hacer clic en una fila del listado, no desde el menú.
+    // Comparte el recurso con el listado para heredar sus permisos.
+    title: "Detalle de Cliente",
+    component: ClienteDetalle,
+    recurso: "mdm.clientes",
+    path: "/mdm/clientes/:id",
+    hideInSidebar: true,
   },
   // ================================= RRHH =================================
   {
