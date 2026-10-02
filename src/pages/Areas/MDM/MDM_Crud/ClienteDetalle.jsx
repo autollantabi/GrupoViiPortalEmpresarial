@@ -9,7 +9,13 @@ import { InputUI } from "components/UI/Components/InputUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { IconUI } from "components/UI/Components/IconsUI";
-import { getClienteMDM } from "services/mdmService";
+import {
+  actualizarClienteMDM,
+  getClienteMDM,
+  getCotizacionMDM,
+  getCotizacionesCliente,
+  getVendedoresMDM,
+} from "services/mdmService";
 
 /* ------------------------------------------------------------------ */
 /* Constantes                                                          */
@@ -129,7 +135,38 @@ const TABS = [
     subTabs: [{ id: "impuesto", label: "Impuesto" }],
   },
   { id: "comentarios", label: "Comentarios" },
+  { id: "cotizaciones", label: "Cotizaciones" },
 ];
+
+/* Dónde vive cada campo, para poder llevar al usuario a la pestaña correcta
+   cuando el guardado falla por una validación. */
+const UBICACION_CAMPO = {
+  NOMBRE: { tab: "general" },
+  TELEFONO1: { tab: "general" },
+  CORREO_ELECTRONICO: { tab: "general" },
+  TIPO_DOCUMENTO: { tab: "localizacion", subTab: "ats" },
+  TIPO_SOCIO_NEGOCIO: { tab: "localizacion", subTab: "ats" },
+  TIPO_CONTRIBUYENTE: { tab: "localizacion", subTab: "ats" },
+  ENTREGA_RETENCION: { tab: "localizacion", subTab: "ats" },
+  RIMPE: { tab: "localizacion", subTab: "ats" },
+  TIPO_RIMPE: { tab: "localizacion", subTab: "ats" },
+  CLASE_SUJETO: { tab: "localizacion", subTab: "dinardap" },
+  ORIGEN_INGRESOS: { tab: "localizacion", subTab: "dinardap" },
+  SEXO: { tab: "localizacion", subTab: "dinardap" },
+  ESTADO_CIVIL: { tab: "localizacion", subTab: "dinardap" },
+  DIRECCIONES: { tab: "direcciones" },
+};
+
+/**
+ * Recorta espacios y tabuladores. Todo lo que el usuario escribe pasa por aquí
+ * antes de guardarse: un espacio al inicio o al final generaría clientes que
+ * parecen distintos siendo el mismo.
+ */
+const recortar = (valor) =>
+  valor === null || valor === undefined ? "" : String(valor).trim();
+
+/** Igual que recortar, pero deja null cuando no quedó contenido */
+const recortarONulo = (valor) => recortar(valor) || null;
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -166,6 +203,24 @@ const ordenarDirecciones = (direcciones) =>
     return String(a.NOMBRE).localeCompare(String(b.NOMBRE));
   });
 
+/** Fecha con hora: en una cotización importa el momento, no solo el día */
+const formatFechaHora = (valor) => {
+  if (!valor) return "—";
+  const fecha = new Date(valor);
+  if (isNaN(fecha.getTime())) return "—";
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const hora = String(fecha.getHours()).padStart(2, "0");
+  const minutos = String(fecha.getMinutes()).padStart(2, "0");
+  return `${dia}/${mes}/${fecha.getFullYear()} ${hora}:${minutos}`;
+};
+
+const formatMoneda = (valor) => {
+  const n = Number(valor);
+  if (!Number.isFinite(n)) return "—";
+  return n.toLocaleString("es-EC", { style: "currency", currency: "USD" });
+};
+
 const etiquetaEstado = (estado) => {
   const valor = (estado || "").toUpperCase();
   if (valor === ESTADO_PENDIENTE) return "Pendiente";
@@ -195,6 +250,36 @@ const Encabezado = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+`;
+
+/* Los botones de acción se van al extremo derecho del encabezado y, si no
+   caben, bajan completos en lugar de partirse. */
+const AccionesEncabezado = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+`;
+
+const AreaTexto = styled.textarea`
+  width: 100%;
+  min-height: 150px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: ${({ theme }) => theme.colors.text};
+  background: ${({ theme }) => theme.colors.inputBackground || theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 4px;
+
+  &:focus {
+    outline: 0;
+    border-color: ${({ theme }) => theme.colors.inputFocus || theme.colors.primary};
+    box-shadow: 0 0 0 1px ${({ theme }) => theme.colors.inputFocus || theme.colors.primary};
+  }
 `;
 
 const Tarjeta = styled.div`
@@ -501,6 +586,106 @@ const TituloFicha = styled.div`
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
+/* Tablas de la pestaña de cotizaciones: mismo aspecto que las del listado de
+   clientes, para que las dos pantallas se vean como una sola. */
+const TablaScroll = styled.div`
+  width: 100%;
+  overflow: auto;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.border};
+    border-radius: 4px;
+  }
+`;
+
+const Tabla = styled.table`
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+`;
+
+const Th = styled.th`
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 11px 10px;
+  text-align: ${({ $align }) => $align || "left"};
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: ${({ theme }) => theme.colors.textInverse};
+  background: ${({ theme }) => theme.colors.secondary};
+`;
+
+const Td = styled.td`
+  padding: 9px 10px;
+  text-align: ${({ $align }) => $align || "left"};
+  white-space: ${({ $wrap }) => ($wrap ? "normal" : "nowrap")};
+  word-break: ${({ $wrap }) => ($wrap ? "break-word" : "normal")};
+  max-width: ${({ $wrap }) => ($wrap ? "420px" : "none")};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const Fila = styled.tr`
+  background: ${({ theme, $par }) => ($par ? theme.colors.backgroundLight : "transparent")};
+  cursor: ${({ $clickable }) => ($clickable ? "pointer" : "default")};
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary}12;
+  }
+`;
+
+/* ButtonUI es display:flex, o sea un bloque: el text-align de la celda no lo
+   centra. Este contenedor sí. */
+const CeldaAccion = styled.div`
+  display: flex;
+  justify-content: center;
+`;
+
+const CabeceraCotizacion = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const ResumenCotizacion = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-left: auto;
+`;
+
+const CajaComentario = styled.div`
+  margin: 6px 0 16px;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.backgroundLight};
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+`;
+
+const Spaciador = styled.div`
+  height: 10px;
+`;
+
 const Vacio = styled.div`
   min-height: 220px;
   display: flex;
@@ -642,12 +827,89 @@ function ClienteDetalle() {
   const [direccionesForm, setDireccionesForm] = useState({});
   const [direccionActivaId, setDireccionActivaId] = useState(null);
 
+  const [guardando, setGuardando] = useState(false);
+
+  /* Vendedores activos de la empresa del cliente. null = todavía no llegaron;
+     [] = llegaron y la empresa no tiene ninguno. */
+  const [vendedores, setVendedores] = useState(null);
+
+  /* Cotizaciones del cliente: se cargan al abrir la pestaña, no antes */
+  const [cotizaciones, setCotizaciones] = useState(null);
+  const [cargandoCotizaciones, setCargandoCotizaciones] = useState(false);
+  const [cotizacionAbierta, setCotizacionAbierta] = useState(null);
+  const [cargandoCotizacion, setCargandoCotizacion] = useState(false);
+
   /* La dirección del detalle arrastra los filtros del listado, así que volver
      es simplemente regresar a la misma dirección de la que se vino. Funciona
      igual si la pestaña se recarga o se abre el enlace directo. */
   const volverAlListado = useCallback(() => {
     navigate(`${RUTA_LISTADO}${location.search}`);
   }, [navigate, location.search]);
+
+  /**
+   * Vuelca el cliente del backend en el estado de la pantalla. Se usa tanto al
+   * abrir la ficha como después de guardar, para que lo que se ve sea siempre
+   * lo que quedó registrado.
+   */
+  const aplicarCliente = useCallback((data) => {
+    setCliente(data);
+    setForm({
+      NOMBRE: data.NOMBRE ?? "",
+      NOMBRE_COMERCIAL: data.NOMBRE_COMERCIAL ?? "",
+      TELEFONO1: data.TELEFONO1 ?? "",
+      TELEFONO2: data.TELEFONO2 ?? "",
+      TELEFONO_MOVIL: data.TELEFONO_MOVIL ?? "",
+      CORREO_ELECTRONICO: data.CORREO_ELECTRONICO ?? "",
+      // El vendedor se identifica por su código. Si el backend lo encontró en el
+      // listado se usan el código y el nombre tal como están en el maestro; si
+      // no, se conserva lo que el cliente tenía para no perderlo al guardar.
+      VENDEDOR_CODIGO: data.VENDEDOR_COINCIDENCIA?.CODIGO ?? data.VENDEDOR_CODIGO ?? null,
+      VENDEDOR: data.VENDEDOR_COINCIDENCIA?.NOMBRE ?? data.VENDEDOR ?? null,
+      RUTA: data.RUTA ?? null,
+      COMENTARIOS: data.COMENTARIOS ?? "",
+      ACTIVO: data.ACTIVO !== false,
+      // Localización Ecuador / ATS
+      TIPO_DOCUMENTO: data.TIPO_DOCUMENTO ?? null,
+      TIPO_SOCIO_NEGOCIO: data.TIPO_SOCIO_NEGOCIO ?? null,
+      PAGO_RESIDENCIA: data.PAGO_RESIDENCIA ?? "01",
+      TIPO_CONTRIBUYENTE: data.TIPO_CONTRIBUYENTE ?? null,
+      PARTE_RELACIONADA: data.PARTE_RELACIONADA ?? "NO",
+      ENTREGA_RETENCION: data.ENTREGA_RETENCION ?? "NO",
+      RIMPE: data.RIMPE ?? "NO",
+      TIPO_RIMPE: data.TIPO_RIMPE ?? null,
+      // DINARDAP
+      CLASE_SUJETO: data.CLASE_SUJETO ?? null,
+      ORIGEN_INGRESOS: data.ORIGEN_INGRESOS ?? null,
+      SEXO: data.SEXO ?? null,
+      ESTADO_CIVIL: data.ESTADO_CIVIL ?? null,
+    });
+
+    const direcciones = data.DIRECCIONES || [];
+    setDireccionesForm(
+      Object.fromEntries(
+        direcciones.map((direccion) => [
+          direccion.ID,
+          {
+            NOMBRE: direccion.NOMBRE ?? "",
+            UBICACION: direccion.UBICACION ?? "",
+            CALLE: direccion.CALLE ?? "",
+            SECTOR: direccion.SECTOR ?? "",
+            CIUDAD: direccion.CIUDAD ?? "",
+            PROVINCIA: direccion.PROVINCIA ?? "",
+          },
+        ])
+      )
+    );
+
+    /* Se abre la de facturación, o la primera si no hubiera, para que la ficha
+       no arranque vacía. */
+    setDireccionActivaId((actual) => {
+      if (actual && direcciones.some((d) => d.ID === actual)) return actual;
+      if (!direcciones.length) return null;
+      const facturacion = direcciones.find((d) => d.TIPO === "bo_BillTo");
+      return (facturacion || direcciones[0]).ID;
+    });
+  }, []);
 
   const cargarCliente = useCallback(async () => {
     setLoading(true);
@@ -662,51 +924,7 @@ function ClienteDetalle() {
         return;
       }
 
-      setCliente(data);
-      setForm({
-        NOMBRE: data.NOMBRE ?? "",
-        NOMBRE_COMERCIAL: data.NOMBRE_COMERCIAL ?? "",
-        TELEFONO1: data.TELEFONO1 ?? "",
-        TELEFONO2: data.TELEFONO2 ?? "",
-        TELEFONO_MOVIL: data.TELEFONO_MOVIL ?? "",
-        CORREO_ELECTRONICO: data.CORREO_ELECTRONICO ?? "",
-        VENDEDOR: data.VENDEDOR ?? null,
-        RUTA: data.RUTA ?? null,
-        ACTIVO: data.ACTIVO !== false,
-        // Localización Ecuador / ATS
-        TIPO_DOCUMENTO: data.TIPO_DOCUMENTO ?? null,
-        TIPO_SOCIO_NEGOCIO: data.TIPO_SOCIO_NEGOCIO ?? null,
-        PAGO_RESIDENCIA: data.PAGO_RESIDENCIA ?? "01",
-        TIPO_CONTRIBUYENTE: data.TIPO_CONTRIBUYENTE ?? null,
-        PARTE_RELACIONADA: data.PARTE_RELACIONADA ?? "NO",
-        ENTREGA_RETENCION: data.ENTREGA_RETENCION ?? "NO",
-        RIMPE: data.RIMPE ?? "NO",
-        TIPO_RIMPE: data.TIPO_RIMPE ?? null,
-        // DINARDAP
-        CLASE_SUJETO: data.CLASE_SUJETO ?? null,
-        ORIGEN_INGRESOS: data.ORIGEN_INGRESOS ?? null,
-        SEXO: data.SEXO ?? null,
-        ESTADO_CIVIL: data.ESTADO_CIVIL ?? null,
-      });
-
-      const direcciones = data.DIRECCIONES || [];
-      setDireccionesForm(
-        Object.fromEntries(
-          direcciones.map((direccion) => [
-            direccion.ID,
-            {
-              NOMBRE: direccion.NOMBRE ?? "",
-              UBICACION: direccion.UBICACION ?? "",
-              CALLE: direccion.CALLE ?? "",
-              SECTOR: direccion.SECTOR ?? "",
-              CIUDAD: direccion.CIUDAD ?? "",
-              PROVINCIA: direccion.PROVINCIA ?? "",
-            },
-          ])
-        )
-      );
-      /* Se abre la primera dirección para que la ficha no arranque vacía */
-      setDireccionActivaId(direcciones.length ? direcciones.find(a => a.TIPO  == 'bo_BillTo').ID : null);
+      aplicarCliente(data);
     } catch (err) {
       console.error("Error al consultar el detalle del cliente:", err);
       const noExiste = err?.response?.status === 404;
@@ -719,7 +937,7 @@ function ClienteDetalle() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, aplicarCliente]);
 
   useEffect(() => {
     cargarCliente();
@@ -727,6 +945,240 @@ function ClienteDetalle() {
 
   const actualizarCampo = (campo, valor) => {
     setForm((actual) => ({ ...actual, [campo]: valor }));
+  };
+
+  /**
+   * Arma lo que se va a guardar: todo el texto recortado y las direcciones con
+   * su identificador, que es lo que el backend usa para saber cuál actualizar.
+   */
+  const construirPayload = useCallback(() => {
+    const direcciones = Object.entries(direccionesForm).map(([id, d]) => ({
+      ID: Number(id),
+      UBICACION: recortar(d.UBICACION),
+      CALLE: recortar(d.CALLE),
+      CIUDAD: recortar(d.CIUDAD),
+      PROVINCIA: recortar(d.PROVINCIA),
+      SECTOR: recortar(d.SECTOR),
+    }));
+
+    return {
+      NOMBRE: recortar(form.NOMBRE),
+      NOMBRE_COMERCIAL: recortar(form.NOMBRE_COMERCIAL),
+      TIPO_DOCUMENTO: form.TIPO_DOCUMENTO,
+      TELEFONO1: recortar(form.TELEFONO1),
+      TELEFONO2: recortar(form.TELEFONO2),
+      TELEFONO_MOVIL: recortar(form.TELEFONO_MOVIL),
+      CORREO_ELECTRONICO: recortar(form.CORREO_ELECTRONICO),
+      VENDEDOR: recortarONulo(form.VENDEDOR),
+      VENDEDOR_CODIGO: recortarONulo(form.VENDEDOR_CODIGO),
+      RUTA: recortarONulo(form.RUTA),
+      COMENTARIOS: recortar(form.COMENTARIOS),
+      ACTIVO: form.ACTIVO === true,
+      TIPO_SOCIO_NEGOCIO: form.TIPO_SOCIO_NEGOCIO,
+      TIPO_CONTRIBUYENTE: form.TIPO_CONTRIBUYENTE,
+      ENTREGA_RETENCION: form.ENTREGA_RETENCION,
+      RIMPE: form.RIMPE,
+      TIPO_RIMPE: form.RIMPE === "SI" ? form.TIPO_RIMPE : null,
+      CLASE_SUJETO: form.CLASE_SUJETO,
+      ORIGEN_INGRESOS: form.ORIGEN_INGRESOS,
+      SEXO: form.SEXO,
+      ESTADO_CIVIL: form.ESTADO_CIVIL,
+      DIRECCIONES: direcciones,
+    };
+  }, [form, direccionesForm]);
+
+  /**
+   * Revisa los obligatorios antes de salir a la red. El backend vuelve a
+   * validar, pero avisar aquí evita un viaje y permite abrir la pestaña donde
+   * está el campo que falta.
+   */
+  const validar = (payload) => {
+    const obligatorios = [
+      ["NOMBRE", "Nombre"],
+      ["TELEFONO1", "Teléfono 1"],
+      ["CORREO_ELECTRONICO", "Correo electrónico"],
+      ["TIPO_DOCUMENTO", "Tipo de Identificación"],
+      ["TIPO_SOCIO_NEGOCIO", "Tipo de Socio de Negocio"],
+      ["TIPO_CONTRIBUYENTE", "Tipo de Contribuyente"],
+      ["ENTREGA_RETENCION", "Entrega Retención"],
+      ["RIMPE", "RIMPE"],
+      ["CLASE_SUJETO", "Clase del Sujeto"],
+      ["ORIGEN_INGRESOS", "Origen de Ingresos"],
+      ["SEXO", "Sexo"],
+      ["ESTADO_CIVIL", "Estado Civil"],
+    ];
+
+    for (const [campo, etiqueta] of obligatorios) {
+      if (!recortar(payload[campo])) {
+        return { campo, mensaje: `El campo "${etiqueta}" es obligatorio` };
+      }
+    }
+
+    if (payload.RIMPE === "SI" && !payload.TIPO_RIMPE) {
+      return {
+        campo: "TIPO_RIMPE",
+        mensaje: 'Si el cliente es RIMPE hay que indicar el "Tipo RIMPE"',
+      };
+    }
+
+    const sinProvincia = payload.DIRECCIONES.find((d) => !d.PROVINCIA);
+    if (sinProvincia) {
+      const nombre =
+        (cliente.DIRECCIONES || []).find((d) => d.ID === sinProvincia.ID)?.NOMBRE ||
+        sinProvincia.ID;
+      return {
+        campo: "DIRECCIONES",
+        mensaje: `La dirección "${nombre}" necesita una provincia`,
+      };
+    }
+
+    return null;
+  };
+
+  /** Lleva al usuario a donde está el campo que impidió guardar */
+  const irAlCampo = (campo) => {
+    const destino = UBICACION_CAMPO[campo];
+    if (!destino) return;
+    setTabActiva(destino.tab);
+    if (destino.subTab) {
+      setSubTabActiva((actual) => ({ ...actual, [destino.tab]: destino.subTab }));
+    }
+  };
+
+  const empresaCliente = cliente?.EMPRESA;
+
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setVendedores(null);
+
+    (async () => {
+      try {
+        const data = await getVendedoresMDM(empresaCliente);
+        if (!cancelado) setVendedores(data);
+      } catch (err) {
+        if (!cancelado) {
+          setVendedores([]);
+          toast.error("No se pudo cargar el listado de vendedores");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
+
+  /* Valor con el que el selector identifica al vendedor actual: su código. Un
+     cliente con nombre pero sin código (ingresó por la integración con el nombre
+     escrito a mano y no hubo coincidencia) no tiene código; para esos se usa el
+     propio nombre con un prefijo que no puede chocar con un código real. */
+  const PREFIJO_SIN_CODIGO = "NOMBRE:";
+  const valorVendedor =
+    form?.VENDEDOR_CODIGO ||
+    (form?.VENDEDOR ? `${PREFIJO_SIN_CODIGO}${form.VENDEDOR}` : null);
+
+  /* Opciones del selector de vendedor, identificadas por código. Si el actual no
+     está en el listado (ya no es vendedor activo, o nunca coincidió) se agrega
+     como una opción marcada: así no se pierde en silencio al guardar. */
+  const opcionesVendedor = useMemo(() => {
+    const lista = (vendedores || []).map((v) => ({ value: v.CODIGO, label: v.NOMBRE }));
+
+    if (valorVendedor && !lista.some((o) => o.value === valorVendedor)) {
+      return [
+        {
+          value: valorVendedor,
+          label: vendedores === null ? form.VENDEDOR : `${form.VENDEDOR} (no está en el listado)`,
+        },
+        ...lista,
+      ];
+    }
+
+    return lista;
+  }, [vendedores, valorVendedor, form?.VENDEDOR]);
+
+  /* Al elegir se guardan el código y el nombre juntos. Volver a elegir la opción
+     marcada (sin código) no cambia nada. */
+  const elegirVendedor = (valor) => {
+    if (!valor) {
+      setForm((actual) => ({ ...actual, VENDEDOR_CODIGO: null, VENDEDOR: null }));
+      return;
+    }
+    if (valor.startsWith(PREFIJO_SIN_CODIGO)) return;
+
+    const elegido = (vendedores || []).find((v) => v.CODIGO === valor);
+    if (!elegido) return;
+
+    setForm((actual) => ({
+      ...actual,
+      VENDEDOR_CODIGO: elegido.CODIGO,
+      VENDEDOR: elegido.NOMBRE,
+    }));
+  };
+
+  /* Las cotizaciones se piden la primera vez que se abre la pestaña: no tiene
+     sentido traerlas al cargar la ficha si nadie las va a mirar. */
+  useEffect(() => {
+    if (tabActiva !== "cotizaciones" || cotizaciones !== null) return;
+
+    let cancelado = false;
+    (async () => {
+      setCargandoCotizaciones(true);
+      try {
+        const data = await getCotizacionesCliente(id);
+        if (!cancelado) setCotizaciones(data);
+      } catch (err) {
+        if (!cancelado) {
+          setCotizaciones([]);
+          toast.error("No se pudieron cargar las cotizaciones del cliente");
+        }
+      } finally {
+        if (!cancelado) setCargandoCotizaciones(false);
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [tabActiva, cotizaciones, id]);
+
+  const abrirCotizacion = async (idCotizacion) => {
+    setCargandoCotizacion(true);
+    try {
+      setCotizacionAbierta(await getCotizacionMDM(idCotizacion));
+    } catch (err) {
+      toast.error("No se pudo cargar la cotización");
+    } finally {
+      setCargandoCotizacion(false);
+    }
+  };
+
+  const guardar = async () => {
+    const payload = construirPayload();
+    const error = validar(payload);
+
+    if (error) {
+      irAlCampo(error.campo);
+      toast.error(error.mensaje);
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const actualizado = await actualizarClienteMDM(id, payload);
+      // Se repuebla con lo que respondió el backend: así la pantalla queda con
+      // los valores ya normalizados (recortados y en mayúsculas) y no con los
+      // que se escribieron.
+      aplicarCliente(actualizado);
+      toast.success("Cliente guardado");
+    } catch (err) {
+      const respuesta = err?.response?.data;
+      if (respuesta?.campo) irAlCampo(respuesta.campo);
+      toast.error(respuesta?.message || "No se pudo guardar el cliente");
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const actualizarCampoDireccion = (idDireccion, campo, valor) => {
@@ -751,6 +1203,18 @@ function ClienteDetalle() {
   const direccionActiva = useMemo(
     () => (cliente?.DIRECCIONES || []).find((d) => d.ID === direccionActivaId) || null,
     [cliente, direccionActivaId]
+  );
+
+  /* El color del estado se usa para el cliente y para cada cotización */
+  const colorEstadoTexto = useCallback(
+    (estado) => {
+      const valor = (estado || "").toUpperCase();
+      if (valor === ESTADO_APROBADO) return theme.colors.success;
+      if (valor === ESTADO_RECHAZADO) return theme.colors.error;
+      if (valor === ESTADO_PENDIENTE) return theme.colors.warning || theme.colors.secondary;
+      return theme.colors.textSecondary;
+    },
+    [theme]
   );
 
   const colorEstado = useMemo(() => {
@@ -835,13 +1299,19 @@ function ClienteDetalle() {
       <Seccion theme={theme}>
         <TituloSeccion theme={theme}>Asignación comercial</TituloSeccion>
         <Rejilla>
-          <CampoSelect
+          <CampoCatalogo
             theme={theme}
             label="Empleado del dpto. de ventas"
-            valor={form.VENDEDOR}
-            opciones={form.VENDEDOR ? [{ value: form.VENDEDOR, label: form.VENDEDOR }] : []}
-            onChange={(v) => actualizarCampo("VENDEDOR", v)}
-            placeholder="Sin catálogo disponible"
+            valor={valorVendedor}
+            catalogo={opcionesVendedor}
+            onChange={elegirVendedor}
+            placeholder={
+              vendedores === null
+                ? "Cargando vendedores..."
+                : vendedores.length === 0
+                  ? "Sin vendedores para esta empresa"
+                  : "Seleccione un vendedor"
+            }
           />
           <CampoSelect
             theme={theme}
@@ -1149,6 +1619,181 @@ function ClienteDetalle() {
     </Filas>
   );
 
+  /** Comentarios con los que el cliente entró al MDM */
+  const renderComentarios = () => (
+    <>
+      <TextUI size="12px" color={theme.colors.textSecondary}>
+        Comentarios registrados al ingresar el cliente. Se guardan junto con el
+        resto de la ficha.
+      </TextUI>
+      <Spaciador />
+      <AreaTexto
+        theme={theme}
+        value={form.COMENTARIOS ?? ""}
+        onChange={(e) => actualizarCampo("COMENTARIOS", e.target.value)}
+        placeholder="Sin comentarios"
+      />
+    </>
+  );
+
+  /** Listado de cotizaciones del cliente, o el detalle de la que se abrió */
+  const renderCotizaciones = () => {
+    if (cotizacionAbierta || cargandoCotizacion) {
+      return renderDetalleCotizacion();
+    }
+
+    if (cargandoCotizaciones) {
+      return (
+        <Vacio>
+          <IconUI name="FaSpinner" size={26} color={theme.colors.primary} />
+          <TextUI weight="bold">Cargando cotizaciones...</TextUI>
+        </Vacio>
+      );
+    }
+
+    if (!cotizaciones || cotizaciones.length === 0) {
+      return (
+        <Vacio>
+          <IconUI name="FaFileInvoiceDollar" size={26} color={theme.colors.textSecondary} />
+          <TextUI weight="bold">Este cliente no tiene cotizaciones</TextUI>
+        </Vacio>
+      );
+    }
+
+    return (
+      <TablaScroll>
+        <Tabla>
+          <thead>
+            <tr>
+              <Th>Cotización</Th>
+              <Th>Fecha</Th>
+              <Th $align="center">Estado</Th>
+              <Th $align="right">Artículos</Th>
+              <Th $align="right">Total</Th>
+              <Th $align="center">Detalle</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {cotizaciones.map((c, i) => (
+              <Fila
+                key={c.ID}
+                $par={i % 2 === 0}
+                $clickable
+                onClick={() => abrirCotizacion(c.ID)}
+                title="Ver artículos de la cotización"
+              >
+                <Td>N° {c.ID}</Td>
+                <Td>{formatFechaHora(c.FECHA_CREACION)}</Td>
+                <Td $align="center">
+                  <Badge $color={colorEstadoTexto(c.ESTADO)}>
+                    {etiquetaEstado(c.ESTADO)}
+                  </Badge>
+                </Td>
+                <Td $align="right">{c.TOTAL_ARTICULOS}</Td>
+                <Td $align="right">{formatMoneda(c.TOTAL)}</Td>
+                <Td $align="center">
+                  <CeldaAccion>
+                    <ButtonUI
+                      iconLeft="FaEye"
+                      variant="outlined"
+                      onClick={(e) => {
+                        e?.stopPropagation?.();
+                        abrirCotizacion(c.ID);
+                      }}
+                    />
+                  </CeldaAccion>
+                </Td>
+              </Fila>
+            ))}
+          </tbody>
+        </Tabla>
+      </TablaScroll>
+    );
+  };
+
+  /** Cabecera de la cotización y los artículos que incluye */
+  const renderDetalleCotizacion = () => {
+    if (cargandoCotizacion) {
+      return (
+        <Vacio>
+          <IconUI name="FaSpinner" size={26} color={theme.colors.primary} />
+          <TextUI weight="bold">Cargando la cotización...</TextUI>
+        </Vacio>
+      );
+    }
+
+    const c = cotizacionAbierta;
+
+    return (
+      <>
+        <CabeceraCotizacion>
+          <ButtonUI
+            iconLeft="FaArrowLeft"
+            variant="outlined"
+            onClick={() => setCotizacionAbierta(null)}
+            title="Volver a las cotizaciones"
+          />
+          <TextUI weight="bold" size="16px">
+            Cotización N° {c.ID}
+          </TextUI>
+          <Badge $color={colorEstadoTexto(c.ESTADO)}>{etiquetaEstado(c.ESTADO)}</Badge>
+          <ResumenCotizacion>
+            <TextUI size="13px" color={theme.colors.textSecondary}>
+              {c.TOTAL_ARTICULOS} {c.TOTAL_ARTICULOS === 1 ? "artículo" : "artículos"}
+            </TextUI>
+            <TextUI weight="bold" size="15px">
+              {formatMoneda(c.TOTAL)}
+            </TextUI>
+          </ResumenCotizacion>
+        </CabeceraCotizacion>
+
+        {c.COMENTARIOS && (
+          <>
+            <TextUI size="12px" color={theme.colors.textSecondary}>
+              Comentarios de la cotización
+            </TextUI>
+            <CajaComentario theme={theme}>{c.COMENTARIOS}</CajaComentario>
+          </>
+        )}
+
+        <TablaScroll>
+          <Tabla>
+            <thead>
+              <tr>
+                <Th $align="center">#</Th>
+                <Th>Código</Th>
+                <Th>Artículo</Th>
+                <Th $align="right">Cantidad</Th>
+                <Th $align="right">Precio</Th>
+                <Th $align="right">Subtotal</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {(c.DETALLE || []).map((l, i) => (
+                <Fila key={l.ID} $par={i % 2 === 0}>
+                  <Td $align="center">{l.LINEA}</Td>
+                  <Td>{l.CODIGO_ITEM}</Td>
+                  {/* Si el artículo ya no está en el maestro se deja constancia
+                      en vez de mostrar la celda en blanco. */}
+                  <Td $wrap>
+                    {l.NOMBRE || (
+                      <TextUI size="13px" color={theme.colors.textSecondary}>
+                        (artículo no encontrado en el maestro)
+                      </TextUI>
+                    )}
+                  </Td>
+                  <Td $align="right">{l.CANTIDAD}</Td>
+                  <Td $align="right">{formatMoneda(l.PRECIO)}</Td>
+                  <Td $align="right">{formatMoneda(l.SUBTOTAL)}</Td>
+                </Fila>
+              ))}
+            </tbody>
+          </Tabla>
+        </TablaScroll>
+      </>
+    );
+  };
+
   const renderPendiente = (titulo) => (
     <Vacio>
       <IconUI name="FaScrewdriverWrench" size={26} color={theme.colors.textSecondary} />
@@ -1162,6 +1807,8 @@ function ClienteDetalle() {
   const renderContenidoTab = () => {
     if (tabActual.id === "general") return renderGeneral();
     if (tabActual.id === "direcciones") return renderDirecciones();
+    if (tabActual.id === "comentarios") return renderComentarios();
+    if (tabActual.id === "cotizaciones") return renderCotizaciones();
 
     if (tabActual.subTabs?.length) {
       const sub = tabActual.subTabs.find((s) => s.id === subTabActual);
@@ -1197,6 +1844,25 @@ function ClienteDetalle() {
           <TextUI size="13px" color={theme.colors.textSecondary}>
             {cliente.EMPRESA}
           </TextUI>
+
+          <AccionesEncabezado>
+            <ButtonUI
+              text={guardando ? "Guardando..." : "Guardar"}
+              iconLeft="FaFloppyDisk"
+              onClick={guardar}
+              disabled={guardando}
+            />
+            {/* El envío a SAP reutilizará la integración de clientes que ya
+                existe; por ahora solo está el botón. */}
+            <ButtonUI
+              text="Sincronizar en SAP"
+              iconLeft="FaCloudArrowUp"
+              variant="outlined"
+              onClick={() =>
+                toast.info("La sincronización con SAP todavía no está habilitada")
+              }
+            />
+          </AccionesEncabezado>
         </Encabezado>
 
         {/* Cabecera: los mismos campos de la ficha de socio de negocios de SAP,

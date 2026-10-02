@@ -490,3 +490,68 @@ export const getClienteMDM = async (id) => {
         throw error;
     }
 };
+
+/**
+ * Guarda la ficha de un cliente del MDM.
+ * @param {number|string} id - ic_serial del cliente
+ * @param {Object} cliente - Cabecera + direcciones ya recortadas
+ * @returns {Promise<Object>} El cliente tal como quedó guardado
+ */
+export const actualizarClienteMDM = async (id, cliente) => {
+    const response = await axiosInstanceNew.patch(`/mdm/clientes/${id}`, cliente);
+    return response.data?.data;
+};
+
+/**
+ * Cotizaciones de un cliente dentro de su empresa.
+ * @param {number|string} id - ic_serial del cliente
+ * @returns {Promise<Array>}
+ */
+export const getCotizacionesCliente = async (id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/clientes/${id}/cotizaciones`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCotizacionesCliente:", error);
+        throw error;
+    }
+};
+
+/**
+ * Detalle de una cotización con sus artículos.
+ * @param {number|string} id - ico_serial de la cotización
+ * @returns {Promise<Object|null>}
+ */
+export const getCotizacionMDM = async (id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/cotizaciones/${id}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error en getCotizacionMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Vendedores activos de una empresa (core.dim_vendedores, activos y de EasySales).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
+ */
+export const getVendedoresMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/vendedores/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getVendedoresMDM:", error);
+        throw error;
+    }
+};

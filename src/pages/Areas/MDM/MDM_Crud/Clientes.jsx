@@ -205,6 +205,13 @@ const Fila = styled.tr`
   }
 `;
 
+/* ButtonUI es display:flex, o sea un bloque: el text-align de la celda no lo
+   centra. Este contenedor sí. */
+const CeldaAccion = styled.div`
+  display: flex;
+  justify-content: center;
+`;
+
 const Badge = styled.span`
   display: inline-block;
   padding: 3px 10px;
@@ -475,16 +482,18 @@ function Clientes() {
     if (columna.field === "_razon") {
       if ((cliente.ESTADO || "").toUpperCase() !== ESTADO_RECHAZADO) return "—";
       return (
-        <ButtonUI
-          text="Ver razón"
-          iconLeft="FaCircleInfo"
-          variant="outlined"
-          /* La fila abre el detalle: este botón tiene que quedarse en el modal */
-          onClick={(e) => {
-            e?.stopPropagation?.();
-            abrirMotivoRechazo(cliente);
-          }}
-        />
+        <CeldaAccion>
+          <ButtonUI
+            text="Ver razón"
+            iconLeft="FaCircleInfo"
+            variant="outlined"
+            /* La fila abre el detalle: este botón tiene que quedarse en el modal */
+            onClick={(e) => {
+              e?.stopPropagation?.();
+              abrirMotivoRechazo(cliente);
+            }}
+          />
+        </CeldaAccion>
       );
     }
 
