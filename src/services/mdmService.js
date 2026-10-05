@@ -409,6 +409,18 @@ export const syncItemsToSap = async (lineaNegocio, ids) => {
 };
 
 /**
+ * Obtiene (sin enviarlo) el request que se mandaría a SAP para un item del portal.
+ * Si el item ya tiene CODIGO_SAP, `Modo` es ACTUALIZACION (flujo aún no implementado).
+ * @param {string} lineaNegocio - HERRAMIENTAS (LLANTAS y LUBRICANTES aún responden 501)
+ * @param {number} id - ID del item en el portal
+ * @returns {Promise<Object>} - { Modo, ActualizacionImplementada, CodigoSap, Metodo, Endpoint, Body, Nota }
+ */
+export const getSapRequestItem = async (lineaNegocio, id) => {
+    const response = await axiosInstanceNew.get(`/mdm/items/${lineaNegocio}/${id}/sap-request`);
+    return response.data;
+};
+
+/**
  * Obtiene los grupos, subgrupos y tipos para Herramientas.
  * @returns {Promise<Array>}
  */
@@ -534,6 +546,26 @@ export const getCotizacionMDM = async (id) => {
         return null;
     } catch (error) {
         console.error("Error en getCotizacionMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Códigos RI de impuesto sobre la renta de una empresa (core.dim_codigo_impuesto)
+ * y cuáles van marcados según Entrega Retención.
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<{CODIGOS: Array<{CODIGO: string, NOMBRE: string}>, SELECCIONADOS: {SI: string[], NO: string[]}}>}
+ */
+export const getCodigosImpuestoMDM = async (empresa) => {
+    const vacio = { CODIGOS: [], SELECCIONADOS: { SI: [], NO: [] } };
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/codigos-impuesto/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || vacio;
+        }
+        return vacio;
+    } catch (error) {
+        console.error("Error en getCodigosImpuestoMDM:", error);
         throw error;
     }
 };

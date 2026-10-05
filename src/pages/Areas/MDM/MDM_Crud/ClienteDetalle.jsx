@@ -13,6 +13,7 @@ import {
   actualizarClienteMDM,
   getClienteMDM,
   getCotizacionMDM,
+  getCodigosImpuestoMDM,
   getCotizacionesCliente,
   getRutasMDM,
   getVendedoresMDM,
@@ -483,6 +484,36 @@ const OpcionRadio = styled.label`
   }
 `;
 
+/* Check de solo lectura que se ve en el color del tema. El deshabilitado nativo
+   se pinta gris y no permite cambiarlo, así que se dibuja a mano. */
+const CheckAzul = styled.input`
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1.5px solid ${({ theme }) => theme.colors.primary};
+  border-radius: 3px;
+  background: transparent;
+  cursor: default;
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+
+  &:checked {
+    background: ${({ theme }) => theme.colors.primary};
+  }
+
+  &:checked::after {
+    content: "";
+    width: 4px;
+    height: 8px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: translateY(-1px) rotate(45deg);
+  }
+`;
+
 const Badge = styled.span`
   display: inline-block;
   padding: 4px 12px;
@@ -813,6 +844,10 @@ function ClienteDetalle() {
   /* Rutas activas de la empresa del cliente, con la misma convención. */
   const [rutas, setRutas] = useState(null);
 
+  /* Códigos RI de impuesto sobre la renta de la empresa, con la regla de cuáles
+     se marcan. null = todavía no llegaron. */
+  const [impuestos, setImpuestos] = useState(null);
+
   /* Cotizaciones del cliente: se cargan al abrir la pestaña, no antes */
   const [cotizaciones, setCotizaciones] = useState(null);
   const [cargandoCotizaciones, setCargandoCotizaciones] = useState(false);
@@ -1067,6 +1102,29 @@ function ClienteDetalle() {
         if (!cancelado) {
           setRutas([]);
           toast.error("No se pudo cargar el listado de rutas");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
+
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setImpuestos(null);
+
+    (async () => {
+      try {
+        const data = await getCodigosImpuestoMDM(empresaCliente);
+        if (!cancelado) setImpuestos(data);
+      } catch (err) {
+        if (!cancelado) {
+          setImpuestos({ CODIGOS: [], SELECCIONADOS: { SI: [], NO: [] } });
+          toast.error("No se pudo cargar el listado de códigos de impuesto");
         }
       }
     })();
@@ -1841,6 +1899,73 @@ function ClienteDetalle() {
     );
   };
 
+  /* Finanzas > Impuesto. Nada de esto se edita ni se guarda: todo se deduce de
+     Entrega Retención, así que cambiarlo en Localización se refleja aquí al
+     instante, también antes de guardar. */
+  const renderImpuesto = () => {
+    const sujetoRetencion = form.ENTREGA_RETENCION === "SI";
+    const marcados = new Set(
+      impuestos?.SELECCIONADOS?.[sujetoRetencion ? "SI" : "NO"] || []
+    );
+    const codigos = impuestos?.CODIGOS || [];
+
+    return (
+      <>
+        <CampoFijo
+          fila
+          theme={theme}
+          label="Entrega Retención"
+          valor={form.ENTREGA_RETENCION}
+        />
+
+        <TituloSeccion theme={theme} style={{ marginTop: 22 }}>
+          Código RI impuesto sobre la renta permitido
+        </TituloSeccion>
+
+        {impuestos === null ? (
+          <Vacio>
+            <IconUI name="FaSpinner" size={26} color={theme.colors.primary} />
+            <TextUI weight="bold">Cargando códigos de impuesto...</TextUI>
+          </Vacio>
+        ) : codigos.length === 0 ? (
+          <Vacio>
+            <TextUI weight="bold">Esta empresa no tiene códigos de impuesto</TextUI>
+          </Vacio>
+        ) : (
+          <TablaScroll style={{ maxHeight: 440 }}>
+            <Tabla>
+              <thead>
+                <tr>
+                  <Th>Código</Th>
+                  <Th>Descripción</Th>
+                  <Th $align="center">Sel.</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {codigos.map((c, i) => (
+                  <Fila key={c.CODIGO} $par={i % 2 === 0}>
+                    <Td>{c.CODIGO}</Td>
+                    <Td $wrap>{c.NOMBRE}</Td>
+                    <Td $align="center">
+                      <CheckAzul
+                        theme={theme}
+                        type="checkbox"
+                        checked={marcados.has(c.CODIGO)}
+                        disabled
+                        readOnly
+                        aria-label={`Código ${c.CODIGO}`}
+                      />
+                    </Td>
+                  </Fila>
+                ))}
+              </tbody>
+            </Tabla>
+          </TablaScroll>
+        )}
+      </>
+    );
+  };
+
   const renderPendiente = (titulo) => (
     <Vacio>
       <IconUI name="FaScrewdriverWrench" size={26} color={theme.colors.textSecondary} />
@@ -1862,6 +1987,7 @@ function ClienteDetalle() {
       if (tabActual.id === "localizacion" && sub?.id === "ats") return renderAts();
       if (tabActual.id === "localizacion" && sub?.id === "dinardap")
         return renderDinardap();
+      if (tabActual.id === "finanzas" && sub?.id === "impuesto") return renderImpuesto();
       return renderPendiente(`${tabActual.label} · ${sub?.label ?? ""}`);
     }
 
