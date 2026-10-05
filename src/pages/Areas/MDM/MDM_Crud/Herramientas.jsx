@@ -561,16 +561,15 @@ function Herramientas() {
         return `${url}${separador}_v=${Date.now()}`;
     };
 
-    // Clave LOCAL (de cliente) para deduplicar verificaciones de imagen entre ítems que comparten
-    // diseño. A diferencia de Llantas (MARCA + DISEÑO), Herramientas no tiene campo DISEÑO: el
-    // backend resuelve el identificador real internamente vía ITEM_CODIGO_BARRAS contra el DWH,
-    // así que aquí basta con MARCA + ITEM_CODIGO_BARRAS. Si el ítem no trae código de barras, se
-    // usa una clave única por ID (no habrá deduplicación entre ítems, pero no rompe nada).
+    // Clave LOCAL (de cliente) para deduplicar verificaciones de imagen. En Herramientas la imagen se
+    // identifica por CODIGO_SAP (si el ítem ya lo tiene) o, si no, por CODIGO_PROVEEDOR; es la misma
+    // regla que aplica el backend (ItemImageUploadService.resolveImageIdentity). Sin ninguno de los dos
+    // se usa una clave única por ID (sin deduplicación entre ítems).
     const getDisenioKey = (item) => {
-        const marca = item?.marca;
-        const codigoBarras = item?.itemCodigoBarras || item?.ITEM_CODIGO_BARRAS;
-        if (marca && codigoBarras) {
-            return `${String(marca).trim().toUpperCase()}|${String(codigoBarras).trim().toUpperCase()}`;
+        const marca = item?.marca || item?.MARCA;
+        const codigoImagen = item?.codigoSap || item?.CODIGO_SAP || item?.codigoProveedor || item?.CODIGO_PROVEEDOR;
+        if (marca && codigoImagen) {
+            return `${String(marca).trim().toUpperCase()}|${String(codigoImagen).trim().toUpperCase()}`;
         }
         const id = item?.id ?? item?.ID;
         return id !== undefined && id !== null ? `ITEM_${id}` : null;
@@ -690,7 +689,7 @@ function Herramientas() {
             fetchItems();
         } catch (error) {
             console.error(`Error al actualizar imagen ${tipo}:`, error);
-            toast.error(`Error al actualizar la imagen ${tipo.toUpperCase()}.`);
+            toast.error(error?.response?.data?.details || error?.response?.data?.message || `Error al actualizar la imagen ${tipo.toUpperCase()}.`);
         } finally {
             setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: false }));
         }
@@ -795,7 +794,7 @@ function Herramientas() {
                             await uploadItemImages("HERRAMIENTAS", item.id, item.marca, null, null, item.imagenWebp);
                         } catch (uploadError) {
                             console.error(`Error al subir imagen WebP para el ítem ${item.id}:`, uploadError);
-                            toast.error(`Error al subir imagen WebP`);
+                            toast.error(uploadError?.response?.data?.details || uploadError?.response?.data?.message || `Error al subir imagen WebP`);
                         }
                     }
                     if (item.imagenPng) {
@@ -804,7 +803,7 @@ function Herramientas() {
                             await uploadItemImagesSharepoint("HERRAMIENTAS", item.id, item.marca, empresaToSend, null, item.imagenPng, null);
                         } catch (uploadError) {
                             console.error(`Error al subir imagen PNG para el ítem ${item.id}:`, uploadError);
-                            toast.error(`Error al subir imagen PNG`);
+                            toast.error(uploadError?.response?.data?.details || uploadError?.response?.data?.message || `Error al subir imagen PNG`);
                         }
                     }
                     if (debeVincularExistente) {
