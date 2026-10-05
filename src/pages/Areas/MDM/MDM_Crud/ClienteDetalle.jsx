@@ -1395,15 +1395,6 @@ function ClienteDetalle() {
                 />
                 Activo
               </OpcionRadio>
-              <OpcionRadio theme={theme}>
-                <input
-                  type="radio"
-                  name="situacion"
-                  checked={form.ACTIVO === false}
-                  onChange={() => actualizarCampo("ACTIVO", false)}
-                />
-                Inactivo
-              </OpcionRadio>
             </GrupoRadios>
           </CampoContenedor>
 

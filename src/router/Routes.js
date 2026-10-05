@@ -80,7 +80,6 @@ import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtra
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
 import { VisitasAsignadas } from "pages/Areas/Visitas/Asignadas/VisitasAsignadas";
 import { ReporteriaComecialTecnicentro } from "pages/Areas/Reporteria/ComercialTecnicentro/ReporteriaComercialTecnicentro"
-import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import { ReporteClienteSinCompra } from "pages/Areas/Reporteria/ClientesSinCompra/ClientesSinCompra";
 import { ReporteCalificacionScoreCrediticio } from "pages/Areas/Reporteria/CalificacionScoreCrediticio/CalificacionScoreCrediticio";
 import { ReporteInventariosQuedados } from "pages/Areas/Reporteria/InventariosQuedados/InventariosQuedados";
@@ -95,6 +94,8 @@ import { ReporteListaPrecios } from "pages/Areas/Reporteria/ListaPrecios/ListaPr
 import { ReportePareto } from "pages/Areas/Reporteria/ReportePareto/ReportePareto";
 import { ReportePricingNeumaticos } from "pages/Areas/Reporteria/PricingNeumaticos/PricingNeumaticos";
 import { ReporteAutomaxNeumaticos } from "pages/Areas/Reporteria/AutomaxNeumaticos/ReporteAutomaxNeumaticos";
+import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
+import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -591,6 +592,12 @@ export const RoutesConfig = [
     icon: "FaDatabase",
     component: StreamlitEmbed,
     recurso: "cobus",
+  },
+  {
+    title: "Víaticos",
+    icon: "FaDatabase",
+    component: ViaticosEmbed,
+    recurso: "viaticos",
   },
 
 ];
