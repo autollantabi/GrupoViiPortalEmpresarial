@@ -1911,12 +1911,13 @@ function ClienteDetalle() {
 
     return (
       <>
-        <CampoFijo
-          fila
-          theme={theme}
-          label="Entrega Retención"
-          valor={form.ENTREGA_RETENCION}
-        />
+        <div>
+          <Badge
+            $color={sujetoRetencion ? theme.colors.success : theme.colors.textSecondary}
+          >
+            Entrega Retención: {sujetoRetencion ? "SI" : "NO"}
+          </Badge>
+        </div>
 
         <TituloSeccion theme={theme} style={{ marginTop: 22 }}>
           Código RI impuesto sobre la renta permitido
