@@ -1400,6 +1400,7 @@ function Herramientas() {
                                         )}
                                         {idRolPrincipal === 4 && (
                                             <>
+                                                <Th $min="150px">Codigo Proveedor</Th>
                                                 <Th $min="150px">Nombre</Th>
                                                 <Th $min="200px">Imagen PNG</Th>
                                                 <Th $min="200px">Imagen WEBP</Th>
@@ -1518,6 +1519,11 @@ function Herramientas() {
                                                 )}
                                                 {idRolPrincipal === 4 && (
                                                     <>
+                                                        <Td $densa>
+                                                            <CeldaLectura>
+                                                                {item.codigoProveedor || "-"}
+                                                            </CeldaLectura>
+                                                        </Td>
                                                         <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "250px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.descripcion || item.nombre}>{item.descripcion || item.nombre || "N/A"}</div></Td>
                                                         <Td $densa>
                                                             <div style={{
