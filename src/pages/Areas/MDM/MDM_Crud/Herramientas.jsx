@@ -10,7 +10,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas, syncItemsToSap } from "services/mdmService";
+import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas, syncItemsToSap, getSapRequestItem } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
@@ -359,6 +359,8 @@ function Herramientas() {
         fetchGruposHerramientas();
     }, []);
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
+    const [sapRequestPreview, setSapRequestPreview] = useState(null);
+    const [loadingSapRequestId, setLoadingSapRequestId] = useState(null);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
     const [isSyncingSap, setIsSyncingSap] = useState(false);
@@ -691,6 +693,19 @@ function Herramientas() {
             toast.error(`Error al actualizar la imagen ${tipo.toUpperCase()}.`);
         } finally {
             setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: false }));
+        }
+    };
+
+    const handleVerSapRequest = async (itemId) => {
+        setLoadingSapRequestId(itemId);
+        try {
+            const response = await getSapRequestItem("HERRAMIENTAS", itemId);
+            setSapRequestPreview(response?.data || null);
+        } catch (error) {
+            console.error("Error al generar el request de SAP:", error);
+            toast.error(error?.response?.data?.details || "No se pudo generar el request de SAP.");
+        } finally {
+            setLoadingSapRequestId(null);
         }
     };
 
@@ -2286,6 +2301,7 @@ function Herramientas() {
                                     <Th>Código SAP</Th>
                                     <Th>Descripción</Th>
                                     <Th>Aprobado el</Th>
+                                    <Th $align="center">Request SAP</Th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -2311,6 +2327,15 @@ function Herramientas() {
                                             <Td style={{ color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</Td>
                                             <Td style={{ color: theme?.colors?.text }}>{item.NOMBRE || item.DESCRIPCION}</Td>
                                             <Td style={{ color: theme?.colors?.textSecondary }}>{new Date(item.updatedAt).toLocaleString()}</Td>
+                                            <Td $align="center" onClick={(e) => e.stopPropagation()}>
+                                                <ButtonUI
+                                                    text={loadingSapRequestId === item.ID ? "Generando..." : "Ver request"}
+                                                    iconLeft="FaCode"
+                                                    variant="outlined"
+                                                    disabled={loadingSapRequestId !== null}
+                                                    onClick={() => handleVerSapRequest(item.ID)}
+                                                />
+                                            </Td>
                                         </Fila>
                                     ))
                                 )}
@@ -2370,6 +2395,47 @@ function Herramientas() {
                         )}
                     </div>
                 </div>
+            </ModalUI>
+
+            <ModalUI
+                isOpen={!!sapRequestPreview}
+                onClose={() => setSapRequestPreview(null)}
+                title="Request a SAP"
+                width="90vw"
+                maxWidth="900px"
+            >
+                {sapRequestPreview && (
+                    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <TextUI size="14px" color={theme?.colors?.text}>
+                            <strong>{sapRequestPreview.Modo === "ACTUALIZACION" ? "Actualización" : "Creación"}</strong>
+                            {" · "}{sapRequestPreview.Empresa}
+                            {sapRequestPreview.CodigoSap ? ` · Código SAP ${sapRequestPreview.CodigoSap}` : ""}
+                        </TextUI>
+                        <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                            {sapRequestPreview.Metodo} {sapRequestPreview.Endpoint}
+                        </TextUI>
+                        {sapRequestPreview.Nota && (
+                            <TextUI size="13px" color={theme?.colors?.warning || "#b26a00"}>
+                                {sapRequestPreview.Nota}
+                            </TextUI>
+                        )}
+                        <pre style={{ margin: 0, padding: "12px", maxHeight: "50vh", overflow: "auto", fontSize: "12px", borderRadius: "8px", border: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>
+                            {JSON.stringify(sapRequestPreview.Body, null, 2)}
+                        </pre>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                            <ButtonUI
+                                text="Copiar JSON"
+                                iconLeft="FaCopy"
+                                variant="outlined"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(JSON.stringify(sapRequestPreview.Body, null, 2));
+                                    toast.success("Request copiado.");
+                                }}
+                            />
+                            <ButtonUI text="Cerrar" onClick={() => setSapRequestPreview(null)} />
+                        </div>
+                    </div>
+                )}
             </ModalUI>
         </div>
     );
