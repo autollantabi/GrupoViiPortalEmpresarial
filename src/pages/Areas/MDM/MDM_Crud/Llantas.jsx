@@ -386,6 +386,10 @@ const CATEGORIAS_LLANTAS_MOTO = {
     }
 };
 
+// La línea de negocio se guarda y se compara siempre con espacios ("LLANTAS MOTO"). Los registros antiguos
+// guardados con guion bajo ("LLANTAS_MOTO") se normalizan al leerlos para que hagan match con el filtro.
+const normalizarLinea = (linea) => (linea ? String(linea).trim().toUpperCase().replace(/[_\s]+/g, " ") : linea);
+
 const getCategoriasPorLinea = (linea) => linea === "LLANTAS MOTO" ? CATEGORIAS_LLANTAS_MOTO : CATEGORIAS_LLANTAS;
 
 
@@ -592,7 +596,7 @@ const CAMPOS_DETALLE = [
     { label: "Código de barras", get: (it) => it.codigo || it.CODIGO_BARRAS },
     { label: "Código proveedor", get: (it) => it.codigoProveedor || it.CODIGO_PROVEEDOR },
     { label: "Procedencia", get: (it) => it.procedencia || it.PROCEDENCIA },
-    { label: "Línea de negocio", get: (it) => it.linea || it.LINEA_NEGOCIO },
+    { label: "Línea de negocio", get: (it) => normalizarLinea(it.linea || it.LINEA_NEGOCIO) },
     { label: "Marca", get: (it) => it.marca || it.MARCA },
     { label: "Tipo", get: (it) => it.tipo || it.TIPO },
     { label: "Nombre del sistema", get: (it) => it.nombreSistema },
@@ -1232,7 +1236,7 @@ function Llantas() {
                     const todosNoAprobados = data.filter(it => !it.APROBADO_MDM).map(it => ({
                         ...it,
                         id: it.ID,
-                        linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                        linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                         idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
                         codigo: it.CODIGO_BARRAS || "",
                         marca: it.MARCA || "",
@@ -1266,7 +1270,7 @@ function Llantas() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                                linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                                 diseño: parsed.diseno || it.DISENIO || "",
                                 rin: parsed.rin || it.RIN || "",
                                 serie: parsed.serie || it.SERIE || "",
@@ -1296,7 +1300,7 @@ function Llantas() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                                linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                                 codigo: it.CODIGO_BARRAS || "",
                                 marca: it.MARCA || "",
                                 diseño: it.DISENIO || "",
@@ -1339,7 +1343,7 @@ function Llantas() {
                                 isNew: banderaNueva,
                                 visibleEasySales: banderaVisibleEasySales,
                                 id: it.ID,
-                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                                linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
                                 descripcionRol5: it.DESCRIPCION || "",
                                 descripcion: it.DESCRIPCION || "",
@@ -1374,7 +1378,7 @@ function Llantas() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                                linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || it.EMPRESA || "",
                                 codigo: it.CODIGO_BARRAS || "",
                                 marca: it.MARCA || "",
@@ -1408,7 +1412,7 @@ function Llantas() {
                         });
                     }
                     if (idRolPrincipal === 1) {
-                        const approved = data.filter(it => it.APROBADO_MDM === true && it.LINEA_NEGOCIO === lineaSeleccionada.value);
+                        const approved = data.filter(it => it.APROBADO_MDM === true && normalizarLinea(it.LINEA_NEGOCIO) === lineaSeleccionada.value);
                         setApprovedItemsForExport(approved.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
                     }
 
@@ -1517,7 +1521,7 @@ function Llantas() {
     // en la grilla de pendientes.
     useEffect(() => {
         if (idRolPrincipal !== 4 || !detalleItem) return;
-        const linea = detalleItem.linea || detalleItem.LINEA_NEGOCIO || lineaSeleccionada?.value;
+        const linea = normalizarLinea(detalleItem.linea || detalleItem.LINEA_NEGOCIO) || lineaSeleccionada?.value;
         if (!linea) return;
         verificarImagenDisenio(detalleItem, linea);
     }, [idRolPrincipal, detalleItem, lineaSeleccionada, verificarImagenDisenio]);
@@ -1535,7 +1539,7 @@ function Llantas() {
     // existente: es justamente el flujo para corregir/reemplazar una imagen ya publicada.
     const handleActualizarImagenDetalle = async (tipo, file) => {
         if (!detalleItem) return;
-        const linea = detalleItem.linea || detalleItem.LINEA_NEGOCIO || lineaSeleccionada?.value;
+        const linea = normalizarLinea(detalleItem.linea || detalleItem.LINEA_NEGOCIO) || lineaSeleccionada?.value;
         if (!linea) return;
 
         if (tipo === "webp" && file.type !== "image/webp") {
@@ -1658,7 +1662,7 @@ function Llantas() {
                             TIPO: item.tipo || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
-                            LINEA_NEGOCIO: lineaSeleccionada.value,
+                            LINEA_NEGOCIO: normalizarLinea(lineaSeleccionada.value),
                             ES_NUEVO: esNuevo(item),
                             VISIBLE_EASYSALES: esVisibleEasySales(item),
                             RECHAZO: false,
@@ -1678,7 +1682,7 @@ function Llantas() {
                             TIPO: item.tipo || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
-                            LINEA_NEGOCIO: lineaSeleccionada.value,
+                            LINEA_NEGOCIO: normalizarLinea(lineaSeleccionada.value),
                             ES_NUEVO: esNuevo(item),
                             VISIBLE_EASYSALES: esVisibleEasySales(item),
                         });
@@ -1710,7 +1714,7 @@ function Llantas() {
                     SEGMENTO: item.segmento || "",
                     APLICACION: item.aplicacion || "",
                     EJE: item.eje || "",
-                    LINEA_NEGOCIO: lineaSeleccionada.value,
+                    LINEA_NEGOCIO: normalizarLinea(lineaSeleccionada.value),
                     ...(item.fueRechazado && { RECHAZO: false })
                 }));
                 const response = await patchItemsRole3Bulk(payloads);
@@ -1756,7 +1760,7 @@ function Llantas() {
                         ID: item.ID,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
-                        LINEA_NEGOCIO: lineaSeleccionada.value,
+                        LINEA_NEGOCIO: normalizarLinea(lineaSeleccionada.value),
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
                 }
@@ -3403,7 +3407,7 @@ function Llantas() {
                                                 CODIGO_PROVEEDOR: item.codigoProveedor,
                                                 ID_PROVEEDOR: item.proveedor,
                                                 MARCA: item.marca,
-                                                LINEA_NEGOCIO: item.linea,
+                                                LINEA_NEGOCIO: normalizarLinea(item.linea),
                                                 NOMBRE_EXTRANJERO: item.nombreExtranjero,
                                                 DESCRIPCION: item.nombreSistema,
                                                 PARTIDA_ARANCELARIA: item.partidaArancelaria
