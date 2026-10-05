@@ -1802,6 +1802,36 @@ function Llantas() {
         setItems(prev => prev.filter(i => i.id !== id));
     };
 
+    /* Al aprobar, el backend crea el ítem en SAP en la misma petición (best-effort:
+       si SAP falla el ítem queda aprobado igual). Aquí se le dice al usuario qué
+       pasó de verdad, en vez de dar siempre por bueno el envío a SAP. */
+    const informarResultadoAprobacion = (sapSync, linea) => {
+        // HERRAMIENTAS se sincroniza al crearse, no al aprobar
+        if (String(linea).toUpperCase() === "HERRAMIENTAS") {
+            toast.success("Ítem aprobado correctamente.");
+            return;
+        }
+
+        const resultados = (sapSync?.PorEmpresa || []).flatMap(e => e.Resultados || []);
+        const creado = resultados.find(r => r.Success);
+        const motivo =
+            resultados.find(r => !r.Success)?.Message ||
+            sapSync?.ItemsOmitidos?.[0]?.Motivo ||
+            "SAP no respondió";
+
+        if (sapSync && sapSync.Exitosos > 0 && sapSync.Fallidos === 0) {
+            toast.success(
+                `Ítem aprobado y creado en SAP${creado?.ItemCode ? ` (${creado.ItemCode})` : ""}.`
+            );
+            return;
+        }
+
+        console.warn("Aprobado, pero no se creó en SAP:", sapSync || "sin respuesta de sincronización");
+        toast.warning(
+            `Ítem aprobado, pero no se pudo crear en SAP: ${motivo}. Puede reintentarlo desde "Crear artículos en SAP".`
+        );
+    };
+
     const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
         try {
             if (action === "reject") {
@@ -1824,8 +1854,8 @@ function Llantas() {
                     }
                 }
             } else if (action === "approve") {
-                await approveItemMDM(itemId, lineaSeleccionada.value);
-                toast.success("Ítem aprobado correctamente.");
+                const respuesta = await approveItemMDM(itemId, lineaSeleccionada.value);
+                informarResultadoAprobacion(respuesta?.sapSync, lineaSeleccionada.value);
             }
             await fetchItems();
             // Si era el último ítem, retroceder el índice
