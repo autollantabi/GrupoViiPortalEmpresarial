@@ -595,7 +595,7 @@ export const RoutesConfig = [
   },
   {
     title: "Víaticos",
-    icon: "FaDatabase",
+    icon: "FaMoneyBill1Wave",
     component: ViaticosEmbed,
     recurso: "viaticos",
   },
