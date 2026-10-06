@@ -10,7 +10,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas, syncItemsToSap, getSapRequestItem } from "services/mdmService";
+import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposHerramientas, syncItemsToSap, getSapRequestItem } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
@@ -157,6 +157,32 @@ const NumeroFila = styled.span`
     font-variant-numeric: tabular-nums;
 `;
 
+/* Pestañas de la sección "Sin aprobar / Aprobados" (mismo look que Llantas.jsx) */
+const TabButton = styled.button`
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    background: transparent;
+    color: ${({ theme, $active }) => ($active ? theme?.colors?.primary : theme?.colors?.textSecondary || "#666")};
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+        color: ${({ theme }) => theme?.colors?.primary};
+    }
+
+    ${({ $active, theme }) =>
+        $active &&
+        `
+        color: ${theme?.colors?.primary};
+        border-bottom-color: ${theme?.colors?.primary};
+    `}
+`;
+
 /* Distintivo de estado para el detalle informativo del ítem (mismo componente que Llantas.jsx) */
 const TONOS_ETIQUETA = {
     exito: "success",
@@ -186,15 +212,19 @@ const Etiqueta = styled.span`
         })};
 `;
 
-/* Sufijo de marca que se agrega al nombre del sistema para ciertas marcas puntuales. */
-/* Nombre del sistema: el nombre tal como llega al backend, con el prefijo
-   "NEW " cuando el producto se marca como nuevo. No se le agrega la marca
-   ni ningún otro sufijo al final. */
-const calcularNombreSistema = (nombreBase, isNew = false) => {
+/* Palabra que se antepone al nombre según la marca (va después del "NEW " si aplica). */
+const PALABRA_POR_MARCA = { UYUSTOOLS: "UYUS", SATA: "SATA" };
+const PALABRAS_MARCA = Object.values(PALABRA_POR_MARCA);
+
+/* Nombre con el que se guarda el ítem (columna nombre) y con el que se crea en SAP:
+   [NEW ] + [UYUS | SATA según la marca] + nombre. Se limpian los prefijos "NEW " y de marca
+   que ya traiga el nombre para no duplicarlos al recalcular (cambio de nombre, marca o "es nuevo"). */
+const calcularNombreSistema = (nombreBase, isNew = false, marca = "") => {
     if (!nombreBase) return "";
-    // Se limpia un "NEW " previo para no duplicarlo al recalcular
-    const limpio = String(nombreBase).replace(/^NEW\s+/i, "").trim();
-    return isNew ? `NEW ${limpio}` : limpio;
+    let limpio = String(nombreBase).trim().replace(/^NEW\s+/i, "");
+    limpio = limpio.replace(new RegExp("^(" + PALABRAS_MARCA.join("|") + ")\\s+", "i"), "").trim();
+    const palabra = PALABRA_POR_MARCA[String(marca || "").trim().toUpperCase()];
+    return `${isNew ? "NEW " : ""}${palabra ? `${palabra} ` : ""}${limpio}`;
 };
 
 /* Interpreta la columna "Es nuevo" del Excel: admite SI/NO, TRUE/FALSE, 1/0 y X.
@@ -262,7 +292,7 @@ const CAMPOS_DETALLE = [
     { label: "Código SAP", get: (it) => it.codigoSap || it.CODIGO_SAP },
     { label: "Código de barras", get: (it) => it.codigo || it.CODIGO_BARRAS },
     { label: "Marca", get: (it) => it.marca || it.MARCA },
-    { label: "Nombre del sistema", get: (it) => it.nombreSistema },
+    { label: "Nombre del sistema", get: (it) => it.NOMBRE_SISTEMA || it.nombreSistema },
     { label: "Nombre", get: (it) => it.nombre || it.NOMBRE },
     { label: "Descripción", get: (it) => it.descripcion || it.DESCRIPCION },
     { label: "Descripción Proveedor", get: (it) => it.nombreExt || it.NOMBRE_EXTRAN_G || it.NOMBRE_EXT },
@@ -285,7 +315,6 @@ const CAMPOS_DETALLE = [
     { label: "Subgrupo", get: (it) => it.subgrupo || it.SUBGRUPO },
     { label: "Subgrupo 1", get: (it) => it.subgrupo1 || it.SUBGRUPO1 },
     { label: "Tipo", get: (it) => it.tipo || it.TIPO },
-    { label: "Pallets", get: (it) => it.pallets || it.PALLETS },
     { label: "Observaciones", get: (it) => it.comentarios || it.OBSERVACIONES },
 ];
 
@@ -323,28 +352,10 @@ function Herramientas() {
 
     const EMPRESA_HERRAMIENTAS = "IKONIX";
 
-    const [opcionesPallets, setOpcionesPallets] = useState([]);
     const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
     const opcionesProveedores = [PROVEEDOR_DEFECTO_HERRAMIENTAS];
 
     useEffect(() => {
-        const fetchPalletsOptions = async () => {
-            try {
-                const response = await getGruposUnidades(EMPRESA_HERRAMIENTAS);
-                if (response?.status === "Ok!" && Array.isArray(response?.data)) {
-                    setOpcionesPallets(response.data.map(item => ({
-                        value: item.UGP_ENTRY,
-                        label: item.UGP_NAME
-                    })));
-                } else {
-                    setOpcionesPallets([]);
-                }
-            } catch (error) {
-                console.error(`Error fetching pallets options for ${EMPRESA_HERRAMIENTAS}:`, error);
-                setOpcionesPallets([]);
-            }
-        };
-
         const fetchGruposHerramientas = async () => {
             try {
                 const response = await getGruposHerramientas();
@@ -355,7 +366,6 @@ function Herramientas() {
             }
         };
 
-        fetchPalletsOptions();
         fetchGruposHerramientas();
     }, []);
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
@@ -369,6 +379,13 @@ function Herramientas() {
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [approvedItems, setApprovedItems] = useState([]);
+    // Sección "Sin aprobar / Aprobados": pestaña activa, buscador compartido y estado del refresco.
+    const [tabAprobados, setTabAprobados] = useState("sinAprobar");
+    const [searchTermAprobados, setSearchTermAprobados] = useState("");
+    const [isRefrescandoAprobados, setIsRefrescandoAprobados] = useState(false);
+    // Todos los ítems no aprobados de la línea (cualquier fase), independiente de lo que el rol
+    // actual tenga filtrado en `items` para trabajar. Alimenta solo la pestaña "Sin aprobar".
+    const [itemsSinAprobarTodos, setItemsSinAprobarTodos] = useState([]);
     const [selectedItemIds, setSelectedItemIds] = useState(new Set());
     const [currentItemIndex, setCurrentItemIndex] = useState(0);
     const fileInputRef = useRef(null);
@@ -432,11 +449,99 @@ function Herramientas() {
         paginaExport * ITEMS_POR_PAGINA_MODAL,
     );
 
-    const fetchItems = useCallback(async () => {
+    // Normaliza un ítem crudo del backend al shape camelCase que usan las tablas y el modal de detalle.
+    const mapearItem = useCallback((it) => {
+        const isRol3 = idRolPrincipal === 3;
+        const isRol4 = idRolPrincipal === 4;
+        const isRol5 = idRolPrincipal === 5;
+
+        let faseActual = 1;
+        if (isRol3) faseActual = 2;
+        if (isRol4) faseActual = 3;
+
+        const faseRechazo = (isRol3 || isRol4 || isRol5)
+            ? it.FASES?.find(f => f.FASE === faseActual && f.RECHAZO)
+            : null;
+
+        const f1 = it.FASES?.find(f => f.FASE === 1);
+        const f2 = it.FASES?.find(f => f.FASE === 2);
+        const f3 = it.FASES?.find(f => f.FASE === 3);
+
+        return {
+            id: it.ID,
+            codigoProveedor: it.CODIGO_PROVEEDOR || "",
+            proveedor: it.ID_PROVEEDOR || "",
+            partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+            nombreExt: it.NOMBRE_EXT || "",
+            nombre: it.NOMBRE || "",
+            // Si el backend aún no devuelve ES_NUEVO se deja sin definir
+            // para que esNuevo() aplique el fallback de siempre
+            isNew: it.ES_NUEVO !== undefined && it.ES_NUEVO !== null ? Boolean(it.ES_NUEVO) : undefined,
+            // Mismo criterio que ES_NUEVO: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
+            visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
+            // Nombre tal como lo guarda Compras (con el prefijo "NEW " si es nuevo)
+            nombrePrefijado: it.NOMBRE || "",
+            // Nombre que revisa el Técnico: parte del nombre vigente (el de Compras o el ya aprobado por el
+            // Técnico; al avanzar de fase el backend copia nombre_sistema a nombre, así que coinciden)
+            nombreSistema: it.NOMBRE || "",
+            descripcion: it.DESCRIPCION || "",
+            unidad: it.UNIDAD || "",
+            unidadPaquete: it.UNIDAD_PAQUETE || "",
+            empaquesCarton: it.EMPAQUES_CARTON || "",
+            unidadesCarton: it.UNIDADES_CARTON || "",
+            largoCarton: it.LARGO_CARTON || "",
+            anchoCarton: it.ANCHO_CARTON || "",
+            altoCarton: it.ALTO_CARTON || "",
+            volumenCtn: it.VOLUMEN_CNT || "",
+            gwCtn: it.GW_CNT || "",
+            peso: it.PESO || "",
+            itemCodigoBarras: it.ITEM_CODIGO_BARRAS || "",
+            cartonCodigoBarras: it.CARTON_CODIGO_BARRAS || "",
+            paqueteCodigoBarras: it.PAQUETE_CODIGO_BARRAS || "",
+            grupo: it.GRUPO || "",
+            subgrupo: it.SUBGRUPO || "",
+            subgrupo1: it.SUBGRUPO1 || "",
+            tipo: it.TIPO || "",
+            codigoSap: it.CODIGO_SAP || "",
+            marca: it.MARCA || "",
+            motivoRechazo: faseRechazo ? (faseRechazo.MOTIVO_RECHAZO || faseRechazo.OBSERVACIONES || "") : "",
+            fueRechazado: !!faseRechazo,
+            APROBADO_MDM: it.APROBADO_MDM,
+            comentarios: it.OBSERVACIONES || "",
+            imagenPng: null,
+            imagenWebp: null,
+            imagenUrl: it.RUTA_IMAGEN_WEBP || it.RUTA_IMAGEN_PNG || "",
+            // Se conservan para el modal de Detalle del producto (trazabilidad y
+            // miniaturas de imagen ya publicada), igual que en Llantas.jsx.
+            FASES: it.FASES || [],
+            FASE_ACTUAL: it.FASE_ACTUAL,
+            RUTA_IMAGEN_WEBP: it.RUTA_IMAGEN_WEBP || "",
+            RUTA_IMAGEN_PNG: it.RUTA_IMAGEN_PNG || "",
+            comentariosRol5: f1?.OBSERVACIONES || "",
+            comentariosRol3: f2?.OBSERVACIONES || "",
+            comentariosRol4: f3?.OBSERVACIONES || "",
+            codigo: it.CODIGO_BARRAS || ""
+        };
+    }, [idRolPrincipal]);
+
+    // `soloSeccion`: refresca únicamente la sección "Sin aprobar / Aprobados" y deja `items`
+    // intacto, para no perder las filas nuevas que el rol 5 todavía no ha enviado.
+    const fetchItems = useCallback(async ({ soloSeccion = false } = {}) => {
         if (idRolPrincipal) {
             try {
                 const rawData = await getItemsByRole(idRolPrincipal, "HERRAMIENTAS");
                 if (rawData) {
+                    // Vista informativa de la pestaña "Sin aprobar": TODOS los ítems no aprobados de la
+                    // línea, sin importar en qué fase estén ni si son accionables para el rol actual.
+                    setItemsSinAprobarTodos(
+                        rawData
+                            .filter(it => !it.APROBADO_MDM)
+                            .map(it => ({
+                                ...mapearItem(it),
+                                fueRechazado: Array.isArray(it.FASES) && it.FASES.some(f => f.RECHAZO),
+                            }))
+                    );
+
                     let filteredData = rawData;
                     if (idRolPrincipal === 3) {
                         filteredData = rawData.filter(it =>
@@ -461,79 +566,9 @@ function Herramientas() {
                         );
                     }
 
-                    const mappedItems = filteredData.map(it => {
-                        const isRol3 = idRolPrincipal === 3;
-                        const isRol4 = idRolPrincipal === 4;
-                        const isRol5 = idRolPrincipal === 5;
-                        const isRol1 = idRolPrincipal === 1;
+                    const mappedItems = filteredData.map(mapearItem);
 
-                        let faseActual = 1;
-                        if (isRol3) faseActual = 2;
-                        if (isRol4) faseActual = 3;
-
-                        const faseRechazo = (isRol3 || isRol4 || isRol5)
-                            ? it.FASES?.find(f => f.FASE === faseActual && f.RECHAZO)
-                            : null;
-
-                        const f1 = it.FASES?.find(f => f.FASE === 1);
-                        const f2 = it.FASES?.find(f => f.FASE === 2);
-                        const f3 = it.FASES?.find(f => f.FASE === 3);
-
-                        return {
-                            id: it.ID,
-                            codigoProveedor: it.CODIGO_PROVEEDOR || "",
-                            proveedor: it.ID_PROVEEDOR || "",
-                            partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
-                            nombreExt: it.NOMBRE_EXT || "",
-                            nombre: it.NOMBRE || "",
-                            // Si el backend aún no devuelve ES_NUEVO se deja sin definir
-                            // para que esNuevo() aplique el fallback de siempre
-                            isNew: it.ES_NUEVO !== undefined && it.ES_NUEVO !== null ? Boolean(it.ES_NUEVO) : undefined,
-                            // Mismo criterio que ES_NUEVO: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
-                            visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
-                            nombreSistema: calcularNombreSistema(it.NOMBRE || "", Boolean(it.ES_NUEVO)),
-                            descripcion: it.DESCRIPCION || "",
-                            unidad: it.UNIDAD || "",
-                            unidadPaquete: it.UNIDAD_PAQUETE || "",
-                            empaquesCarton: it.EMPAQUES_CARTON || "",
-                            unidadesCarton: it.UNIDADES_CARTON || "",
-                            largoCarton: it.LARGO_CARTON || "",
-                            anchoCarton: it.ANCHO_CARTON || "",
-                            altoCarton: it.ALTO_CARTON || "",
-                            volumenCtn: it.VOLUMEN_CNT || "",
-                            gwCtn: it.GW_CNT || "",
-                            peso: it.PESO || "",
-                            itemCodigoBarras: it.ITEM_CODIGO_BARRAS || "",
-                            cartonCodigoBarras: it.CARTON_CODIGO_BARRAS || "",
-                            paqueteCodigoBarras: it.PAQUETE_CODIGO_BARRAS || "",
-                            grupo: it.GRUPO || "",
-                            subgrupo: it.SUBGRUPO || "",
-                            subgrupo1: it.SUBGRUPO1 || "",
-                            pallets: it.PALLETS || "",
-                            tipo: it.TIPO || "",
-                            codigoSap: it.CODIGO_SAP || "",
-                            marca: it.MARCA || "",
-                            motivoRechazo: faseRechazo ? (faseRechazo.MOTIVO_RECHAZO || faseRechazo.OBSERVACIONES || "") : "",
-                            fueRechazado: !!faseRechazo,
-                            APROBADO_MDM: it.APROBADO_MDM,
-                            comentarios: it.OBSERVACIONES || "",
-                            imagenPng: null,
-                            imagenWebp: null,
-                            imagenUrl: it.RUTA_IMAGEN_WEBP || it.RUTA_IMAGEN_PNG || "",
-                            // Se conservan para el modal de Detalle del producto (trazabilidad y
-                            // miniaturas de imagen ya publicada), igual que en Llantas.jsx.
-                            FASES: it.FASES || [],
-                            FASE_ACTUAL: it.FASE_ACTUAL,
-                            RUTA_IMAGEN_WEBP: it.RUTA_IMAGEN_WEBP || "",
-                            RUTA_IMAGEN_PNG: it.RUTA_IMAGEN_PNG || "",
-                            comentariosRol5: f1?.OBSERVACIONES || "",
-                            comentariosRol3: f2?.OBSERVACIONES || "",
-                            comentariosRol4: f3?.OBSERVACIONES || "",
-                            codigo: it.CODIGO_BARRAS || ""
-                        };
-                    });
-
-                    setItems(mappedItems.filter(it => !it.APROBADO_MDM));
+                    if (!soloSeccion) setItems(mappedItems.filter(it => !it.APROBADO_MDM));
                     setApprovedItems(mappedItems.filter(it => it.APROBADO_MDM));
 
                     if (idRolPrincipal === 1) {
@@ -546,7 +581,7 @@ function Herramientas() {
                 toast.error("Error al cargar los ítems pendientes.");
             }
         }
-    }, [idRolPrincipal]);
+    }, [idRolPrincipal, mapearItem]);
 
     useEffect(() => {
         fetchItems();
@@ -765,8 +800,9 @@ function Herramientas() {
                     GRUPO: item.grupo || "",
                     SUBGRUPO: item.subgrupo || "",
                     SUBGRUPO1: item.subgrupo1 || "",
-                    PALLETS: item.pallets || "",
                     TIPO: item.tipo || "",
+                    // Nombre con el que se crea en SAP; por defecto el que cargó Compras
+                    NOMBRE_SISTEMA: item.nombreSistema || item.nombre || "",
                     FASE: 2,
                     OBSERVACIONES: item.comentarios || "",
                     ...(item.fueRechazado && { RECHAZO: false })
@@ -837,7 +873,7 @@ function Herramientas() {
                         ID_PROVEEDOR: item.proveedor || "",
                         PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                         NOMBRE_EXT: item.nombreExt || "",
-                        NOMBRE: item.nombreSistema || item.nombre || "",
+                        NOMBRE: item.nombrePrefijado || item.nombre || "",
                         ES_NUEVO: esNuevo(item),
                         VISIBLE_EASYSALES: esVisibleEasySales(item),
                         DESCRIPCION: item.descripcion || "",
@@ -898,6 +934,7 @@ function Herramientas() {
                 idsEnviados.forEach(id => next.delete(id));
                 return next;
             });
+            fetchItems({ soloSeccion: true });
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
             toast.error("Error al enviar los ítems a revisión.");
@@ -906,8 +943,55 @@ function Herramientas() {
         }
     };
 
+    const handleRefrescarAprobados = async () => {
+        setIsRefrescandoAprobados(true);
+        try {
+            await fetchItems({ soloSeccion: true });
+        } finally {
+            setIsRefrescandoAprobados(false);
+        }
+    };
+
+    // Búsqueda compartida por la sección "Sin aprobar / Aprobados": código de proveedor, código
+    // de barras del ítem, código SAP (si ya lo tiene), nombre o marca.
+    const filtrarSeccionAprobados = (lista, termino) => {
+        if (!termino) return lista;
+        const t = termino.toLowerCase();
+        return lista.filter(item =>
+            String(item.codigoProveedor || "").toLowerCase().includes(t) ||
+            String(item.itemCodigoBarras || "").toLowerCase().includes(t) ||
+            String(item.codigoSap || "").toLowerCase().includes(t) ||
+            String(item.nombre || "").toLowerCase().includes(t) ||
+            String(item.marca || "").toLowerCase().includes(t)
+        );
+    };
+
     const eliminarItem = (id) => {
         setItems(prev => prev.filter(i => i.id !== id));
+    };
+
+    /* Al aprobar, el backend crea el ítem en SAP en la misma petición (best-effort: si SAP
+       falla el ítem queda aprobado igual). Si el ítem ya tenía código SAP no se hace nada en SAP. */
+    const informarResultadoAprobacion = (sapSync, item) => {
+        if (item?.codigoSap) {
+            toast.success(`Ítem aprobado. Ya tenía código SAP (${item.codigoSap}); no se envió a SAP.`);
+            return;
+        }
+
+        const resultados = (sapSync?.PorEmpresa || []).flatMap(e => e.Resultados || []);
+        const creado = resultados.find(r => r.Success);
+        const motivo =
+            resultados.find(r => !r.Success)?.Message ||
+            sapSync?.ItemsOmitidos?.[0]?.Motivo ||
+            "SAP no respondió";
+
+        if (sapSync && sapSync.Exitosos > 0 && sapSync.Fallidos === 0) {
+            toast.success(`Ítem aprobado y creado en SAP${creado?.ItemCode ? ` (${creado.ItemCode})` : ""}.`);
+            return;
+        }
+
+        console.warn("Aprobado, pero no se creó en SAP:", sapSync || "sin respuesta de sincronización");
+        toast.warning(`Ítem aprobado, pero no se pudo crear en SAP: ${motivo}. Puede reintentarlo desde "Exportar a SAP".`);
     };
 
     const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
@@ -925,6 +1009,7 @@ function Herramientas() {
                         });
                     }
                 }
+                toast.success("Ítem rechazado correctamente.");
             } else if (action === "approve") {
                 const item = items.find(i => i.id === itemId);
                 if (!item) return;
@@ -935,8 +1020,8 @@ function Herramientas() {
                     LINEA_NEGOCIO: "HERRAMIENTAS",
                     FASE: 2
                 });
-                await approveItemMDM(itemId, "HERRAMIENTAS");
-                toast.success("Ítem aprobado correctamente.");
+                const respuesta = await approveItemMDM(itemId, "HERRAMIENTAS");
+                informarResultadoAprobacion(respuesta?.sapSync, item);
             }
             await fetchItems();
             setCurrentItemIndex(prev => Math.max(0, prev - 1));
@@ -971,11 +1056,12 @@ function Herramientas() {
                     val = valor.toUpperCase();
                 }
 
-                // El nombre del sistema deriva del nombre y de la bandera "es nuevo"
-                if (campo === "nombre" || campo === "isNew") {
+                // El nombre final deriva del nombre, de la bandera "es nuevo" y de la marca
+                if (campo === "nombre" || campo === "isNew" || campo === "marca") {
                     const base = campo === "nombre" ? val : it.nombre;
                     const nuevo = campo === "isNew" ? Boolean(val) : esNuevo(it);
-                    return { ...it, [campo]: val, nombreSistema: calcularNombreSistema(base, nuevo) };
+                    const marca = campo === "marca" ? val : it.marca;
+                    return { ...it, [campo]: val, nombrePrefijado: calcularNombreSistema(base, nuevo, marca) };
                 }
 
                 // Aplicar restricciones estrictas para escritura
@@ -1003,7 +1089,7 @@ function Herramientas() {
     const handleDownloadTemplate = () => {
         // Mismo orden que las columnas de la tabla del rol 5
         const headers = [
-            "Marca", "Nombre", "Codigo Proveedor", "Descripcion Proveedor",
+            "Marca", "Nombre", "Descripcion Proveedor", "Codigo Proveedor",
             "Unidad", "Unidades por empaque", "Cajas por empaque", "Unidades por caja",
             "Largo de la caja", "Ancho de la caja", "Alto de la caja",
             "VOL/CTN", "GW/CTN", "Peso",
@@ -1054,9 +1140,10 @@ function Herramientas() {
                     paqueteCodigoBarras: handleNumericInt(row["Codigo de Barra Caja Hija"] || ""),
                     marca: String(row["Marca"] || "").trim().toUpperCase(),
                     isNew: interpretarEsNuevo(row["Es nuevo"]),
-                    nombreSistema: calcularNombreSistema(
+                    nombrePrefijado: calcularNombreSistema(
                         String(row["Nombre"] || "").trim().toUpperCase(),
-                        interpretarEsNuevo(row["Es nuevo"])
+                        interpretarEsNuevo(row["Es nuevo"]),
+                        String(row["Marca"] || "").trim().toUpperCase()
                     ),
                 }));
 
@@ -1265,11 +1352,10 @@ function Herramientas() {
                                                     { key: 'paqueteCodigoBarras', label: "Codigo de Barra Caja Hija", role: 5 },
                                                     { key: 'marca', label: "Marca", role: 5 },
 
+                                                    { key: 'nombreSistema', label: "Nombre del sistema", role: 3 },
                                                     { key: 'grupo', label: "Grupo", role: 3 },
                                                     { key: 'subgrupo', label: "Subgrupo", role: 3 },
                                                     { key: 'subgrupo1', label: "Subgrupo 1", role: 3 },
-                                                    { key: 'cajas', label: "Cajas", role: 3 },
-                                                    { key: 'pallets', label: "Pallets", role: 3 },
                                                     { key: 'tipo', label: "Tipo", role: 3 },
                                                 ].map(({ key, label, role }) => {
                                                     const value = key === 'proveedor'
@@ -1388,9 +1474,9 @@ function Herramientas() {
                                             <>
                                                 <Th $min="150px">Marca</Th>
                                                 <Th $w={ANCHO_COL_NOMBRE} $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
-                                                <Th $min="150px">Codigo Proveedor</Th>
-                                                <Th $min="220px">Proveedor</Th>
                                                 <Th $min="180px">Descripción Proveedor</Th>
+                                                <Th $min="220px">Proveedor</Th>
+                                                <Th $min="150px">Codigo Proveedor</Th>
                                                 <Th $min="150px">Unidad</Th>
                                                 <Th $min="180px">Unidades por empaque</Th>
                                                 <Th $min="160px">Cajas por empaque</Th>
@@ -1404,10 +1490,10 @@ function Herramientas() {
                                                 <Th $min="150px">Codigo de Barra Producto</Th>
                                                 <Th $min="150px">Codigo de Barra Caja Madre</Th>
                                                 <Th $min="150px">Codigo de Barra Caja Hija</Th>
-                                                <Th $min="280px">Nombre Del Sistema</Th>
+                                                <Th $min="160px">Partida Arancelaria</Th>
+                                                <Th $min="280px">Nombre (con NEW)</Th>
                                                 <Th $align="center" $w="90px">Es nuevo</Th>
                                                 <Th $align="center" $w="140px">Visible EasySales</Th>
-                                                <Th $min="160px">Partida Arancelaria</Th>
                                                 <Th $min="200px">Comentarios</Th>
                                                 <Th $min="100px" $align="center" $fija="right">Acciones</Th>
                                             </>
@@ -1425,12 +1511,11 @@ function Herramientas() {
                                             <>
                                                 <Th $min="150px">Codigo Proveedor</Th>
                                                 <Th $min="150px">Nombre</Th>
+                                                <Th $min="280px">Nombre Del Sistema</Th>
                                                 <Th $min="150px">Grupo</Th>
                                                 <Th $min="150px">Subgrupo</Th>
                                                 <Th $min="150px">Subgrupo 1</Th>
                                                 <Th $min="150px">Tipo</Th>
-                                                <Th $min="150px">Cajas</Th>
-                                                <Th $min="150px">Pallets</Th>
                                                 <Th $min="200px">Comentarios</Th>
                                                 <Th $min="100px" $align="center" $fija="right">Acciones</Th>
                                             </>
@@ -1464,7 +1549,7 @@ function Herramientas() {
                                                             <SelectUI options={OPTIONS_MARCA} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} isCreatable={true} />
                                                         </Td>
                                                         <Td $fija="left" $offset={ANCHO_COL_SELECCION} $w={ANCHO_COL_NOMBRE}><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></Td>
-                                                        <Td><InputUI value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
+                                                        <Td><InputUI value={item.nombreExt || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExt", v)} /></Td>
                                                         <Td>
                                                             <SelectUI
                                                                 options={opcionesProveedores}
@@ -1473,7 +1558,7 @@ function Herramientas() {
                                                                 minWidth="200px"
                                                             />
                                                         </Td>
-                                                        <Td><InputUI value={item.nombreExt || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExt", v)} /></Td>
+                                                        <Td><InputUI value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
                                                         <Td>
                                                             <SelectUI options={OPTIONS_UNIDAD} value={OPTIONS_UNIDAD.find(opt => opt.value === item.unidad) || null} onChange={(v) => actualizarCampoFila(item.id, "unidad", v ? v.value : "")} />
                                                         </Td>
@@ -1491,9 +1576,10 @@ function Herramientas() {
                                                         <Td>
                                                             <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }} value={item.paqueteCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "paqueteCodigoBarras", v)} />
                                                         </Td>
+                                                        <Td><InputUI value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
                                                         <Td>
-                                                            <CeldaLectura title={item.nombreSistema || ""}>
-                                                                {item.nombreSistema || "-"}
+                                                            <CeldaLectura title={item.nombrePrefijado || ""}>
+                                                                {item.nombrePrefijado || "-"}
                                                             </CeldaLectura>
                                                         </Td>
                                                         <Td $align="center">
@@ -1508,7 +1594,6 @@ function Herramientas() {
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                             />
                                                         </Td>
-                                                        <Td><InputUI value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
                                                         <Td>
                                                             <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
                                                         </Td>
@@ -1704,6 +1789,9 @@ function Herramientas() {
                                                             <TextUI size="13px">{item.nombre || "-"}</TextUI>
                                                         </Td>
                                                         <Td>
+                                                            <InputUI value={item.nombreSistema || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreSistema", v)} placeholder="Nombre para SAP..." />
+                                                        </Td>
+                                                        <Td>
                                                             <SelectUI
                                                                 options={Array.from(new Set(gruposHerramientasRaw.map(g => g.DMH_GRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
                                                                 value={item.grupo ? { value: item.grupo, label: item.grupo } : null}
@@ -1755,15 +1843,6 @@ function Herramientas() {
                                                             />
                                                         </Td>
                                                         <Td>
-                                                            <SelectUI
-                                                                options={opcionesPallets}
-                                                                value={item.pallets ? { value: item.pallets, label: (opcionesPallets.find(o => o.value == item.pallets)?.label) || item.pallets } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "cajas", v?.value)}
-                                                                minWidth="130px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
                                                             <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
                                                         </Td>
                                                         <Td $align="center">
@@ -1810,67 +1889,106 @@ function Herramientas() {
                 )}
             </div>
 
-            {/* Sección de Aprobados. Visible tanto para Compras (rol 5) como para el coordinador de
-                imágenes (rol 4), que además puede abrir el detalle para ver/actualizar la imagen
-                ya publicada de un producto aprobado, sin pasar por el flujo de revisión. */}
-            {(idRolPrincipal === 5 || idRolPrincipal === 4) && approvedItems.length > 0 && (
-                <div style={{ marginTop: "40px", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 100%", marginBottom: "80px" }}>
-                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.success + "11", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <TextUI size="14px" weight="600" color={theme?.colors?.success}>
-                            Aprobados de HERRAMIENTAS ({approvedItems.length})
-                        </TextUI>
+            {/* Sección Sin aprobar / Aprobados (mismo patrón que Llantas.jsx). "Sin aprobar" muestra todos
+                los ítems de la línea que siguen en el flujo, con la fase en la que está cada uno;
+                "Aprobados" los ya aprobados con su código SAP. El detalle permite ver la trazabilidad
+                y, para el coordinador de imágenes (rol 4), ver/actualizar la imagen publicada. */}
+            {(idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && (() => {
+                const listaActivaSeccion = tabAprobados === "aprobados" ? approvedItems : itemsSinAprobarTodos;
+                const listaFiltradaSeccion = filtrarSeccionAprobados(listaActivaSeccion, searchTermAprobados);
+
+                return (
+                    <div style={{ backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 auto", maxHeight: "45vh", marginBottom: "16px" }}>
+                        <div style={{ padding: "0 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.backgroundLight || "#fafafa" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                                <div style={{ display: "flex" }}>
+                                    <TabButton type="button" $active={tabAprobados === "sinAprobar"} onClick={() => setTabAprobados("sinAprobar")}>
+                                        Sin aprobar ({itemsSinAprobarTodos.length})
+                                    </TabButton>
+                                    <TabButton type="button" $active={tabAprobados === "aprobados"} onClick={() => setTabAprobados("aprobados")}>
+                                        Aprobados ({approvedItems.length})
+                                    </TabButton>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "8px 0" }}>
+                                    <InputUI
+                                        placeholder="Buscar"
+                                        value={searchTermAprobados}
+                                        onChange={(v) => setSearchTermAprobados(v)}
+                                        iconLeft="FaSearch"
+                                        style={{ minWidth: "320px" }}
+                                    />
+                                    <ButtonUI
+                                        iconLeft="FaArrowsRotate"
+                                        onClick={handleRefrescarAprobados}
+                                        disabled={isRefrescandoAprobados}
+                                        pcolor={theme?.colors?.primary}
+                                        title="Actualizar listado"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <TablaScroll>
+                            <Tabla>
+                                <thead>
+                                    <tr>
+                                        <Th $min="150px">Código Proveedor</Th>
+                                        <Th $min="300px">Nombre</Th>
+                                        <Th $min="130px">Marca</Th>
+                                        <Th $min="170px">Item Código Barras</Th>
+                                        {tabAprobados === "aprobados" ? (
+                                            <Th $min="130px">Código SAP</Th>
+                                        ) : (
+                                            <Th $min="220px">Fase actual</Th>
+                                        )}
+                                        <Th $align="center" $w="80px" $fija="right">Detalle</Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {listaFiltradaSeccion.length === 0 ? (
+                                        <tr>
+                                            <Td colSpan={6} $align="center">
+                                                <TextUI size="12px" color={theme?.colors?.textSecondary}>
+                                                    {listaActivaSeccion.length === 0
+                                                        ? (tabAprobados === "aprobados" ? "No hay ítems aprobados." : "No hay ítems sin aprobar.")
+                                                        : "No se encontraron ítems que coincidan con la búsqueda."}
+                                                </TextUI>
+                                            </Td>
+                                        </tr>
+                                    ) : (
+                                        listaFiltradaSeccion.map((item, idx) => (
+                                            <Fila key={item.id} $par={idx % 2 === 0}>
+                                                <Td><TextUI size="12px">{item.codigoProveedor || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.nombre || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.itemCodigoBarras || "-"}</TextUI></Td>
+                                                {tabAprobados === "aprobados" ? (
+                                                    <Td><TextUI size="12px">{item.codigoSap || "-"}</TextUI></Td>
+                                                ) : (
+                                                    <Td>
+                                                        <Etiqueta $tono={item.fueRechazado ? "alerta" : "info"}>
+                                                            {NOMBRES_FASE[item.FASE_ACTUAL] || (item.FASE_ACTUAL ? `Fase ${item.FASE_ACTUAL}` : "-")}
+                                                        </Etiqueta>
+                                                    </Td>
+                                                )}
+                                                <Td $align="center" $fija="right">
+                                                    <IconUI
+                                                        name="FaEye"
+                                                        size={16}
+                                                        color={theme?.colors?.primary}
+                                                        title="Ver detalle del producto"
+                                                        onClick={() => setDetalleItem(item)}
+                                                        style={{ cursor: "pointer" }}
+                                                    />
+                                                </Td>
+                                            </Fila>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Tabla>
+                        </TablaScroll>
                     </div>
-                    <TablaScroll>
-                        <Tabla>
-                            <thead>
-                                <tr>
-                                    <Th $min="150px">Código Proveedor</Th>
-                                    <Th $min="140px">Partida Arancelaria</Th>
-                                    <Th $min="180px">Nombre Ext</Th>
-                                    <Th $min="200px">Nombre</Th>
-                                    <Th $min="150px">Marca</Th>
-                                    <Th $min="150px">Item Código Barras</Th>
-                                    <Th $align="center" $w="80px" $fija="right">Detalle</Th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {approvedItems.map((item, idx) => (
-                                    <Fila key={item.id} $par={idx % 2 === 0}>
-                                        <Td>
-                                            <TextUI size="13px">{item.codigoProveedor || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.partidaArancelaria || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.nombreExt || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.nombre || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.marca || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.itemCodigoBarras || "-"}</TextUI>
-                                        </Td>
-                                        <Td $align="center" $fija="right">
-                                            <IconUI
-                                                name="FaEye"
-                                                size={16}
-                                                color={theme?.colors?.primary}
-                                                title="Ver detalle del producto"
-                                                onClick={() => setDetalleItem(item)}
-                                                style={{ cursor: "pointer" }}
-                                            />
-                                        </Td>
-                                    </Fila>
-                                ))}
-                            </tbody>
-                        </Tabla>
-                    </TablaScroll>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Detalle del ítem aprobado: solo lectura, sin acciones (salvo actualizar imagen para
                 el rol 4). Mismo patrón que Llantas.jsx. */}
@@ -2060,8 +2178,6 @@ function Herramientas() {
                         }
                     }
 
-                    const rolesText = Array.from(rejectTargetRoles).map(r => DICCIONARIO_ROLES[r]).join(", ");
-                    toast.error(`Ítem ${itemToReject?.codigo || itemToReject?.diseño} rechazado hacia: ${rolesText}.`);
                     handleActionRol1(itemToReject.id, "reject", Array.from(rejectTargetRoles), rejectObservations);
                     setIsRejectModalOpen(false);
                     setRejectTargetRoles(new Set());
