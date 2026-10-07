@@ -515,6 +515,21 @@ export const actualizarClienteMDM = async (id, cliente) => {
 };
 
 /**
+ * "Sincronizar en SAP": guarda la ficha (validando cada campo), crea el socio de
+ * negocio en SAP y, con la respuesta de SAP, guarda el código SAP y aprueba el
+ * cliente. Los fallos llegan como error de axios con `response.status`:
+ * 400 dato inválido (con `campo`), 409 rechazado/ya existe en SAP/el código SAP no existe,
+ * 422 SAP rechazó la creación, 502 sin comunicación con SAP.
+ * @param {number|string} id - ic_serial del cliente
+ * @param {Object} cliente - La misma ficha que recibe actualizarClienteMDM
+ * @returns {Promise<{data: Object, sap: {compania: string, codigo: string, mensaje: string}}>}
+ */
+export const sincronizarClienteSapMDM = async (id, cliente) => {
+    const response = await axiosInstanceNew.post(`/mdm/clientes/${id}/sincronizar-sap`, cliente);
+    return { data: response.data?.data, sap: response.data?.sap };
+};
+
+/**
  * Cotizaciones de un cliente dentro de su empresa.
  * @param {number|string} id - ic_serial del cliente
  * @returns {Promise<Array>}

@@ -8,6 +8,7 @@ import { TextUI } from "components/UI/Components/TextUI";
 import { InputUI } from "components/UI/Components/InputUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import {
   actualizarClienteMDM,
@@ -17,6 +18,7 @@ import {
   getCotizacionesCliente,
   getRutasMDM,
   getVendedoresMDM,
+  sincronizarClienteSapMDM,
 } from "services/mdmService";
 
 /* ------------------------------------------------------------------ */
@@ -144,7 +146,13 @@ const TABS = [
    cuando el guardado falla por una validación. */
 const UBICACION_CAMPO = {
   NOMBRE: { tab: "general" },
+  NOMBRE_COMERCIAL: { tab: "general" },
+  GRUPO: { tab: "general" },
+  VENDEDOR: { tab: "general" },
+  RUTA: { tab: "general" },
   TELEFONO1: { tab: "general" },
+  TELEFONO2: { tab: "general" },
+  TELEFONO_MOVIL: { tab: "general" },
   CORREO_ELECTRONICO: { tab: "general" },
   TIPO_DOCUMENTO: { tab: "localizacion", subTab: "ats" },
   TIPO_SOCIO_NEGOCIO: { tab: "localizacion", subTab: "ats" },
@@ -837,6 +845,10 @@ function ClienteDetalle() {
 
   const [guardando, setGuardando] = useState(false);
 
+  /* Sincronización con SAP: confirmación previa y envío en curso */
+  const [confirmandoSap, setConfirmandoSap] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
+
   /* Vendedores activos de la empresa del cliente. null = todavía no llegaron;
      [] = llegaron y la empresa no tiene ninguno. */
   const [vendedores, setVendedores] = useState(null);
@@ -1055,7 +1067,12 @@ function ClienteDetalle() {
 
   /** Lleva al usuario a donde está el campo que impidió guardar */
   const irAlCampo = (campo) => {
-    const destino = UBICACION_CAMPO[campo];
+    // Los errores de una dirección vienen como "DIRECCIONES[12].SECTOR": se abre
+    // la pestaña y esa dirección en concreto.
+    const direccion = /^DIRECCIONES\[(\d+)\]/.exec(campo || "");
+    if (direccion) setDireccionActivaId(Number(direccion[1]));
+
+    const destino = UBICACION_CAMPO[campo] || (direccion ? UBICACION_CAMPO.DIRECCIONES : null);
     if (!destino) return;
     setTabActiva(destino.tab);
     if (destino.subTab) {
@@ -1064,6 +1081,9 @@ function ClienteDetalle() {
   };
 
   const empresaCliente = cliente?.EMPRESA;
+
+  /* Con código SAP el cliente ya existe en SAP: sincronizar lo ACTUALIZA; sin código lo CREA */
+  const esActualizacion = !!cliente?.CODIGO_SAP;
 
   useEffect(() => {
     if (!empresaCliente) return;
@@ -1286,6 +1306,67 @@ function ClienteDetalle() {
       toast.error(respuesta?.message || "No se pudo guardar el cliente");
     } finally {
       setGuardando(false);
+    }
+  };
+
+  /**
+   * "Sincronizar en SAP". Primero las mismas validaciones del guardado; luego el
+   * backend guarda la ficha, la valida contra lo que exige SAP, crea el socio de
+   * negocio y, con la respuesta de SAP, guarda el código SAP y la aprueba.
+   */
+  const pedirConfirmacionSap = () => {
+    const error = validar(construirPayload());
+
+    if (error) {
+      irAlCampo(error.campo);
+      toast.error(error.mensaje);
+      return;
+    }
+
+    setConfirmandoSap(true);
+  };
+
+  const sincronizarSap = async () => {
+    setConfirmandoSap(false);
+    setSincronizando(true);
+
+    try {
+      const { data, sap } = await sincronizarClienteSapMDM(id, construirPayload());
+      aplicarCliente(data);
+
+      if (sap?.operacion === "ACTUALIZACION") {
+        toast.success(`Cliente ${sap.codigo} actualizado en SAP (${sap.compania})`);
+      } else {
+        toast.success(
+          `Cliente creado en SAP (${sap?.codigo || data?.CODIGO_SAP}, compañía ${sap?.compania}) y aprobado`
+        );
+      }
+
+      // Lo que SAP no dejó aplicar por completo (p. ej. códigos de retención que
+      // no se pueden quitar por la API): hay que revisarlo a mano en SAP.
+      (sap?.advertencias || []).forEach((aviso) => toast.warning(aviso, { autoClose: 15000 }));
+    } catch (err) {
+      const respuesta = err?.response?.data;
+      const estado = err?.response?.status;
+
+      if (respuesta?.campo) irAlCampo(respuesta.campo);
+
+      if (estado === 409) {
+        // Puede que el cliente ya esté aprobado desde otra sesión: se recarga
+        // para que la pantalla muestre su estado real.
+        toast.warning(respuesta?.message || "No se pudo sincronizar: conflicto con SAP", {
+          autoClose: 9000,
+        });
+        cargarCliente();
+      } else if (estado === 422) {
+        toast.error(respuesta?.message || "SAP rechazó la operación sobre el cliente", { autoClose: 9000 });
+      } else if (estado === 502) {
+        toast.error(respuesta?.message || "No se pudo comunicar con SAP. Intente de nuevo en unos minutos.");
+      } else {
+        toast.error(respuesta?.message || "No se pudo sincronizar el cliente con SAP");
+      }
+    } finally {
+      setSincronizando(false);
     }
   };
 
@@ -2024,16 +2105,25 @@ function ClienteDetalle() {
               text={guardando ? "Guardando..." : "Guardar"}
               iconLeft="FaFloppyDisk"
               onClick={guardar}
-              disabled={guardando}
+              disabled={guardando || sincronizando}
             />
-            {/* El envío a SAP reutilizará la integración de clientes que ya
-                existe; por ahora solo está el botón. */}
+            {/* Con código SAP el cliente ya existe allá: se actualiza; sin código se crea. */}
             <ButtonUI
-              text="Sincronizar en SAP"
+              text={
+                sincronizando
+                  ? "Sincronizando..."
+                  : esActualizacion
+                    ? "Actualizar en SAP"
+                    : "Sincronizar en SAP"
+              }
               iconLeft="FaCloudArrowUp"
               variant="outlined"
-              onClick={() =>
-                toast.info("La sincronización con SAP todavía no está habilitada")
+              onClick={pedirConfirmacionSap}
+              disabled={guardando || sincronizando}
+              title={
+                esActualizacion
+                  ? `Guardar y actualizar el cliente ${cliente.CODIGO_SAP} en SAP`
+                  : "Guardar y crear el cliente en SAP"
               }
             />
           </AccionesEncabezado>
@@ -2109,6 +2199,46 @@ function ClienteDetalle() {
           </PanelTab>
         </div>
       </Contenedor>
+
+      <ModalUI
+        isOpen={confirmandoSap}
+        onClose={() => setConfirmandoSap(false)}
+        title={esActualizacion ? "Actualizar en SAP" : "Sincronizar en SAP"}
+        saveText={esActualizacion ? "Actualizar en SAP" : "Crear en SAP"}
+        onSave={sincronizarSap}
+        maxWidth="520px"
+        width="90%"
+      >
+        {esActualizacion ? (
+          <>
+            <TextUI>
+              Se guardará la ficha de <b>{cliente.NOMBRE}</b> y se actualizará en SAP (
+              {cliente.EMPRESA}) el socio de negocio <b>{cliente.CODIGO_SAP}</b> con los datos
+              actuales.
+              {cliente.ESTADO !== ESTADO_APROBADO && (
+                <>
+                  {" "}
+                  Si SAP lo acepta, el cliente pasará a <b>APROBADO</b>.
+                </>
+              )}
+            </TextUI>
+            <TextUI size="13px" color={theme.colors.textSecondary} style={{ marginTop: 10 }}>
+              Los cambios en SAP no se pueden deshacer desde el portal.
+            </TextUI>
+          </>
+        ) : (
+          <>
+            <TextUI>
+              Se guardará la ficha de <b>{cliente.NOMBRE}</b> y se creará el socio de negocio{" "}
+              <b>{cliente.CODIGO}</b> en SAP ({cliente.EMPRESA}). Si SAP lo acepta, el cliente
+              pasará a <b>APROBADO</b>.
+            </TextUI>
+            <TextUI size="13px" color={theme.colors.textSecondary} style={{ marginTop: 10 }}>
+              Esta acción no se puede deshacer desde el portal.
+            </TextUI>
+          </>
+        )}
+      </ModalUI>
     </ContainerUI>
   );
 }
