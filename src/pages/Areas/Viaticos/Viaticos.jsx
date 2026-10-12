@@ -1,7 +1,7 @@
-    function ViaticosEmbed() {
+function ViaticosEmbed() {
   return (
     <iframe
-      src="http://192.168.0.65:5050"
+      src="/viaticos-app/"
       title="Viáticos App"
       style={{
         width: '100%',
