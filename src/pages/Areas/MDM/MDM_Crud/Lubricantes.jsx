@@ -273,6 +273,32 @@ const calcularNombreSistemaFinal = (nombreBase, isNew = false) => {
 };
 
 
+/* Pestañas de la sección "Sin aprobar / Aprobados" (mismo look que Llantas.jsx y Herramientas.jsx) */
+const TabButton = styled.button`
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    background: transparent;
+    color: ${({ theme, $active }) => ($active ? theme?.colors?.primary : theme?.colors?.textSecondary || "#666")};
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+        color: ${({ theme }) => theme?.colors?.primary};
+    }
+
+    ${({ $active, theme }) =>
+        $active &&
+        `
+        color: ${theme?.colors?.primary};
+        border-bottom-color: ${theme?.colors?.primary};
+    `}
+`;
+
 // Línea fija para esta página — definida a nivel módulo para referencia estable
 const LINEA_LUBRICANTES = { value: "LUBRICANTES", label: "LUBRICANTES" };
 
@@ -583,6 +609,13 @@ function Lubricantes() {
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
     const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
     const [approvedItems, setApprovedItems] = useState([]);
+    // Sección "Sin aprobar / Aprobados": pestaña activa, buscador compartido y estado del refresco.
+    const [tabAprobados, setTabAprobados] = useState("sinAprobar");
+    const [searchTermAprobados, setSearchTermAprobados] = useState("");
+    const [isRefrescandoAprobados, setIsRefrescandoAprobados] = useState(false);
+    // Todos los ítems no aprobados de la línea (cualquier fase), independiente de lo que el rol
+    // actual tenga filtrado en `items` para trabajar. Alimenta solo la pestaña "Sin aprobar".
+    const [itemsSinAprobarTodos, setItemsSinAprobarTodos] = useState([]);
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
@@ -635,13 +668,32 @@ function Lubricantes() {
     // Línea fija: LUBRICANTES (referencia estable desde módulo)
     const lineaSeleccionada = LINEA_LUBRICANTES;
 
-    const fetchItems = useCallback(async () => {
+    // `soloSeccion`: refresca únicamente la sección "Sin aprobar / Aprobados" y deja `items`
+    // intacto, para no perder las filas nuevas que el rol 5 todavía no ha enviado.
+    const fetchItems = useCallback(async ({ soloSeccion = false } = {}) => {
         if (idRolPrincipal && lineaSeleccionada) {
             try {
                 const rawData = await getItemsByRole(idRolPrincipal, lineaSeleccionada.value);
                 if (rawData) {
                     const data = rawData;
                     let processedItems = data;
+
+                    // Vista informativa de la pestaña "Sin aprobar": TODOS los ítems no aprobados de la
+                    // línea, sin importar en qué fase estén ni si son accionables para el rol actual.
+                    // Se conserva el objeto crudo (...it) para que el modal de Detalle lea todos sus campos.
+                    setItemsSinAprobarTodos(
+                        data.filter(it => !it.APROBADO_MDM).map(it => ({
+                            ...it,
+                            id: it.ID,
+                            linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                            codigo: it.CODIGO_BARRAS || "",
+                            codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                            marca: it.MARCA || "",
+                            descripcion: it.NOMBRE || it.DESCRIPCION || "",
+                            comentarios: it.OBSERVACIONES || "",
+                            fueRechazado: Array.isArray(it.FASES) && it.FASES.some(f => f.RECHAZO),
+                        }))
+                    );
                     if (idRolPrincipal === 3) {
                         const filtered = data.filter(it =>
                             it.APROBADO_MDM ||
@@ -840,7 +892,7 @@ function Lubricantes() {
                     const pendingItems = processedItems.filter(it => !it.APROBADO_MDM);
                     const approvedList = processedItems.filter(it => it.APROBADO_MDM);
 
-                    setItems(pendingItems);
+                    if (!soloSeccion) setItems(pendingItems);
                     setApprovedItems(approvedList);
 
                     if (idRolPrincipal === 1) setCurrentItemIndex(0);
@@ -865,17 +917,16 @@ function Lubricantes() {
         return `${url}${separador}_v=${Date.now()}`;
     };
 
-    // Clave LOCAL (solo de front) para agrupar ítems que comparten la misma imagen: no existe
-    // campo DISEÑO en Lubricantes, así que se usa MARCA + NOMBRE resuelto. El backend resuelve
-    // el identificador real de imagen contra el DWH usando solo el ID del ítem (checkDesignImage/
-    // linkExistingItemImage ya no reciben MARCA/DISEÑO); esta clave únicamente evita llamarlo
-    // varias veces para ítems que, a simple vista del front, comparten diseño. Si el ítem no
-    // tiene nombre resuelto, se usa una clave única por ID para no romper la deduplicación.
+    // Clave LOCAL (solo de front) para deduplicar verificaciones de imagen. En Lubricantes la imagen se
+    // identifica por CODIGO_SAP (si el ítem ya lo tiene) o, si no, por CODIGO_PROVEEDOR; es la misma regla
+    // que aplica el backend (ItemImageUploadService.resolveImageIdentity), y se guarda bajo la MARCA
+    // (SHELL / PENNZOIL). Sin ninguno de los dos se usa una clave única por ID.
     const getDisenioKey = (item) => {
         if (!item) return null;
-        const nombre = item.nombreSistema || item.descripcionRol5 || item.descripcion || item.NOMBRE || item.DESCRIPCION;
-        if (item.marca && nombre) {
-            return `${String(item.marca).trim().toUpperCase()}|${String(nombre).trim().toUpperCase()}`;
+        const marca = item.marca || item.MARCA;
+        const codigoImagen = item.CODIGO_SAP || item.codigoSap || item.codigoProveedor || item.CODIGO_PROVEEDOR;
+        if (marca && codigoImagen) {
+            return `${String(marca).trim().toUpperCase()}|${String(codigoImagen).trim().toUpperCase()}`;
         }
         const id = item.ID ?? item.id;
         return id !== undefined && id !== null ? `ITEM_${id}` : null;
@@ -1204,6 +1255,7 @@ function Lubricantes() {
                 idsEnviados.forEach(id => next.delete(id));
                 return next;
             });
+            fetchItems({ soloSeccion: true });
             setIsSAPModalOpen(false);
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
@@ -1217,6 +1269,54 @@ function Lubricantes() {
 
     const eliminarItem = (id) => {
         setItems(prev => prev.filter(i => i.id !== id));
+    };
+
+    /* Al aprobar ("Aceptar"), el backend crea el ítem en SAP en la misma petición (best-effort: si SAP
+       falla el ítem queda aprobado igual). Si el ítem ya tenía código SAP no se hace nada en SAP. */
+    const informarResultadoAprobacion = (sapSync, item) => {
+        const codigoExistente = item?.CODIGO_SAP || item?.codigoSap;
+        if (codigoExistente) {
+            toast.success(`Ítem aprobado. Ya tenía código SAP (${codigoExistente}); no se envió a SAP.`);
+            return;
+        }
+
+        const resultados = (sapSync?.PorEmpresa || []).flatMap(e => e.Resultados || []);
+        const creado = resultados.find(r => r.Success);
+        const motivo =
+            resultados.find(r => !r.Success)?.Message ||
+            sapSync?.ItemsOmitidos?.[0]?.Motivo ||
+            "SAP no respondió";
+
+        if (sapSync && sapSync.Exitosos > 0 && sapSync.Fallidos === 0) {
+            toast.success(`Ítem aprobado y creado en SAP${creado?.ItemCode ? ` (${creado.ItemCode})` : ""}.`);
+            return;
+        }
+
+        console.warn("Aprobado, pero no se creó en SAP:", sapSync || "sin respuesta de sincronización");
+        toast.warning(`Ítem aprobado, pero no se pudo crear en SAP: ${motivo}. Puede reintentarlo desde "Exportar a SAP".`);
+    };
+
+    const handleRefrescarAprobados = async () => {
+        setIsRefrescandoAprobados(true);
+        try {
+            await fetchItems({ soloSeccion: true });
+        } finally {
+            setIsRefrescandoAprobados(false);
+        }
+    };
+
+    // Búsqueda compartida por la sección "Sin aprobar / Aprobados": código de proveedor, código de
+    // barras, código SAP (si ya lo tiene), descripción o marca.
+    const filtrarSeccionAprobados = (lista, termino) => {
+        if (!termino) return lista;
+        const t = termino.toLowerCase();
+        return lista.filter(item =>
+            String(item.codigoProveedor || item.CODIGO_PROVEEDOR || "").toLowerCase().includes(t) ||
+            String(item.codigo || item.CODIGO_BARRAS || "").toLowerCase().includes(t) ||
+            String(item.CODIGO_SAP || "").toLowerCase().includes(t) ||
+            String(item.nombreSistema || item.descripcionRol5 || item.descripcion || "").toLowerCase().includes(t) ||
+            String(item.marca || "").toLowerCase().includes(t)
+        );
     };
 
     const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
@@ -1254,8 +1354,8 @@ function Lubricantes() {
                     FASE: 2
                 });
 
-                await approveItemMDM(itemId, lineaSeleccionada.value);
-                toast.success("Ítem aprobado correctamente.");
+                const respuesta = await approveItemMDM(itemId, lineaSeleccionada.value);
+                informarResultadoAprobacion(respuesta?.sapSync, item);
             }
             await fetchItems();
             // Si era el último ítem, retroceder el índice
@@ -1664,10 +1764,7 @@ function Lubricantes() {
                                             text="Aceptar"
                                             iconLeft="FaCheck"
                                             pcolor={theme?.colors?.success || '#28a745'}
-                                            onClick={() => {
-                                                toast.success(`Ítem ${item.codigo || item.descripcion} aceptado exitosamente`);
-                                                handleActionRol1(item.id, "approve");
-                                            }}
+                                            onClick={() => handleActionRol1(item.id, "approve")}
                                         />
                                     </div>
                                 </div>
@@ -2251,51 +2348,110 @@ function Lubricantes() {
                 )}
             </div>
 
-            {/* Sección de Aprobados */}
-            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && approvedItems.filter(i => i.linea === lineaSeleccionada.value).length > 0 && (
-                <div style={{ marginTop: "200px", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 100%", marginBottom: "80px" }}>
-                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.success + "11", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <TextUI size="14px" weight="600" color={theme?.colors?.success}>
-                            Aprobados {lineaSeleccionada ? `de ${lineaSeleccionada.label}` : ""} ({approvedItems.filter(i => i.linea === lineaSeleccionada.value).length})
-                        </TextUI>
+            {/* Sección Sin aprobar / Aprobados (mismo patrón que Llantas.jsx y Herramientas.jsx). "Sin aprobar"
+                muestra todos los ítems de la línea que siguen en el flujo, con la fase en la que está cada
+                uno; "Aprobados" los ya aprobados con su código SAP. El detalle permite ver la trazabilidad
+                y, para el coordinador de imágenes (rol 4), ver/actualizar la imagen publicada. */}
+            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && (() => {
+                const itemsSinAprobarSeccion = itemsSinAprobarTodos.filter(i => i.linea === lineaSeleccionada.value);
+                const itemsAprobadosSeccion = approvedItems.filter(i => i.linea === lineaSeleccionada.value);
+                const listaActivaSeccion = tabAprobados === "aprobados" ? itemsAprobadosSeccion : itemsSinAprobarSeccion;
+                const listaFiltradaSeccion = filtrarSeccionAprobados(listaActivaSeccion, searchTermAprobados);
+
+                return (
+                    <div style={{ backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 auto", maxHeight: "45vh", marginBottom: "16px" }}>
+                        <div style={{ padding: "0 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.backgroundLight || "#fafafa" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                                <div style={{ display: "flex" }}>
+                                    <TabButton type="button" $active={tabAprobados === "sinAprobar"} onClick={() => setTabAprobados("sinAprobar")}>
+                                        Sin aprobar ({itemsSinAprobarSeccion.length})
+                                    </TabButton>
+                                    <TabButton type="button" $active={tabAprobados === "aprobados"} onClick={() => setTabAprobados("aprobados")}>
+                                        Aprobados ({itemsAprobadosSeccion.length})
+                                    </TabButton>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "8px 0" }}>
+                                    <InputUI
+                                        placeholder="Buscar"
+                                        value={searchTermAprobados}
+                                        onChange={(v) => setSearchTermAprobados(v)}
+                                        iconLeft="FaSearch"
+                                        style={{ minWidth: "320px" }}
+                                    />
+                                    <ButtonUI
+                                        iconLeft="FaArrowsRotate"
+                                        onClick={handleRefrescarAprobados}
+                                        disabled={isRefrescandoAprobados}
+                                        pcolor={theme?.colors?.primary}
+                                        title="Actualizar listado"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <TablaScroll>
+                            <Tabla>
+                                <thead>
+                                    <tr>
+                                        <Th>Empresa</Th>
+                                        <Th $min="150px">Código proveedor</Th>
+                                        <Th $min="200px">Código de barras</Th>
+                                        <Th $min="350px">Descripción</Th>
+                                        <Th>Marca</Th>
+                                        {tabAprobados === "aprobados" ? (
+                                            <Th>Código SAP</Th>
+                                        ) : (
+                                            <Th $min="200px">Fase actual</Th>
+                                        )}
+                                        <Th $align="center" $w="80px" $fija="right">Detalle</Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {listaFiltradaSeccion.length === 0 ? (
+                                        <tr>
+                                            <Td colSpan={7} $align="center">
+                                                <TextUI size="12px" color={theme?.colors?.textSecondary}>
+                                                    {listaActivaSeccion.length === 0
+                                                        ? (tabAprobados === "aprobados" ? "No hay ítems aprobados." : "No hay ítems sin aprobar.")
+                                                        : "No se encontraron ítems que coincidan con la búsqueda."}
+                                                </TextUI>
+                                            </Td>
+                                        </tr>
+                                    ) : (
+                                        listaFiltradaSeccion.map((item, idx) => (
+                                            <Fila key={item.id} $par={idx % 2 === 0}>
+                                                <Td><TextUI size="12px">{EMPRESA_LUBRICANTES}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.codigoProveedor || item.CODIGO_PROVEEDOR || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
+                                                {tabAprobados === "aprobados" ? (
+                                                    <Td><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></Td>
+                                                ) : (
+                                                    <Td>
+                                                        <Etiqueta $tono={item.fueRechazado ? "alerta" : "info"}>
+                                                            {NOMBRES_FASE[item.FASE_ACTUAL] || (item.FASE_ACTUAL ? `Fase ${item.FASE_ACTUAL}` : "-")}
+                                                        </Etiqueta>
+                                                    </Td>
+                                                )}
+                                                <Td $align="center" $fija="right">
+                                                    <IconUI
+                                                        name="FaEye"
+                                                        size={16}
+                                                        color={theme?.colors?.primary}
+                                                        title="Ver detalle del producto"
+                                                        onClick={() => setDetalleItem(item)}
+                                                        style={{ cursor: "pointer" }}
+                                                    />
+                                                </Td>
+                                            </Fila>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Tabla>
+                        </TablaScroll>
                     </div>
-                    <TablaScroll>
-                        <Tabla>
-                            <thead>
-                                <tr>
-                                    <Th>Empresa</Th>
-                                    <Th>Código SAP</Th>
-                                    <Th $min="250px">Código de barras</Th>
-                                    <Th $min="350px">Descripción</Th>
-                                    <Th>Marca</Th>
-                                    <Th $align="center" $w="80px" $fija="right">Detalle</Th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {approvedItems.filter(i => i.linea === lineaSeleccionada.value).map((item, idx) => (
-                                    <Fila key={item.id} $par={idx % 2 === 0}>
-                                        <Td><TextUI size="12px">{EMPRESA_LUBRICANTES}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
-                                        <Td $align="center" $fija="right">
-                                            <IconUI
-                                                name="FaEye"
-                                                size={16}
-                                                color={theme?.colors?.primary}
-                                                title="Ver detalle del producto"
-                                                onClick={() => setDetalleItem(item)}
-                                                style={{ cursor: "pointer" }}
-                                            />
-                                        </Td>
-                                    </Fila>
-                                ))}
-                            </tbody>
-                        </Tabla>
-                    </TablaScroll>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Detalle del ítem aprobado: solo lectura, sin acciones. */}
             <ModalUI
