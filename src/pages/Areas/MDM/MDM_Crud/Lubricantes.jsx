@@ -767,6 +767,7 @@ function Lubricantes() {
                                 id: it.ID,
                                 linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 codigo: it.CODIGO_BARRAS || "",
+                                codigoProveedor: it.CODIGO_PROVEEDOR || "",
                                 marca: it.MARCA || "",
                                 descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 comentarios: it.OBSERVACIONES || "",
@@ -1854,6 +1855,7 @@ function Lubricantes() {
                                         {/* Rol 4: Marketing */}
                                         {idRolPrincipal === 4 && (
                                             <>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código Proveedor</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "250px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripción</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Imagen PNG</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Imagen WebP</th>
@@ -1884,7 +1886,7 @@ function Lubricantes() {
                                 <tbody>
                                     {itemsFiltrados.length === 0 ? (
                                         <tr>
-                                            <td colSpan={idRolPrincipal === 5 ? 15 : idRolPrincipal === 3 ? 20 : idRolPrincipal === 4 ? 6 : idRolPrincipal === 1 ? 33 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                            <td colSpan={idRolPrincipal === 5 ? 15 : idRolPrincipal === 3 ? 20 : idRolPrincipal === 4 ? 7 : idRolPrincipal === 1 ? 33 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                 No hay ítems de Lubricantes
                                             </td>
                                         </tr>
@@ -2035,6 +2037,11 @@ function Lubricantes() {
                                             {/* === ROL 4: Marketing === */}
                                             {idRolPrincipal === 4 && (
                                                 <>
+                                                    <td style={{ padding: "4px 8px" }}>
+                                                        <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.codigoProveedor || ""}>
+                                                            {item.codigoProveedor || "-"}
+                                                        </div>
+                                                    </td>
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                                             {item.descripcion || "-"}
