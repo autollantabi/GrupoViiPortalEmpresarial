@@ -97,6 +97,7 @@ import { ReportePricingNeumaticos } from "pages/Areas/Reporteria/PricingNeumatic
 import { ReporteAutomaxNeumaticos } from "pages/Areas/Reporteria/AutomaxNeumaticos/ReporteAutomaxNeumaticos";
 import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
+import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnidadesVendidas/ReporteIkonixUnidadesVendidas";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -567,6 +568,11 @@ export const RoutesConfig = [
     title: "Automax Neumáticos",
     component: ReporteAutomaxNeumaticos,
     recurso: "reportes.automaxneumaticos",
+  },
+  {
+    title: "Unidades Vendidas",
+    component: ReporteIkonixUnidadesVendidas,
+    recurso: "reportes.unidadesvendidas",
   },
   // ================================= VISITAS =================================
   {
