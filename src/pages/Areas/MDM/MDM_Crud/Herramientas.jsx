@@ -10,7 +10,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposHerramientas, syncItemsToSap, getSapRequestItem } from "services/mdmService";
+import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposHerramientas, syncItemsToSap, getSapRequestItem, getMarcaProveedorProcedencia } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
@@ -254,10 +254,6 @@ const esVisibleEasySales = (item) =>
 
 const EMPRESA_HERRAMIENTAS = 'IKONIX';
 
-// Herramientas ya no busca proveedores por empresa en el servicio web de importaciones: todo
-// item de esta línea usa siempre MAXXIMUNDO CIA. LTDA. como proveedor por defecto.
-const PROVEEDOR_DEFECTO_HERRAMIENTAS = { value: 'P0190350533001', label: 'MAXXIMUNDO CIA. LTDA.' };
-
 const DICCIONARIO_ROLES = {
     1: 'Comercial', // Jefatura
     3: 'Técnico', // Supervisor
@@ -353,7 +349,31 @@ function Herramientas() {
     const EMPRESA_HERRAMIENTAS = "IKONIX";
 
     const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
-    const opcionesProveedores = [PROVEEDOR_DEFECTO_HERRAMIENTAS];
+    const [marcaProveedorProcedenciaRaw, setMarcaProveedorProcedenciaRaw] = useState([]);
+
+    // El "id" real de un proveedor es su código de socio de negocio (DMPP_ID_PROVEEDOR,
+    // tomado en el backend directo de core.dim_marca_proveedor_procedencia.dmpp_codigo_proveedor).
+    // Si todavía no se ha asignado código para esa combinación, se cae al nombre para no
+    // bloquear la selección.
+    const resolverIdProveedor = (fila) => fila?.DMPP_ID_PROVEEDOR || fila?.DMPP_PROVEEDOR || "";
+
+    // Herramientas no encadena el proveedor por marca como Llantas: simplemente se listan
+    // todos los proveedores vigentes de IKONIX/HERRAMIENTAS y, para ítems nuevos, se toma
+    // el primero de la lista como valor por defecto.
+    const opcionesProveedores = (() => {
+        const filas = marcaProveedorProcedenciaRaw.filter(
+            (f) => f.DMPP_EMPRESA === EMPRESA_HERRAMIENTAS && f.DMPP_LINEA_NEGOCIO === "HERRAMIENTAS"
+        );
+        const vistos = new Set();
+        const opciones = [];
+        filas.forEach((f) => {
+            const id = resolverIdProveedor(f);
+            if (!id || vistos.has(id)) return;
+            vistos.add(id);
+            opciones.push({ value: id, label: f.DMPP_PROVEEDOR });
+        });
+        return opciones;
+    })();
 
     useEffect(() => {
         const fetchGruposHerramientas = async () => {
@@ -366,7 +386,18 @@ function Herramientas() {
             }
         };
 
+        const fetchMarcaProveedorProcedencia = async () => {
+            try {
+                const data = await getMarcaProveedorProcedencia();
+                setMarcaProveedorProcedenciaRaw(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error("Error fetching marca-proveedor-procedencia:", error);
+                setMarcaProveedorProcedenciaRaw([]);
+            }
+        };
+
         fetchGruposHerramientas();
+        fetchMarcaProveedorProcedencia();
     }, []);
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [sapRequestPreview, setSapRequestPreview] = useState(null);
@@ -1119,7 +1150,7 @@ function Herramientas() {
 
                 const newItems = data.map(row => ({
                     id: Date.now() + Math.random(),
-                    proveedor: PROVEEDOR_DEFECTO_HERRAMIENTAS.value,
+                    proveedor: opcionesProveedores[0]?.value || "",
                     codigoProveedor: String(row["Codigo Proveedor"] || "").trim().toUpperCase(),
                     partidaArancelaria: handleNumericInt(row["Partida Arancelaria"] || ""),
                     nombreExt: String(row["Descripcion Proveedor"] || row["Nombre Ext"] || "").trim().toUpperCase(),
@@ -1200,7 +1231,7 @@ function Herramientas() {
                                 iconLeft="FaPlus"
                                 pcolor={theme?.colors?.primary}
                                 onClick={() => {
-                                    setItems(prev => [...prev, { id: Date.now(), proveedor: PROVEEDOR_DEFECTO_HERRAMIENTAS.value }]);
+                                    setItems(prev => [...prev, { id: Date.now(), proveedor: opcionesProveedores[0]?.value || "" }]);
                                 }}
                             />
                             <input

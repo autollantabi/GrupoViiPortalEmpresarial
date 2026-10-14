@@ -9,9 +9,13 @@ import { DateSelectorUI } from "components/UI/Components/DateSelectorUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
+import { ModalConfirmacionUI } from "components/UI/Components/ModalConfirmacionUI";
 import { useTheme } from "context/ThemeContext";
 import { useDebouncedValue } from "hooks/useDebouncedValue";
-import { ListarGuiasRemision } from "services/guiasRemisionService";
+import {
+  ListarGuiasRemision,
+  MarcarGuiaRemisionEnviada,
+} from "services/guiasRemisionService";
 
 // Tiempo de espera tras la última tecla antes de consultar al servidor
 const RETARDO_BUSQUEDA_MS = 500;
@@ -307,6 +311,8 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
   const [consultado, setConsultado] = useState(false);
   const [refrescos, setRefrescos] = useState(0);
   const [guiaSeleccionada, setGuiaSeleccionada] = useState(null);
+  const [confirmandoEnvio, setConfirmandoEnvio] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const actualizarFiltros = (cambios) =>
     setConsulta((prev) => ({ ...prev, ...cambios, page: 1 }));
@@ -324,11 +330,11 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
       prev.cliente === clienteDebounced && prev.busqueda === busquedaDebounced
         ? prev
         : {
-            ...prev,
-            cliente: clienteDebounced,
-            busqueda: busquedaDebounced,
-            page: 1,
-          }
+          ...prev,
+          cliente: clienteDebounced,
+          busqueda: busquedaDebounced,
+          page: 1,
+        }
     );
   }, [clienteDebounced, busquedaDebounced]);
 
@@ -399,6 +405,40 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
   const handleFilas = (opt) => opt && actualizarFiltros({ size: opt.value });
 
   const recargar = () => setRefrescos((n) => n + 1);
+
+  // Las guías canceladas no tienen detalle: solo se avisa, sin abrir el modal
+  const abrirDetalle = (guia) => {
+    if (textoEstadoDocumento(guia.estadoDocumento) === "Cancelado") {
+      toast.warn("No se puede visualizar el detalle de la guía de remisión", {
+        toastId: "guia-cancelada",
+      });
+      return;
+    }
+    setGuiaSeleccionada(guia);
+  };
+
+  const confirmarMarcarEnviado = async () => {
+    if (!guiaSeleccionada || enviando) return;
+    setEnviando(true);
+    try {
+      await MarcarGuiaRemisionEnviada({
+        id: guiaSeleccionada.id,
+        empresa: consulta.empresa,
+      });
+      // Refleja el cambio en el modal y en la tabla sin volver a consultar
+      setGuiaSeleccionada((prev) => (prev ? { ...prev, enviado: true } : prev));
+      setGuias((prev) =>
+        prev.map((g) => (g.id === guiaSeleccionada.id ? { ...g, enviado: true } : g))
+      );
+      toast.success("Guía de remisión marcada como enviada");
+    } catch (err) {
+      console.error("Error al marcar la guía como enviada:", err);
+      toast.error(err?.response?.data?.message || "No se pudo marcar la guía como enviada");
+    } finally {
+      setEnviando(false);
+      setConfirmandoEnvio(false);
+    }
+  };
 
   // ================= Paginación =================
   const totalPaginas = Math.max(1, paginacion?.totalPages || 1);
@@ -508,8 +548,7 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
                 <FilaClicable
                   key={guia.id}
                   $par={index % 2 === 0}
-                  onClick={() => setGuiaSeleccionada(guia)}
-                  title="Ver detalle de la guía"
+                  onClick={() => abrirDetalle(guia)}
                 >
                   {COLUMNAS.map((columna) => (
                     <Td key={columna.field} $align={columna.align} $wrap={columna.wrap}>
@@ -667,10 +706,23 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
       >
         {guiaSeleccionada && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+            {!guiaSeleccionada.enviado && (
+              <div style={{ display: "flex", justifyContent: "end" }}>
+                <ButtonUI
+                  text="Marcar como enviado"
+                  iconLeft="FaPaperPlane"
+                  onClick={() => setConfirmandoEnvio(true)}
+                  disabled={enviando}
+                />
+              </div>
+            )}
+
             <CardModal theme={theme}>
               <CabeceraGrid>
                 {[
                   ["Número de documento", guiaSeleccionada.numeroDocumento],
+                  ["Número de factura", guiaSeleccionada.numeroFactura],
                   ["Código de socio", guiaSeleccionada.codigoSocio],
                   ["Nombre del socio", guiaSeleccionada.nombreSocio],
                   ["Fecha", formatFecha(guiaSeleccionada.fechaContabilizacion)],
@@ -684,7 +736,7 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
                 ))}
                 <CabeceraItem>
                   <TextUI size="12px" color={theme.colors.textSecondary}>
-                    Detalle estado
+                    Detalle de estado
                   </TextUI>
                   <div>
                     <Badge $color={colorDetalleEstado(guiaSeleccionada.detalleEstado)}>
@@ -702,6 +754,22 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
                     </Badge>
                   </div>
                 </CabeceraItem>
+                <CabeceraItem>
+                  <TextUI size="12px" color={theme.colors.textSecondary}>
+                    Estado de envío
+                  </TextUI>
+                  <div>
+                    <Badge
+                      $color={
+                        guiaSeleccionada.enviado
+                          ? theme.colors.success
+                          : theme.colors.textSecondary
+                      }
+                    >
+                      {guiaSeleccionada.enviado ? "ENVIADO" : "NO ENVIADO"}
+                    </Badge>
+                  </div>
+                </CabeceraItem>
               </CabeceraGrid>
             </CardModal>
 
@@ -711,6 +779,19 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
           </div>
         )}
       </ModalUI>
+
+      {/* Va después del modal de detalle para quedar por encima de él */}
+      <ModalConfirmacionUI
+        isOpen={confirmandoEnvio}
+        onClose={() => !enviando && setConfirmandoEnvio(false)}
+        onConfirm={confirmarMarcarEnviado}
+        title="Marcar como enviado"
+        message={`¿Confirma que la guía de remisión N° ${guiaSeleccionada?.numeroDocumento ?? ""
+          } fue enviada? Esta acción no se puede deshacer desde el portal.`}
+        confirmText={enviando ? "Guardando..." : "Confirmar"}
+        confirmColor={theme.colors.primary}
+        iconName="FaPaperPlane"
+      />
     </ContainerUI>
   );
 };
