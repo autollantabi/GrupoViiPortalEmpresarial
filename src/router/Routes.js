@@ -98,6 +98,7 @@ import { ReporteAutomaxNeumaticos } from "pages/Areas/Reporteria/AutomaxNeumatic
 import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
 import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnidadesVendidas/ReporteIkonixUnidadesVendidas";
+import { ReporteCobus } from "pages/Areas/Reporteria/ReporteCobus/Cobus";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -523,6 +524,11 @@ export const RoutesConfig = [
     title: "Importaciones Cobus",
     component: ReporteImportacionesCobus,
     recurso: "reportes.importacionescobus",
+  },
+  {
+    title: "Cobus",
+    component: ReporteCobus,
+    recurso: "reportes.cobus",
   },
   {
     title: "Top Clientes",
