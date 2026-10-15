@@ -1904,24 +1904,40 @@ function Llantas() {
         return uniqueBrands.map(b => ({ value: b, label: b }));
     }, [esLlantas, diccionarioEmpresas, lineaSeleccionada, getFilasMarcaProveedorProcedencia, getMarcasForEmpresa]);
 
+    // El "id" real de un proveedor es su código de socio de negocio (DMPP_ID_PROVEEDOR,
+    // resuelto en el backend contra core.dim_socios). Si ese cruce no encontró un socio tipo
+    // PROVEEDOR con ese nombre exacto para la empresa (dato faltante en SAP/dim_socios, no un
+    // error del usuario), se cae al nombre para no bloquear la selección; queda así
+    // identificable para corregirlo en origen.
+    const resolverIdProveedor = (fila) => fila?.DMPP_ID_PROVEEDOR || fila?.DMPP_PROVEEDOR || "";
+
     // Opciones de "Proveedor" válidas para una marca (Llantas/Llantas Moto), desde
-    // core.dim_marca_proveedor_procedencia.
+    // core.dim_marca_proveedor_procedencia. value = código de socio (no el nombre).
     const getProveedorOptions = useCallback((idEmp, marca) => {
         if (!marca) return [];
         const filas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmp], lineaSeleccionada?.value)
             .filter(f => String(f.DMPP_MARCA || "").trim().toUpperCase() === String(marca).trim().toUpperCase());
-        const proveedores = Array.from(new Set(filas.map(f => f.DMPP_PROVEEDOR).filter(Boolean)));
-        return proveedores.map(p => ({ value: p, label: p }));
+        const vistos = new Set();
+        const opciones = [];
+        filas.forEach(f => {
+            const id = resolverIdProveedor(f);
+            if (!id || vistos.has(id)) return;
+            vistos.add(id);
+            opciones.push({ value: id, label: f.DMPP_PROVEEDOR });
+        });
+        return opciones;
     }, [diccionarioEmpresas, lineaSeleccionada, getFilasMarcaProveedorProcedencia]);
 
     // Opciones de "Procedencia" válidas para una combinación marca+proveedor (Llantas/Llantas
     // Moto), desde core.dim_marca_proveedor_procedencia. Puede no haber ninguna (procedencia nula).
-    const getProcedenciaOptions = useCallback((idEmp, marca, proveedor) => {
-        if (!marca || !proveedor) return [];
+    // `idProveedor` es el value que entrega getProveedorOptions (código de socio o, en su
+    // defecto, el nombre).
+    const getProcedenciaOptions = useCallback((idEmp, marca, idProveedor) => {
+        if (!marca || !idProveedor) return [];
         const filas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmp], lineaSeleccionada?.value)
             .filter(f =>
                 String(f.DMPP_MARCA || "").trim().toUpperCase() === String(marca).trim().toUpperCase() &&
-                String(f.DMPP_PROVEEDOR || "").trim().toUpperCase() === String(proveedor).trim().toUpperCase()
+                resolverIdProveedor(f) === idProveedor
             );
         const procedencias = Array.from(new Set(filas.map(f => f.DMPP_PROCEDENCIA).filter(Boolean)));
         return procedencias.map(p => ({ value: p, label: p }));
@@ -2375,12 +2391,17 @@ function Llantas() {
                                                     { key: 'aplicacion', label: "Aplicación", role: 3 },
                                                     { key: 'eje', label: "Eje", role: 3 },
                                                 ].map(({ key, label, role }) => {
-                                                    // Para Llantas/Llantas Moto, "proveedor" ya es el nombre legible
-                                                    // (dim_marca_proveedor_procedencia); el resto de líneas siguen
-                                                    // usando el código de proveedor de SAP, que se muestra con su nombre.
+                                                    // En ambos casos "proveedor" guarda el código de socio de negocio de SAP
+                                                    // (CardCode), no el nombre, así que siempre se resuelve el nombre legible
+                                                    // para mostrarlo: para Llantas/Llantas Moto contra dim_marca_proveedor_procedencia
+                                                    // (getProveedorOptions), para el resto de líneas contra proveedoresPorEmpresa.
                                                     const esLlantasItem = item.linea === "LLANTAS" || item.linea === "LLANTAS MOTO";
-                                                    const value = key === 'proveedor' && !esLlantasItem
-                                                        ? (item.proveedor ? `${item.proveedor} - ${(proveedoresPorEmpresa[getCodigoProveedorEmpresa(item.idEmpresa)] || []).find(o => o.value === item.proveedor)?.label || ''}` : '')
+                                                    const value = key === 'proveedor'
+                                                        ? (item.proveedor
+                                                            ? (esLlantasItem
+                                                                ? (getProveedorOptions(item.idEmpresa, item.marca).find(o => o.value === item.proveedor)?.label || item.proveedor)
+                                                                : `${item.proveedor} - ${(proveedoresPorEmpresa[getCodigoProveedorEmpresa(item.idEmpresa)] || []).find(o => o.value === item.proveedor)?.label || ''}`)
+                                                            : '')
                                                         : item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
                                                     let borderColor = isDark ? '#1f2937' : '#eee';
@@ -2923,13 +2944,18 @@ function Llantas() {
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
                                                         <Td $densa>
-                                                            <SelectUI
-                                                                options={getProveedorOptions(item.idEmpresa, item.marca)}
-                                                                value={item.proveedor ? { value: item.proveedor, label: item.proveedor } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
-                                                                minWidth="200px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
-                                                            />
+                                                            {(() => {
+                                                                const opcionesProveedor = getProveedorOptions(item.idEmpresa, item.marca);
+                                                                return (
+                                                                    <SelectUI
+                                                                        options={opcionesProveedor}
+                                                                        value={item.proveedor ? { value: item.proveedor, label: opcionesProveedor.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                        onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                        minWidth="200px"
+                                                                        style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                                    />
+                                                                );
+                                                            })()}
                                                         </Td>
                                                         <Td $densa>
                                                             <SelectUI

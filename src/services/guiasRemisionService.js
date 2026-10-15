@@ -40,3 +40,18 @@ export const ListarGuiasRemision = async (
 
   throw new Error(response.data?.message || "Respuesta inesperada del servidor");
 };
+
+/**
+ * Marca una guía de remisión como enviada (hgr_estado_enviado = true).
+ * @param {{id: number, empresa: string}} params - id = hgr_serial de la guía
+ * @throws Propaga el error; el mensaje del servidor viene en error.response.data.message
+ */
+export const MarcarGuiaRemisionEnviada = async ({ id, empresa }) => {
+  const response = await axiosInstanceNew.patch(`/guias-remision/${id}/enviado`, {
+    empresa,
+  });
+
+  if (response.data?.status !== "Ok!") {
+    throw new Error(response.data?.message || "Respuesta inesperada del servidor");
+  }
+};
