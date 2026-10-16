@@ -20,14 +20,11 @@ import {
 // Tiempo de espera tras la última tecla antes de consultar al servidor
 const RETARDO_BUSQUEDA_MS = 500;
 
-// Los valores deben coincidir con hgr_detalle_estado (el backend compara en mayúsculas)
-const OPCIONES_ESTADO = [
-  { value: "", label: "TODOS" },
-  { value: "PENDIENTE", label: "PENDIENTE" },
-  { value: "ARCHIVO XML GENERADO", label: "ARCHIVO XML GENERADO" },
-  { value: "ENVIADO", label: "ENVIADO" },
-  { value: "APROBADO", label: "APROBADO" },
-  { value: "RECHAZADO", label: "RECHAZADO" },
+// Por defecto el listado muestra solo las guías pendientes de envío
+const OPCIONES_ENVIO = [
+  { value: "false", label: "PENDIENTES DE ENVÍO" },
+  { value: "true", label: "ENVIADAS" },
+  { value: "", label: "TODAS" },
 ];
 
 const OPCIONES_FILAS = [10, 25, 50, 100].map((n) => ({
@@ -36,15 +33,22 @@ const OPCIONES_FILAS = [10, 25, 50, 100].map((n) => ({
 }));
 
 const COLUMNAS = [
-  { header: "Número doc.", field: "numeroDocumento" },
-  { header: "Serie", field: "serie" },
-  { header: "Fecha de contabilización", field: "fechaContabilizacion", isDate: true, align: "center" },
-  { header: "Código SN", field: "codigoSocio" },
-  { header: "Nombre SN", field: "nombreSocio", wrap: true },
-  { header: "Estado", field: "detalleEstado", align: "center" },
-  { header: "Detalle estado", field: "detalleEstado", isBadge: true, align: "center" },
+  { header: "Fecha de Guía", field: "fechaContabilizacion", isDate: true, align: "center" },
+  { header: "Empresa", field: "empresa" },
+  { header: "Nº de Guía", field: "numeroDocumento" },
+  { header: "Nº de Factura", field: "numeroFactura" },
+  { header: "Nombre del Cliente", field: "nombreSocio", isCliente: true, wrap: true },
+  { header: "Destino", field: "ciudadDestino", wrap: true },
+  { header: "Transporte", field: "transportistaNombre", wrap: true },
   { header: "Estado documento", field: "estadoDocumento", isBadgeDocumento: true, align: "center" },
+  { header: "Enviado", field: "enviado", isEnviado: true, align: "center" },
 ];
+
+// Transportista para el que se genera guía de entrega en el courier (hgr_guia_entrega)
+const ID_TRANSPORTISTA_LAAR = "1791705726001";
+
+// Solo el rol supervisor puede marcar como enviado; "usuario" únicamente consulta
+const ROL_SUPERVISOR = "supervisor";
 
 // estadoDocumento llega como código: 0 = Abierto, 1 = Cancelado
 const textoEstadoDocumento = (valor) => {
@@ -239,7 +243,9 @@ const CirculoIcono = styled.div`
 `;
 
 const FilaClicable = styled(Fila)`
-  cursor: pointer;
+  cursor: ${({ $bloqueada }) => ($bloqueada ? "not-allowed" : "pointer")};
+  ${({ $bloqueada, theme }) =>
+    $bloqueada ? `background: ${theme.colors.error}12; color: ${theme.colors.textSecondary};` : ""}
 `;
 
 const CardModal = styled.div`
@@ -272,8 +278,9 @@ const PageInput = styled.input`
   font-size: 13px;
 `;
 
-export const GuiasRemision = ({ availableCompanies = [] }) => {
+export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const { theme } = useTheme();
+  const puedeMarcarEnviado = routeConfig?.rolDelRecurso === ROL_SUPERVISOR;
 
   const opcionesEmpresas = useMemo(() => {
     const nombres = (availableCompanies || [])
@@ -291,7 +298,7 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
     empresa: null,
     desde: primerDiaDelMes(),
     hasta: hoySinHora(),
-    estado: "",
+    enviado: "false",
     cliente: "",
     busqueda: "",
     page: 1,
@@ -356,12 +363,18 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
             size: consulta.size,
             fechaDesde: formatFechaISO(consulta.desde),
             fechaHasta: formatFechaISO(consulta.hasta),
-            estado: consulta.estado,
             cliente: consulta.cliente,
             busqueda: consulta.busqueda,
+            enviado: consulta.enviado,
           },
           controller.signal
         );
+        // Si la página quedó vacía (p. ej. se marcó como enviada la última guía de la
+        // última página), se vuelve a la última página con datos
+        if (!data.Guias?.length && consulta.page > 1 && data.Paginacion?.totalPages > 0) {
+          setConsulta((prev) => ({ ...prev, page: data.Paginacion.totalPages }));
+          return;
+        }
         setGuias(data.Guias || []);
         setPaginacion(data.Paginacion || null);
         setLoading(false);
@@ -384,7 +397,7 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
   // ================= Handlers de filtros =================
   const handleEmpresa = (opt) => opt && actualizarFiltros({ empresa: opt.value });
 
-  const handleEstado = (opt) => actualizarFiltros({ estado: opt?.value || "" });
+  const handleEnvio = (opt) => opt && actualizarFiltros({ enviado: opt.value });
 
   // El rango nunca queda vacío ni invertido: "desde" no pasa de "hasta" y viceversa
   // (además de los min/max del selector); si se borra una fecha vuelve a su valor por defecto.
@@ -418,18 +431,17 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
   };
 
   const confirmarMarcarEnviado = async () => {
-    if (!guiaSeleccionada || enviando) return;
+    if (!puedeMarcarEnviado || !guiaSeleccionada || enviando) return;
     setEnviando(true);
     try {
       await MarcarGuiaRemisionEnviada({
         id: guiaSeleccionada.id,
         empresa: consulta.empresa,
       });
-      // Refleja el cambio en el modal y en la tabla sin volver a consultar
+      // El modal pasa a ENVIADO y se vuelve a consultar el listado (la guía deja de
+      // aparecer si el filtro es "pendientes de envío")
       setGuiaSeleccionada((prev) => (prev ? { ...prev, enviado: true } : prev));
-      setGuias((prev) =>
-        prev.map((g) => (g.id === guiaSeleccionada.id ? { ...g, enviado: true } : g))
-      );
+      recargar();
       toast.success("Guía de remisión marcada como enviada");
     } catch (err) {
       console.error("Error al marcar la guía como enviada:", err);
@@ -449,22 +461,6 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
   };
 
   // ================= Render =================
-  const colorDetalleEstado = (valor) => {
-    switch ((valor || "").toUpperCase()) {
-      case "APROBADO":
-        return theme.colors.success;
-      case "RECHAZADO":
-        return theme.colors.error;
-      case "PENDIENTE":
-        return theme.colors.warning || theme.colors.secondary;
-      case "ENVIADO":
-      case "ARCHIVO XML GENERADO":
-        return theme.colors.info || theme.colors.primary;
-      default:
-        return theme.colors.textSecondary;
-    }
-  };
-
   const colorEstadoDocumento = (valor) =>
     textoEstadoDocumento(valor) === "Cancelado"
       ? theme.colors.error
@@ -473,6 +469,13 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
   const renderCelda = (item, columna) => {
     const valor = item[columna.field];
 
+    if (columna.isEnviado) {
+      return (
+        <Badge $color={item.enviado ? theme.colors.success : theme.colors.textSecondary}>
+          {item.enviado ? "Verdadero" : "Falso"}
+        </Badge>
+      );
+    }
     if (columna.isBadgeDocumento) {
       return (
         <Badge $color={colorEstadoDocumento(valor)}>
@@ -480,9 +483,20 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
         </Badge>
       );
     }
+
+    // Nombre del cliente y, debajo, su código de socio
+    if (columna.isCliente) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <span>{valor || "—"}</span>
+          <TextUI size="12px" color={theme.colors.textSecondary}>
+            {item.codigoSocio || "—"}
+          </TextUI>
+        </div>
+      );
+    }
     if (valor === null || valor === undefined || valor === "") return "—";
     if (columna.isDate) return formatFecha(valor);
-    if (columna.isBadge) return <Badge $color={colorDetalleEstado(valor)}>{valor}</Badge>;
     return valor;
   };
 
@@ -548,6 +562,7 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
                 <FilaClicable
                   key={guia.id}
                   $par={index % 2 === 0}
+                  $bloqueada={textoEstadoDocumento(guia.estadoDocumento) === "Cancelado"}
                   onClick={() => abrirDetalle(guia)}
                 >
                   {COLUMNAS.map((columna) => (
@@ -653,14 +668,13 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
           />
 
           <SelectUI
-            label="Estado"
-            options={OPCIONES_ESTADO}
-            value={OPCIONES_ESTADO.find((o) => o.value === consulta.estado)}
-            onChange={handleEstado}
-            placeholder="TODOS"
+            label="Envío"
+            options={OPCIONES_ENVIO}
+            value={OPCIONES_ENVIO.find((o) => o.value === consulta.enviado)}
+            onChange={handleEnvio}
             isSearchable={false}
-            minWidth="220px"
-            maxWidth="240px"
+            minWidth="210px"
+            maxWidth="230px"
           />
 
           <FiltroGrupo theme={theme} style={{ minWidth: "230px" }}>
@@ -707,11 +721,11 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
         {guiaSeleccionada && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
-            {!guiaSeleccionada.enviado && (
+            {puedeMarcarEnviado && !guiaSeleccionada.enviado && (
               <div style={{ display: "flex", justifyContent: "end" }}>
                 <ButtonUI
                   text="Marcar como enviado"
-                  iconLeft="FaPaperPlane"
+                  iconLeft="FaFileCircleCheck"
                   onClick={() => setConfirmandoEnvio(true)}
                   disabled={enviando}
                 />
@@ -721,11 +735,14 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
             <CardModal theme={theme}>
               <CabeceraGrid>
                 {[
+                  ["Empresa", guiaSeleccionada.empresa],
                   ["Número de documento", guiaSeleccionada.numeroDocumento],
                   ["Número de factura", guiaSeleccionada.numeroFactura],
                   ["Código de socio", guiaSeleccionada.codigoSocio],
                   ["Nombre del socio", guiaSeleccionada.nombreSocio],
                   ["Fecha", formatFecha(guiaSeleccionada.fechaContabilizacion)],
+                  ["Transportista", guiaSeleccionada.transportistaNombre],
+                  ["Ciudad destino", guiaSeleccionada.ciudadDestino],
                 ].map(([titulo, valor]) => (
                   <CabeceraItem key={titulo}>
                     <TextUI size="12px" color={theme.colors.textSecondary}>
@@ -734,16 +751,6 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
                     <TextUI weight="bold">{valor || "—"}</TextUI>
                   </CabeceraItem>
                 ))}
-                <CabeceraItem>
-                  <TextUI size="12px" color={theme.colors.textSecondary}>
-                    Detalle de estado
-                  </TextUI>
-                  <div>
-                    <Badge $color={colorDetalleEstado(guiaSeleccionada.detalleEstado)}>
-                      {guiaSeleccionada.detalleEstado || "—"}
-                    </Badge>
-                  </div>
-                </CabeceraItem>
                 <CabeceraItem>
                   <TextUI size="12px" color={theme.colors.textSecondary}>
                     Estado documento
@@ -773,9 +780,16 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
               </CabeceraGrid>
             </CardModal>
 
-            <CardModal theme={theme}>
-              <TextUI weight="bold">DETALLE GUIA DE ENTREGA</TextUI>
-            </CardModal>
+            {guiaSeleccionada.transportistaId === ID_TRANSPORTISTA_LAAR && (
+              <CardModal theme={theme}>
+                <CabeceraItem>
+                  <TextUI size="12px" color={theme.colors.textSecondary}>
+                    GUÍA ENTREGA
+                  </TextUI>
+                  <TextUI weight="bold">{guiaSeleccionada.guiaEntrega || "—"}</TextUI>
+                </CabeceraItem>
+              </CardModal>
+            )}
           </div>
         )}
       </ModalUI>
@@ -790,7 +804,7 @@ export const GuiasRemision = ({ availableCompanies = [] }) => {
           } fue enviada? Esta acción no se puede deshacer desde el portal.`}
         confirmText={enviando ? "Guardando..." : "Confirmar"}
         confirmColor={theme.colors.primary}
-        iconName="FaPaperPlane"
+        iconName="FaFileCircleCheck"
       />
     </ContainerUI>
   );
