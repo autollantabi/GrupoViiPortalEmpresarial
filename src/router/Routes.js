@@ -97,6 +97,8 @@ import { ReportePricingNeumaticos } from "pages/Areas/Reporteria/PricingNeumatic
 import { ReporteAutomaxNeumaticos } from "pages/Areas/Reporteria/AutomaxNeumaticos/ReporteAutomaxNeumaticos";
 import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
+import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnidadesVendidas/ReporteIkonixUnidadesVendidas";
+import { ReporteCobus } from "pages/Areas/Reporteria/ReporteCobus/Cobus";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -524,6 +526,11 @@ export const RoutesConfig = [
     recurso: "reportes.importacionescobus",
   },
   {
+    title: "Cobus",
+    component: ReporteCobus,
+    recurso: "reportes.cobus",
+  },
+  {
     title: "Top Clientes",
     component: ReporteTopVendedores,
     recurso: "reportes.topvendedores",
@@ -567,6 +574,11 @@ export const RoutesConfig = [
     title: "Automax Neumáticos",
     component: ReporteAutomaxNeumaticos,
     recurso: "reportes.automaxneumaticos",
+  },
+  {
+    title: "Unidades Vendidas",
+    component: ReporteIkonixUnidadesVendidas,
+    recurso: "reportes.unidadesvendidas",
   },
   // ================================= VISITAS =================================
   {
