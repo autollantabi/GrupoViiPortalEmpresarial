@@ -15,6 +15,7 @@ import {
   getClienteMDM,
   getCotizacionMDM,
   getCodigosImpuestoMDM,
+  getCondicionesPagoMDM,
   getCotizacionesCliente,
   getRutasMDM,
   getVendedoresMDM,
@@ -125,6 +126,7 @@ const ESTADOS_CIVILES = [
 const TABS = [
   { id: "general", label: "General" },
   { id: "direcciones", label: "Direcciones" },
+  { id: "condiciones", label: "Condiciones de pago" },
   {
     id: "localizacion",
     label: "Localización Ecuador",
@@ -149,6 +151,9 @@ const UBICACION_CAMPO = {
   NOMBRE_COMERCIAL: { tab: "general" },
   GRUPO: { tab: "general" },
   VENDEDOR: { tab: "general" },
+  CONDICION_PAGO_SERIAL: { tab: "condiciones" },
+  CUPO: { tab: "condiciones" },
+  DESCUENTO: { tab: "condiciones" },
   RUTA: { tab: "general" },
   TELEFONO1: { tab: "general" },
   TELEFONO2: { tab: "general" },
@@ -223,6 +228,14 @@ const formatFechaHora = (valor) => {
   const hora = String(fecha.getHours()).padStart(2, "0");
   const minutos = String(fecha.getMinutes()).padStart(2, "0");
   return `${dia}/${mes}/${fecha.getFullYear()} ${hora}:${minutos}`;
+};
+
+/* Lista de precios (ic_lista_precios): equivalencia ListNum -> ListName */
+const LISTAS_PRECIOS = { 1: "LISTA A" };
+
+const etiquetaListaPrecios = (numero) => {
+  if (numero === null || numero === undefined || numero === "") return "";
+  return LISTAS_PRECIOS[Number(numero)] || `Lista ${numero}`;
 };
 
 const formatMoneda = (valor) => {
@@ -853,6 +866,9 @@ function ClienteDetalle() {
      [] = llegaron y la empresa no tiene ninguno. */
   const [vendedores, setVendedores] = useState(null);
 
+  /* Condiciones de pago de la empresa del cliente, con la misma convención. */
+  const [condicionesPago, setCondicionesPago] = useState(null);
+
   /* Rutas activas de la empresa del cliente, con la misma convención. */
   const [rutas, setRutas] = useState(null);
 
@@ -897,6 +913,11 @@ function ClienteDetalle() {
       RUTA: data.RUTA_COINCIDENCIA?.NOMBRE ?? data.RUTA ?? null,
       COMENTARIOS: data.COMENTARIOS ?? "",
       ACTIVO: data.ACTIVO !== false,
+      // Condiciones de pago. Límite de crédito y comprometido son el mismo valor
+      // (ic_cupo); el descuento en 0 se ve vacío porque por defecto no tiene valor.
+      CONDICION_PAGO_SERIAL: data.CONDICION_PAGO_SERIAL ?? null,
+      CUPO: String(data.CUPO ?? 0),
+      DESCUENTO: Number(data.DESCUENTO) > 0 ? String(data.DESCUENTO) : "",
       // Localización Ecuador / ATS
       TIPO_DOCUMENTO: data.TIPO_DOCUMENTO ?? null,
       TIPO_SOCIO_NEGOCIO: data.TIPO_SOCIO_NEGOCIO ?? null,
@@ -1004,6 +1025,9 @@ function ClienteDetalle() {
       RUTA_SERIAL: form.RUTA_SERIAL ?? null,
       COMENTARIOS: recortar(form.COMENTARIOS),
       ACTIVO: form.ACTIVO === true,
+      ...(form.CONDICION_PAGO_SERIAL ? { CONDICION_PAGO_SERIAL: form.CONDICION_PAGO_SERIAL } : {}),
+      CUPO: recortar(form.CUPO),
+      DESCUENTO: recortar(form.DESCUENTO),
       TIPO_SOCIO_NEGOCIO: form.TIPO_SOCIO_NEGOCIO,
       TIPO_CONTRIBUYENTE: form.TIPO_CONTRIBUYENTE,
       ENTREGA_RETENCION: form.ENTREGA_RETENCION,
@@ -1051,6 +1075,16 @@ function ClienteDetalle() {
       };
     }
 
+    const cupo = Number(payload.CUPO === "" ? 0 : String(payload.CUPO).replace(",", "."));
+    if (!Number.isFinite(cupo) || cupo < 0) {
+      return { campo: "CUPO", mensaje: 'El "Límite de crédito" debe ser un número mayor o igual a 0' };
+    }
+
+    const descuento = Number(payload.DESCUENTO === "" ? 0 : String(payload.DESCUENTO).replace(",", "."));
+    if (!Number.isFinite(descuento) || descuento < 0 || descuento > 100) {
+      return { campo: "DESCUENTO", mensaje: 'El "% Descuento total" debe estar entre 0 y 100' };
+    }
+
     const sinProvincia = payload.DIRECCIONES.find((d) => !d.PROVINCIA);
     if (sinProvincia) {
       const nombre =
@@ -1084,6 +1118,29 @@ function ClienteDetalle() {
 
   /* Con código SAP el cliente ya existe en SAP: sincronizar lo ACTUALIZA; sin código lo CREA */
   const esActualizacion = !!cliente?.CODIGO_SAP;
+
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setCondicionesPago(null);
+
+    (async () => {
+      try {
+        const data = await getCondicionesPagoMDM(empresaCliente);
+        if (!cancelado) setCondicionesPago(data);
+      } catch (err) {
+        if (!cancelado) {
+          setCondicionesPago([]);
+          toast.error("No se pudo cargar el listado de condiciones de pago");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
 
   useEffect(() => {
     if (!empresaCliente) return;
@@ -1167,7 +1224,10 @@ function ClienteDetalle() {
      está en el listado (ya no es vendedor activo, o nunca coincidió) se agrega
      como una opción marcada: así no se pierde en silencio al guardar. */
   const opcionesVendedor = useMemo(() => {
-    const lista = (vendedores || []).map((v) => ({ value: v.CODIGO, label: v.NOMBRE }));
+    const lista = (vendedores || []).map((v) => ({
+      value: v.CODIGO,
+      label: v.LINEA ? `${v.NOMBRE} (${v.LINEA})` : v.NOMBRE,
+    }));
 
     if (valorVendedor && !lista.some((o) => o.value === valorVendedor)) {
       return [
@@ -1980,6 +2040,82 @@ function ClienteDetalle() {
     );
   };
 
+  /* Pestaña Condiciones de pago. La condición se elige del maestro de la empresa;
+     la lista de precios es solo informativa. Límite de crédito y Límite
+     comprometido son el mismo valor (ic_cupo): al cambiar uno se cambia el otro. */
+  const opcionesCondicion = (condicionesPago || []).map((c) => ({
+    value: c.SERIAL,
+    label: `${c.CODIGO} - ${c.NOMBRE}`,
+  }));
+
+  /* Si la condición del cliente ya no está activa, se conserva visible */
+  if (
+    condicionesPago !== null &&
+    form?.CONDICION_PAGO_SERIAL &&
+    !opcionesCondicion.some((o) => o.value === form.CONDICION_PAGO_SERIAL) &&
+    cliente?.CONDICION_PAGO
+  ) {
+    opcionesCondicion.push({
+      value: form.CONDICION_PAGO_SERIAL,
+      label: `${cliente.CONDICION_PAGO.CODIGO} - ${cliente.CONDICION_PAGO.NOMBRE} (inactiva)`,
+    });
+  }
+
+  const renderCondiciones = () => (
+    <Seccion theme={theme}>
+      <TituloSeccion theme={theme}>Condiciones de pago</TituloSeccion>
+      <Rejilla>
+        <CampoCatalogo
+          theme={theme}
+          label="Condiciones de pago"
+          valor={form.CONDICION_PAGO_SERIAL}
+          catalogo={opcionesCondicion}
+          onChange={(valor) => actualizarCampo("CONDICION_PAGO_SERIAL", valor)}
+          placeholder={
+            condicionesPago === null
+              ? "Cargando condiciones..."
+              : condicionesPago.length === 0
+                ? "Sin condiciones para esta empresa"
+                : "Seleccione una condición"
+          }
+        />
+        <CampoFijo
+          theme={theme}
+          label="Lista de precios"
+          valor={etiquetaListaPrecios(cliente.LISTA_PRECIOS)}
+        />
+        <CampoContenedor theme={theme}>
+          <label>% Descuento total</label>
+          <InputUI
+            type="number"
+            min={0}
+            max={100}
+            value={form.DESCUENTO}
+            onChange={(valor) => actualizarCampo("DESCUENTO", valor)}
+          />
+        </CampoContenedor>
+        <CampoContenedor theme={theme}>
+          <label>Límite de crédito</label>
+          <InputUI
+            type="number"
+            min={0}
+            value={form.CUPO}
+            onChange={(valor) => actualizarCampo("CUPO", valor)}
+          />
+        </CampoContenedor>
+        <CampoContenedor theme={theme}>
+          <label>Límite comprometido</label>
+          <InputUI
+            type="number"
+            min={0}
+            value={form.CUPO}
+            onChange={(valor) => actualizarCampo("CUPO", valor)}
+          />
+        </CampoContenedor>
+      </Rejilla>
+    </Seccion>
+  );
+
   /* Finanzas > Impuesto. Nada de esto se edita ni se guarda: todo se deduce de
      Entrega Retención, así que cambiarlo en Localización se refleja aquí al
      instante, también antes de guardar. */
@@ -2061,6 +2197,7 @@ function ClienteDetalle() {
   const renderContenidoTab = () => {
     if (tabActual.id === "general") return renderGeneral();
     if (tabActual.id === "direcciones") return renderDirecciones();
+    if (tabActual.id === "condiciones") return renderCondiciones();
     if (tabActual.id === "comentarios") return renderComentarios();
     if (tabActual.id === "cotizaciones") return renderCotizaciones();
 

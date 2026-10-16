@@ -605,6 +605,24 @@ export const getRutasMDM = async (empresa) => {
 };
 
 /**
+ * Condiciones de pago activas de una empresa (core.dim_codigo_condicion_pago).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{SERIAL: number, CODIGO: number, NOMBRE: string}>>}
+ */
+export const getCondicionesPagoMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/condiciones-pago/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCondicionesPagoMDM:", error);
+        throw error;
+    }
+};
+
+/**
  * Vendedores activos de una empresa (core.dim_vendedores, activos y de EasySales).
  * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
  * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
