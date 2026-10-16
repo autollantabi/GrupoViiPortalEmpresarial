@@ -2045,7 +2045,7 @@ function ClienteDetalle() {
      comprometido son el mismo valor (ic_cupo): al cambiar uno se cambia el otro. */
   const opcionesCondicion = (condicionesPago || []).map((c) => ({
     value: c.SERIAL,
-    label: `${c.CODIGO} - ${c.NOMBRE}`,
+    label: `${c.NOMBRE}`,
   }));
 
   /* Si la condición del cliente ya no está activa, se conserva visible */
@@ -2057,7 +2057,7 @@ function ClienteDetalle() {
   ) {
     opcionesCondicion.push({
       value: form.CONDICION_PAGO_SERIAL,
-      label: `${cliente.CONDICION_PAGO.CODIGO} - ${cliente.CONDICION_PAGO.NOMBRE} (inactiva)`,
+      label: `${cliente.CONDICION_PAGO.NOMBRE} (inactiva)`,
     });
   }
 
