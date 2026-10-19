@@ -869,6 +869,7 @@ function Lubricantes() {
                                 acea: it.ACEA || "",
                                 jaso: it.JASO || "",
                                 isoDin: it.ISO_DIN || "",
+                                pallets: it.PALLETS || "",
                                 presentacion: it.PRESENTACION || "",
                                 unidadesPallet: it.UNIDADES_POR_PALLET || "",
                                 unidadesCaja: it.UNIDADES_POR_CAJA || "",
@@ -1674,6 +1675,8 @@ function Lubricantes() {
                                                 ].map(({ key, label, role }) => {
                                                     const value = key === 'OUM'
                                                         ? (item.oum || item.OUM || item.uom || item.UOM)
+                                                        : key === 'pallets'
+                                                            ? (item.pallets ? (opcionesPallets.find(o => o.value == item.pallets)?.label || item.pallets) : '')
                                                         : key === 'proveedor'
                                                             ? (item.proveedor ? `${item.proveedor} - ${opcionesProveedores.find(o => o.value === item.proveedor)?.label || ''}` : '')
                                                             : item[key];
