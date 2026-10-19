@@ -1260,7 +1260,7 @@ function Herramientas() {
                 </div>
             </div>
 
-            <div style={{ flex: "1 1 auto", minHeight: "62vh", maxHeight: "80vh", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: "1 1 auto", minHeight: "78vh", maxHeight: "90vh", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <TextUI size="14px" weight="600">
                         Ítems de Herramientas ({itemsFiltrados.length})
