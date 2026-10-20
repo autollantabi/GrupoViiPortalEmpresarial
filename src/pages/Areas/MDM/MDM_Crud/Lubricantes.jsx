@@ -265,12 +265,77 @@ const esVisibleEasySales = (item) =>
         ? Boolean(item.visibleEasySales)
         : true;
 
-const calcularNombreSistemaFinal = (nombreBase, isNew = false) => {
-    if (!nombreBase) return "";
-    // Limpiamos cualquier "NEW " previo para evitar duplicaciones si se rellama la función
-    let baseLimpia = nombreBase.startsWith("NEW ") ? nombreBase.replace(/^NEW\s+/, "") : nombreBase;
-    return isNew ? `NEW ${baseLimpia}` : baseLimpia;
+const normalizarTexto = (texto) =>
+    String(texto ?? "").trim().normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+
+/* Código que se añade al final del código de proveedor según el país de origen. */
+const CODIGO_ORIGEN_LUB = {
+    "ESTADOS UNIDOS": "U859",
+    "ALEMANIA": "D236",
+    "TURQUIA": "T124",
+    "PERU": "E225",
 };
+
+/* Solo los ítems de origen Perú llevan este texto al final del nombre. */
+const SUFIJO_NOMBRE_ORIGEN_PERU = "PETK";
+
+const getCodigoOrigen = (origen) => CODIGO_ORIGEN_LUB[normalizarTexto(origen)] || "";
+
+/* {codigoProveedor}{codigoOrigen}. Si el código ya termina con el código de origen no se vuelve a añadir. */
+const construirCodigoProveedor = (codigoBase, origen) => {
+    const base = String(codigoBase ?? "").trim();
+    const sufijo = getCodigoOrigen(origen);
+    if (!base || !sufijo || base.toUpperCase().endsWith(sufijo)) return base;
+    return `${base}${sufijo}`;
+};
+
+/* Sufijo fijo del código de barras generado por Compras: queda pendiente de validar. */
+const SUFIJO_CODIGO_BARRAS_LUB = "_X_VALIDAR";
+
+/* Código de barras que arma Compras: {codigoProveedor con origen}_X_VALIDAR. Siempre lleva el sufijo. */
+const construirCodigoBarras = (codigoBase, origen) => {
+    const codigoProveedor = construirCodigoProveedor(codigoBase, origen);
+    if (!codigoProveedor) return "";
+    return codigoProveedor.toUpperCase().endsWith(SUFIJO_CODIGO_BARRAS_LUB)
+        ? codigoProveedor
+        : `${codigoProveedor}${SUFIJO_CODIGO_BARRAS_LUB}`;
+};
+
+/* Quita el código de origen del final, sea de cualquier país (se usa al cambiar el origen de un ítem). */
+const quitarCualquierSufijoOrigen = (codigo) => {
+    const valor = String(codigo ?? "").trim();
+    const sufijo = Object.values(CODIGO_ORIGEN_LUB).find(s => valor.length > s.length && valor.toUpperCase().endsWith(s));
+    return sufijo ? valor.slice(0, -sufijo.length) : valor;
+};
+
+/* Quita los "NEW " del inicio (aunque vengan repetidos) y el " PETK" del final, para poder
+   reconstruir el nombre sin duplicarlos. */
+const limpiarNombreBase = (nombre) =>
+    String(nombre ?? "")
+        .trim()
+        .replace(/^(NEW\s+)+/i, "")
+        .replace(/(\s+PETK)+$/i, "")
+        .trim();
+
+/* Nombre final del sistema: [NEW ]{nombre}[ PETK]. */
+const construirNombreSistema = (nombreBase, { nuevo = false, origen = "" } = {}) => {
+    const base = limpiarNombreBase(nombreBase);
+    if (!base) return "";
+    const conSufijo = normalizarTexto(origen) === "PERU" ? `${base} ${SUFIJO_NOMBRE_ORIGEN_PERU}` : base;
+    return nuevo ? `NEW ${conSufijo}` : conSufijo;
+};
+
+/* "Nuevo" por defecto es true en ítems nuevos; los que vuelven rechazados lo traen según su nombre guardado. */
+const esItemNuevo = (item) =>
+    item?.esNuevo !== undefined && item?.esNuevo !== null ? Boolean(item.esNuevo) : !item?.fueRechazado;
+
+/* El nombre del sistema se deriva siempre del nombre base + "Nuevo" + origen, así que cambia en el
+   acto al editar cualquiera de ellos. */
+const getNombreSistema = (item) =>
+    construirNombreSistema(
+        item?.nombreSistemaBase || item?.descripcionRol5 || item?.nombreLub || item?.descripcion || "",
+        { nuevo: esItemNuevo(item), origen: item?.origen }
+    );
 
 
 /* Pestañas de la sección "Sin aprobar / Aprobados" (mismo look que Llantas.jsx y Herramientas.jsx) */
@@ -548,7 +613,7 @@ function Lubricantes() {
                         id: Date.now() + Math.random(),
                         linea: lineaSeleccionada.value,
                         nombreLub: String(row.NOMBRE || "").trim().toUpperCase(),
-                        codigoProveedor: String(row.CODIGO_PROVEEDOR || "").trim().toUpperCase(),
+                        codigoProveedor: construirCodigoProveedor(String(row.CODIGO_PROVEEDOR || "").trim().toUpperCase(), origen),
                         codigoShell: String(row.CODIGO_SHELL || "").trim().toUpperCase(),
                         marca: String(row.MARCA || "").trim().toUpperCase(),
                         nombreExtranjero: String(row.NOMBRE_FORANEO || "").trim().toUpperCase(),
@@ -578,7 +643,8 @@ function Lubricantes() {
                     const itemWithParsed = {
                         ...it,
                         nombreSistemaBase: baseName,
-                        nombreSistema: calcularNombreSistemaFinal(baseName, true),
+                        esNuevo: true,
+                        nombreSistema: construirNombreSistema(baseName, { nuevo: true, origen: it.origen }),
                         parsedData: parsed
                     };
                     return itemWithParsed;
@@ -809,6 +875,10 @@ function Lubricantes() {
                                 }
                             }
 
+                            const nombreGuardado = it.NOMBRE || it.DESCRIPCION || "";
+                            const esNuevo = /^\s*NEW\s/i.test(nombreGuardado);
+                            const nombreBase = parsed["Posible Descripcion"] || nombreGuardado;
+
                             const itemWithBase = {
                                 ...it,
                                 id: it.ID,
@@ -819,8 +889,9 @@ function Lubricantes() {
                                 descripcionRol5: it.NOMBRE || it.DESCRIPCION || "",
                                 descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 parsedData: parsed,
-                                nombreSistemaBase: parsed["Posible Descripcion"] || it.NOMBRE || it.DESCRIPCION || "",
-                                nombreSistema: calcularNombreSistemaFinal(parsed["Posible Descripcion"] || it.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", false),
+                                esNuevo,
+                                nombreSistemaBase: nombreBase,
+                                nombreSistema: construirNombreSistema(nombreBase, { nuevo: esNuevo, origen: it.ORIGEN }),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
                                 proveedor: it.ID_PROVEEDOR || "",
                                 codigoShell: it.CODIGO_SHELL || "",
@@ -1115,10 +1186,11 @@ function Lubricantes() {
                         payloadsReenvio.push({
                             ID: item.id,
                             LINEA_NEGOCIO: lineaSeleccionada.value,
-                            NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
-                            CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            NOMBRE: getNombreSistema(item) || item.descripcionRol5 || item.descripcion || "",
+                            CODIGO_PROVEEDOR: construirCodigoProveedor(item.codigoProveedor, item.origen),
                             ID_PROVEEDOR: item.proveedor || "",
-                            CODIGO_SHELL: item.codigoProveedor || "",
+                            CODIGO_SHELL: construirCodigoProveedor(item.codigoProveedor, item.origen),
+                            CODIGO_BARRAS: construirCodigoBarras(item.codigoProveedor, item.origen),
                             MARCA: item.marca || "",
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
                             ESTRATEGIA: item.estrategia || "",
@@ -1135,10 +1207,11 @@ function Lubricantes() {
                         payloadsNuevos.push({
                             __localId: item.id,
                             LINEA_NEGOCIO: lineaSeleccionada.value,
-                            NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
-                            CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                            NOMBRE: getNombreSistema(item) || item.descripcionRol5 || item.descripcion || "",
+                            CODIGO_PROVEEDOR: construirCodigoProveedor(item.codigoProveedor, item.origen),
                             ID_PROVEEDOR: item.proveedor || "",
-                            CODIGO_SHELL: item.codigoProveedor || "",
+                            CODIGO_SHELL: construirCodigoProveedor(item.codigoProveedor, item.origen),
+                            CODIGO_BARRAS: construirCodigoBarras(item.codigoProveedor, item.origen),
                             MARCA: item.marca || "",
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
                             ESTRATEGIA: item.estrategia || "",
@@ -1343,15 +1416,13 @@ function Lubricantes() {
                     }
                 }
             } else if (action === "approve") {
+                // El código de barras ya lo genera Compras (rol 5) al crear el ítem; Comercial no lo completa.
                 const item = items.find(i => i.id === itemId);
-                if (!item || !item.codigo || item.codigo.trim() === "") {
-                    toast.error("Debe digitar el código de barras antes de aprobar el ítem.");
-                    return;
-                }
+                if (!item) return;
 
                 await patchItemRole3({
                     ID: itemId,
-                    CODIGO_BARRAS: item.codigo,
+                    ...(item.codigo && item.codigo.trim() !== "" ? { CODIGO_BARRAS: item.codigo } : {}),
                     LINEA_NEGOCIO: lineaSeleccionada.value,
                     FASE: 2
                 });
@@ -1395,6 +1466,15 @@ function Lubricantes() {
                 }
                 return it;
             }));
+            return;
+        }
+
+        // Al elegir el origen, el código de proveedor ya digitado se reemplaza directamente por
+        // {codigo}{codigoOrigen}; si antes tenía el código de otro país, se cambia por el nuevo.
+        if (idRolPrincipal === 5 && campo === "origen") {
+            setItems(prev => prev.map(it => it.id === id
+                ? { ...it, origen: val, codigoProveedor: construirCodigoProveedor(quitarCualquierSufijoOrigen(it.codigoProveedor), val) }
+                : it));
             return;
         }
 
@@ -1443,7 +1523,7 @@ function Lubricantes() {
                                     ...it,
                                     parsedData: parsed,
                                     nombreSistemaBase: parsedName,
-                                    nombreSistema: calcularNombreSistemaFinal(parsedName, !it.fueRechazado)
+                                    nombreSistema: construirNombreSistema(parsedName, { nuevo: esItemNuevo(it), origen: it.origen })
                                 };
                                 return baseItem;
                             }
@@ -1824,7 +1904,7 @@ function Lubricantes() {
                                             <>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de Barras</th>
 
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. SHELL</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "180px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Extranjero</th>
@@ -1868,18 +1948,20 @@ function Lubricantes() {
                                         {idRolPrincipal === 5 && (
                                             <>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, left: ANCHO_COL_SELECCION_LUB, zIndex: 11 }}>Nombre</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "180px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Extranjero</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de Barras</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Proveedor</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "180px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Extranjero</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "120px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Estrategia</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Origen</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Empaque</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Unidades</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Medida</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Del Sistema</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "120px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>OUM (Litros)</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "90px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nuevo</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Visible EasySales</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Del Sistema</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Comentarios</th>
                                             </>
                                         )}
@@ -1889,7 +1971,7 @@ function Lubricantes() {
                                 <tbody>
                                     {itemsFiltrados.length === 0 ? (
                                         <tr>
-                                            <td colSpan={idRolPrincipal === 5 ? 15 : idRolPrincipal === 3 ? 20 : idRolPrincipal === 4 ? 7 : idRolPrincipal === 1 ? 33 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                            <td colSpan={idRolPrincipal === 5 ? 18 : idRolPrincipal === 3 ? 20 : idRolPrincipal === 4 ? 7 : idRolPrincipal === 1 ? 33 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                 No hay ítems de Lubricantes
                                             </td>
                                         </tr>
@@ -2213,8 +2295,14 @@ function Lubricantes() {
                                                             <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "220px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} />
                                                         )}
                                                     </td>
-                                                    {/* Código Proveedor */}
-                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></td>
+                                                    {/* Nombre Extranjero */}
+                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></td>
+                                                    {/* Código Proveedor: al elegir el origen se le agrega directamente el código del país */}
+                                                    <td style={{ padding: "4px 8px" }}>
+                                                        <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} />
+                                                    </td>
+                                                    {/* Código de Barras: lo arma Compras a partir del código de proveedor + _X_VALIDAR (no editable) */}
+                                                    <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "150px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap" }} title={construirCodigoBarras(item.codigoProveedor, item.origen)}>{construirCodigoBarras(item.codigoProveedor, item.origen) || "-"}</div></td>
                                                     {/* Proveedor */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <SelectUI
@@ -2239,8 +2327,6 @@ function Lubricantes() {
                                                             isCreatable={true}
                                                         />
                                                     </td>
-                                                    {/* Nombre Foráneo */}
-                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></td>
                                                     {/* Estrategia */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <SelectUI
@@ -2275,11 +2361,16 @@ function Lubricantes() {
                                                             style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
                                                         />
                                                     </td>
-                                                    {/* Nombre del Sistema */}
-                                                    <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></td>
                                                     {/* oum */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.oum || item.OUM || item.uom || item.UOM || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "oum", handleDecimalInput(v))} />
+                                                    </td>
+                                                    {/* Nuevo: antepone "NEW" al nombre del sistema */}
+                                                    <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                                                        <CheckboxUI
+                                                            checked={esItemNuevo(item)}
+                                                            onChange={(_, checked) => actualizarCampoFila(item.id, "esNuevo", checked)}
+                                                        />
                                                     </td>
                                                     {/* Visible EasySales */}
                                                     <td style={{ padding: "4px 8px", textAlign: "center" }}>
@@ -2288,6 +2379,8 @@ function Lubricantes() {
                                                             onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                         />
                                                     </td>
+                                                    {/* Nombre del Sistema */}
+                                                    <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={getNombreSistema(item)}>{getNombreSistema(item) || "N/A"}</div></td>
                                                     {/* Comentarios */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }} value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} />
@@ -2337,11 +2430,11 @@ function Lubricantes() {
                                             const companyName = EMPRESA_LUBRICANTES;
                                             if (!grouped[companyName]) grouped[companyName] = [];
                                             grouped[companyName].push({
-                                                CODIGO_PROVEEDOR: item.codigoProveedor,
+                                                CODIGO_PROVEEDOR: construirCodigoProveedor(item.codigoProveedor, item.origen),
                                                 MARCA: item.marca,
                                                 LINEA_NEGOCIO: item.linea,
                                                 NOMBRE_EXTRANJERO: item.nombreExtranjero,
-                                                DESCRIPCION: item.nombreSistema,
+                                                DESCRIPCION: getNombreSistema(item),
                                             });
                                         });
                                         setGroupedItemsByCompany(grouped);
