@@ -212,19 +212,30 @@ const Etiqueta = styled.span`
         })};
 `;
 
-/* Palabra que se antepone al nombre según la marca (va después del "NEW " si aplica). */
-const PALABRA_POR_MARCA = { UYUSTOOLS: "UYUS", SATA: "SATA" };
-const PALABRAS_MARCA = Object.values(PALABRA_POR_MARCA);
+/* Abreviatura de la marca que se antepone al nombre (va después del "NEW " si aplica).
+   Las marcas disponibles vienen del servicio marca/proveedor/procedencia; una marca sin abreviatura
+   aquí queda sin prefijo de marca. Debe coincidir con utils/nombreHerramientas.ts del backend. */
+const ABREVIATURA_POR_MARCA = { UYUSTOOLS: "UY", SATA: "ST", DONGCHENG: "DC" };
+// Palabras de marca que pudieron escribirse completas (o venir del formato anterior) al inicio del nombre
+const PALABRAS_MARCA_COMPLETAS = ["UYUSTOOLS", "UYUS", "SATA", "DONGCHENG"];
 
-/* Nombre con el que se guarda el ítem (columna nombre) y con el que se crea en SAP:
-   [NEW ] + [UYUS | SATA según la marca] + nombre. Se limpian los prefijos "NEW " y de marca
-   que ya traiga el nombre para no duplicarlos al recalcular (cambio de nombre, marca o "es nuevo"). */
-const calcularNombreSistema = (nombreBase, isNew = false, marca = "") => {
+/* Nombre del sistema con el que se guarda el ítem (columna nombre) y con el que se crea en SAP:
+   [NEW ] + [abreviatura de la marca] + nombre. Se conserva lo que escribió el usuario y se corrige el
+   prefijo: se quitan el "NEW " y la abreviatura/nombre de marca que ya traiga al inicio y se vuelven a
+   poner según "es nuevo" y la marca. Ej.: NEW UY LLAVE 10MM, ST LLAVE 10MM, NEW DC TALADRO. */
+const limpiarNombreBase = (nombreBase, marca = "") => {
     if (!nombreBase) return "";
-    let limpio = String(nombreBase).trim().replace(/^NEW\s+/i, "");
-    limpio = limpio.replace(new RegExp("^(" + PALABRAS_MARCA.join("|") + ")\\s+", "i"), "").trim();
-    const palabra = PALABRA_POR_MARCA[String(marca || "").trim().toUpperCase()];
-    return `${isNew ? "NEW " : ""}${palabra ? `${palabra} ` : ""}${limpio}`;
+    const abreviatura = ABREVIATURA_POR_MARCA[String(marca || "").trim().toUpperCase()];
+    const quitar = [...PALABRAS_MARCA_COMPLETAS, ...(abreviatura ? [abreviatura] : [])];
+    const sinNew = String(nombreBase).trim().replace(/^NEW\s+/i, "");
+    return sinNew.replace(new RegExp("^(" + quitar.join("|") + ")\\s+", "i"), "").trim();
+};
+
+const calcularNombreSistema = (nombreBase, isNew = false, marca = "") => {
+    const limpio = limpiarNombreBase(nombreBase, marca);
+    if (!limpio) return "";
+    const abreviatura = ABREVIATURA_POR_MARCA[String(marca || "").trim().toUpperCase()];
+    return `${isNew ? "NEW " : ""}${abreviatura ? `${abreviatura} ` : ""}${limpio}`;
 };
 
 /* Interpreta la columna "Es nuevo" del Excel: admite SI/NO, TRUE/FALSE, 1/0 y X.
@@ -321,12 +332,6 @@ const OPTIONS_UNIDAD = [
     { value: "PCS", label: "PCS" },
 ];
 
-const OPTIONS_MARCA = [
-    { value: "UYUSTOOLS", label: "UYUSTOOLS" },
-    { value: "SATA", label: "SATA" }
-];
-
-
 /* ------------------------------------------------------------------ */
 /* Rol 3 (Supervisor/Técnico): fila memorizada y catálogo precalculado  */
 /* Escribir en una celda solo vuelve a dibujar SU fila (no toda la      */
@@ -398,7 +403,16 @@ const FilaTecnico = React.memo(function FilaTecnico({
                         onCampo(item.id, "nombreSistema", v);
                         onAutoguardar(item.id, { NOMBRE_SISTEMA: v.toUpperCase() }, 1000);
                     }}
-                    onBlur={() => onEnviarAutoguardado(item.id)}
+                    onBlur={() => {
+                        // Se conserva lo escrito pero se corrige el prefijo: [NEW ] + abreviatura de la marca
+                        const corregido = calcularNombreSistema(item.nombreSistema || item.nombre, esNuevo(item), item.marca);
+                        if (corregido && corregido !== item.nombreSistema) {
+                            onCampo(item.id, "nombreSistema", corregido);
+                            onAutoguardar(item.id, { NOMBRE_SISTEMA: corregido });
+                        } else {
+                            onEnviarAutoguardado(item.id);
+                        }
+                    }}
                     placeholder="Nombre para SAP..."
                 />
             </Td>
@@ -493,6 +507,20 @@ function Herramientas() {
     const EMPRESA_HERRAMIENTAS = "IKONIX";
 
     const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
+    // Marcas de IKONIX / HERRAMIENTAS desde core.dim_marca_proveedor_procedencia (administrables en esa tabla,
+    // solo las activas). Si el servicio no responde o no trae filas, se usan las marcas con abreviatura conocida.
+    const [marcaProveedorProcedencia, setMarcaProveedorProcedencia] = useState([]);
+    const opcionesMarca = useMemo(() => {
+        const delServicio = marcaProveedorProcedencia
+            .filter(f =>
+                f.DMPP_ACTIVO !== false &&
+                String(f.DMPP_EMPRESA || "").trim().toUpperCase() === EMPRESA_HERRAMIENTAS &&
+                String(f.DMPP_LINEA_NEGOCIO || "").trim().toUpperCase() === "HERRAMIENTAS")
+            .map(f => String(f.DMPP_MARCA || "").trim().toUpperCase())
+            .filter(Boolean);
+        const marcas = delServicio.length > 0 ? Array.from(new Set(delServicio)) : Object.keys(ABREVIATURA_POR_MARCA);
+        return marcas.map(m => ({ value: m, label: m }));
+    }, [marcaProveedorProcedencia]);
     const catalogoHerramientas = useMemo(() => construirCatalogoHerramientas(gruposHerramientasRaw), [gruposHerramientasRaw]);
     const [marcaProveedorProcedenciaRaw, setMarcaProveedorProcedenciaRaw] = useState([]);
 
@@ -978,7 +1006,7 @@ function Herramientas() {
                     SUBGRUPO1: item.subgrupo1 || "",
                     TIPO: item.tipo || "",
                     // Nombre con el que se crea en SAP; por defecto el que cargó Compras
-                    NOMBRE_SISTEMA: item.nombreSistema || item.nombre || "",
+                    NOMBRE_SISTEMA: calcularNombreSistema(item.nombreSistema || item.nombre || "", esNuevo(item), item.marca),
                     FASE: 2,
                     OBSERVACIONES: item.comentarios || "",
                     ...(item.fueRechazado && { RECHAZO: false })
@@ -1284,7 +1312,8 @@ function Herramientas() {
 
                 // El nombre final deriva del nombre, de la bandera "es nuevo" y de la marca
                 if (campo === "nombre" || campo === "isNew" || campo === "marca") {
-                    const base = campo === "nombre" ? val : it.nombre;
+                    // Al cambiar de marca, el nombre se limpia primero con la marca anterior para no dejar su abreviatura
+                    const base = campo === "nombre" ? val : (campo === "marca" ? limpiarNombreBase(it.nombre, it.marca) : it.nombre);
                     const nuevo = campo === "isNew" ? Boolean(val) : esNuevo(it);
                     const marca = campo === "marca" ? val : it.marca;
                     return { ...it, [campo]: val, nombrePrefijado: calcularNombreSistema(base, nuevo, marca) };
@@ -1717,7 +1746,7 @@ function Herramientas() {
                                                 <Th $min="150px">Codigo de Barra Caja Madre</Th>
                                                 <Th $min="150px">Codigo de Barra Caja Hija</Th>
                                                 <Th $min="160px">Partida Arancelaria</Th>
-                                                <Th $min="280px">Nombre (con NEW)</Th>
+                                                <Th $min="280px">Nombre Del Sistema</Th>
                                                 <Th $align="center" $w="90px">Es nuevo</Th>
                                                 <Th $align="center" $w="140px">Visible EasySales</Th>
                                                 <Th $min="200px">Comentarios</Th>
@@ -1787,7 +1816,7 @@ function Herramientas() {
                                                 {idRolPrincipal === 5 && (
                                                     <>
                                                         <Td>
-                                                            <SelectUI options={OPTIONS_MARCA} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} isCreatable={true} />
+                                                            <SelectUI options={opcionesMarca} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} />
                                                         </Td>
                                                         <Td $fija="left" $offset={ANCHO_COL_SELECCION} $w={ANCHO_COL_NOMBRE}><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></Td>
                                                         <Td><InputUI value={item.nombreExt || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExt", v)} /></Td>
