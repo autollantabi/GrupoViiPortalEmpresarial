@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useTheme } from "context/ThemeContext";
 import { useAuthContext } from "context/authContext";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
@@ -10,7 +10,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposHerramientas, syncItemsToSap, getSapRequestItem, getMarcaProveedorProcedencia } from "services/mdmService";
+import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, autoguardarItemMDM, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposHerramientas, syncItemsToSap, getSapRequestItem, getMarcaProveedorProcedencia } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
@@ -327,6 +327,150 @@ const OPTIONS_MARCA = [
 ];
 
 
+/* ------------------------------------------------------------------ */
+/* Rol 3 (Supervisor/Técnico): fila memorizada y catálogo precalculado  */
+/* Escribir en una celda solo vuelve a dibujar SU fila (no toda la      */
+/* tabla) y las opciones de los desplegables ya no se recalculan        */
+/* filtrando el catálogo completo en cada tecla.                        */
+/* ------------------------------------------------------------------ */
+
+const SEP_CATALOGO = "\u0001";
+
+/* Catálogo Grupo > Subgrupo > Subgrupo 1 > Tipo indexado para consultar sus opciones sin filtrar. */
+const construirCatalogoHerramientas = (filas = []) => {
+    const grupos = new Set();
+    const porGrupo = new Map();
+    const porSubgrupo = new Map();
+    const porSubgrupo1 = new Map();
+    const agregar = (mapa, clave, valor) => {
+        if (!valor) return;
+        if (!mapa.has(clave)) mapa.set(clave, new Set());
+        mapa.get(clave).add(valor);
+    };
+    (Array.isArray(filas) ? filas : []).forEach(f => {
+        if (f.DMH_GRUPO) grupos.add(f.DMH_GRUPO);
+        agregar(porGrupo, f.DMH_GRUPO, f.DMH_SUBGRUPO);
+        agregar(porSubgrupo, `${f.DMH_GRUPO}${SEP_CATALOGO}${f.DMH_SUBGRUPO}`, f.DMH_SUBGRUPO1);
+        agregar(porSubgrupo1, `${f.DMH_GRUPO}${SEP_CATALOGO}${f.DMH_SUBGRUPO}${SEP_CATALOGO}${f.DMH_SUBGRUPO1}`, f.DMH_TIPO);
+    });
+    const aOpciones = (set) => Array.from(set || []).map(k => ({ value: k, label: k }));
+    return {
+        grupos: aOpciones(grupos),
+        subgrupos: (g) => aOpciones(porGrupo.get(g)),
+        subgrupos1: (g, s) => aOpciones(porSubgrupo.get(`${g}${SEP_CATALOGO}${s}`)),
+        tipos: (g, s, s1) => aOpciones(porSubgrupo1.get(`${g}${SEP_CATALOGO}${s}${SEP_CATALOGO}${s1}`)),
+    };
+};
+
+const ESTILO_SELECT_TECNICO = { height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" };
+const propsSelectTecnico = {
+    minWidth: "140px",
+    isCreatable: true,
+    placeholder: "Seleccione o escriba",
+    formatCreateLabel: (texto) => `Usar "${texto}"`,
+    style: ESTILO_SELECT_TECNICO,
+};
+
+const FilaTecnico = React.memo(function FilaTecnico({
+    item, idx, seleccionado, catalogo, theme,
+    onCampo, onAutoguardar, onEnviarAutoguardado, onToggle, onVerMotivo,
+}) {
+    const opcionesSubgrupo = useMemo(() => catalogo.subgrupos(item.grupo), [catalogo, item.grupo]);
+    const opcionesSubgrupo1 = useMemo(() => catalogo.subgrupos1(item.grupo, item.subgrupo), [catalogo, item.grupo, item.subgrupo]);
+    const opcionesTipo = useMemo(() => catalogo.tipos(item.grupo, item.subgrupo, item.subgrupo1), [catalogo, item.grupo, item.subgrupo, item.subgrupo1]);
+    const valorSelect = (v) => (v ? { value: v, label: v } : null);
+    const mayus = (v) => (v?.value || "").toUpperCase();
+
+    return (
+        <Fila $par={idx % 2 === 0} $sel={seleccionado}>
+            <Td $densa $align="center" $fija="left" $w={ANCHO_COL_SELECCION}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <NumeroFila>{idx + 1}</NumeroFila>
+                    <CheckboxUI checked={seleccionado} onChange={(e, checked) => onToggle(item.id, checked)} />
+                </div>
+            </Td>
+            <Td><TextUI size="13px">{item.codigoProveedor || "-"}</TextUI></Td>
+            <Td><TextUI size="13px">{item.nombre || "-"}</TextUI></Td>
+            <Td>
+                <InputUI
+                    value={item.nombreSistema || ""}
+                    onChange={(v) => {
+                        onCampo(item.id, "nombreSistema", v);
+                        onAutoguardar(item.id, { NOMBRE_SISTEMA: v.toUpperCase() }, 1000);
+                    }}
+                    onBlur={() => onEnviarAutoguardado(item.id)}
+                    placeholder="Nombre para SAP..."
+                />
+            </Td>
+            <Td>
+                <SelectUI
+                    options={catalogo.grupos}
+                    value={valorSelect(item.grupo)}
+                    onChange={(v) => {
+                        onCampo(item.id, "grupo", v?.value || "");
+                        onCampo(item.id, "subgrupo", "");
+                        onCampo(item.id, "subgrupo1", "");
+                        onCampo(item.id, "tipo", "");
+                        onAutoguardar(item.id, { GRUPO: mayus(v), SUBGRUPO: "", SUBGRUPO1: "", TIPO: "" });
+                    }}
+                    {...propsSelectTecnico}
+                />
+            </Td>
+            <Td>
+                <SelectUI
+                    options={opcionesSubgrupo}
+                    value={valorSelect(item.subgrupo)}
+                    onChange={(v) => {
+                        onCampo(item.id, "subgrupo", v?.value || "");
+                        onCampo(item.id, "subgrupo1", "");
+                        onCampo(item.id, "tipo", "");
+                        onAutoguardar(item.id, { SUBGRUPO: mayus(v), SUBGRUPO1: "", TIPO: "" });
+                    }}
+                    {...propsSelectTecnico}
+                />
+            </Td>
+            <Td>
+                <SelectUI
+                    options={opcionesSubgrupo1}
+                    value={valorSelect(item.subgrupo1)}
+                    onChange={(v) => {
+                        onCampo(item.id, "subgrupo1", v?.value || "");
+                        onCampo(item.id, "tipo", "");
+                        onAutoguardar(item.id, { SUBGRUPO1: mayus(v), TIPO: "" });
+                    }}
+                    {...propsSelectTecnico}
+                />
+            </Td>
+            <Td>
+                <SelectUI
+                    options={opcionesTipo}
+                    value={valorSelect(item.tipo)}
+                    onChange={(v) => {
+                        onCampo(item.id, "tipo", v?.value || "");
+                        onAutoguardar(item.id, { TIPO: mayus(v) });
+                    }}
+                    {...propsSelectTecnico}
+                />
+            </Td>
+            <Td>
+                <InputUI value={item.comentarios || ""} onChange={(v) => onCampo(item.id, "comentarios", v)} placeholder="Comentarios..." />
+            </Td>
+            <Td $align="center">
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <ButtonUI
+                        text="Motivo de rechazo"
+                        variant="outlined"
+                        pcolor={theme?.colors?.warning || "#ffc107"}
+                        style={{ padding: "4px 8px", fontSize: "11px", minWidth: "auto" }}
+                        disabled={!item.motivoRechazo}
+                        onClick={() => onVerMotivo(item.motivoRechazo)}
+                    />
+                </div>
+            </Td>
+        </Fila>
+    );
+});
+
 function Herramientas() {
     const { theme } = useTheme();
     const { user } = useAuthContext();
@@ -349,6 +493,7 @@ function Herramientas() {
     const EMPRESA_HERRAMIENTAS = "IKONIX";
 
     const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
+    const catalogoHerramientas = useMemo(() => construirCatalogoHerramientas(gruposHerramientasRaw), [gruposHerramientasRaw]);
     const [marcaProveedorProcedenciaRaw, setMarcaProveedorProcedenciaRaw] = useState([]);
 
     // El "id" real de un proveedor es su código de socio de negocio (DMPP_ID_PROVEEDOR,
@@ -512,9 +657,9 @@ function Herramientas() {
             visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
             // Nombre tal como lo guarda Compras (con el prefijo "NEW " si es nuevo)
             nombrePrefijado: it.NOMBRE || "",
-            // Nombre que revisa el Técnico: parte del nombre vigente (el de Compras o el ya aprobado por el
-            // Técnico; al avanzar de fase el backend copia nombre_sistema a nombre, así que coinciden)
-            nombreSistema: it.NOMBRE || "",
+            // Nombre que revisa el Técnico: su borrador autoguardado (nombre_sistema) y, si aún no hay, el
+            // nombre vigente. Si Compras corrige y reenvía, el backend borra el borrador y vale el de Compras.
+            nombreSistema: it.NOMBRE_SISTEMA || it.NOMBRE || "",
             descripcion: it.DESCRIPCION || "",
             unidad: it.UNIDAD || "",
             unidadPaquete: it.UNIDAD_PAQUETE || "",
@@ -838,6 +983,11 @@ function Herramientas() {
                     OBSERVACIONES: item.comentarios || "",
                     ...(item.fueRechazado && { RECHAZO: false })
                 }));
+                // El envío ya lleva todos los campos: se descartan los autoguardados que estén por salir
+                currentItems.forEach(item => {
+                    clearTimeout(autoguardadoPendiente.current.get(item.id)?.timer);
+                    autoguardadoPendiente.current.delete(item.id);
+                });
                 const response = await patchItemsRole3Bulk(payloads);
                 const errores = response?.errors || [];
                 erroresCount = errores.length;
@@ -1079,7 +1229,52 @@ function Herramientas() {
         return v;
     };
 
-    const actualizarCampoFila = (id, campo, valor) => {
+    /* Autoguardado silencioso del rol 3 (Supervisor/Técnico): va dejando en la BD el estado de la revisión de
+       cada ítem sin esperar a "Enviar a revisión". `campos` se acumulan por ítem y se envían juntos:
+       los desplegables guardan al instante y el nombre del sistema al dejar de escribir (esperaMs) o al salir
+       del campo (enviarAutoguardado). Sin mensajes ni respuesta: ver autoguardarItemMDM. */
+    const autoguardadoPendiente = useRef(new Map());
+
+    const enviarAutoguardado = useCallback((id) => {
+        const pendiente = autoguardadoPendiente.current.get(id);
+        if (!pendiente) return;
+        clearTimeout(pendiente.timer);
+        autoguardadoPendiente.current.delete(id);
+        autoguardarItemMDM("HERRAMIENTAS", id, pendiente.campos);
+    }, []);
+
+    const programarAutoguardado = useCallback((id, campos, esperaMs = 0) => {
+        if (idRolPrincipal !== 3) return;
+        const previo = autoguardadoPendiente.current.get(id);
+        if (previo) clearTimeout(previo.timer);
+        autoguardadoPendiente.current.set(id, {
+            campos: { ...(previo?.campos || {}), ...campos },
+            timer: esperaMs > 0 ? setTimeout(() => enviarAutoguardado(id), esperaMs) : null,
+        });
+        if (esperaMs <= 0) enviarAutoguardado(id);
+    }, [idRolPrincipal, enviarAutoguardado]);
+
+    const alternarSeleccion = useCallback((id, marcado) => {
+        setSelectedItemIds(prev => {
+            const siguiente = new Set(prev);
+            if (marcado) siguiente.add(id);
+            else siguiente.delete(id);
+            return siguiente;
+        });
+    }, []);
+
+    const verMotivoRechazo = useCallback((motivo) => {
+        setSelectedRejectionReason(motivo);
+        setIsViewReasonModalOpen(true);
+    }, []);
+
+    // Al salir de la pantalla no se pierde lo que se estaba escribiendo
+    useEffect(() => () => {
+        Array.from(autoguardadoPendiente.current.keys()).forEach(enviarAutoguardado);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const actualizarCampoFila = useCallback((id, campo, valor) => {
         setItems(prev => prev.map(it => {
             if (it.id === id) {
                 let val = valor;
@@ -1115,7 +1310,7 @@ function Herramientas() {
             }
             return it;
         }));
-    };
+    }, []);
 
     const handleDownloadTemplate = () => {
         // Mismo orden que las columnas de la tabla del rol 5
@@ -1562,7 +1757,21 @@ function Herramientas() {
                                             </Td>
                                         </tr>
                                     ) : (
-                                        itemsFiltrados.map((item, idx) => (
+                                        itemsFiltrados.map((item, idx) => idRolPrincipal === 3 ? (
+                                            <FilaTecnico
+                                                key={item.id}
+                                                item={item}
+                                                idx={idx}
+                                                seleccionado={selectedItemIds.has(item.id)}
+                                                catalogo={catalogoHerramientas}
+                                                theme={theme}
+                                                onCampo={actualizarCampoFila}
+                                                onAutoguardar={programarAutoguardado}
+                                                onEnviarAutoguardado={enviarAutoguardado}
+                                                onToggle={alternarSeleccion}
+                                                onVerMotivo={verMotivoRechazo}
+                                            />
+                                        ) : (
                                             <Fila key={item.id} $par={idx % 2 === 0} $sel={selectedItemIds.has(item.id)}>
                                                 <Td $densa $align="center" $fija="left" $w={ANCHO_COL_SELECCION}>
                                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
@@ -1799,88 +2008,6 @@ function Herramientas() {
                                                         </Td>
                                                         <Td $densa>
                                                             <InputUI style={{ height: "40px", fontSize: "12px", minHeight: "40px", textTransform: "uppercase", minWidth: "180px", width: "100%" }} value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Escriba comentarios si es necesario..." />
-                                                        </Td>
-                                                        <Td $align="center">
-                                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                                                <ButtonUI
-                                                                    text="Motivo de rechazo"
-                                                                    variant="outlined"
-                                                                    pcolor={theme?.colors?.warning || "#ffc107"}
-                                                                    style={{ padding: "4px 8px", fontSize: "11px", minWidth: "auto" }}
-                                                                    disabled={!item.motivoRechazo}
-                                                                    onClick={() => {
-                                                                        setSelectedRejectionReason(item.motivoRechazo);
-                                                                        setIsViewReasonModalOpen(true);
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        </Td>
-                                                    </>
-                                                )}
-                                                {idRolPrincipal === 3 && (
-                                                    <>
-                                                        <Td>
-                                                            <TextUI size="13px">{item.codigoProveedor || "-"}</TextUI>
-                                                        </Td>
-                                                        <Td>
-                                                            <TextUI size="13px">{item.nombre || "-"}</TextUI>
-                                                        </Td>
-                                                        <Td>
-                                                            <InputUI value={item.nombreSistema || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreSistema", v)} placeholder="Nombre para SAP..." />
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={Array.from(new Set(gruposHerramientasRaw.map(g => g.DMH_GRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
-                                                                value={item.grupo ? { value: item.grupo, label: item.grupo } : null}
-                                                                onChange={(v) => {
-                                                                    actualizarCampoFila(item.id, "grupo", v?.value || "");
-                                                                    actualizarCampoFila(item.id, "subgrupo", "");
-                                                                    actualizarCampoFila(item.id, "subgrupo1", "");
-                                                                    actualizarCampoFila(item.id, "tipo", "");
-                                                                }}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo).map(g => g.DMH_SUBGRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
-                                                                value={item.subgrupo ? { value: item.subgrupo, label: item.subgrupo } : null}
-                                                                onChange={(v) => {
-                                                                    actualizarCampoFila(item.id, "subgrupo", v?.value || "");
-                                                                    actualizarCampoFila(item.id, "subgrupo1", "");
-                                                                    actualizarCampoFila(item.id, "tipo", "");
-                                                                }}
-                                                                disabled={!item.grupo}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo && g.DMH_SUBGRUPO === item.subgrupo).map(g => g.DMH_SUBGRUPO1))).filter(Boolean).map(k => ({ value: k, label: k }))}
-                                                                value={item.subgrupo1 ? { value: item.subgrupo1, label: item.subgrupo1 } : null}
-                                                                onChange={(v) => {
-                                                                    actualizarCampoFila(item.id, "subgrupo1", v?.value || "");
-                                                                    actualizarCampoFila(item.id, "tipo", "");
-                                                                }}
-                                                                disabled={!item.grupo || !item.subgrupo}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo && g.DMH_SUBGRUPO === item.subgrupo && g.DMH_SUBGRUPO1 === item.subgrupo1).map(g => g.DMH_TIPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
-                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value || "")}
-                                                                disabled={!item.grupo || !item.subgrupo || !item.subgrupo1}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
                                                         </Td>
                                                         <Td $align="center">
                                                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>

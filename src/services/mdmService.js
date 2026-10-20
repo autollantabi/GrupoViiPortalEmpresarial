@@ -94,6 +94,21 @@ export const patchItemRole3 = async (item) => {
 };
 
 /**
+ * Autoguardado silencioso de campos sueltos de un ítem mientras el rol los va completando (ej. el
+ * Técnico de Herramientas): solo escribe los campos indicados. No avanza de fase ni notifica, y no
+ * devuelve respuesta ni muestra mensajes: si falla se ignora, y el siguiente cambio (o el envío a
+ * revisión, que manda todos los campos) lo vuelve a intentar.
+ * @param {string} lineaNegocio - Ej. "HERRAMIENTAS"
+ * @param {number} itemId - ID del ítem
+ * @param {Object} campos - Campos en formato del backend, ej. { GRUPO: "X", SUBGRUPO: "" }
+ */
+export const autoguardarItemMDM = (lineaNegocio, itemId, campos) => {
+    axiosInstanceNew
+        .patch("/mdm/items", { ID: itemId, LINEA_NEGOCIO: lineaNegocio, ...campos })
+        .catch((error) => console.debug("Autoguardado MDM no realizado:", error?.message));
+};
+
+/**
  * Actualiza varios ítems en un solo request (avance de fase / reenvío tras rechazo).
  * El backend agrupa los ítems que avanzan a la misma fase (y los reenviados tras
  * rechazo) y envía UNA sola notificación por grupo listando todos sus ítems, en vez de
