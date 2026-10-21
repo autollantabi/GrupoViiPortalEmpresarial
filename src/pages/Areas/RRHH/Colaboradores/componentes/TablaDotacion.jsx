@@ -77,7 +77,15 @@ const TablaAdaptable = styled(Tabla)`
  * Los renglones "Baja" nunca tienen acciones, esté impresa o no: son un renglón
  * cerrado, reemplazado por el que vino después.
  */
-export const TablaDotacion = ({ asignacion, onMarcar, onQuitar, ocupado, bloqueado, gruposMonetarios }) => {
+export const TablaDotacion = ({
+  asignacion,
+  onMarcar,
+  onQuitar,
+  onReemplazar,
+  ocupado,
+  bloqueado,
+  gruposMonetarios,
+}) => {
   const { theme } = useTheme();
 
   if (!asignacion?.grupos?.length) return null;
@@ -164,30 +172,51 @@ export const TablaDotacion = ({ asignacion, onMarcar, onQuitar, ocupado, bloquea
                     <Td data-etiqueta="Acciones">
                       {deBaja ? (
                         <TextoTenue>—</TextoTenue>
-                      ) : bloqueado ? (
-                        <TextoTenue title="Acta impresa: ya no se puede editar este renglón.">
-                          Acta impresa
-                        </TextoTenue>
                       ) : (
                         <Acciones>
-                          <ButtonUI
-                            text={item.estado === ESTADO_ENTREGA.ENTREGADO ? "Editar" : "Entregar"}
-                            iconLeft={
-                              item.estado === ESTADO_ENTREGA.ENTREGADO ? "FaPenToSquare" : "FaCheck"
-                            }
-                            variant="outlined"
-                            disabled={ocupado}
-                            onClick={() => onMarcar?.(item)}
-                          />
-                          <ButtonUI
-                            text=""
-                            iconLeft="FaTrashCan"
-                            variant="ghost"
-                            pcolor={theme?.colors?.error}
-                            disabled={ocupado}
-                            title="Quitar de la dotación"
-                            onClick={() => onQuitar?.(item)}
-                          />
+                          {bloqueado ? (
+                            item.estado !== ESTADO_ENTREGA.ENTREGADO && (
+                              <TextoTenue title="Acta impresa: ya no se puede editar este renglón.">
+                                Acta impresa
+                              </TextoTenue>
+                            )
+                          ) : (
+                            <>
+                              <ButtonUI
+                                text={item.estado === ESTADO_ENTREGA.ENTREGADO ? "Editar" : "Entregar"}
+                                iconLeft={
+                                  item.estado === ESTADO_ENTREGA.ENTREGADO ? "FaPenToSquare" : "FaCheck"
+                                }
+                                variant="outlined"
+                                disabled={ocupado}
+                                onClick={() => onMarcar?.(item)}
+                              />
+                              <ButtonUI
+                                text=""
+                                iconLeft="FaTrashCan"
+                                variant="ghost"
+                                pcolor={theme?.colors?.error}
+                                disabled={ocupado}
+                                title="Quitar de la dotación"
+                                onClick={() => onQuitar?.(item)}
+                              />
+                            </>
+                          )}
+                          {/* Disponible incluso con el acta impresa: es la UNICA
+                              escritura permitida sobre una asignación bloqueada
+                              (ver assertNoImpresa() en el backend). item.itemId
+                              nulo significa que el artículo ya no está en el
+                              catálogo, y sin él no hay de qué tipo crear el
+                              reemplazo. */}
+                          {item.estado === ESTADO_ENTREGA.ENTREGADO && item.itemId !== null && (
+                            <ButtonUI
+                              text="Reemplazar"
+                              iconLeft="FaRotate"
+                              variant="outlined"
+                              disabled={ocupado}
+                              onClick={() => onReemplazar?.(item)}
+                            />
+                          )}
                         </Acciones>
                       )}
                     </Td>

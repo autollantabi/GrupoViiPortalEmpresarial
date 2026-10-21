@@ -341,6 +341,12 @@ export const SelectorArticulos = ({
                                 typeof document !== "undefined" ? document.body : undefined
                               }
                             />
+                            <InputUI
+                              value={datos.comentarioBaja ?? ""}
+                              onChange={(valor) => onCambiar(item, { comentarioBaja: valor })}
+                              placeholder="Comentario (opcional): por qué se repone…"
+                              maxLength={500}
+                            />
                           </PanelVigente>
                         )}
                       </FilaItem>

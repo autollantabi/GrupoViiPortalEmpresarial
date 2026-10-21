@@ -714,49 +714,74 @@ export const ListarNotificacionesAsignacion = async (asignacionId, { signal } = 
 };
 
 /**
- * Abre el acta de entrega en una pestaña nueva, en el visor de PDF del navegador.
+ * Descarga el acta y arma un object URL para mostrarla en un <iframe>, dentro
+ * de un modal de la misma pantalla (ver ModalVerActa.jsx y `abrirActa()` en
+ * ColDotacion.jsx).
  *
- * NO es un `window.open(url)` directo al backend: esa ruta exige la cabecera
- * id-session que pone axiosInstanceNew (no hay cookie de sesión), y un enlace
- * directo no la manda — el mismo motivo por el que DescargarArchivoDocumento va
- * por blob. La diferencia con esa función es que acá NO se fuerza la descarga
- * (el backend ya manda Content-Disposition: inline): se abre el object URL en
- * una pestaña para que se vea en el visor, no que se baje un archivo.
+ * NO es un `<a href>`/`window.open` directo al backend: esa ruta exige la
+ * cabecera id-session que pone axiosInstanceNew (no hay cookie de sesión), y
+ * un enlace directo no la manda — el mismo motivo por el que
+ * DescargarArchivoDocumento va por blob.
  *
- * El object URL se revoca a los 60s y no de inmediato: hay que darle tiempo a la
- * pestaña nueva a terminar de cargar el PDF antes de invalidarlo.
- *
- * La pestaña se abre EN BLANCO como primera instrucción, antes de cualquier
- * `await`: si se abriera recién con la URL del blob, ya lista, el navegador
- * la bloquearía como pop-up (Chrome/Firefox solo permiten window.open() sin
- * bloqueo dentro del mismo tick sincrónico del gesto del usuario que originó
- * el click; tras un `await` a la respuesta del backend ese contexto ya se
- * perdió). Acá se abre primero y solo se le asigna la URL cuando está lista.
+ * Quien llama es responsable de revocar el object URL con
+ * `window.URL.revokeObjectURL(url)` cuando cierra el modal: acá no se revoca
+ * solo porque, a diferencia de la pestaña nueva de antes, el iframe sigue
+ * usando esa URL mientras el modal esté abierto.
  */
-export const AbrirActaAsignacion = async (asignacionId) => {
-  const ventana = window.open("", "_blank");
+export const ObtenerUrlActaAsignacion = async (asignacionId) => {
   try {
     const respuesta = await axiosInstanceNew.get(
       `${DOTACION}/asignaciones/${asignacionId}/acta`,
       { responseType: "blob" },
     );
     const blob = new Blob([respuesta.data], { type: "application/pdf" });
-    const url = window.URL.createObjectURL(blob);
-    if (ventana) {
-      ventana.location.href = url;
-    } else {
-      // El navegador igual bloqueó la apertura en blanco (poco común, pero
-      // posible con configuraciones muy estrictas): se intenta una vez más
-      // ya con la URL final, que al menos algunos navegadores sí permiten.
-      window.open(url, "_blank");
-    }
-    setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    return window.URL.createObjectURL(blob);
   } catch (error) {
-    ventana?.close();
     // Con responseType blob, el JSON de error también llega como blob (ver
     // leerErrorBlob más abajo: mismo problema que en DescargarArchivoDocumento).
     const mensaje = await leerErrorBlob(error);
     throw new Error(mensaje || "No se pudo abrir el acta");
+  }
+};
+
+/**
+ * Acta histórica: la MISMA dotación, pero con su estado de HOY (si algún
+ * artículo se dio de baja después de imprimirla, acá ya sale así). A
+ * diferencia de ObtenerUrlActaAsignacion, nunca sirve bytes guardados: se
+ * genera de nuevo cada vez, por eso funciona incluso si la dotación nunca se
+ * llegó a imprimir.
+ */
+export const ObtenerUrlActaHistorica = async (asignacionId) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(
+      `${DOTACION}/asignaciones/${asignacionId}/acta-historica`,
+      { responseType: "blob" },
+    );
+    const blob = new Blob([respuesta.data], { type: "application/pdf" });
+    return window.URL.createObjectURL(blob);
+  } catch (error) {
+    const mensaje = await leerErrorBlob(error);
+    throw new Error(mensaje || "No se pudo abrir el acta histórica");
+  }
+};
+
+/**
+ * Acta completa: el estado acumulado de TODAS las dotaciones del colaborador
+ * (lo vigente de cada una, más una sección única de bajas de toda su
+ * historia). `asignacionActualId` es opcional: si se manda, los artículos de
+ * esa dotación salen marcados "(nueva)".
+ */
+export const ObtenerUrlActaCompleta = async (empleadoId, asignacionActualId) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${DOTACION}/empleados/${empleadoId}/acta-completa`, {
+      params: asignacionActualId ? { asignacionActualId } : undefined,
+      responseType: "blob",
+    });
+    const blob = new Blob([respuesta.data], { type: "application/pdf" });
+    return window.URL.createObjectURL(blob);
+  } catch (error) {
+    const mensaje = await leerErrorBlob(error);
+    throw new Error(mensaje || "No se pudo abrir el acta completa");
   }
 };
 

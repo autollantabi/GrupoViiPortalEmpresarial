@@ -8,7 +8,6 @@ import { ModalConfirmacionUI } from "components/UI/Components/ModalConfirmacionU
 import { useTheme } from "context/ThemeContext";
 import { ObtenerColaborador } from "services/colaboradoresService";
 import {
-  AbrirActaAsignacion,
   AgregarItemsAsignacion,
   CrearAsignacionDotacion,
   EntregarTodoAsignacion,
@@ -17,6 +16,9 @@ import {
   MarcarItemAsignacion,
   NotificarAsignacion,
   ObtenerDotacionEmpleado,
+  ObtenerUrlActaAsignacion,
+  ObtenerUrlActaCompleta,
+  ObtenerUrlActaHistorica,
   QuitarItemAsignacion,
 } from "services/dotacionService";
 import { CabeceraFicha } from "../componentes/CabeceraFicha";
@@ -24,6 +26,8 @@ import { SelectorArticulos } from "../componentes/SelectorArticulos";
 import { HistorialNotificaciones } from "../componentes/HistorialNotificaciones";
 import { ModalEntregarItem } from "../componentes/ModalEntregarItem";
 import { ModalNuevaComplementaria } from "../componentes/ModalNuevaComplementaria";
+import { ModalReemplazarItem } from "../componentes/ModalReemplazarItem";
+import { ModalVerActa } from "../componentes/ModalVerActa";
 import { PestanasFicha } from "../componentes/PestanasFicha";
 import { SeccionCartera } from "../componentes/SeccionCartera";
 import { ProgresoDotacion, TablaDotacion } from "../componentes/TablaDotacion";
@@ -68,6 +72,12 @@ export const ColDotacion = () => {
   const [nuevaComplementariaAbierta, setNuevaComplementariaAbierta] = useState(false);
   /** Id de la asignación para la que se está confirmando "Generar e imprimir acta". */
   const [confirmarActaId, setConfirmarActaId] = useState(null);
+  /** Object URL del PDF que se muestra en ModalVerActa; null = modal cerrado. */
+  const [actaUrl, setActaUrl] = useState(null);
+  const [actaTitulo, setActaTitulo] = useState("Acta de entrega");
+  /** Artículo Entregado que se está reemplazando desde la tabla, y la asignación dueña. */
+  const [aReemplazar, setAReemplazar] = useState(null);
+  const [asignacionDeReemplazo, setAsignacionDeReemplazo] = useState(null);
   /**
    * Los artículos marcados, POR ASIGNACIÓN.
    *
@@ -189,6 +199,7 @@ export const ColDotacion = () => {
     entregas: [],
     motivoBajaId: null,
     reemplazaItemId: null,
+    comentarioBaja: null,
   });
 
   const alternarItem = (asignacionId, item) =>
@@ -240,7 +251,11 @@ export const ColDotacion = () => {
       itemId,
       cantidad: datos.cantidad,
       ...(datos.reemplazaItemId
-        ? { reemplazaItemId: datos.reemplazaItemId, motivoBajaId: datos.motivoBajaId }
+        ? {
+            reemplazaItemId: datos.reemplazaItemId,
+            motivoBajaId: datos.motivoBajaId,
+            comentarioBaja: datos.comentarioBaja?.trim() || null,
+          }
         : {}),
     }));
 
@@ -254,7 +269,59 @@ export const ColDotacion = () => {
     );
   };
 
-  const abrirActa = (asignacionId) => ejecutar(() => AbrirActaAsignacion(asignacionId));
+  /**
+   * Muestra un acta en ModalVerActa en vez de abrirla en una pestaña nueva.
+   *
+   * No usa `ejecutar()`: esa función recarga toda la ficha al terminar, y acá
+   * solo hace falta mostrar un PDF, sin refrescar nada. Las tres variantes
+   * (puntual/histórica/completa) comparten este mismo visor; solo cambia qué
+   * endpoint trae el PDF y el título que se le pone.
+   */
+  const mostrarActa = async (traerUrl, titulo) => {
+    setOcupado(true);
+    try {
+      const url = await traerUrl();
+      setActaTitulo(titulo);
+      setActaUrl(url);
+    } catch (e) {
+      toast.error(e.message || "No se pudo abrir el acta");
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const abrirActa = (asignacionId) =>
+    mostrarActa(() => ObtenerUrlActaAsignacion(asignacionId), "Acta de entrega");
+
+  /** El estado de HOY de una dotación puntual (bajas posteriores incluidas). */
+  const verActaHistorica = (asignacionId) =>
+    mostrarActa(() => ObtenerUrlActaHistorica(asignacionId), "Acta — estado actual de esta dotación");
+
+  /** El estado acumulado de todas las dotaciones del colaborador. */
+  const verActaCompleta = (asignacionId) =>
+    mostrarActa(() => ObtenerUrlActaCompleta(id, asignacionId), "Acta completa — todas las dotaciones");
+
+  const cerrarActa = () => {
+    if (actaUrl) window.URL.revokeObjectURL(actaUrl);
+    setActaUrl(null);
+  };
+
+  const confirmarReemplazo = async (datos) => {
+    const nombreItem = aReemplazar.itemNombre;
+    await AgregarItemsAsignacion(asignacionDeReemplazo, [
+      {
+        itemId: aReemplazar.itemId,
+        cantidad: datos.cantidad,
+        reemplazaItemId: aReemplazar.id,
+        motivoBajaId: datos.motivoBajaId,
+        comentarioBaja: datos.comentarioBaja,
+      },
+    ]);
+    setAReemplazar(null);
+    setAsignacionDeReemplazo(null);
+    toast.success(`${nombreItem} reemplazado.`);
+    recargar();
+  };
 
   if (cargando) {
     return (
@@ -421,6 +488,26 @@ export const ColDotacion = () => {
                       />
                     </>
                   )}
+                  {/* Vistas de solo lectura: funcionan impresa o no, para la
+                      Inicial y para cualquier Complementaria por igual. Nunca
+                      se guardan ni bloquean nada, así que no dependen de
+                      pendientes===0 como "Generar e imprimir acta". */}
+                  <ButtonUI
+                    text="Ver estado actual"
+                    iconLeft="FaClockRotateLeft"
+                    variant="ghost"
+                    title="Esta misma dotación, con lo que haya pasado después (ej. un reemplazo posterior)"
+                    disabled={ocupado}
+                    onClick={() => verActaHistorica(asignacion.id)}
+                  />
+                  <ButtonUI
+                    text="Ver acta completa"
+                    iconLeft="FaFileLines"
+                    variant="ghost"
+                    title="Todo lo vigente del colaborador, de todas sus dotaciones, más las bajas"
+                    disabled={ocupado}
+                    onClick={() => verActaCompleta(asignacion.id)}
+                  />
                 </Acciones>
               </Acciones>
 
@@ -447,6 +534,10 @@ export const ColDotacion = () => {
                   setItemEnEdicion(item);
                 }}
                 onQuitar={(item) => quitar(asignacion.id, item)}
+                onReemplazar={(item) => {
+                  setAsignacionDeReemplazo(asignacion.id);
+                  setAReemplazar(item);
+                }}
               />
             )}
 
@@ -520,6 +611,18 @@ export const ColDotacion = () => {
         abierto={nuevaComplementariaAbierta}
         onCerrar={() => setNuevaComplementariaAbierta(false)}
         onConfirmar={confirmarNuevaComplementaria}
+      />
+
+      <ModalVerActa abierto={actaUrl !== null} url={actaUrl} titulo={actaTitulo} onCerrar={cerrarActa} />
+
+      <ModalReemplazarItem
+        abierto={aReemplazar !== null}
+        item={aReemplazar}
+        onCerrar={() => {
+          setAReemplazar(null);
+          setAsignacionDeReemplazo(null);
+        }}
+        onConfirmar={confirmarReemplazo}
       />
 
       <ModalConfirmacionUI
