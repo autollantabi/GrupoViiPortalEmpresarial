@@ -151,6 +151,9 @@ export const ModalEntregarItem = ({ abierto, item, campos = [], onCerrar, onConf
               value={cantidad}
               onChange={(valor) => setCantidad(valor)}
               min={1}
+              // Mismo motivo que en SelectorArticulos.jsx: sin esto, tipear sobre
+              // el valor ya cargado lo concatena en vez de reemplazarlo.
+              onFocus={(evento) => evento.target.select()}
             />
           </CampoLabel>
 

@@ -296,6 +296,13 @@ export const SelectorArticulos = ({
                                 onChange={(valor) =>
                                   onCambiar(item, { cantidad: Math.max(1, Number(valor) || 1) })
                                 }
+                                /* Sin esto, tocar el campo deja el cursor DESPUÉS del
+                                   "1" que ya trae por omisión: tipear "1" encima no lo
+                                   reemplaza, lo concatena a "11". Seleccionar todo al
+                                   enfocar hace que cualquier dígito tipeado lo
+                                   reemplace, como espera cualquiera que haya usado un
+                                   campo numérico antes. */
+                                onFocus={(evento) => evento.target.select()}
                               />
                             </CajaCantidad>
                           )}

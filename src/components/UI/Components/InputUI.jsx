@@ -94,6 +94,7 @@ export const InputUI = ({
   theme: themeProp,
   onKeyPress,
   onKeyDown,
+  onFocus,
   required,
   disabled,
 }) => {
@@ -155,6 +156,7 @@ export const InputUI = ({
           onChange={handleChange}
           onKeyPress={handleKeyPress}
           onKeyDown={handleKeyDown}
+          onFocus={onFocus}
           style={inputStyle}
           theme={theme}
           min={min}
