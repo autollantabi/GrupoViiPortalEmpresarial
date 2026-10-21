@@ -12,6 +12,8 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import {
   actualizarClienteMDM,
+  crearClienteMDM,
+  existeClienteMDM,
   getClienteMDM,
   getCotizacionMDM,
   getCodigosImpuestoMDM,
@@ -21,12 +23,26 @@ import {
   getVendedoresMDM,
   sincronizarClienteSapMDM,
 } from "services/mdmService";
+import { validarIdentificacionEcuador } from "utils/identificacionEcuador";
 
 /* ------------------------------------------------------------------ */
 /* Constantes                                                          */
 /* ------------------------------------------------------------------ */
 
 const RUTA_LISTADO = "/mdm/clientes";
+
+/* Con este id la pantalla no abre un cliente: es el alta de uno nuevo */
+const ID_NUEVO = "nuevo";
+
+/* Condición de pago que se preselecciona al crear un cliente (V.8. CREDITO 90 DIAS-3 CUOTAS) */
+const CODIGO_CONDICION_POR_DEFECTO = 11;
+
+/* En el alta, las dos direcciones con las que nace todo cliente: PRINCIPAL
+   (facturación) y GENERAL (envío). El id es solo local, para la pantalla. */
+const DIRECCIONES_NUEVO = [
+  { ID: 1, NOMBRE: "PRINCIPAL", TIPO: "bo_BillTo" },
+  { ID: 2, NOMBRE: "GENERAL", TIPO: "bo_ShipTo" },
+];
 
 const ESTADO_PENDIENTE = "PENDIENTE";
 const ESTADO_APROBADO = "APROBADO";
@@ -150,6 +166,7 @@ const UBICACION_CAMPO = {
   NOMBRE: { tab: "general" },
   NOMBRE_COMERCIAL: { tab: "general" },
   GRUPO: { tab: "general" },
+  CODIGO: { tab: "general" },
   VENDEDOR: { tab: "general" },
   CONDICION_PAGO_SERIAL: { tab: "condiciones" },
   CUPO: { tab: "condiciones" },
@@ -844,6 +861,13 @@ function ClienteDetalle() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  /* Alta de un cliente nuevo (en vez de la ficha de uno existente). La empresa
+     viene del filtro del listado. */
+  const esNuevo = id === ID_NUEVO;
+  const empresaNueva = (new URLSearchParams(location.search).get("empresa") || "")
+    .trim()
+    .toUpperCase();
+
   const [cliente, setCliente] = useState(null);
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -857,6 +881,12 @@ function ClienteDetalle() {
   const [direccionActivaId, setDireccionActivaId] = useState(null);
 
   const [guardando, setGuardando] = useState(false);
+
+  /* Alta: lo que se escribe en "Código", su error, y el cliente que ya existe con ese código */
+  const [codigoNuevo, setCodigoNuevo] = useState("");
+  const [errorCodigo, setErrorCodigo] = useState(null);
+  const [verificandoCodigo, setVerificandoCodigo] = useState(false);
+  const [clienteExistente, setClienteExistente] = useState(null);
 
   /* Sincronización con SAP: confirmación previa y envío en curso */
   const [confirmandoSap, setConfirmandoSap] = useState(false);
@@ -964,6 +994,32 @@ function ClienteDetalle() {
   const cargarCliente = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    /* Alta: no hay nada que consultar. Se arma una ficha vacía de la empresa. */
+    if (id === ID_NUEVO) {
+      if (!empresaNueva) {
+        setError("Para crear un cliente seleccione primero una empresa en el listado.");
+        setCliente(null);
+        setForm(null);
+        setLoading(false);
+        return;
+      }
+
+      aplicarCliente({
+        EMPRESA: empresaNueva,
+        CODIGO: "",
+        IDENTIFICACION: "",
+        GRUPO: "MAYORISTA A",
+        ESTADO: null,
+        LISTA_PRECIOS: 1,
+        CUPO: 0,
+        DESCUENTO: 0,
+        DIRECCIONES: DIRECCIONES_NUEVO,
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = await getClienteMDM(id);
 
@@ -987,7 +1043,7 @@ function ClienteDetalle() {
     } finally {
       setLoading(false);
     }
-  }, [id, aplicarCliente]);
+  }, [id, empresaNueva, aplicarCliente]);
 
   useEffect(() => {
     cargarCliente();
@@ -1004,6 +1060,7 @@ function ClienteDetalle() {
   const construirPayload = useCallback(() => {
     const direcciones = Object.entries(direccionesForm).map(([id, d]) => ({
       ID: Number(id),
+      NOMBRE: d.NOMBRE,
       UBICACION: recortar(d.UBICACION),
       CALLE: recortar(d.CALLE),
       CIUDAD: recortar(d.CIUDAD),
@@ -1047,6 +1104,18 @@ function ClienteDetalle() {
    * está el campo que falta.
    */
   const validar = (payload) => {
+    if (esNuevo) {
+      if (!codigoNuevo.trim() || errorCodigo) {
+        return {
+          campo: "CODIGO",
+          mensaje: errorCodigo || 'El campo "Código" es obligatorio',
+        };
+      }
+      if (!recortar(payload.VENDEDOR_CODIGO)) {
+        return { campo: "VENDEDOR", mensaje: 'El campo "Empleado del dpto. de ventas" es obligatorio' };
+      }
+    }
+
     const obligatorios = [
       ["NOMBRE", "Nombre"],
       ["TELEFONO1", "Teléfono 1"],
@@ -1089,6 +1158,7 @@ function ClienteDetalle() {
     if (sinProvincia) {
       const nombre =
         (cliente.DIRECCIONES || []).find((d) => d.ID === sinProvincia.ID)?.NOMBRE ||
+        sinProvincia.NOMBRE ||
         sinProvincia.ID;
       return {
         campo: "DIRECCIONES",
@@ -1210,6 +1280,17 @@ function ClienteDetalle() {
       cancelado = true;
     };
   }, [empresaCliente]);
+
+  /* Alta: al llegar las condiciones de la empresa se preselecciona la de siempre
+     (código 11), que el usuario puede cambiar. */
+  useEffect(() => {
+    if (!esNuevo || !condicionesPago || !form || form.CONDICION_PAGO_SERIAL) return;
+
+    const porDefecto = condicionesPago.find((c) => c.CODIGO === CODIGO_CONDICION_POR_DEFECTO);
+    if (porDefecto) {
+      setForm((actual) => ({ ...actual, CONDICION_PAGO_SERIAL: porDefecto.SERIAL }));
+    }
+  }, [esNuevo, condicionesPago, form]);
 
   /* Valor con el que el selector identifica al vendedor actual: su código. Un
      cliente con nombre pero sin código (ingresó por la integración con el nombre
@@ -1342,6 +1423,106 @@ function ClienteDetalle() {
     }
   };
 
+  /**
+   * Al salir del campo "Código": se le pone la C delante, se comprueba que el cliente
+   * no exista ya en la empresa (si existe se ofrece abrirlo) y, si no, que la
+   * identificación sea una cédula o RUC válidos: de ahí sale el Tipo de
+   * Identificación de Localización Ecuador > ATS.
+   */
+  const alSalirDelCodigo = async () => {
+    const escrito = codigoNuevo.trim().toUpperCase();
+    const identificacion = (escrito.startsWith("C") ? escrito.slice(1) : escrito).trim();
+
+    if (!identificacion) {
+      setCodigoNuevo("");
+      setErrorCodigo(null);
+      setForm((actual) => ({ ...actual, TIPO_DOCUMENTO: null }));
+      setCliente((actual) => ({ ...actual, CODIGO: "", IDENTIFICACION: "" }));
+      return;
+    }
+
+    const codigo = `C${identificacion}`;
+    setCodigoNuevo(codigo);
+    setCliente((actual) => ({ ...actual, CODIGO: codigo, IDENTIFICACION: identificacion }));
+
+    setVerificandoCodigo(true);
+    try {
+      const { EXISTE, CLIENTE } = await existeClienteMDM(empresaNueva, codigo);
+
+      if (EXISTE) {
+        setErrorCodigo(null);
+        setClienteExistente(CLIENTE);
+        return;
+      }
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message || "No se pudo comprobar si el cliente ya existe"
+      );
+      return;
+    } finally {
+      setVerificandoCodigo(false);
+    }
+
+    const resultado = validarIdentificacionEcuador(identificacion);
+    setErrorCodigo(resultado.valida ? null : resultado.mensaje);
+    setForm((actual) => ({ ...actual, TIPO_DOCUMENTO: resultado.tipoDocumento }));
+  };
+
+  /* "Ya existe": se continúa abriendo la ficha de ese cliente, con todos sus datos */
+  const continuarConExistente = () => {
+    const existente = clienteExistente;
+    setClienteExistente(null);
+    if (existente) navigate(`${RUTA_LISTADO}/${existente.ID}`, { replace: true });
+  };
+
+  const cancelarExistente = () => {
+    setClienteExistente(null);
+    setCodigoNuevo("");
+    setErrorCodigo(null);
+    setForm((actual) => ({ ...actual, TIPO_DOCUMENTO: null }));
+    setCliente((actual) => ({ ...actual, CODIGO: "", IDENTIFICACION: "" }));
+  };
+
+  /* Crea el cliente en el MDM (estado PENDIENTE). Las mismas validaciones del guardado. */
+  const guardarNuevo = async () => {
+    const payload = {
+      ...construirPayload(),
+      EMPRESA: empresaNueva,
+      CODIGO: codigoNuevo.trim(),
+    };
+    const fallo = validar(payload);
+
+    if (fallo) {
+      irAlCampo(fallo.campo);
+      toast.error(fallo.mensaje);
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const creado = await crearClienteMDM(payload);
+      toast.success(`Cliente ${creado?.CODIGO || ""} creado`);
+      navigate(`${RUTA_LISTADO}/${creado.ID}`, { replace: true });
+    } catch (err) {
+      const respuesta = err?.response?.data;
+
+      if (err?.response?.status === 409 && respuesta?.existente) {
+        setClienteExistente(respuesta.existente);
+        return;
+      }
+
+      if (respuesta?.campo === "CODIGO") setErrorCodigo(respuesta.message);
+      if (respuesta?.campo) irAlCampo(respuesta.campo);
+      toast.error(
+        err?.response?.status === 403
+          ? "No tiene permiso para crear clientes"
+          : respuesta?.message || "No se pudo crear el cliente"
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const guardar = async () => {
     const payload = construirPayload();
     const error = validar(payload);
@@ -1431,10 +1612,27 @@ function ClienteDetalle() {
   };
 
   const actualizarCampoDireccion = (idDireccion, campo, valor) => {
-    setDireccionesForm((actual) => ({
-      ...actual,
-      [idDireccion]: { ...actual[idDireccion], [campo]: valor },
-    }));
+    setDireccionesForm((actual) => {
+      const siguiente = {
+        ...actual,
+        [idDireccion]: { ...actual[idDireccion], [campo]: valor },
+      };
+
+      /* Alta: GENERAL (envío) nace igual a PRINCIPAL (facturación) y la sigue mientras
+         no se haya cambiado a mano. */
+      const principal = DIRECCIONES_NUEVO[0].ID;
+      const general = DIRECCIONES_NUEVO[1].ID;
+      if (
+        esNuevo &&
+        idDireccion === principal &&
+        actual[general] &&
+        (actual[general][campo] ?? "") === (actual[principal]?.[campo] ?? "")
+      ) {
+        siguiente[general] = { ...actual[general], [campo]: valor };
+      }
+
+      return siguiente;
+    });
   };
 
   /* Direcciones agrupadas por tipo, en el orden del menú de SAP */
@@ -1506,7 +1704,9 @@ function ClienteDetalle() {
           <Vacio>
             <IconUI name="FaTriangleExclamation" size={28} color={theme.colors.error} />
             <TextUI weight="bold">{error || "No se pudo cargar el cliente"}</TextUI>
-            <ButtonUI text="Reintentar" iconLeft="FaRotateRight" onClick={cargarCliente} />
+            {!esNuevo && (
+              <ButtonUI text="Reintentar" iconLeft="FaRotateRight" onClick={cargarCliente} />
+            )}
           </Vacio>
         </Contenedor>
       </ContainerUI>
@@ -1755,6 +1955,7 @@ function ClienteDetalle() {
           label="Tipo de Identificación"
           valor={form.TIPO_DOCUMENTO}
           catalogo={TIPOS_IDENTIFICACION}
+          soloLectura={esNuevo}
           onChange={(v) => actualizarCampo("TIPO_DOCUMENTO", v)}
         />
         <CampoCatalogo
@@ -2230,9 +2431,9 @@ function ClienteDetalle() {
             title="Volver al listado"
           />
           <TextUI weight="bold" size="20px">
-            {cliente.CODIGO}
+            {esNuevo ? "Nuevo cliente" : cliente.CODIGO}
           </TextUI>
-          <Badge $color={colorEstado}>{etiquetaEstado(cliente.ESTADO)}</Badge>
+          <Badge $color={colorEstado}>{esNuevo ? "Nuevo" : etiquetaEstado(cliente.ESTADO)}</Badge>
           <TextUI size="13px" color={theme.colors.textSecondary}>
             {cliente.EMPRESA}
           </TextUI>
@@ -2241,8 +2442,8 @@ function ClienteDetalle() {
             <ButtonUI
               text={guardando ? "Guardando..." : "Guardar"}
               iconLeft="FaFloppyDisk"
-              onClick={guardar}
-              disabled={guardando || sincronizando}
+              onClick={esNuevo ? guardarNuevo : guardar}
+              disabled={guardando || sincronizando || verificandoCodigo}
             />
             {/* Con código SAP el cliente ya existe allá: se actualiza; sin código se crea. */}
             <ButtonUI
@@ -2256,9 +2457,11 @@ function ClienteDetalle() {
               iconLeft="FaCloudArrowUp"
               variant="outlined"
               onClick={pedirConfirmacionSap}
-              disabled={guardando || sincronizando}
+              disabled={esNuevo || guardando || sincronizando}
               title={
-                esActualizacion
+                esNuevo
+                  ? "Disponible próximamente: por ahora el cliente nuevo solo se guarda en el MDM"
+                  : esActualizacion
                   ? `Guardar y actualizar el cliente ${cliente.CODIGO_SAP} en SAP`
                   : "Guardar y crear el cliente en SAP"
               }
@@ -2272,7 +2475,34 @@ function ClienteDetalle() {
         <Tarjeta theme={theme}>
           <CabeceraColumnas>
             <Filas>
-              <CampoFijo fila theme={theme} label="Código" valor={cliente.CODIGO} />
+              {esNuevo ? (
+                <Campo label="Código" theme={theme} fila>
+                  {/* El foco sale del campo -> se completa la C, se busca el cliente y se
+                      valida la identificación (onBlur burbujea desde el input). */}
+                  <div onBlur={alSalirDelCodigo}>
+                    <InputUI
+                      value={codigoNuevo}
+                      onChange={(v) => {
+                        setCodigoNuevo(v);
+                        setErrorCodigo(null);
+                      }}
+                      placeholder="C + cédula o RUC"
+                    />
+                  </div>
+                  {verificandoCodigo && (
+                    <TextUI size="12px" color={theme.colors.textSecondary}>
+                      Comprobando si el cliente ya existe...
+                    </TextUI>
+                  )}
+                  {errorCodigo && (
+                    <TextUI size="12px" color={theme.colors.error}>
+                      {errorCodigo}
+                    </TextUI>
+                  )}
+                </Campo>
+              ) : (
+                <CampoFijo fila theme={theme} label="Código" valor={cliente.CODIGO} />
+              )}
               <CampoTexto
                 fila
                 theme={theme}
@@ -2302,7 +2532,7 @@ function ClienteDetalle() {
 
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
           <BarraTabs theme={theme}>
-            {TABS.map((tab) => (
+            {TABS.filter((tab) => !esNuevo || tab.id !== "cotizaciones").map((tab) => (
               <Tab
                 key={tab.id}
                 theme={theme}
@@ -2336,6 +2566,29 @@ function ClienteDetalle() {
           </PanelTab>
         </div>
       </Contenedor>
+
+      <ModalUI
+        isOpen={!!clienteExistente}
+        onClose={cancelarExistente}
+        title="El cliente ya existe"
+        saveText="Continuar"
+        onSave={continuarConExistente}
+        maxWidth="520px"
+        width="90%"
+      >
+        {clienteExistente && (
+          <>
+            <TextUI>
+              Ya existe el cliente <b>{clienteExistente.CODIGO}</b> ({clienteExistente.NOMBRE}) en{" "}
+              {empresaNueva}, en estado <b>{etiquetaEstado(clienteExistente.ESTADO)}</b>.
+            </TextUI>
+            <TextUI size="13px" color={theme.colors.textSecondary} style={{ marginTop: 10 }}>
+              ¿Desea continuar? Se abrirá su ficha con todos sus datos y los cambios que guarde
+              actualizarán a ese cliente; no se creará uno nuevo.
+            </TextUI>
+          </>
+        )}
+      </ModalUI>
 
       <ModalUI
         isOpen={confirmandoSap}
