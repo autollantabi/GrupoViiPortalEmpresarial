@@ -4,6 +4,7 @@ import styled from "styled-components";
 import { hexToRGBA } from "utils/colors";
 import {
   RUTA_CARGAS_FAMILIARES,
+  RUTA_CERTIFICADOS,
   RUTA_DOCUMENTOS,
   RUTA_DOTACION,
   RUTA_FICHA,
@@ -109,6 +110,7 @@ export const PestanasFicha = ({
       {pendientesInduccion > 0 && <Contador title="Actividades pendientes">{pendientesInduccion}</Contador>}
     </Pestana>
     {mostrarPazSalvo && <Pestana to={RUTA_PAZ_SALVO(id)}>Paz y salvo</Pestana>}
+    <Pestana to={RUTA_CERTIFICADOS(id)}>Certificados</Pestana>
   </Barra>
 );
 

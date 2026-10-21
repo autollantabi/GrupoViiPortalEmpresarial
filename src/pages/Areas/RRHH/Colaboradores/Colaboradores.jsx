@@ -11,6 +11,7 @@ import { ColCargasFamiliares } from "./pantallas/ColCargasFamiliares";
 import { ColConfiguracion } from "./pantallas/ColConfiguracion";
 import { ColInduccion } from "./pantallas/ColInduccion";
 import { ColPazSalvo } from "./pantallas/ColPazSalvo";
+import { ColCertificados } from "./pantallas/ColCertificados";
 import { ReporteIngresosSalidas } from "./pantallas/ReporteIngresosSalidas";
 import { usePermisosColaboradores } from "./hooks/usePermisos";
 import { RUTA_BASE } from "./utils/constantes";
@@ -71,6 +72,10 @@ export const Colaboradores = ({
       {/* Paz y salvo solo tiene sentido con la ficha de baja: la propia pantalla
           redirige si el empleado sigue activo. */}
       <Route path="empleados/:id/paz-salvo" element={soloGestion(<ColPazSalvo {...contexto} />)} />
+      <Route
+        path="empleados/:id/certificados"
+        element={soloGestion(<ColCertificados {...contexto} />)}
+      />
       {/* Reporte de ingresos y salidas: va ANTES de "configuracion" por legibilidad,
           aunque React Router ya prioriza los segmentos estáticos igual que con
           "empleados/nuevo". */}
