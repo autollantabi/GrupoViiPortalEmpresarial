@@ -1,3 +1,17 @@
+/**
+ * GUIAS DE REMISIÓN (Contabilidad)
+ *
+ * Pantalla del recurso "contabilidad.guiasremision". Qué hace:
+ *   - Lista paginada de guías (filtros y paginación se resuelven en el servidor; ver guiasRemisionService.js).
+ *   - Detalle de una guía en un modal; el supervisor puede marcarla como enviada.
+ *   - "Descargar Excel": genera el Excel de guías aprobadas y pendientes de envío (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL).
+ *   - "Marcar enviadas desde Excel" (solo supervisor): se sube el Excel descargado, se VALIDA, se pide confirmación y recién entonces
+ *     se marcan las guías como enviadas.
+ *
+ * Roles: "usuario" solo consulta y descarga; "supervisor" además marca como enviadas (routeConfig.rolDelRecurso).
+ * El estado de la pantalla se organiza así: `consulta` (filtros que viajan al servidor), `guias`/`paginacion` (resultado),
+ * `excelForm` (modal de descarga) y `cargaExcel` (modal de marcado desde Excel).
+ */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 import { toast } from "react-toastify";
@@ -64,10 +78,6 @@ const ID_TRANSPORTISTA_LAAR = "1791705726001";
 
 // Solo el rol supervisor puede marcar como enviado; "usuario" únicamente consulta
 const ROL_SUPERVISOR = "supervisor";
-
-// El listado solo trae guías no canceladas (hgr_cancelada = false); aun así el estado del
-// documento se deriva de ese campo: false = Abierto, true = Cancelado
-const textoEstadoDocumento = (cancelada) => (cancelada ? "Cancelado" : "Abierto");
 
 // ================= Fechas =================
 // Rango por defecto: del primer día del mes en curso hasta hoy. Si hoy ya es un mes nuevo,
@@ -466,9 +476,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
   const recargar = () => setRefrescos((n) => n + 1);
 
-  // Las guías canceladas no tienen detalle: solo se avisa, sin abrir el modal
+  // El listado no trae guías canceladas (hgr_cancelada = false); por seguridad, si llegara una, solo se avisa sin abrir el modal
   const abrirDetalle = (guia) => {
-    if (textoEstadoDocumento(guia.cancelada) === "Cancelado") {
+    if (guia.cancelada) {
       toast.warn("No se puede visualizar el detalle de la guía de remisión", {
         toastId: "guia-cancelada",
       });
@@ -766,7 +776,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                 <FilaClicable
                   key={guia.id}
                   $par={index % 2 === 0}
-                  $bloqueada={textoEstadoDocumento(guia.cancelada) === "Cancelado"}
+                  $bloqueada={guia.cancelada}
                   onClick={() => abrirDetalle(guia)}
                 >
                   {COLUMNAS.map((columna) => (
@@ -849,6 +859,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         </TextUI>
 
         <FiltrosContainer theme={theme}>
+          {/* Botones de Excel (derecha). "Marcar enviadas" solo lo ve el supervisor */}
           <FilaAcciones>
             {empresasExcel.length > 0 && (
               <ButtonUI
@@ -878,83 +889,86 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             )}
           </FilaAcciones>
 
+          {/* Filtros: todos se aplican en el servidor; los de texto esperan al debounce */}
           <FilaFiltros>
-          <FiltroGrupo theme={theme}>
-            <label>Desde</label>
-            <DateSelectorUI fecha={consulta.desde} onChange={handleDesde} max={consulta.hasta} />
-          </FiltroGrupo>
+            <FiltroGrupo theme={theme}>
+              <label>Desde</label>
+              <DateSelectorUI fecha={consulta.desde} onChange={handleDesde} max={consulta.hasta} />
+            </FiltroGrupo>
 
-          <FiltroGrupo theme={theme}>
-            <label>Hasta</label>
-            <DateSelectorUI fecha={consulta.hasta} onChange={handleHasta} min={consulta.desde} />
-          </FiltroGrupo>
+            <FiltroGrupo theme={theme}>
+              <label>Hasta</label>
+              <DateSelectorUI fecha={consulta.hasta} onChange={handleHasta} min={consulta.desde} />
+            </FiltroGrupo>
 
-          <SelectUI
-            label="Empresa"
-            options={opcionesEmpresas}
-            value={opcionesEmpresas.find((o) => o.value === consulta.empresa) || null}
-            onChange={handleEmpresa}
-            placeholder="Empresa"
-            isDisabled={opcionesEmpresas.length <= 1}
-            isSearchable={false}
-            minWidth="170px"
-            maxWidth="200px"
-          />
-
-          <SelectUI
-            label="Estado"
-            options={OPCIONES_ESTADO}
-            value={OPCIONES_ESTADO.find((o) => o.value === consulta.estado)}
-            onChange={handleEstado}
-            placeholder="TODOS"
-            isSearchable={false}
-            minWidth="220px"
-            maxWidth="240px"
-          />
-
-          <SelectUI
-            label="Envío"
-            options={OPCIONES_ENVIO}
-            value={OPCIONES_ENVIO.find((o) => o.value === consulta.enviado)}
-            onChange={handleEnvio}
-            isSearchable={false}
-            minWidth="210px"
-            maxWidth="230px"
-          />
-
-          <FiltroGrupo theme={theme} style={{ minWidth: "230px" }}>
-            <label>Cliente</label>
-            <InputUI
-              placeholder="Código de socio o nombre..."
-              value={clienteInput}
-              onChange={setClienteInput}
-              iconLeft="FaMagnifyingGlass"
+            <SelectUI
+              label="Empresa"
+              options={opcionesEmpresas}
+              value={opcionesEmpresas.find((o) => o.value === consulta.empresa) || null}
+              onChange={handleEmpresa}
+              placeholder="Empresa"
+              isDisabled={opcionesEmpresas.length <= 1}
+              isSearchable={false}
+              minWidth="170px"
+              maxWidth="200px"
             />
-          </FiltroGrupo>
 
-          <FiltroGrupo theme={theme} style={{ minWidth: "260px" }}>
-            <label>Buscar</label>
-            <InputUI
-              placeholder="N° guía, factura, código o nombre..."
-              value={busquedaInput}
-              onChange={setBusquedaInput}
-              iconLeft="FaMagnifyingGlass"
+            <SelectUI
+              label="Estado"
+              options={OPCIONES_ESTADO}
+              value={OPCIONES_ESTADO.find((o) => o.value === consulta.estado)}
+              onChange={handleEstado}
+              placeholder="TODOS"
+              isSearchable={false}
+              minWidth="220px"
+              maxWidth="240px"
             />
-          </FiltroGrupo>
 
-          <div>
-            <ButtonUI
-              iconLeft="FaRotateRight"
-              variant="outlined"
-              onClick={recargar}
-              disabled={loading}
+            <SelectUI
+              label="Envío"
+              options={OPCIONES_ENVIO}
+              value={OPCIONES_ENVIO.find((o) => o.value === consulta.enviado)}
+              onChange={handleEnvio}
+              isSearchable={false}
+              minWidth="210px"
+              maxWidth="230px"
             />
-          </div>
+
+            <FiltroGrupo theme={theme} style={{ minWidth: "230px" }}>
+              <label>Cliente</label>
+              <InputUI
+                placeholder="Código de socio o nombre..."
+                value={clienteInput}
+                onChange={setClienteInput}
+                iconLeft="FaMagnifyingGlass"
+              />
+            </FiltroGrupo>
+
+            <FiltroGrupo theme={theme} style={{ minWidth: "260px" }}>
+              <label>Buscar</label>
+              <InputUI
+                placeholder="N° guía, factura, código o nombre..."
+                value={busquedaInput}
+                onChange={setBusquedaInput}
+                iconLeft="FaMagnifyingGlass"
+              />
+            </FiltroGrupo>
+
+            <div>
+              <ButtonUI
+                iconLeft="FaRotateRight"
+                variant="outlined"
+                onClick={recargar}
+                disabled={loading}
+              />
+            </div>
           </FilaFiltros>
         </FiltrosContainer>
 
         <Tarjeta>{renderContenido()}</Tarjeta>
       </Contenedor>
+
+      {/* Modal de detalle de la guía (con "Marcar como enviado" para el supervisor) */}
 
       <ModalUI
         isOpen={!!guiaSeleccionada}
@@ -1040,6 +1054,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         )}
       </ModalUI>
 
+      {/* Modal "Descargar Excel": rango y empresas propios (arrancan con los filtros de la tabla) */}
       <ModalUI
         isOpen={excelAbierto}
         onClose={cerrarExcel}
@@ -1106,11 +1121,12 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
           <TextUI size="12px" color={theme.colors.textSecondary}>
             {generandoExcel
               ? "Generando el archivo, puede tardar unos segundos. No cierre esta ventana."
-              : "Incluye las guías aprobadas, no canceladas y pendientes de envío del rango. Las “ULT GUIA” son las máximas del rango descargado: con un rango corto o una sola empresa no representan la última guía real de cada serie. Al abrir el archivo, habilite el contenido y use Datos > Actualizar todo para actualizar las tablas dinámicas."}
+              : "Incluye las guías aprobadas, no canceladas y pendientes de envío del rango (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL). Las “ULT GUIA” son las máximas del rango descargado: con un rango corto o una sola empresa no representan la última guía real de cada serie. Al abrir el archivo, habilite el contenido y use Datos > Actualizar todo para actualizar las tablas dinámicas."}
           </TextUI>
         </div>
       </ModalUI>
 
+      {/* Modal "Marcar enviadas desde Excel": resumen de la validación y confirmación */}
       <ModalUI
         isOpen={cargaExcel.abierta}
         onClose={cerrarCargaExcel}

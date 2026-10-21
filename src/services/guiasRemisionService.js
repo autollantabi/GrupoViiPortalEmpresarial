@@ -1,3 +1,7 @@
+/**
+ * Servicio de Guías de Remisión: llamadas al backend (/guias-remision) usadas por
+ * pages/Areas/Contabilidad/GuiasRemision/GuiasRemision.jsx. La lógica de negocio vive en el backend.
+ */
 import { axiosInstanceNew } from "config/axiosConfig";
 
 /**
@@ -71,8 +75,8 @@ export const nombreArchivoExcel = (desde, hasta, extension = "xlsx") =>
   `guias_remision_${ddmmyy(desde)}_${ddmmyy(hasta)}.${extension}`;
 
 /**
- * Pide al servidor el archivo GUIAS DE REMISIÓN (.xlsx) del rango y las empresas: la plantilla con la hoja DATOS MAESTROS
- * llena. Las tablas dinámicas las actualiza Excel en la máquina del usuario.
+ * Pide al servidor el archivo GUIAS DE REMISIÓN (.xlsx) del rango y las empresas: la plantilla con las hojas DATOS MAESTROS,
+ * LAAR y CONSOLIDADO_FINAL llenas. Las tablas dinámicas las actualiza Excel en la máquina del usuario.
  *
  * @param {{desde: string, hasta: string, empresas: string[]}} params - fechas YYYY-MM-DD inclusivas
  * @returns {Promise<{blob: Blob, nombreArchivo: string}>}
