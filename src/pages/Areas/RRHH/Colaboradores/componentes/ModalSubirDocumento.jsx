@@ -77,7 +77,7 @@ export const ModalSubirDocumento = ({ abierto, documento, onCerrar, onConfirmar 
     }
 
     if (!MIME_PERMITIDOS.includes(nuevo.type)) {
-      setError("Solo se admiten archivos PDF, JPG o PNG.");
+      setError("Solo se admiten archivos PDF o Word (.doc, .docx).");
       setArchivo(null);
       return;
     }
@@ -149,7 +149,7 @@ export const ModalSubirDocumento = ({ abierto, documento, onCerrar, onConfirmar 
             etiqueta="Archivo"
             requerido
             error={error}
-            ayuda="PDF, JPG o PNG, hasta 10 MB."
+            ayuda="PDF o Word (.doc, .docx), hasta 10 MB."
           >
             <Selector referencia={entrada} onElegir={elegir} />
           </CampoLabel>

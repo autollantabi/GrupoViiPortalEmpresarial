@@ -200,6 +200,7 @@ export const RUTA_INDUCCION = (id) => `${RUTA_BASE}/empleados/${id}/induccion`;
 export const RUTA_PAZ_SALVO = (id) => `${RUTA_BASE}/empleados/${id}/paz-salvo`;
 export const RUTA_CERTIFICADOS = (id) => `${RUTA_BASE}/empleados/${id}/certificados`;
 export const RUTA_REPORTE_INGRESOS_SALIDAS = `${RUTA_BASE}/reportes/ingresos-salidas`;
+export const RUTA_MOVIMIENTOS = `${RUTA_BASE}/movimientos`;
 
 /** Secciones de la pantalla de configuración. Van en la query string. */
 export const SECCION_CONFIGURACION = Object.freeze({
@@ -226,10 +227,14 @@ export const SECCION_CONFIGURACION = Object.freeze({
  */
 export const TAMANIO_MAXIMO_BYTES = 10 * 1024 * 1024;
 
-export const MIME_PERMITIDOS = Object.freeze(["application/pdf", "image/jpeg", "image/png"]);
+export const MIME_PERMITIDOS = Object.freeze([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
 
 /** Para el atributo accept del input, que además filtra el diálogo del sistema. */
-export const ACCEPT_ARCHIVOS = ".pdf,.jpg,.jpeg,.png";
+export const ACCEPT_ARCHIVOS = ".pdf,.doc,.docx";
 
 /** Un monto de cartera, como '$ 350.00'. Dólares: es la moneda del país de la operación. */
 export const formatearMonto = (valor) => {

@@ -126,7 +126,7 @@ export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) =>
     }
 
     if (!MIME_PERMITIDOS.includes(nuevo.type)) {
-      setErrorArchivo("Solo se admiten archivos PDF, JPG o PNG.");
+      setErrorArchivo("Solo se admiten archivos PDF o Word (.doc, .docx).");
       setArchivo(null);
       return;
     }
@@ -323,7 +323,7 @@ export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) =>
                 : "Partida de nacimiento"
             }
             error={errorArchivo}
-            ayuda="PDF, JPG o PNG, hasta 10 MB. También puede subirla más tarde desde esta misma pantalla."
+            ayuda="PDF o Word (.doc, .docx), hasta 10 MB. También puede subirla más tarde desde esta misma pantalla."
           >
             <Selector referencia={entrada} onElegir={elegirArchivo} />
           </CampoLabel>
