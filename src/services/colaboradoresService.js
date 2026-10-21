@@ -401,7 +401,8 @@ export const ListarEstados = async ({ signal } = {}) => {
  * @property {string|null} requisitos
  * @property {string|null} competencias
  * @property {number|null} rangoSalarialMin
- * @property {number|null} rangoSalarialMax
+ * @property {number|null} rangoSalarialFijo
+ * @property {number|null} rangoSalarialVariable
  * @property {number|null} reportaACargoId
  * @property {string|null} reportaACargo
  *
@@ -493,8 +494,10 @@ const mapearPerfilCargo = (perfil) => ({
   id: numero(perfil.id),
   cargoId: numero(perfil.cargoId),
   reportaACargoId: numero(perfil.reportaACargoId),
+  // Tres valores independientes, no un rango min/max.
   rangoSalarialMin: numero(perfil.rangoSalarialMin),
-  rangoSalarialMax: numero(perfil.rangoSalarialMax),
+  rangoSalarialFijo: numero(perfil.rangoSalarialFijo),
+  rangoSalarialVariable: numero(perfil.rangoSalarialVariable),
 });
 
 /** @returns {Promise<PerfilCargo[]>} */
