@@ -13,6 +13,7 @@ import { IconUI } from "components/UI/Components/IconsUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { getClientesMDM } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
+import { puedeEditarRecurso } from "utils/permisosRecurso";
 
 /* ------------------------------------------------------------------ */
 /* Constantes                                                          */
@@ -387,6 +388,24 @@ function Clientes() {
     return EMPRESAS_MDM.map((nombre) => ({ value: nombre, label: nombre }));
   }, [user, diccionarioEmpresas]);
 
+  /* Crear clientes requiere el permiso "editar" sobre mdm.clientes en el contexto
+     (usuarios_rol_contexto) del usuario. El backend lo vuelve a comprobar. */
+  const puedeCrear = useMemo(() => puedeEditarRecurso(user, RECURSO_MDM_CLIENTES), [user]);
+
+  /* El alta se hace dentro de una empresa: la del filtro, o la única que el usuario
+     tiene disponible. Con varias y sin filtro se le pide que elija una. */
+  const abrirNuevoCliente = () => {
+    const empresa =
+      empresaFiltro || (opcionesEmpresas.length === 1 ? opcionesEmpresas[0].value : null);
+
+    if (!empresa) {
+      toast.info("Seleccione una empresa en el filtro para crear un cliente");
+      return;
+    }
+
+    navigate(`/mdm/clientes/nuevo?empresa=${encodeURIComponent(empresa)}`);
+  };
+
   /* Búsqueda por texto: se espera a que el usuario deje de escribir antes de
      consultar, para no disparar un request por cada tecla. Si lo escrito ya
      coincide con la URL no se hace nada, así el efecto no vuelve a disparar al
@@ -643,6 +662,14 @@ function Clientes() {
           <TextUI weight="bold" size="22px">
             Clientes
           </TextUI>
+          {puedeCrear && (
+            <ButtonUI
+              text="Nuevo cliente"
+              iconLeft="FaPlus"
+              onClick={abrirNuevoCliente}
+              title="Crear un cliente nuevo en el MDM"
+            />
+          )}
         </Encabezado>
 
         <FiltrosContainer theme={theme}>

@@ -519,6 +519,31 @@ export const getClienteMDM = async (id) => {
 };
 
 /**
+ * ¿Ya existe un cliente con ese código (C + identificación) en la empresa?
+ * @param {string} empresa
+ * @param {string} codigo - Con o sin la "C" inicial
+ * @returns {Promise<{EXISTE: boolean, CLIENTE: ({ID: number, CODIGO: string, NOMBRE: string, ESTADO: string}|null)}>}
+ */
+export const existeClienteMDM = async (empresa, codigo) => {
+    const response = await axiosInstanceNew.get("/mdm/clientes/existe", {
+        params: { empresa, codigo },
+    });
+    return response.data?.data || { EXISTE: false, CLIENTE: null };
+};
+
+/**
+ * Crea un cliente nuevo en el MDM (estado PENDIENTE). Requiere el permiso "editar"
+ * sobre mdm.clientes. Los fallos llegan como error de axios: 400 (dato inválido, con
+ * `campo`), 403 (sin permiso) y 409 (ya existe, con `existente`).
+ * @param {Object} cliente - Ficha completa + DIRECCIONES (PRINCIPAL y GENERAL)
+ * @returns {Promise<Object>} El cliente creado
+ */
+export const crearClienteMDM = async (cliente) => {
+    const response = await axiosInstanceNew.post("/mdm/clientes", cliente);
+    return response.data?.data;
+};
+
+/**
  * Guarda la ficha de un cliente del MDM.
  * @param {number|string} id - ic_serial del cliente
  * @param {Object} cliente - Cabecera + direcciones ya recortadas
