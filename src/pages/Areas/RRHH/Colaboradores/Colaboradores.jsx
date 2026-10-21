@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ColTablero } from "./pantallas/ColTablero";
+import { ColMovimientos } from "./pantallas/ColMovimientos";
 import { ColListado } from "./pantallas/ColListado";
 import { ColFicha } from "./pantallas/ColFicha";
 import { ColNuevo } from "./pantallas/ColNuevo";
@@ -54,6 +55,9 @@ export const Colaboradores = ({
   return (
     <Routes>
       <Route index element={<ColTablero {...contexto} />} />
+      {/* Listado completo de movimientos: antes que "empleados" por legibilidad,
+          aunque React Router ya prioriza los segmentos estáticos. */}
+      <Route path="movimientos" element={soloGestion(<ColMovimientos {...contexto} />)} />
       <Route path="empleados" element={<ColListado {...contexto} />} />
       {/* "nuevo" antes que ":id" por legibilidad; React Router ya prioriza el estático. */}
       <Route path="empleados/nuevo" element={soloGestion(<ColNuevo {...contexto} />)} />

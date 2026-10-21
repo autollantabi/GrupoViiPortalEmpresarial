@@ -21,7 +21,14 @@ import { esAnterior, formatearFecha, hoyIso } from "../utils/fechas";
  *    form y no podrían ser type="submit".
  * El clic en el fondo ya cierra por cuenta de ModalUI.
  */
-export const ModalBajaReingreso = ({ abierto, modo, ficha, onCerrar, onConfirmar }) => {
+export const ModalBajaReingreso = ({
+  abierto,
+  modo,
+  ficha,
+  onCerrar,
+  onConfirmar,
+  motivoInicialCodigo,
+}) => {
   const esBaja = modo === "baja";
 
   const [fecha, setFecha] = useState("");
@@ -50,7 +57,14 @@ export const ModalBajaReingreso = ({ abierto, modo, ficha, onCerrar, onConfirmar
 
     ListarMotivosSalida()
       .then((lista) => {
-        if (!cancelado) setMotivos(lista);
+        if (cancelado) return;
+        setMotivos(lista);
+        // "No continuar" (período de prueba) llega con el motivo ya decidido:
+        // se preselecciona para no obligar a buscarlo de nuevo en la lista.
+        if (motivoInicialCodigo) {
+          const motivo = lista.find((item) => item.codigo === motivoInicialCodigo);
+          if (motivo) setMotivoId(motivo.id);
+        }
       })
       .catch((error) => {
         if (!cancelado) toast.error(error.message || "No se pudieron cargar los motivos");
@@ -59,7 +73,8 @@ export const ModalBajaReingreso = ({ abierto, modo, ficha, onCerrar, onConfirmar
     return () => {
       cancelado = true;
     };
-  }, [abierto, esBaja]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abierto, esBaja, motivoInicialCodigo]);
 
   useEffect(() => {
     if (!abierto) return undefined;

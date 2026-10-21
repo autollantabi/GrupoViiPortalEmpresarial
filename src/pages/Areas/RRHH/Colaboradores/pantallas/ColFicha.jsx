@@ -9,6 +9,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { useTheme } from "context/ThemeContext";
 import {
   CambiarCargoEmpleado,
+  ConfirmarPeriodoPrueba,
   DarDeBajaColaborador,
   EliminarColaborador,
   ListarPerfilesCargo,
@@ -35,9 +36,11 @@ import {
   Acciones,
   Aviso,
   Badge,
+  BarraFlotante,
   BotonEnlace,
   CirculoIcono,
   Contenedor,
+  CuerpoFlotante,
   DatoContenedor,
   DatoEtiqueta,
   DatoValor,
@@ -45,9 +48,12 @@ import {
   ItemTiempo,
   LineaTiempo,
   ListaDatos,
+  PistaProgreso,
+  RellenoProgreso,
   Separador,
   Tarjeta,
   TextoTenue,
+  TituloAtencion,
   TituloTarjeta,
   Vacio,
 } from "../componentes/piezas";
@@ -124,6 +130,53 @@ const BotonEnlaceTexto = styled.button`
   }
 `;
 
+/** El valor grande de una tarjeta del resumen rápido (fecha, "vence en N d."...). */
+const ValorResumen = styled.div`
+  font-size: 18px;
+  font-weight: 800;
+  color: ${({ theme }) => theme?.colors?.text};
+  margin: 2px 0 6px;
+`;
+
+/** Botones de la barra flotante: fondo oscuro-sobre-claro (o al revés en tema
+ * oscuro), así que no sirven ButtonUI tal cual — necesitan su propio contraste. */
+const BotonFlotanteSecundario = styled.button`
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid ${({ theme }) => theme?.colors?.background};
+  background: transparent;
+  color: ${({ theme }) => theme?.colors?.background};
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+`;
+
+const BotonFlotantePrimario = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 0;
+  background: ${({ theme }) => theme?.colors?.success};
+  color: ${({ theme }) => theme?.colors?.white ?? "#fff"};
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+`;
+
 /** Un dato de la ficha, con guion largo cuando está vacío. */
 const Dato = ({ etiqueta, children }) => (
   <DatoContenedor>
@@ -140,6 +193,10 @@ export const ColFicha = () => {
 
   const [modal, setModal] = useState(null); // 'baja' | 'reingreso' | 'eliminar' | 'cambiarCargo' | 'subrogar'
   const [verPerfilAbierto, setVerPerfilAbierto] = useState(false);
+  // Solo lo pone el botón "No continuar" de la barra flotante: el "Dar de
+  // baja" normal del encabezado deja el motivo en blanco, como siempre.
+  const [motivoBajaInicial, setMotivoBajaInicial] = useState(null);
+  const [confirmandoContinuidad, setConfirmandoContinuidad] = useState(false);
 
   const { datos: ficha, cargando, error, recargar } = useConsulta(
     ({ signal }) => ObtenerColaborador(id, { signal }),
@@ -180,7 +237,10 @@ export const ColFicha = () => {
     0,
   );
 
-  const cerrarModal = () => setModal(null);
+  const cerrarModal = () => {
+    setModal(null);
+    setMotivoBajaInicial(null);
+  };
 
   const confirmarBaja = async (carga) => {
     await DarDeBajaColaborador(id, carga);
@@ -208,6 +268,25 @@ export const ColFicha = () => {
     cerrarModal();
     recargar();
     recargarHistorialCargos();
+  };
+
+  const noContinuar = () => {
+    setMotivoBajaInicial("FinPeriodoPrueba");
+    setModal("baja");
+  };
+
+  const confirmarContinuidad = async () => {
+    if (confirmandoContinuidad) return;
+    setConfirmandoContinuidad(true);
+    try {
+      await ConfirmarPeriodoPrueba(id);
+      toast.success("Continuidad confirmada.");
+      recargar();
+    } catch (error) {
+      toast.error(error.message || "No se pudo confirmar la continuidad");
+    } finally {
+      setConfirmandoContinuidad(false);
+    }
   };
 
   const confirmarSubrogacion = async (carga) => {
@@ -252,13 +331,43 @@ export const ColFicha = () => {
   const activo = ficha.estado === ESTADO.ACTIVO;
 
   const diasPeriodoPrueba = diasHasta(ficha.fechaFinPeriodoPrueba);
-  const enPeriodoPrueba = activo && diasPeriodoPrueba !== null && diasPeriodoPrueba >= 0;
+  const confirmada = Boolean(ficha.periodoPruebaConfirmadoEn);
+  // Vencido y nunca confirmado sigue pendiente de decisión: los días no
+  // resuelven nada solos, alguien de RRHH tiene que decidir.
+  const pruebaPendienteDecision = activo && Boolean(ficha.fechaFinPeriodoPrueba) && !confirmada;
+
+  let chipPrueba = null;
+  if (activo && ficha.fechaFinPeriodoPrueba) {
+    if (confirmada) {
+      chipPrueba = <Badge $tono="exito">Prueba superada</Badge>;
+    } else if (diasPeriodoPrueba !== null && diasPeriodoPrueba >= 0) {
+      chipPrueba = (
+        <Badge $tono={diasPeriodoPrueba <= 7 ? "peligro" : "aviso"}>
+          {diasPeriodoPrueba === 0 ? "Prueba vence hoy" : `Prueba: ${diasPeriodoPrueba} d.`}
+        </Badge>
+      );
+    } else {
+      chipPrueba = <Badge $tono="peligro">Prueba vencida</Badge>;
+    }
+  }
+
+  // diasHasta siempre mide "fecha - hoy", así que restar dos llamadas cancela
+  // el "hoy" y queda la distancia entre las dos fechas sin escribir otro
+  // helper de fechas: finPeriodo - ingreso, el largo total del período.
+  const totalDiasPrueba =
+    ficha.fechaIngreso && ficha.fechaFinPeriodoPrueba
+      ? diasHasta(ficha.fechaFinPeriodoPrueba) - diasHasta(ficha.fechaIngreso)
+      : null;
+  const porcentajePrueba =
+    totalDiasPrueba && diasPeriodoPrueba !== null
+      ? Math.min(100, Math.max(0, Math.round(((totalDiasPrueba - diasPeriodoPrueba) / totalDiasPrueba) * 100)))
+      : 100;
 
   const perfilActual = (perfilesCargo ?? []).find((perfil) => perfil.cargoId === ficha.cargoId) ?? null;
 
   return (
     <Contenedor translate="no" className="notranslate">
-      <CabeceraFicha ficha={ficha}>
+      <CabeceraFicha ficha={ficha} chipPrueba={chipPrueba}>
         {activo ? (
           <ButtonUI
             text="Dar de baja"
@@ -317,15 +426,83 @@ export const ColFicha = () => {
         </Aviso>
       )}
 
-      {enPeriodoPrueba && (
-        <Aviso $tono={diasPeriodoPrueba <= 7 ? "peligro" : "aviso"}>
-          {diasPeriodoPrueba === 0
-            ? "El período de prueba vence hoy."
-            : `En período de prueba: faltan ${diasPeriodoPrueba} día${
-                diasPeriodoPrueba === 1 ? "" : "s"
-              } (vence el ${formatearFecha(ficha.fechaFinPeriodoPrueba)}).`}
-        </Aviso>
-      )}
+      {/* Resumen rápido: lo mismo que antes vivía repartido en dos avisos y una
+          rejilla aparte, junto en una sola fila para no tener que leer toda la
+          ficha para saber en qué está. */}
+      <Rejilla $min={230}>
+        <Tarjeta>
+          <TituloAtencion>Ingreso</TituloAtencion>
+          {ficha.fechaIngreso ? (
+            <>
+              <ValorResumen>{formatearFecha(ficha.fechaIngreso)}</ValorResumen>
+              <TextoTenue>
+                {activo
+                  ? `${diasHasta(ficha.fechaIngreso) !== null ? Math.abs(diasHasta(ficha.fechaIngreso)) : "—"} días en la empresa`
+                  : `Salió el ${formatearFecha(ficha.fechaSalida)}`}
+              </TextoTenue>
+            </>
+          ) : (
+            <TextoTenue>Sin fecha de ingreso registrada.</TextoTenue>
+          )}
+        </Tarjeta>
+
+        {activo && ficha.fechaFinPeriodoPrueba && (
+          <Tarjeta>
+            <TituloAtencion>Período de prueba</TituloAtencion>
+            <ValorResumen>
+              {confirmada
+                ? `Confirmado el ${formatearFecha(ficha.periodoPruebaConfirmadoEn)}`
+                : diasPeriodoPrueba === null
+                  ? "—"
+                  : diasPeriodoPrueba === 0
+                    ? "Vence hoy"
+                    : diasPeriodoPrueba > 0
+                      ? `Vence en ${diasPeriodoPrueba} d.`
+                      : `Venció hace ${Math.abs(diasPeriodoPrueba)} d.`}
+            </ValorResumen>
+            <PistaProgreso>
+              <RellenoProgreso
+                $tono={confirmada ? "exito" : diasPeriodoPrueba !== null && diasPeriodoPrueba <= 7 ? "peligro" : "aviso"}
+                $porcentaje={confirmada ? 100 : porcentajePrueba}
+              />
+            </PistaProgreso>
+          </Tarjeta>
+        )}
+
+        <Tarjeta>
+          <Acciones style={{ justifyContent: "space-between" }}>
+            <TituloAtencion>Dotación</TituloAtencion>
+            <BotonEnlace to={RUTA_DOTACION(id)}>Ver</BotonEnlace>
+          </Acciones>
+          {dotacion === null ? (
+            <TextoTenue>Cargando…</TextoTenue>
+          ) : dotacion.asignaciones.length === 0 ? (
+            <TextoTenue>Sin dotación registrada.</TextoTenue>
+          ) : (
+            <TextoTenue>
+              {dotacion.asignaciones.length} asignación(es) ·{" "}
+              {pendientesDotacion === 0
+                ? "todo entregado"
+                : `${pendientesDotacion} artículo(s) pendiente(s)`}
+            </TextoTenue>
+          )}
+        </Tarjeta>
+
+        <Tarjeta>
+          <Acciones style={{ justifyContent: "space-between" }}>
+            <TituloAtencion>Documentación</TituloAtencion>
+            <BotonEnlace to={RUTA_DOCUMENTOS(id)}>Ver</BotonEnlace>
+          </Acciones>
+          {documentacion === null ? (
+            <TextoTenue>Cargando…</TextoTenue>
+          ) : (
+            <TextoTenue>
+              {documentacion.entregados} de {documentacion.totalRequeridos} entregado
+              {documentacion.sinArchivo > 0 && ` · ${documentacion.sinArchivo} sin digitalizar`}
+            </TextoTenue>
+          )}
+        </Tarjeta>
+      </Rejilla>
 
       <Tarjeta>
         <TituloTarjeta>Datos</TituloTarjeta>
@@ -382,44 +559,6 @@ export const ColFicha = () => {
         </TextoTenue>
       </Tarjeta>
 
-      {/* Resumen de las otras dos pestañas, para no tener que entrar a mirar. */}
-      <Rejilla $min={280}>
-        <Tarjeta>
-          <Acciones style={{ justifyContent: "space-between" }}>
-            <TituloTarjeta style={{ margin: 0 }}>Dotación</TituloTarjeta>
-            <BotonEnlace to={RUTA_DOTACION(id)}>Ver</BotonEnlace>
-          </Acciones>
-          {dotacion === null ? (
-            <TextoTenue>Cargando…</TextoTenue>
-          ) : dotacion.asignaciones.length === 0 ? (
-            <TextoTenue>Sin dotación registrada.</TextoTenue>
-          ) : (
-            <TextoTenue>
-              {dotacion.asignaciones.length} asignación(es) ·{" "}
-              {pendientesDotacion === 0
-                ? "todo entregado"
-                : `${pendientesDotacion} artículo(s) pendiente(s)`}
-            </TextoTenue>
-          )}
-        </Tarjeta>
-
-        <Tarjeta>
-          <Acciones style={{ justifyContent: "space-between" }}>
-            <TituloTarjeta style={{ margin: 0 }}>Documentación</TituloTarjeta>
-            <BotonEnlace to={RUTA_DOCUMENTOS(id)}>Ver</BotonEnlace>
-          </Acciones>
-          {documentacion === null ? (
-            <TextoTenue>Cargando…</TextoTenue>
-          ) : (
-            <TextoTenue>
-              {documentacion.entregados} de {documentacion.totalRequeridos} entregado
-              {documentacion.sinArchivo > 0 &&
-                ` · ${documentacion.sinArchivo} sin digitalizar`}
-            </TextoTenue>
-          )}
-        </Tarjeta>
-      </Rejilla>
-
       <Tarjeta>
         <TituloTarjeta>Historial de cargos</TituloTarjeta>
         <HistorialCargos historial={historialCargos ?? []} />
@@ -451,10 +590,46 @@ export const ColFicha = () => {
 
       <BitacoraAuditoria id={id} />
 
+      {pruebaPendienteDecision && (
+        <BarraFlotante role="region" aria-label="Decisión del período de prueba">
+          <CuerpoFlotante>
+            <IconUI name="FaClock" size={20} color={theme?.colors?.background} />
+            <div style={{ flex: "1 1 260px", display: "flex", flexDirection: "column", gap: 2 }}>
+              <strong>
+                {diasPeriodoPrueba === null
+                  ? "Período de prueba sin confirmar"
+                  : diasPeriodoPrueba === 0
+                    ? "El período de prueba vence hoy"
+                    : diasPeriodoPrueba > 0
+                      ? `El período de prueba vence en ${diasPeriodoPrueba} día${diasPeriodoPrueba === 1 ? "" : "s"}`
+                      : `El período de prueba venció hace ${Math.abs(diasPeriodoPrueba)} día${Math.abs(diasPeriodoPrueba) === 1 ? "" : "s"}`}
+              </strong>
+              <span style={{ fontSize: 13, opacity: 0.85 }}>
+                Decide si {ficha.nombresCompletos} continúa en {ficha.cargo || ficha.empresa}.
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <BotonFlotanteSecundario type="button" onClick={noContinuar} disabled={confirmandoContinuidad}>
+                No continuar
+              </BotonFlotanteSecundario>
+              <BotonFlotantePrimario
+                type="button"
+                onClick={confirmarContinuidad}
+                disabled={confirmandoContinuidad}
+              >
+                <IconUI name="FaCheck" size={14} />
+                {confirmandoContinuidad ? "Confirmando…" : "Confirmar continuidad"}
+              </BotonFlotantePrimario>
+            </div>
+          </CuerpoFlotante>
+        </BarraFlotante>
+      )}
+
       <ModalBajaReingreso
         abierto={modal === "baja" || modal === "reingreso"}
         modo={modal === "baja" ? "baja" : "reingreso"}
         ficha={ficha}
+        motivoInicialCodigo={modal === "baja" ? motivoBajaInicial : null}
         onCerrar={cerrarModal}
         onConfirmar={modal === "baja" ? confirmarBaja : confirmarReingreso}
       />

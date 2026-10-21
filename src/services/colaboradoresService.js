@@ -29,7 +29,7 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  *
  * @typedef {Object} Movimiento
  * @property {number} id
- * @property {"Ingreso"|"Baja"|"Reingreso"} tipo
+ * @property {"Ingreso"|"Baja"|"Reingreso"|"Subrogacion"} tipo
  * @property {string} fecha
  * @property {string|null} motivo
  * @property {string|null} observacion
@@ -195,6 +195,41 @@ export const ObtenerResumenColaboradores = async ({ signal } = {}) => {
     };
   } catch (error) {
     return propagar(error, "No se pudo obtener el resumen de colaboradores");
+  }
+};
+
+/**
+ * Listado completo de movimientos de personal, con filtros. A diferencia de
+ * `movimientosRecientes` del resumen (los últimos 10, sin filtrar), esta es la
+ * pantalla "Movimientos de personal" con buscador, tipo, empresa y período.
+ * @param {Object} filtros tipo, empresaId, fechaInicio, fechaFin, buscar, page, pageSize
+ * @returns {Promise<{items: Object[], total: number, page: number, pageSize: number, totalPages: number}>}
+ */
+export const ObtenerMovimientosPersonal = async (filtros = {}, { signal } = {}) => {
+  try {
+    const params = {};
+    Object.entries(filtros).forEach(([clave, valor]) => {
+      if (valor !== undefined && valor !== null && valor !== "") params[clave] = valor;
+    });
+
+    const respuesta = await axiosInstanceNew.get(`${BASE}/movimientos`, { params, signal });
+    const datos = desenvolver(respuesta);
+
+    if (!datos) return { items: [], total: 0, page: 1, pageSize: 0, totalPages: 0 };
+
+    return {
+      items: (datos.items ?? []).map((mov) => ({
+        ...mov,
+        empleadoId: numero(mov.empleadoId),
+        fecha: soloFecha(mov.fecha),
+      })),
+      total: numero(datos.total) ?? 0,
+      page: numero(datos.page) ?? 1,
+      pageSize: numero(datos.pageSize) ?? 0,
+      totalPages: numero(datos.totalPages) ?? 0,
+    };
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el listado de movimientos");
   }
 };
 
@@ -578,6 +613,23 @@ export const CambiarCargoEmpleado = async (empleadoId, datos) => {
   }
 };
 
+/**
+ * "Confirmar continuidad" del período de prueba. No hay nada más que "No
+ * continuar": eso es una baja común, con el motivo "Fin de período de prueba".
+ * @returns {Promise<EmpleadoDetalle>}
+ */
+export const ConfirmarPeriodoPrueba = async (empleadoId) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(
+      `${BASE}/empleados/${empleadoId}/periodo-prueba/confirmar`,
+    );
+    const ficha = desenvolver(respuesta);
+    return ficha ? mapearDetalle(ficha) : null;
+  } catch (error) {
+    return propagar(error, "No se pudo confirmar la continuidad");
+  }
+};
+
 // ── 3.4 — Alertas de período de prueba ──────────────────────────────────────
 
 /** Empleados activos dentro de la ventana de aviso. @returns {Promise<Object[]>} */
@@ -803,3 +855,61 @@ export const ReenviarPazSalvo = async (empleadoId, areaConfigIds) => {
   } catch (error) {
     propagar(error, "No se pudo reenviar el recordatorio");
   }
+};
+
+/**
+ * Banner del tablero: un renglón por colaborador con paz y salvo pendiente,
+ * con cuántas áreas le faltan.
+ * @returns {Promise<{empleadoId: number, nombresCompletos: string, pendientes: number}[]>}
+ */
+export const ObtenerPazSalvoPendienteGlobal = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/paz-salvo/pendientes`, { signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      empleadoId: numero(fila.empleadoId),
+      pendientes: numero(fila.pendientes),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el paz y salvo pendiente");
+  }
+};
+
+/**
+ * Banner del tablero: un renglón por colaborador activo con documentos
+ * pendientes o sin digitalizar. Son documentos YA registrados (ver el
+ * comentario de DocumentosRrhhRepo.retrievePendientesGlobal en el backend);
+ * uno condicional que nunca se tocó no aparece acá.
+ * @returns {Promise<{empleadoId: number, nombresCompletos: string, pendientes: number, sinArchivo: number}[]>}
+ */
+export const ObtenerDocumentosPendientesGlobal = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/documentos/pendientes`, { signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      empleadoId: numero(fila.empleadoId),
+      pendientes: numero(fila.pendientes),
+      sinArchivo: numero(fila.sinArchivo),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener los documentos pendientes");
+  }
+};
+
+/**
+ * "Documentos faltantes más comunes": los 3 tipos con más filas pendientes o
+ * sin digitalizar, para saber qué pedir primero en lugar de un total ciego.
+ * @returns {Promise<{tipoId: number, nombre: string, total: number}[]>}
+ */
+export const ObtenerDocumentosPendientesPorTipo = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/documentos/pendientes-por-tipo`, { signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      tipoId: numero(fila.tipoId),
+      total: numero(fila.total),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener los tipos de documento pendientes");
+  }
+};

@@ -142,7 +142,7 @@ const TONOS = {
   neutro: "textSecondary",
 };
 
-const colorDeTono = (theme, tono) =>
+export const colorDeTono = (theme, tono) =>
   theme?.colors?.[TONOS[tono] ?? "textSecondary"] ?? "#64748b";
 
 /**
@@ -204,11 +204,135 @@ export const CirculoIcono = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  flex: none;
+  width: ${({ $tamano = 56 }) => $tamano}px;
+  height: ${({ $tamano = 56 }) => $tamano}px;
   border-radius: 50%;
   background: ${({ theme, $tono }) =>
     hexToRGBA({ hex: colorDeTono(theme, $tono), alpha: 0.12 })};
+`;
+
+/** Avatar con iniciales, para la cabecera de la ficha: no hay foto en el Portal. */
+export const AvatarIniciales = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 700;
+  color: ${({ theme }) => theme?.colors?.text};
+  background: ${({ theme }) => theme?.colors?.backgroundLight};
+`;
+
+/**
+ * Tarjeta-enlace de "Requiere atención": icono, título, detalle y chevron sobre
+ * un fondo tintado del tono. Mismo cálculo de contraste que Badge (14 %/35 %).
+ */
+export const EnlaceAtencion = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: ${({ theme }) => theme?.colors?.text};
+  background: ${({ theme, $tono }) => hexToRGBA({ hex: colorDeTono(theme, $tono), alpha: 0.1 })};
+  border: 1px solid ${({ theme, $tono }) =>
+    hexToRGBA({ hex: colorDeTono(theme, $tono), alpha: 0.3 })};
+
+  &:hover {
+    color: ${({ theme }) => theme?.colors?.text};
+    border-color: ${({ theme, $tono }) => colorDeTono(theme, $tono)};
+  }
+`;
+
+export const CuerpoAtencion = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+`;
+
+export const TituloAtencion = styled.div`
+  font-size: 15px;
+  font-weight: 800;
+`;
+
+export const DetalleAtencion = styled.div`
+  font-size: 13px;
+  color: ${({ theme, $tono }) => colorDeTono(theme, $tono)};
+`;
+
+export const FlechaAtencion = styled.span`
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: ${({ theme, $tono }) => colorDeTono(theme, $tono)};
+`;
+
+/** Barra de progreso: pista fija + relleno proporcional. */
+export const PistaProgreso = styled.div`
+  height: 8px;
+  border-radius: 4px;
+  background: ${({ theme }) => theme?.colors?.borderLight};
+  overflow: hidden;
+`;
+
+export const RellenoProgreso = styled.div`
+  height: 100%;
+  border-radius: 4px;
+  background: ${({ theme, $tono }) => colorDeTono(theme, $tono ?? "info")};
+  width: ${({ $porcentaje = 0 }) => Math.min(100, Math.max(0, $porcentaje))}%;
+`;
+
+/** Pastilla de filtro (p. ej. tipo de movimiento). Alterna estado con $activo. */
+export const Chip = styled.button`
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: ${({ theme, $activo }) => ($activo ? theme?.colors?.white ?? "#fff" : theme?.colors?.text)};
+  background: ${({ theme, $activo }) => ($activo ? theme?.colors?.text : theme?.colors?.backgroundCard)};
+  border: 1px solid ${({ theme, $activo }) => ($activo ? theme?.colors?.text : theme?.colors?.border)};
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme?.colors?.focusRing ?? theme?.colors?.primary};
+    outline-offset: 1px;
+  }
+`;
+
+/** Campo de búsqueda con lupa, mismo look que los inputs del Portal. */
+export const CampoBusqueda = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: ${({ theme }) => theme?.colors?.inputBackground ?? theme?.colors?.backgroundCard};
+  border: 1px solid ${({ theme }) => theme?.colors?.inputBorder ?? theme?.colors?.border};
+  box-sizing: border-box;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    font: inherit;
+    font-size: 14px;
+    background: transparent;
+    color: ${({ theme }) => theme?.colors?.text};
+
+    &::placeholder {
+      color: ${({ theme }) => theme?.colors?.placeholder};
+    }
+  }
 `;
 
 /** Aviso en línea, para errores de acción y notas informativas. */
@@ -376,4 +500,33 @@ export const ItemTiempo = styled.li`
 export const TextoTenue = styled.span`
   font-size: 12px;
   color: ${({ theme }) => theme?.colors?.textSecondary};
+`;
+
+/**
+ * Barra flotante para una decisión que no debería perderse en medio de una
+ * ficha larga (p. ej. confirmar el período de prueba). `position: sticky` y no
+ * `fixed`: así no tapa nada cuando la ficha es más corta que la pantalla, y
+ * desaparece naturalmente al llegar al pie.
+ */
+export const BarraFlotante = styled.div`
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+`;
+
+export const CuerpoFlotante = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 18px;
+  max-width: 860px;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 16px;
+  background: ${({ theme }) => theme?.colors?.text};
+  color: ${({ theme }) => theme?.colors?.background};
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 `;

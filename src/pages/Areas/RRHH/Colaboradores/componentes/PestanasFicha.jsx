@@ -35,27 +35,27 @@ const Pestana = styled(NavLink)`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 14px;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
-  margin-bottom: -1px;
-  font-size: 13px;
+  height: 44px;
+  padding: 0 4px;
+  margin-right: 22px;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
+  box-shadow: inset 0 -3px 0 transparent;
   color: ${({ theme }) => theme?.colors?.textSecondary};
 
   &:hover {
     color: ${({ theme }) => theme?.colors?.text};
-    background: ${({ theme }) =>
-      hexToRGBA({ hex: theme?.colors?.primary ?? "#fd4703", alpha: 0.06 })};
   }
 
   /* react-router pone .active en el NavLink que corresponde a la URL actual. */
   &.active {
+    font-weight: 800;
     color: ${({ theme }) => theme?.colors?.primary};
-    background: ${({ theme }) => theme?.colors?.backgroundCard};
-    border-color: ${({ theme }) => theme?.colors?.border};
+    box-shadow: inset 0 -3px 0 ${({ theme }) => theme?.colors?.primary};
   }
 
   &:focus-visible {

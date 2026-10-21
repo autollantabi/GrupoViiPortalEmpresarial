@@ -20,6 +20,7 @@ export const TIPO_MOVIMIENTO = Object.freeze({
   INGRESO: "Ingreso",
   BAJA: "Baja",
   REINGRESO: "Reingreso",
+  SUBROGACION: "Subrogacion",
 });
 
 export const ACCION = Object.freeze({
@@ -41,6 +42,15 @@ export const TONO_MOVIMIENTO = Object.freeze({
   [TIPO_MOVIMIENTO.INGRESO]: "exito",
   [TIPO_MOVIMIENTO.BAJA]: "peligro",
   [TIPO_MOVIMIENTO.REINGRESO]: "info",
+  [TIPO_MOVIMIENTO.SUBROGACION]: "neutro",
+});
+
+/** Cómo se lee cada tipo de movimiento en pantalla (el API lo manda sin tilde). */
+export const ETIQUETA_MOVIMIENTO = Object.freeze({
+  [TIPO_MOVIMIENTO.INGRESO]: "Ingreso",
+  [TIPO_MOVIMIENTO.BAJA]: "Baja",
+  [TIPO_MOVIMIENTO.REINGRESO]: "Reingreso",
+  [TIPO_MOVIMIENTO.SUBROGACION]: "Subrogación",
 });
 
 export const ETIQUETA_ACCION = Object.freeze({
