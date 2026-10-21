@@ -11,7 +11,7 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades, syncItemsToSap } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades, syncItemsToSap, getSapRequestItem } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
 import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
@@ -212,6 +212,7 @@ const OPTIONS_ORIGEN_LUB = [
 const OPTIONS_MEDIDA_LUB = [
     { value: "LT", label: "LT" },
     { value: "KG", label: "KG" },
+    { value: "UGL", label: "UGL" }
 ];
 
 // Opciones Rol 3 (Técnico/Supervisor)
@@ -686,6 +687,8 @@ function Lubricantes() {
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
     const [isSyncingSap, setIsSyncingSap] = useState(false);
+    const [sapRequestPreview, setSapRequestPreview] = useState(null);
+    const [loadingSapRequestId, setLoadingSapRequestId] = useState(null);
     const [searchTermExport, setSearchTermExport] = useState("");
 
     const filteredItemsToReview = useMemo(() => {
@@ -1125,6 +1128,19 @@ function Lubricantes() {
             toast.error(`Error al actualizar la imagen ${tipo.toUpperCase()}.`);
         } finally {
             setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: false }));
+        }
+    };
+
+    const handleVerSapRequest = async (itemId) => {
+        setLoadingSapRequestId(itemId);
+        try {
+            const response = await getSapRequestItem("LUBRICANTES", itemId);
+            setSapRequestPreview(response?.data || null);
+        } catch (error) {
+            console.error("Error al generar el request de SAP:", error);
+            toast.error(error?.response?.data?.details || error?.response?.data?.message || "No se pudo generar el request de SAP.");
+        } finally {
+            setLoadingSapRequestId(null);
         }
     };
 
@@ -3009,12 +3025,13 @@ function Lubricantes() {
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Aprobado el</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Request SAP</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredApprovedItemsForExport.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>
+                                        <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>
                                             {approvedItemsForExport.length === 0 ? "No hay ítems aprobados para exportar." : "No se encontraron ítems que coincidan con la búsqueda."}
                                         </td>
                                     </tr>
@@ -3042,6 +3059,15 @@ function Lubricantes() {
                                             <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.text, fontSize: "12px" }}>{item.NOMBRE || item.DESCRIPCION || "-"}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.textSecondary, fontSize: "11px" }}>{new Date(item.updatedAt).toLocaleString()}</td>
+                                            <td style={{ padding: "10px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                                                <ButtonUI
+                                                    text={loadingSapRequestId === item.ID ? "Generando..." : "Ver request"}
+                                                    iconLeft="FaCode"
+                                                    variant="outlined"
+                                                    disabled={loadingSapRequestId !== null}
+                                                    onClick={() => handleVerSapRequest(item.ID)}
+                                                />
+                                            </td>
                                         </tr>
                                     ))
                                 )}
@@ -3100,6 +3126,47 @@ function Lubricantes() {
                         )}
                     </div>
                 </div>
+            </ModalUI>
+
+            <ModalUI
+                isOpen={!!sapRequestPreview}
+                onClose={() => setSapRequestPreview(null)}
+                title="Request a SAP"
+                width="90vw"
+                maxWidth="900px"
+            >
+                {sapRequestPreview && (
+                    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <TextUI size="14px" color={theme?.colors?.text}>
+                            <strong>{sapRequestPreview.Modo === "ACTUALIZACION" ? "Actualización" : "Creación"}</strong>
+                            {" · "}{sapRequestPreview.Empresa}
+                            {sapRequestPreview.CodigoSap ? ` · Código SAP ${sapRequestPreview.CodigoSap}` : ""}
+                        </TextUI>
+                        <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                            {sapRequestPreview.Metodo} {sapRequestPreview.Endpoint}
+                        </TextUI>
+                        {sapRequestPreview.Nota && (
+                            <TextUI size="13px" color={theme?.colors?.warning || "#b26a00"}>
+                                {sapRequestPreview.Nota}
+                            </TextUI>
+                        )}
+                        <pre style={{ margin: 0, padding: "12px", maxHeight: "50vh", overflow: "auto", fontSize: "12px", borderRadius: "8px", border: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>
+                            {JSON.stringify(sapRequestPreview.Body, null, 2)}
+                        </pre>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                            <ButtonUI
+                                text="Copiar JSON"
+                                iconLeft="FaCopy"
+                                variant="outlined"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(JSON.stringify(sapRequestPreview.Body, null, 2));
+                                    toast.success("Request copiado.");
+                                }}
+                            />
+                            <ButtonUI text="Cerrar" onClick={() => setSapRequestPreview(null)} />
+                        </div>
+                    </div>
+                )}
             </ModalUI>
         </div>
     );
