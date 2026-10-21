@@ -77,16 +77,23 @@ export const ColDocumentos = () => {
    * Guardar sirve para crear y para actualizar.
    *
    * El `id` nulo es lo que distingue los dos casos: significa que el documento se
-   * le exige pero todavía no tiene fila en la base.
+   * le exige pero todavía no tiene fila en la base. Para un documento "uno por
+   * hijo" el modal llama esto una vez por cada hijo (de a uno, no en lote): si
+   * todavía falta otro, manda `finalizar: false` para que el modal siga abierto
+   * en vez de cerrarse apenas termina este guardado.
    */
-  const guardar = async (carga) => {
+  const guardar = async (lista, { finalizar = true } = {}) => {
     const esNuevo = aMarcar?.id === null;
 
-    await (esNuevo
-      ? CrearDocumentoEmpleado(id, carga)
-      : ActualizarDocumentoEmpleado(aMarcar.id, carga));
+    if (esNuevo) {
+      for (const carga of lista) {
+        await CrearDocumentoEmpleado(id, carga);
+      }
+    } else {
+      await ActualizarDocumentoEmpleado(aMarcar.id, lista[0]);
+    }
 
-    setAMarcar(null);
+    if (finalizar) setAMarcar(null);
     toast.success(esNuevo ? "Documento registrado." : "Documento actualizado.");
     recargar();
   };
@@ -280,6 +287,10 @@ export const ColDocumentos = () => {
       <ModalMarcarDocumento
         abierto={aMarcar !== null}
         documento={aMarcar}
+        empleadoId={id}
+        documentosDelTipo={documentacion.documentos.filter(
+          (fila) => fila.tipoId === aMarcar?.tipoId,
+        )}
         onCerrar={() => setAMarcar(null)}
         onConfirmar={guardar}
       />
