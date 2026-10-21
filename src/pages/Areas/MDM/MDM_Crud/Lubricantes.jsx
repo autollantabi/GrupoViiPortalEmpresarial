@@ -212,6 +212,7 @@ const OPTIONS_ORIGEN_LUB = [
 const OPTIONS_MEDIDA_LUB = [
     { value: "LT", label: "LT" },
     { value: "KG", label: "KG" },
+    { value: "UGL", label: "UGL" }
 ];
 
 // Opciones Rol 3 (Técnico/Supervisor)

@@ -99,6 +99,7 @@ import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
 import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnidadesVendidas/ReporteIkonixUnidadesVendidas";
 import { ReporteCobus } from "pages/Areas/Reporteria/ReporteCobus/Cobus";
+import { ReporteTop200ClientesIkonix } from "pages/Areas/Reporteria/NuevoReporte/NuevoReporte";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -579,6 +580,11 @@ export const RoutesConfig = [
     title: "Unidades Vendidas",
     component: ReporteIkonixUnidadesVendidas,
     recurso: "reportes.unidadesvendidas",
+  },
+  {
+    title: "Top 200 clientes Ikonix",
+    component: ReporteTop200ClientesIkonix,
+    recurso: "reportes.top200clientesikonix",
   },
   // ================================= VISITAS =================================
   {
