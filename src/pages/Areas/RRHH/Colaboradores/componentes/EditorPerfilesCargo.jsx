@@ -45,7 +45,8 @@ const ModalPerfil = ({ abierto, perfil, cargos, onCerrar, onGuardar }) => {
   const [requisitos, setRequisitos] = useState("");
   const [competencias, setCompetencias] = useState("");
   const [rangoSalarialMin, setRangoSalarialMin] = useState("");
-  const [rangoSalarialMax, setRangoSalarialMax] = useState("");
+  const [rangoSalarialFijo, setRangoSalarialFijo] = useState("");
+  const [rangoSalarialVariable, setRangoSalarialVariable] = useState("");
   const [reportaACargoId, setReportaACargoId] = useState(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -57,7 +58,10 @@ const ModalPerfil = ({ abierto, perfil, cargos, onCerrar, onGuardar }) => {
     setRequisitos(perfil?.requisitos ?? "");
     setCompetencias(perfil?.competencias ?? "");
     setRangoSalarialMin(perfil?.rangoSalarialMin != null ? String(perfil.rangoSalarialMin) : "");
-    setRangoSalarialMax(perfil?.rangoSalarialMax != null ? String(perfil.rangoSalarialMax) : "");
+    setRangoSalarialFijo(perfil?.rangoSalarialFijo != null ? String(perfil.rangoSalarialFijo) : "");
+    setRangoSalarialVariable(
+      perfil?.rangoSalarialVariable != null ? String(perfil.rangoSalarialVariable) : "",
+    );
     setReportaACargoId(perfil?.reportaACargoId ?? null);
     setEnviando(false);
   }, [abierto, perfil]);
@@ -85,7 +89,8 @@ const ModalPerfil = ({ abierto, perfil, cargos, onCerrar, onGuardar }) => {
         requisitos: requisitos.trim() || null,
         competencias: competencias.trim() || null,
         rangoSalarialMin: rangoSalarialMin === "" ? null : Number(rangoSalarialMin),
-        rangoSalarialMax: rangoSalarialMax === "" ? null : Number(rangoSalarialMax),
+        rangoSalarialFijo: rangoSalarialFijo === "" ? null : Number(rangoSalarialFijo),
+        rangoSalarialVariable: rangoSalarialVariable === "" ? null : Number(rangoSalarialVariable),
         reportaACargoId: reportaACargoId || null,
       });
     } catch (e) {
@@ -144,7 +149,7 @@ const ModalPerfil = ({ abierto, perfil, cargos, onCerrar, onGuardar }) => {
             />
           </CampoLabel>
 
-          <CampoLabel etiqueta="Competencias">
+          <CampoLabel etiqueta="Conocimientos">
             <AreaTexto
               value={competencias}
               onChange={(evento) => setCompetencias(evento.target.value)}
@@ -162,11 +167,19 @@ const ModalPerfil = ({ abierto, perfil, cargos, onCerrar, onGuardar }) => {
                 min={0}
               />
             </CampoLabel>
-            <CampoLabel etiqueta="Rango salarial máximo">
+            <CampoLabel etiqueta="Rango salarial fijo">
               <InputUI
                 type="number"
-                value={rangoSalarialMax}
-                onChange={setRangoSalarialMax}
+                value={rangoSalarialFijo}
+                onChange={setRangoSalarialFijo}
+                min={0}
+              />
+            </CampoLabel>
+            <CampoLabel etiqueta="Rango salarial variable">
+              <InputUI
+                type="number"
+                value={rangoSalarialVariable}
+                onChange={setRangoSalarialVariable}
                 min={0}
               />
             </CampoLabel>
@@ -249,7 +262,7 @@ export const EditorPerfilesCargo = () => {
           <div>
             <TituloTarjeta style={{ margin: 0 }}>Perfiles de cargo</TituloTarjeta>
             <TextoTenue>
-              Funciones, requisitos, competencias y línea de reporte de cada cargo.
+              Funciones, requisitos, conocimientos y línea de reporte de cada cargo.
             </TextoTenue>
           </div>
           <ButtonUI
@@ -267,7 +280,9 @@ export const EditorPerfilesCargo = () => {
             <tr>
               <Th>Cargo</Th>
               <Th>Nivel</Th>
-              <Th>Rango salarial</Th>
+              <Th>Mínimo</Th>
+              <Th>Fijo</Th>
+              <Th>Variable</Th>
               <Th>Reporta a</Th>
               <Th aria-label="Acciones" />
             </tr>
@@ -275,7 +290,7 @@ export const EditorPerfilesCargo = () => {
           <tbody>
             {(perfiles ?? []).length === 0 ? (
               <tr>
-                <Td colSpan={5}>
+                <Td colSpan={7}>
                   <TextoTenue>Sin perfiles de cargo registrados.</TextoTenue>
                 </Td>
               </tr>
@@ -284,11 +299,9 @@ export const EditorPerfilesCargo = () => {
                 <Fila key={perfil.id}>
                   <Td>{perfil.cargo}</Td>
                   <Td>{perfil.nivel || "—"}</Td>
-                  <Td>
-                    {perfil.rangoSalarialMin != null || perfil.rangoSalarialMax != null
-                      ? `${perfil.rangoSalarialMin ?? "—"} – ${perfil.rangoSalarialMax ?? "—"}`
-                      : "—"}
-                  </Td>
+                  <Td>{perfil.rangoSalarialMin ?? "—"}</Td>
+                  <Td>{perfil.rangoSalarialFijo ?? "—"}</Td>
+                  <Td>{perfil.rangoSalarialVariable ?? "—"}</Td>
                   <Td>{perfil.reportaACargo || "—"}</Td>
                   <Td>
                     <Acciones>

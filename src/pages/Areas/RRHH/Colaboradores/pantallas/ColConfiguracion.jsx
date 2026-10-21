@@ -4,6 +4,7 @@ import { EditorAreasPazSalvo } from "../componentes/EditorAreasPazSalvo";
 import { EditorAreasResponsables } from "../componentes/EditorAreasResponsables";
 import { EditorCatalogoItems } from "../componentes/EditorCatalogoItems";
 import { EditorCumpleanios } from "../componentes/EditorCumpleanios";
+import { EditorEmpresas } from "../componentes/EditorEmpresas";
 import { EditorInduccion } from "../componentes/EditorInduccion";
 import { EditorMotivosBaja } from "../componentes/EditorMotivosBaja";
 import { EditorPerfilesCargo } from "../componentes/EditorPerfilesCargo";
@@ -38,6 +39,7 @@ const SECCIONES = [
   { valor: SECCION_CONFIGURACION.PERFILES_CARGO, etiqueta: "Perfiles de cargo" },
   { valor: SECCION_CONFIGURACION.INDUCCION, etiqueta: "Cronograma de inducción" },
   { valor: SECCION_CONFIGURACION.PAZ_SALVO_AREAS, etiqueta: "Áreas de paz y salvo" },
+  { valor: SECCION_CONFIGURACION.EMPRESAS, etiqueta: "Empresas" },
 ];
 
 const DESCRIPCION = {
@@ -49,10 +51,12 @@ const DESCRIPCION = {
   [SECCION_CONFIGURACION.CUMPLEANIOS]:
     "La tarjeta del colaborador y el afiche del mes: verlos antes de mandarlos.",
   [SECCION_CONFIGURACION.PERFILES_CARGO]:
-    "Funciones, requisitos, competencias y línea de reporte de cada cargo.",
+    "Funciones, requisitos, conocimientos y línea de reporte de cada cargo.",
   [SECCION_CONFIGURACION.INDUCCION]:
     "Las actividades que se le programan a un colaborador nuevo, por área.",
   [SECCION_CONFIGURACION.PAZ_SALVO_AREAS]: "Las áreas que deben dar el visto bueno en una baja.",
+  [SECCION_CONFIGURACION.EMPRESAS]:
+    "Razón social, RUC y representante legal para los certificados.",
 };
 
 export const ColConfiguracion = () => {
@@ -97,6 +101,7 @@ export const ColConfiguracion = () => {
       {seccion === SECCION_CONFIGURACION.PERFILES_CARGO && <EditorPerfilesCargo />}
       {seccion === SECCION_CONFIGURACION.INDUCCION && <EditorInduccion />}
       {seccion === SECCION_CONFIGURACION.PAZ_SALVO_AREAS && <EditorAreasPazSalvo />}
+      {seccion === SECCION_CONFIGURACION.EMPRESAS && <EditorEmpresas />}
     </Contenedor>
   );
 };

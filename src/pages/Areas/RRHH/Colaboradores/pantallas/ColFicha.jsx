@@ -75,12 +75,16 @@ const ModalVerPerfilCargo = ({ abierto, perfil, onCerrar }) => {
           <DatoValor>{perfil.reportaACargo || "—"}</DatoValor>
         </DatoContenedor>
         <DatoContenedor>
-          <DatoEtiqueta>Rango salarial</DatoEtiqueta>
-          <DatoValor>
-            {perfil.rangoSalarialMin != null || perfil.rangoSalarialMax != null
-              ? `${perfil.rangoSalarialMin ?? "—"} – ${perfil.rangoSalarialMax ?? "—"}`
-              : "—"}
-          </DatoValor>
+          <DatoEtiqueta>Rango salarial mínimo</DatoEtiqueta>
+          <DatoValor>{perfil.rangoSalarialMin ?? "—"}</DatoValor>
+        </DatoContenedor>
+        <DatoContenedor>
+          <DatoEtiqueta>Rango salarial fijo</DatoEtiqueta>
+          <DatoValor>{perfil.rangoSalarialFijo ?? "—"}</DatoValor>
+        </DatoContenedor>
+        <DatoContenedor>
+          <DatoEtiqueta>Rango salarial variable</DatoEtiqueta>
+          <DatoValor>{perfil.rangoSalarialVariable ?? "—"}</DatoValor>
         </DatoContenedor>
       </ListaDatos>
       <Separador />
@@ -94,7 +98,7 @@ const ModalVerPerfilCargo = ({ abierto, perfil, onCerrar }) => {
           <DatoValor>{perfil.requisitos || "—"}</DatoValor>
         </DatoContenedor>
         <DatoContenedor>
-          <DatoEtiqueta>Competencias</DatoEtiqueta>
+          <DatoEtiqueta>Conocimientos</DatoEtiqueta>
           <DatoValor>{perfil.competencias || "—"}</DatoValor>
         </DatoContenedor>
       </ListaDatos>
