@@ -443,6 +443,7 @@ export const ListarEstados = async ({ signal } = {}) => {
  * @property {string} areaNombre
  * @property {number|null} cantidadResponsables  Informativo, no una lista de contactos
  * @property {string|null} correoNotificacion
+ * @property {number|null} plazoDias  Días desde la salida para entregar; null = sin plazo
  * @property {boolean} activo
  *
  * @typedef {Object} PazSalvoEmpleadoItem
@@ -455,6 +456,7 @@ export const ListarEstados = async ({ signal } = {}) => {
  * @property {string|null} observacion
  * @property {string|null} fechaResolucion
  * @property {string|null} resueltoPor
+ * @property {string|null} fechaLimite  Snapshot: hasta cuándo puede entregar esta área
  */
 
 // ── 3.1 — Reporte de ingresos y salidas ─────────────────────────────────────
@@ -715,6 +717,7 @@ const mapearPazSalvoAreaConfig = (area) => ({
   ...area,
   id: numero(area.id),
   cantidadResponsables: numero(area.cantidadResponsables),
+  plazoDias: numero(area.plazoDias),
   activo: area.activo !== false,
 });
 
@@ -762,6 +765,7 @@ export const ObtenerPazSalvoEmpleado = async (empleadoId, { signal } = {}) => {
       movimientoId: numero(fila.movimientoId),
       areaConfigId: numero(fila.areaConfigId),
       fechaResolucion: soloFecha(fila.fechaResolucion),
+      fechaLimite: soloFecha(fila.fechaLimite),
     }));
   } catch (error) {
     return propagar(error, "No se pudo obtener el paz y salvo del colaborador");
@@ -782,3 +786,17 @@ export const ResolverPazSalvoItem = async (empleadoId, areaConfigId, datos) => {
     propagar(error, "No se pudo marcar el área como resuelta");
   }
 };
+
+/**
+ * Reenvía el recordatorio a una o varias áreas que todavía no marcaron su
+ * paz y salvo como Resuelto. areaConfigIds es siempre un arreglo, aunque sea
+ * de uno solo: "de a uno o de varios a la vez" es la misma llamada.
+ */
+export const ReenviarPazSalvo = async (empleadoId, areaConfigIds) => {
+  try {
+    await axiosInstanceNew.post(`${BASE}/empleados/${empleadoId}/paz-salvo/reenviar`, {
+      areaConfigIds,
+    });
+  } catch (error) {
+    propagar(error, "No se pudo reenviar el recordatorio");
+  }

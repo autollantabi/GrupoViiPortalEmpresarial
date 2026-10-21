@@ -43,6 +43,7 @@ const ModalArea = ({ abierto, area, onCerrar, onGuardar }) => {
   const [areaNombre, setAreaNombre] = useState("");
   const [cantidadResponsables, setCantidadResponsables] = useState("");
   const [correoNotificacion, setCorreoNotificacion] = useState("");
+  const [plazoDias, setPlazoDias] = useState("");
   const [activo, setActivo] = useState(true);
   const [enviando, setEnviando] = useState(false);
 
@@ -53,6 +54,7 @@ const ModalArea = ({ abierto, area, onCerrar, onGuardar }) => {
       area?.cantidadResponsables != null ? String(area.cantidadResponsables) : "",
     );
     setCorreoNotificacion(area?.correoNotificacion ?? "");
+    setPlazoDias(area?.plazoDias != null ? String(area.plazoDias) : "");
     setActivo(area?.activo ?? true);
     setEnviando(false);
   }, [abierto, area]);
@@ -72,6 +74,7 @@ const ModalArea = ({ abierto, area, onCerrar, onGuardar }) => {
         areaNombre: areaNombre.trim(),
         cantidadResponsables: cantidadResponsables === "" ? null : Number(cantidadResponsables),
         correoNotificacion: correoNotificacion.trim() || null,
+        plazoDias: plazoDias === "" ? null : Number(plazoDias),
         activo,
       });
     } catch (e) {
@@ -117,6 +120,12 @@ const ModalArea = ({ abierto, area, onCerrar, onGuardar }) => {
                 onChange={setCorreoNotificacion}
                 maxLength={150}
               />
+            </CampoLabel>
+            <CampoLabel
+              etiqueta="Plazo (días)"
+              ayuda="Desde la fecha de salida. Vacío = sin plazo, el correo no menciona fecha límite."
+            >
+              <InputUI type="number" value={plazoDias} onChange={setPlazoDias} min={1} />
             </CampoLabel>
           </FilaFormulario>
 
@@ -200,13 +209,14 @@ export const EditorAreasPazSalvo = () => {
               <Th>Área</Th>
               <Th>Responsables</Th>
               <Th>Correo de notificación</Th>
+              <Th>Plazo</Th>
               <Th aria-label="Acciones" />
             </tr>
           </thead>
           <tbody>
             {(areas ?? []).length === 0 ? (
               <tr>
-                <Td colSpan={4}>
+                <Td colSpan={5}>
                   <TextoTenue>Sin áreas registradas.</TextoTenue>
                 </Td>
               </tr>
@@ -224,6 +234,7 @@ export const EditorAreasPazSalvo = () => {
                   </Td>
                   <Td>{area.cantidadResponsables ?? "—"}</Td>
                   <Td>{area.correoNotificacion || "—"}</Td>
+                  <Td>{area.plazoDias != null ? `${area.plazoDias} día(s)` : "—"}</Td>
                   <Td>
                     <Acciones>
                       <ButtonUI

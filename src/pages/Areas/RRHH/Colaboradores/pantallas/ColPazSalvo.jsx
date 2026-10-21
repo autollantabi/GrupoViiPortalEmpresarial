@@ -9,6 +9,7 @@ import { useTheme } from "context/ThemeContext";
 import {
   ObtenerColaborador,
   ObtenerPazSalvoEmpleado,
+  ReenviarPazSalvo,
   ResolverPazSalvoItem,
 } from "services/colaboradoresService";
 import { CabeceraFicha } from "../componentes/CabeceraFicha";
@@ -102,6 +103,8 @@ export const ColPazSalvo = () => {
 
   const [aResolver, setAResolver] = useState(null);
   const [ocupado, setOcupado] = useState(false);
+  const [seleccionados, setSeleccionados] = useState(new Set());
+  const [reenviando, setReenviando] = useState(false);
 
   const { datos: ficha } = useConsulta(({ signal }) => ObtenerColaborador(id, { signal }), [id]);
 
@@ -117,6 +120,37 @@ export const ColPazSalvo = () => {
     setAResolver(null);
     toast.success(`${aResolver.areaNombre} quedó como resuelto.`);
     recargar();
+  };
+
+  const alternarSeleccion = (item) =>
+    setSeleccionados((previos) => {
+      const copia = new Set(previos);
+      if (copia.has(item.id)) copia.delete(item.id);
+      else copia.add(item.id);
+      return copia;
+    });
+
+  const reenviar = async () => {
+    if (seleccionados.size === 0) return;
+
+    const areaConfigIds = (items ?? [])
+      .filter((item) => seleccionados.has(item.id))
+      .map((item) => item.areaConfigId);
+
+    setReenviando(true);
+    try {
+      await ReenviarPazSalvo(id, areaConfigIds);
+      toast.success(
+        areaConfigIds.length === 1
+          ? "Recordatorio reenviado."
+          : `Recordatorio reenviado a ${areaConfigIds.length} áreas.`,
+      );
+      setSeleccionados(new Set());
+    } catch (e) {
+      toast.error(e.message || "No se pudo reenviar el recordatorio");
+    } finally {
+      setReenviando(false);
+    }
   };
 
   if (ficha && ficha.estado === ESTADO.ACTIVO) {
@@ -172,6 +206,25 @@ export const ColPazSalvo = () => {
         </Kpi>
       </Rejilla>
 
+      {pendientes > 0 && (
+        <Acciones>
+          <ButtonUI
+            text={
+              reenviando
+                ? "Reenviando…"
+                : seleccionados.size > 1
+                  ? `Reenviar recordatorio (${seleccionados.size})`
+                  : "Reenviar recordatorio"
+            }
+            iconLeft="FaPaperPlane"
+            variant="outlined"
+            disabled={seleccionados.size === 0 || reenviando}
+            onClick={reenviar}
+          />
+          <TextoTenue>Marque una o varias áreas pendientes para avisarles de nuevo.</TextoTenue>
+        </Acciones>
+      )}
+
       <Tarjeta $sinRelleno>
         {items.length === 0 ? (
           <Vacio>
@@ -184,7 +237,13 @@ export const ColPazSalvo = () => {
             </TextoTenue>
           </Vacio>
         ) : (
-          <TablaPazSalvo items={items} ocupado={ocupado} onResolver={setAResolver} />
+          <TablaPazSalvo
+            items={items}
+            ocupado={ocupado}
+            onResolver={setAResolver}
+            seleccionados={seleccionados}
+            onAlternarSeleccion={alternarSeleccion}
+          />
         )}
       </Tarjeta>
 
