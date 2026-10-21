@@ -1109,6 +1109,8 @@ function Llantas() {
 
     // Sección "Sin aprobar / Aprobados": pestaña activa, buscador compartido entre ambas y
     // estado de refresco (spinner del botón mientras fetchItems está en curso).
+    // Aprobación comercial (rol 1): bloquea los botones mientras se aprueba/rechaza un ítem.
+    const [isProcessingRol1, setIsProcessingRol1] = useState(false);
     const [tabAprobados, setTabAprobados] = useState("sinAprobar");
     const [searchTermAprobados, setSearchTermAprobados] = useState("");
     const [isRefrescandoAprobados, setIsRefrescandoAprobados] = useState(false);
@@ -1833,6 +1835,8 @@ function Llantas() {
     };
 
     const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
+        if (isProcessingRol1) return;
+        setIsProcessingRol1(true);
         try {
             if (action === "reject") {
                 // Mapeo Rol -> Fase
@@ -1863,6 +1867,8 @@ function Llantas() {
         } catch (error) {
             console.error("Error al procesar acción:", error);
             toast.error("Error al procesar la acción.");
+        } finally {
+            setIsProcessingRol1(false);
         }
     };
 
@@ -2444,6 +2450,7 @@ function Llantas() {
                                             iconLeft="FaTimes"
                                             variant="outlined"
                                             pcolor={theme?.colors?.error || '#dc3545'}
+                                            disabled={isProcessingRol1}
                                             onClick={() => {
                                                 setItemToReject(item);
                                                 setIsRejectModalOpen(true);
@@ -2454,7 +2461,7 @@ function Llantas() {
                                                 text="Anterior ítem"
                                                 iconLeft="FaChevronLeft"
                                                 variant="outlined"
-                                                disabled={currentItemIndex <= 0}
+                                                disabled={isProcessingRol1 || currentItemIndex <= 0}
                                                 onClick={() => setCurrentItemIndex(prev => prev - 1)}
                                             />
                                             <TextUI size="13px" weight="500" color={theme?.colors?.textSecondary}>
@@ -2464,7 +2471,7 @@ function Llantas() {
                                                 text="Siguiente ítem"
                                                 iconRight="FaChevronRight"
                                                 variant="outlined"
-                                                disabled={currentItemIndex >= itemsFiltrados.length - 1}
+                                                disabled={isProcessingRol1 || currentItemIndex >= itemsFiltrados.length - 1}
                                                 onClick={() => setCurrentItemIndex(prev => prev + 1)}
                                             />
                                         </div>
@@ -2472,9 +2479,11 @@ function Llantas() {
                                             text="Aceptar"
                                             iconLeft="FaCheck"
                                             pcolor={theme?.colors?.success || '#28a745'}
+                                            isAsync
+                                            disabled={isProcessingRol1}
                                             onClick={() => {
                                                 toast.success(`Ítem ${item.codigo || item.diseño} aceptado exitosamente`);
-                                                handleActionRol1(item.id, "approve");
+                                                return handleActionRol1(item.id, "approve");
                                             }}
                                         />
                                     </div>

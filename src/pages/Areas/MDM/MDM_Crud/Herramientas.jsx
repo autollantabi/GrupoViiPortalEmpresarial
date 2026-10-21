@@ -584,6 +584,8 @@ function Herramientas() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [approvedItems, setApprovedItems] = useState([]);
     // Sección "Sin aprobar / Aprobados": pestaña activa, buscador compartido y estado del refresco.
+    // Aprobación comercial (rol 1): bloquea los botones mientras se aprueba/rechaza un ítem.
+    const [isProcessingRol1, setIsProcessingRol1] = useState(false);
     const [tabAprobados, setTabAprobados] = useState("sinAprobar");
     const [searchTermAprobados, setSearchTermAprobados] = useState("");
     const [isRefrescandoAprobados, setIsRefrescandoAprobados] = useState(false);
@@ -1204,6 +1206,8 @@ function Herramientas() {
     };
 
     const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
+        if (isProcessingRol1) return;
+        setIsProcessingRol1(true);
         try {
             if (action === "reject") {
                 const roleToPhase = { 5: 1, 3: 2, 4: 3 };
@@ -1237,6 +1241,8 @@ function Herramientas() {
         } catch (error) {
             console.error("Error al procesar acción:", error);
             toast.error("Error al procesar la acción.");
+        } finally {
+            setIsProcessingRol1(false);
         }
     };
 
@@ -1670,6 +1676,7 @@ function Herramientas() {
                                             iconLeft="FaTimes"
                                             variant="outlined"
                                             pcolor={theme?.colors?.error || '#dc3545'}
+                                            disabled={isProcessingRol1}
                                             onClick={() => {
                                                 setItemToReject(item);
                                                 setIsRejectModalOpen(true);
@@ -1680,7 +1687,7 @@ function Herramientas() {
                                                 text="Anterior ítem"
                                                 iconLeft="FaChevronLeft"
                                                 variant="outlined"
-                                                disabled={currentItemIndex <= 0}
+                                                disabled={isProcessingRol1 || currentItemIndex <= 0}
                                                 onClick={() => setCurrentItemIndex(prev => prev - 1)}
                                             />
                                             <TextUI size="13px" weight="500" color={theme?.colors?.textSecondary}>
@@ -1690,7 +1697,7 @@ function Herramientas() {
                                                 text="Siguiente ítem"
                                                 iconRight="FaChevronRight"
                                                 variant="outlined"
-                                                disabled={currentItemIndex >= itemsFiltrados.length - 1}
+                                                disabled={isProcessingRol1 || currentItemIndex >= itemsFiltrados.length - 1}
                                                 onClick={() => setCurrentItemIndex(prev => prev + 1)}
                                             />
                                         </div>
@@ -1698,6 +1705,8 @@ function Herramientas() {
                                             text="Aceptar"
                                             iconLeft="FaCheck"
                                             pcolor={theme?.colors?.success || '#28a745'}
+                                            isAsync
+                                            disabled={isProcessingRol1}
                                             onClick={() => handleActionRol1(item.id, "approve")}
                                         />
                                     </div>
