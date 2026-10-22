@@ -169,7 +169,6 @@ const UBICACION_CAMPO = {
   CODIGO: { tab: "general" },
   VENDEDOR: { tab: "general" },
   CONDICION_PAGO_SERIAL: { tab: "condiciones" },
-  CUPO: { tab: "condiciones" },
   DESCUENTO: { tab: "condiciones" },
   RUTA: { tab: "general" },
   TELEFONO1: { tab: "general" },
@@ -1083,7 +1082,6 @@ function ClienteDetalle() {
       COMENTARIOS: recortar(form.COMENTARIOS),
       ACTIVO: form.ACTIVO === true,
       ...(form.CONDICION_PAGO_SERIAL ? { CONDICION_PAGO_SERIAL: form.CONDICION_PAGO_SERIAL } : {}),
-      CUPO: recortar(form.CUPO),
       DESCUENTO: recortar(form.DESCUENTO),
       TIPO_SOCIO_NEGOCIO: form.TIPO_SOCIO_NEGOCIO,
       TIPO_CONTRIBUYENTE: form.TIPO_CONTRIBUYENTE,
@@ -1142,11 +1140,6 @@ function ClienteDetalle() {
         campo: "TIPO_RIMPE",
         mensaje: 'Si el cliente es RIMPE hay que indicar el "Tipo RIMPE"',
       };
-    }
-
-    const cupo = Number(payload.CUPO === "" ? 0 : String(payload.CUPO).replace(",", "."));
-    if (!Number.isFinite(cupo) || cupo < 0) {
-      return { campo: "CUPO", mensaje: 'El "Límite de crédito" debe ser un número mayor o igual a 0' };
     }
 
     const descuento = Number(payload.DESCUENTO === "" ? 0 : String(payload.DESCUENTO).replace(",", "."));
@@ -2242,8 +2235,9 @@ function ClienteDetalle() {
   };
 
   /* Pestaña Condiciones de pago. La condición se elige del maestro de la empresa;
-     la lista de precios es solo informativa. Límite de crédito y Límite
-     comprometido son el mismo valor (ic_cupo): al cambiar uno se cambia el otro. */
+     la lista de precios y los límites son solo informativos. Límite de crédito y
+     Límite comprometido muestran el mismo valor (ic_cupo), que llega por la
+     integración: aquí no se edita ni se envía al guardar. */
   const opcionesCondicion = (condicionesPago || []).map((c) => ({
     value: c.SERIAL,
     label: `${c.NOMBRE}`,
@@ -2295,24 +2289,16 @@ function ClienteDetalle() {
             onChange={(valor) => actualizarCampo("DESCUENTO", valor)}
           />
         </CampoContenedor>
-        <CampoContenedor theme={theme}>
-          <label>Límite de crédito</label>
-          <InputUI
-            type="number"
-            min={0}
-            value={form.CUPO}
-            onChange={(valor) => actualizarCampo("CUPO", valor)}
-          />
-        </CampoContenedor>
-        <CampoContenedor theme={theme}>
-          <label>Límite comprometido</label>
-          <InputUI
-            type="number"
-            min={0}
-            value={form.CUPO}
-            onChange={(valor) => actualizarCampo("CUPO", valor)}
-          />
-        </CampoContenedor>
+        <CampoFijo
+          theme={theme}
+          label="Límite de crédito"
+          valor={form.CUPO}
+        />
+        <CampoFijo
+          theme={theme}
+          label="Límite comprometido"
+          valor={form.CUPO}
+        />
       </Rejilla>
     </Seccion>
   );
