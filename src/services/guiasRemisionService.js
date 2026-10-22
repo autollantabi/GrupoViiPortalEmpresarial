@@ -114,6 +114,25 @@ export const DescargarExcelGuiasRemision = async ({ desde, hasta, empresas }) =>
   }
 };
 
+/**
+ * Lanza la sincronización de guías de remisión (el mismo proceso que corre cada hora) en el servidor.
+ * Responde enseguida: el avance se consulta con EstadoSincronizacionGuias.
+ * @throws Error de axios; 403 sin permiso, 409 ya hay una en curso, 503 el script no está disponible
+ */
+export const SincronizarGuiasRemision = async () => {
+  const response = await axiosInstanceNew.post("/guias-remision/sincronizar");
+  return response.data?.data;
+};
+
+/**
+ * Estado de la última sincronización lanzada desde el portal.
+ * @returns {Promise<{ejecutando: boolean, inicio: string|null, fin: string|null, codigo: number|null, exitosa: boolean|null}>}
+ */
+export const EstadoSincronizacionGuias = async () => {
+  const response = await axiosInstanceNew.get("/guias-remision/sincronizar");
+  return response.data?.data;
+};
+
 /** Tamaño máximo del Excel que se puede subir (el servidor rechaza lo que supere este valor). */
 export const TAMANO_MAXIMO_EXCEL_MB = 25;
 

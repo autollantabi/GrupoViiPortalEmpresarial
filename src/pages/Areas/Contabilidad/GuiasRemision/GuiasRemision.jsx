@@ -5,6 +5,8 @@
  *   - Lista paginada de guías (filtros y paginación se resuelven en el servidor; ver guiasRemisionService.js).
  *   - Detalle de una guía en un modal; el supervisor puede marcarla como enviada.
  *   - "Descargar Excel": genera el Excel de guías aprobadas y pendientes de envío (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL).
+ *   - "Sincronizar" (supervisor con permiso "editar" en usuarios-rol-contexto): ejecuta en el servidor la misma sincronización
+ *     de guías que corre cada hora y, al terminar, vuelve a consultar el listado.
  *   - "Marcar enviadas desde Excel" (solo supervisor): se sube el Excel descargado, se VALIDA, se pide confirmación y recién entonces
  *     se marcan las guías como enviadas.
  *
@@ -26,13 +28,17 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalConfirmacionUI } from "components/UI/Components/ModalConfirmacionUI";
 import { useTheme } from "context/ThemeContext";
+import { useAuthContext } from "context/authContext";
+import { puedeEditarRecurso } from "utils/permisosRecurso";
 import { useDebouncedValue } from "hooks/useDebouncedValue";
 import {
   DescargarExcelGuiasRemision,
   EMPRESAS_EXCEL,
+  EstadoSincronizacionGuias,
   ListarGuiasRemision,
   MarcarEnviadasDesdeExcel,
   MarcarGuiaRemisionEnviada,
+  SincronizarGuiasRemision,
   TAMANO_MAXIMO_EXCEL_MB,
 } from "services/guiasRemisionService";
 
@@ -78,6 +84,12 @@ const ID_TRANSPORTISTA_LAAR = "1791705726001";
 
 // Solo el rol supervisor puede marcar como enviado; "usuario" únicamente consulta
 const ROL_SUPERVISOR = "supervisor";
+
+// Recurso del portal (usuarios_rol_contexto) sobre el que se evalúa el permiso "editar" para sincronizar
+const RECURSO_GUIAS_REMISION = "contabilidad.guiasremision";
+
+// Cada cuánto se consulta si la sincronización terminó
+const INTERVALO_ESTADO_SYNC_MS = 4000;
 
 // ================= Fechas =================
 // Rango por defecto: del primer día del mes en curso hasta hoy. Si hoy ya es un mes nuevo,
@@ -316,7 +328,13 @@ const PageInput = styled.input`
 
 export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const { theme } = useTheme();
+  const { user } = useAuthContext();
   const puedeMarcarEnviado = routeConfig?.rolDelRecurso === ROL_SUPERVISOR;
+  // Sincronizar: supervisor Y con el permiso "editar" (el servidor vuelve a validarlo)
+  const puedeSincronizar = useMemo(
+    () => puedeMarcarEnviado && puedeEditarRecurso(user, RECURSO_GUIAS_REMISION),
+    [puedeMarcarEnviado, user]
+  );
 
   const opcionesEmpresas = useMemo(() => {
     const nombres = (availableCompanies || [])
@@ -374,6 +392,10 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     resumen: null,
     error: null,
   });
+
+  // Sincronización manual de guías (el mismo proceso del cron, ejecutado en el servidor)
+  const [sincronizando, setSincronizando] = useState(false);
+  const temporizadorSyncRef = useRef(null);
 
   const actualizarFiltros = (cambios) =>
     setConsulta((prev) => ({ ...prev, ...cambios, page: 1 }));
@@ -448,6 +470,56 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
     return () => controller.abort();
   }, [consulta, refrescos]);
+
+  // ================= Sincronización de guías =================
+  // Se consulta el estado hasta que el servidor indique que terminó; entonces se recarga el listado con los mismos filtros
+  const vigilarSincronizacion = () => {
+    clearTimeout(temporizadorSyncRef.current);
+    temporizadorSyncRef.current = setTimeout(async () => {
+      try {
+        const estado = await EstadoSincronizacionGuias();
+        if (estado?.ejecutando) return vigilarSincronizacion();
+
+        setSincronizando(false);
+        if (estado?.omitida) {
+          toast.warn("Ya había una sincronización en curso (la programada). Espere unos minutos y actualice el listado");
+        } else if (estado?.exitosa) {
+          toast.success("Sincronización finalizada, listado actualizado");
+          recargar();
+        } else {
+          toast.error("La sincronización terminó con errores. Revise el log del servidor");
+        }
+      } catch (err) {
+        console.error("Error al consultar el estado de la sincronización:", err);
+        setSincronizando(false);
+        toast.error("No se pudo confirmar el resultado de la sincronización");
+      }
+    }, INTERVALO_ESTADO_SYNC_MS);
+  };
+
+  // Al salir de la pantalla se deja de consultar (la sincronización sigue en el servidor)
+  useEffect(() => () => clearTimeout(temporizadorSyncRef.current), []);
+
+  const sincronizar = async () => {
+    if (!puedeSincronizar || sincronizando) return;
+    setSincronizando(true);
+    try {
+      await SincronizarGuiasRemision();
+      toast.info("Sincronización iniciada, puede tardar unos minutos");
+      vigilarSincronizacion();
+    } catch (err) {
+      const mensaje = err?.response?.data?.message;
+      if (err?.response?.status === 409) {
+        // ya había una en curso (p. ej. lanzada por otro usuario): se espera igualmente su resultado
+        toast.warn(mensaje);
+        vigilarSincronizacion();
+        return;
+      }
+      console.error("Error al iniciar la sincronización:", err);
+      setSincronizando(false);
+      toast.error(mensaje || "No se pudo iniciar la sincronización");
+    }
+  };
 
   // ================= Handlers de filtros =================
   const handleEmpresa = (opt) => opt && actualizarFiltros({ empresa: opt.value });
@@ -867,6 +939,15 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                 iconLeft="FaFileExcel"
                 variant="outlined"
                 onClick={abrirExcel}
+              />
+            )}
+            {puedeSincronizar && (
+              <ButtonUI
+                text={sincronizando ? "Sincronizando…" : "Sincronizar"}
+                iconLeft={sincronizando ? "FaSpinner" : "FaArrowsRotate"}
+                variant="outlined"
+                onClick={sincronizar}
+                disabled={sincronizando}
               />
             )}
             {puedeMarcarEnviado && (
