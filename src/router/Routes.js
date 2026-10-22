@@ -100,6 +100,7 @@ import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
 import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnidadesVendidas/ReporteIkonixUnidadesVendidas";
 import { ReporteCobus } from "pages/Areas/Reporteria/ReporteCobus/Cobus";
 import { ReporteTop200ClientesIkonix } from "pages/Areas/Reporteria/NuevoReporte/NuevoReporte";
+import { ReporteInventarioBodegaHerramientas } from "pages/Areas/Reporteria/InventarioBodegaHerramientas/ReporteInventarioBodegaHerramientas";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -585,6 +586,11 @@ export const RoutesConfig = [
     title: "Top 200 clientes Ikonix",
     component: ReporteTop200ClientesIkonix,
     recurso: "reportes.top200clientesikonix",
+  },
+  {
+    title: "Inventario Bodega Herramientas",
+    component: ReporteInventarioBodegaHerramientas,
+    recurso: "reportes.inventariobodegaherramientas"
   },
   // ================================= VISITAS =================================
   {
