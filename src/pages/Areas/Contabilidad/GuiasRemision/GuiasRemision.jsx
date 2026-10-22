@@ -4,7 +4,7 @@
  * Pantalla del recurso "contabilidad.guiasremision". Qué hace:
  *   - Lista paginada de guías (filtros y paginación se resuelven en el servidor; ver guiasRemisionService.js).
  *   - Detalle de una guía en un modal; el supervisor puede marcarla como enviada.
- *   - "Descargar Excel": genera el Excel de guías aprobadas y pendientes de envío (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL).
+ *   - "Descargar Excel": genera el Excel de guías con estado documento Aprobado o Enviado y pendientes de envío (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL).
  *   - "Sincronizar" (supervisor con permiso "editar" en usuarios-rol-contexto): ejecuta en el servidor la misma sincronización
  *     de guías que corre cada hora y, al terminar, vuelve a consultar el listado.
  *   - "Marcar enviadas desde Excel" (solo supervisor): se sube el Excel descargado, se VALIDA, se pide confirmación y recién entonces
@@ -1202,7 +1202,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
           <TextUI size="12px" color={theme.colors.textSecondary}>
             {generandoExcel
               ? "Generando el archivo, puede tardar unos segundos. No cierre esta ventana."
-              : "Incluye las guías aprobadas, no canceladas y pendientes de envío del rango (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL). Las “ULT GUIA” son las máximas del rango descargado: con un rango corto o una sola empresa no representan la última guía real de cada serie. Al abrir el archivo, habilite el contenido y use Datos > Actualizar todo para actualizar las tablas dinámicas."}
+              : "Incluye las guías con estado Aprobado o Enviado, no canceladas y pendientes de envío del rango (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL). Las “ULT GUIA” son las máximas del rango descargado: con un rango corto o una sola empresa no representan la última guía real de cada serie. Al abrir el archivo, habilite el contenido y use Datos > Actualizar todo para actualizar las tablas dinámicas."}
           </TextUI>
         </div>
       </ModalUI>
