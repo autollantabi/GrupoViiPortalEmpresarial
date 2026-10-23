@@ -14,7 +14,7 @@ import ToggleThemeButtonUI from "components/UI/Components/ToggleThemeButtonUI";
 import IconUI from "components/UI/Components/IconsUI";
 
 const SidebarContainer = styled.div.withConfig({
-  shouldForwardProp: (prop) => !["$isexpanded"].includes(prop),
+  shouldForwardProp: (prop) => !["$isexpanded", "$ishidden"].includes(prop),
 })`
   position: fixed;
   width: auto;
@@ -30,22 +30,27 @@ const SidebarContainer = styled.div.withConfig({
     box-shadow: ${(props) => (props.$isexpanded ? "2px 0 12px rgba(0, 0, 0, 0.35)" : "none")};
     transform: translateX(${(props) => (props.$isexpanded ? "0" : "-100%")});
   }
+
+  ${(props) =>
+    props.$ishidden &&
+    `
+    box-shadow: ${props.$isexpanded ? "2px 0 12px rgba(0, 0, 0, 0.35)" : "none"};
+    transform: translateX(${props.$isexpanded ? "0" : "-100%"});
+  `}
 `;
 
 const MobileOverlay = styled.div`
-  display: none;
-
-  @media (max-width: ${MOBILE_BREAKPOINT}px) {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-  }
+  display: block;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
 `;
 
-const MobileToggleButton = styled.button`
-  display: none;
+const MobileToggleButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !["$ishidden"].includes(prop),
+})`
+  display: ${(props) => (props.$ishidden ? "flex" : "none")};
   align-items: center;
   justify-content: center;
   position: fixed;
@@ -373,8 +378,9 @@ const Sidebar = () => {
   const { logout } = useAuthContext();
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { isExpanded, setIsExpanded } = useSidebar();
+  const { isExpanded, setIsExpanded, isHidden, setIsHidden } = useSidebar();
   const isMobile = useIsMobile();
+  const isCompact = isMobile || isHidden;
 
   const [activeMenu, setActiveMenu] = useState(new Set());
   // Obtener items del sidebar desde la configuración centralizada
@@ -383,15 +389,20 @@ const Sidebar = () => {
   const menuItems = getSidebarItems(userContexts);
 
   const handleMouseEnter = () => {
-    if (!isMobile) setIsExpanded(true);
+    if (!isCompact) setIsExpanded(true);
   };
 
   const handleMouseLeave = () => {
-    if (!isMobile) setIsExpanded(false);
+    if (!isCompact) setIsExpanded(false);
   };
 
   const handleToggleMobile = () => {
     setIsExpanded((prev) => !prev);
+  };
+
+  const handleToggleHidden = () => {
+    setIsHidden(!isHidden);
+    setIsExpanded(false);
   };
 
   const handleCerrarSesion = () => {
@@ -414,17 +425,19 @@ const Sidebar = () => {
   return (
     <>
       <MobileToggleButton
+        $ishidden={isHidden}
         type="button"
         onClick={handleToggleMobile}
         aria-label={isExpanded ? "Cerrar menú" : "Abrir menú"}
       >
         <IconUI name={isExpanded ? "FaXmark" : "FaBars"} color="#fff" />
       </MobileToggleButton>
-      {isMobile && isExpanded && (
+      {isCompact && isExpanded && (
         <MobileOverlay onClick={() => setIsExpanded(false)} />
       )}
       <SidebarContainer
         $isexpanded={isExpanded}
+        $ishidden={isHidden}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -437,7 +450,7 @@ const Sidebar = () => {
                 isexpanded={isExpanded}
                 activeMenu={activeMenu}
                 setActiveMenu={setActiveMenu}
-                onNavigate={isMobile ? () => setIsExpanded(false) : undefined}
+                onNavigate={isCompact ? () => setIsExpanded(false) : undefined}
               />
             ))}
           </MenuItemsScroll>
@@ -452,6 +465,16 @@ const Sidebar = () => {
             <SeparatorUI
               color={hexToRGBA({ hex: theme.colors.white, alpha: 0.2 })}
             />
+            {!isMobile && (
+              <MenuSecondary
+                isexpanded={isExpanded}
+                item={{
+                  icon: isHidden ? "FaEye" : "FaEyeSlash",
+                  title: isHidden ? "Mostrar" : "Ocultar",
+                  onClick: handleToggleHidden,
+                }}
+              />
+            )}
             <ToggleThemeButtonUI isexpanded={isExpanded} />
             <MenuSecondary
               isexpanded={isExpanded}

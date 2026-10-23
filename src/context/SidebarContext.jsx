@@ -9,7 +9,9 @@ export const useSidebar = () => {
       isExpanded: false, 
       setIsExpanded: () => {},
       isRightExpanded: false,
-      setIsRightExpanded: () => {}
+      setIsRightExpanded: () => {},
+      isHidden: false,
+      setIsHidden: () => {}
     };
   }
   return context;
@@ -19,8 +21,25 @@ export const SidebarProvider = ({ children }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isRightExpanded, setIsRightExpanded] = useState(false);
 
+  const [isHidden, setIsHiddenState] = useState(() => {
+    try {
+      return localStorage.getItem("sidebarHidden") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const setIsHidden = (value) => {
+    setIsHiddenState(value);
+    try {
+      localStorage.setItem("sidebarHidden", String(value));
+    } catch {
+      // sin persistencia
+    }
+  };
+
   return (
-    <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isRightExpanded, setIsRightExpanded }}>
+    <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isRightExpanded, setIsRightExpanded, isHidden, setIsHidden }}>
       {children}
     </SidebarContext.Provider>
   );
