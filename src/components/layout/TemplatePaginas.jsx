@@ -6,7 +6,6 @@ import Sidebar from "./Sidebar";
 import RightSidebar from "./RightSidebar";
 import { useTheme } from "context/ThemeContext";
 import { MOBILE_BREAKPOINT } from "hooks/useIsMobile";
-import { useSidebar } from "context/SidebarContext";
 
 const ContenedorContenidoPagina = styled.div`
   display: flex;
@@ -36,9 +35,7 @@ const ContenedorCuerpoPaginaHorizontal = styled.div`
   overflow: hidden;
 `;
 
-const ContenedorDerecha = styled.div.withConfig({
-  shouldForwardProp: (prop) => !["$sidebarHidden"].includes(prop),
-})`
+const ContenedorDerecha = styled.div`
   display: flex;
   flex-direction: column;
   width: calc(100vw - 80px); /* Resta el ancho de los sidebars cerrados */
@@ -53,14 +50,6 @@ const ContenedorDerecha = styled.div.withConfig({
     margin-left: 0;
     margin-right: 0;
   }
-
-  ${(props) =>
-    props.$sidebarHidden &&
-    `
-    width: 100vw;
-    margin-left: 0;
-    margin-right: 0;
-  `}
 `;
 
 // 🔹 Agregar animación de fade-in con `styled-components`
@@ -71,7 +60,6 @@ const AnimatedPage = styled(ContenedorContenidoPagina)`
 
 export default function TemplatePaginas({ seccion, ...props }) {
   const { theme } = useTheme();
-  const { isHidden } = useSidebar();
   const [fadeIn, setFadeIn] = useState(false);
 
   useEffect(() => {
@@ -84,7 +72,7 @@ export default function TemplatePaginas({ seccion, ...props }) {
       <Sidebar />
       <RightSidebar />
       <Header />
-      <ContenedorDerecha $sidebarHidden={isHidden}>
+      <ContenedorDerecha>
         <ContenedorCuerpoPaginaHorizontal
           style={{
             backgroundColor: theme.colors.background,

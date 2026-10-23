@@ -19,18 +19,18 @@ const flexRowCenter = `
 `;
 
 const EstructuraHeader = styled.div.withConfig({
-  shouldForwardProp: (prop) => !["$sidebarExpanded", "$rightSidebarExpanded", "$sidebarHidden"].includes(prop),
+  shouldForwardProp: (prop) => !["$sidebarExpanded", "$rightSidebarExpanded"].includes(prop),
 })`
   position: sticky;
   top: 0;
   width: 100%;
   height: ${globalConst.alturaHeader};
   ${flexRowCenter};
-  margin-left: ${(props) => (props.$sidebarHidden ? "0px" : props.$sidebarExpanded ? "220px" : "40px")};
+  margin-left: ${(props) => (props.$sidebarExpanded ? "220px" : "40px")};
   margin-right: 0px;
   margin-right: ${(props) => (props.$rightSidebarExpanded ? "250px" : "40px")};
   width: ${(props) => {
-    const left = props.$sidebarHidden ? 0 : props.$sidebarExpanded ? 220 : 40;
+    const left = props.$sidebarExpanded ? 220 : 40;
     return `calc(100vw - ${left}px)`;
     const right = props.$rightSidebarExpanded ? 250 : 40;
     return `calc(100vw - ${left + right}px)`;
@@ -45,15 +45,6 @@ const EstructuraHeader = styled.div.withConfig({
     padding-left: 46px;
     box-sizing: border-box;
   }
-
-  ${(props) =>
-    props.$sidebarHidden &&
-    `
-    margin-right: 0px;
-    width: 100vw;
-    padding-left: 46px;
-    box-sizing: border-box;
-  `}
 
   background: ${(props) => {
     const start = props.theme.colors.headerGradientStart || props.theme.colors.primary;
@@ -158,7 +149,7 @@ const TextoMarquee = styled.div`
 const Header = () => {
   const navigation = useNavigate();
   const { theme } = useTheme();
-  const { isExpanded, isRightExpanded, isHidden } = useSidebar();
+  const { isExpanded, isRightExpanded } = useSidebar();
   const [mostrarSubMenuUsuario, setMostrarSubMenuUsuario] = useState(false);
 
   // Obtener user y logout del contexto
@@ -226,7 +217,7 @@ const Header = () => {
   }
 
   return (
-    <EstructuraHeader $sidebarHidden={isHidden} $sidebarExpanded={isExpanded} $rightSidebarExpanded={isRightExpanded}>
+    <EstructuraHeader $sidebarExpanded={isExpanded} $rightSidebarExpanded={isRightExpanded}>
       <ContenedorHeader>
         <ContenedorLogo>
           <Reloj />
