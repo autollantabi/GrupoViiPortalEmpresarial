@@ -109,11 +109,14 @@ export const ColPazSalvo = () => {
   const { datos: ficha } = useConsulta(({ signal }) => ObtenerColaborador(id, { signal }), [id]);
 
   const {
-    datos: items,
+    datos,
     cargando,
     error,
     recargar,
   } = useConsulta(({ signal }) => ObtenerPazSalvoEmpleado(id, { signal }), [id]);
+
+  const items = datos?.items ?? null;
+  const activaEnOtraEmpresa = datos?.activaEnOtraEmpresa ?? false;
 
   const confirmarResolver = async (carga) => {
     await ResolverPazSalvoItem(id, aResolver.areaConfigId, carga);
@@ -231,10 +234,22 @@ export const ColPazSalvo = () => {
             <CirculoIcono $tono="info">
               <IconUI name="FaClipboardCheck" size={26} color={theme?.colors?.info} />
             </CirculoIcono>
-            <strong>Sin áreas de paz y salvo configuradas</strong>
-            <TextoTenue>
-              Defina las áreas en Configuración para que empiecen a pedirse en cada baja.
-            </TextoTenue>
+            {activaEnOtraEmpresa ? (
+              <>
+                <strong>Aún no aplica</strong>
+                <TextoTenue>
+                  El paz y salvo es de la persona, no de esta ficha: como sigue activa en otra
+                  empresa del grupo, se generará cuando se le dé de baja de esa última ficha.
+                </TextoTenue>
+              </>
+            ) : (
+              <>
+                <strong>Sin áreas de paz y salvo configuradas</strong>
+                <TextoTenue>
+                  Defina las áreas en Configuración para que empiecen a pedirse en cada salida.
+                </TextoTenue>
+              </>
+            )}
           </Vacio>
         ) : (
           <TablaPazSalvo

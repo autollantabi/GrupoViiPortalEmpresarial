@@ -484,7 +484,6 @@ export const ListarEstados = async ({ signal } = {}) => {
  *
  * @typedef {Object} PazSalvoEmpleadoItem
  * @property {number} id
- * @property {number} empleadoId
  * @property {number} movimientoId
  * @property {number} areaConfigId
  * @property {string} areaNombre
@@ -807,21 +806,29 @@ export const ActualizarPazSalvoAreaConfig = async (id, datos) => {
   }
 };
 
-/** @returns {Promise<PazSalvoEmpleadoItem[]>} */
+/**
+ * El paz y salvo es de la PERSONA, no de esta ficha puntual: activaEnOtraEmpresa
+ * dice si todavía no se generó porque esta persona sigue activa en otra
+ * empresa del grupo (no es que falten áreas configuradas).
+ * @returns {Promise<{items: PazSalvoEmpleadoItem[], activaEnOtraEmpresa: boolean}>}
+ */
 export const ObtenerPazSalvoEmpleado = async (empleadoId, { signal } = {}) => {
   try {
     const respuesta = await axiosInstanceNew.get(`${BASE}/empleados/${empleadoId}/paz-salvo`, {
       signal,
     });
-    return (desenvolver(respuesta) ?? []).map((fila) => ({
-      ...fila,
-      id: numero(fila.id),
-      empleadoId: numero(fila.empleadoId),
-      movimientoId: numero(fila.movimientoId),
-      areaConfigId: numero(fila.areaConfigId),
-      fechaResolucion: soloFecha(fila.fechaResolucion),
-      fechaLimite: soloFecha(fila.fechaLimite),
-    }));
+    const datos = desenvolver(respuesta) ?? {};
+    return {
+      items: (datos.items ?? []).map((fila) => ({
+        ...fila,
+        id: numero(fila.id),
+        movimientoId: numero(fila.movimientoId),
+        areaConfigId: numero(fila.areaConfigId),
+        fechaResolucion: soloFecha(fila.fechaResolucion),
+        fechaLimite: soloFecha(fila.fechaLimite),
+      })),
+      activaEnOtraEmpresa: datos.activaEnOtraEmpresa === true,
+    };
   } catch (error) {
     return propagar(error, "No se pudo obtener el paz y salvo del colaborador");
   }
