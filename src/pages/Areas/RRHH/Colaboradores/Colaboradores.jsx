@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { ColTablero } from "./pantallas/ColTablero";
 import { ColMovimientos } from "./pantallas/ColMovimientos";
 import { ColListado } from "./pantallas/ColListado";
+import { ColCargaMasiva } from "./pantallas/ColCargaMasiva";
 import { ColFicha } from "./pantallas/ColFicha";
 import { ColNuevo } from "./pantallas/ColNuevo";
 import { ColEditar } from "./pantallas/ColEditar";
@@ -61,6 +62,7 @@ export const Colaboradores = ({
       <Route path="empleados" element={<ColListado {...contexto} />} />
       {/* "nuevo" antes que ":id" por legibilidad; React Router ya prioriza el estático. */}
       <Route path="empleados/nuevo" element={soloGestion(<ColNuevo {...contexto} />)} />
+      <Route path="empleados/carga-masiva" element={soloGestion(<ColCargaMasiva {...contexto} />)} />
       <Route path="empleados/:id" element={soloGestion(<ColFicha {...contexto} />)} />
       <Route path="empleados/:id/editar" element={soloGestion(<ColEditar {...contexto} />)} />
       {/* Pestañas de la ficha. Tienen URL propia para que el enlace sea

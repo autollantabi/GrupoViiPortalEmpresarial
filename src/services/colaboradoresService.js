@@ -913,3 +913,87 @@ export const ObtenerDocumentosPendientesPorTipo = async ({ signal } = {}) => {
     return propagar(error, "No se pudo obtener los tipos de documento pendientes");
   }
 };
+
+// ── Carga masiva de colaboradores ───────────────────────────────────────────
+
+/** Con responseType "blob" el error también llega como blob y hay que leerlo aparte. */
+const leerErrorBlob = async (error) => {
+  const datos = error?.response?.data;
+  if (!(datos instanceof Blob)) return mensajeDeError(error, null);
+  try {
+    const texto = await datos.text();
+    return JSON.parse(texto)?.message ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/** Descarga la plantilla .xlsx generada por el backend y dispara la descarga en el navegador. */
+export const DescargarPlantillaCargaMasiva = async () => {
+  let url = null;
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/empleados/carga-masiva/plantilla`, {
+      responseType: "blob",
+    });
+    url = window.URL.createObjectURL(respuesta.data);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = "plantilla-carga-colaboradores.xlsx";
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+  } catch (error) {
+    const mensaje = await leerErrorBlob(error);
+    throw new Error(mensaje || "No se pudo descargar la plantilla");
+  } finally {
+    if (url) window.URL.revokeObjectURL(url);
+  }
+};
+
+/**
+ * Sube el Excel completado y lo valida SIN crear nada todavía: el backend
+ * parte "Nombres Completos", resuelve la empresa de cada fila y avisa qué
+ * cargo/área/línea/ciudad son nuevos. La pantalla usa esto para la tabla de
+ * revisión previa a confirmar.
+ * Cada fila trae además `accion` ("nuevo"|"cambia"|"sin_cambios") y, si
+ * cambia, el detalle campo por campo en `cambios`. `faltantes` son
+ * colaboradores ACTIVOS en el sistema, de las empresas que vinieron en el
+ * archivo, que no aparecieron en esta carga: es solo informativo, nada se les
+ * toca desde acá.
+ * @returns {Promise<{filas: object[], resumen: {total:number, validas:number, conError:number, nuevos:number, cambios:number, sinCambios:number}, faltantes: object[]}>}
+ */
+export const ValidarCargaMasivaEmpleados = async (archivo) => {
+  try {
+    const cuerpo = new FormData();
+    cuerpo.append("archivo", archivo);
+    // Nunca fijar Content-Type a mano: axios pone el boundary del multipart solo.
+    const respuesta = await axiosInstanceNew.post(`${BASE}/empleados/carga-masiva/validar`, cuerpo);
+    return (
+      desenvolver(respuesta) ?? {
+        filas: [],
+        resumen: { total: 0, validas: 0, conError: 0, nuevos: 0, cambios: 0, sinCambios: 0 },
+        faltantes: [],
+      }
+    );
+  } catch (error) {
+    return propagar(error, "No se pudo validar el archivo");
+  }
+};
+
+/**
+ * Crea o actualiza las fichas de las filas ya revisadas (y, si hizo falta,
+ * corregidas a mano) en la pantalla de carga masiva. Cada fila se procesa por
+ * separado: una fila con error no tumba a las demás. Quien ya tenía ficha en
+ * esa empresa se actualiza (sin tocar su estado ni su baja); quien no, se crea.
+ * @returns {Promise<{resultados: object[], resumen: {creados:number, actualizados:number, errores:number}}>}
+ */
+export const ConfirmarCargaMasivaEmpleados = async (filas) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(`${BASE}/empleados/carga-masiva/confirmar`, { filas });
+    return (
+      desenvolver(respuesta) ?? { resultados: [], resumen: { creados: 0, actualizados: 0, errores: 0 } }
+    );
+  } catch (error) {
+    return propagar(error, "No se pudo procesar la carga masiva");
+  }
+};

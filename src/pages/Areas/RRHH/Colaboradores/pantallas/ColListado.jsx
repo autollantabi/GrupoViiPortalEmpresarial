@@ -8,6 +8,7 @@ import { useTheme } from "context/ThemeContext";
 import { ListarColaboradores, ListarEmpresas } from "services/colaboradoresService";
 import { TablaColaboradores } from "../componentes/TablaColaboradores";
 import { FiltroPastillas } from "../componentes/FiltroPastillas";
+import { ModalCargaMasiva } from "../componentes/ModalCargaMasiva";
 import { useConsulta, useDebounce } from "../hooks/useConsulta";
 import { usePermisosColaboradores } from "../hooks/usePermisos";
 import {
@@ -57,6 +58,7 @@ export const ColListado = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { puedeGestionar: puedeGestionarSegunContexto } = usePermisosColaboradores();
+  const [modalCargaMasivaAbierto, setModalCargaMasivaAbierto] = useState(false);
 
   const q = params.get("q") ?? "";
   const estado = params.get("estado") ?? ESTADO_POR_DEFECTO;
@@ -231,6 +233,14 @@ export const ColListado = () => {
           />
           {puedeGestionar && (
             <ButtonUI
+              text="Carga masiva"
+              iconLeft="FaFileExcel"
+              variant="outlined"
+              onClick={() => setModalCargaMasivaAbierto(true)}
+            />
+          )}
+          {puedeGestionar && (
+            <ButtonUI
               text="Registrar ingreso"
               iconLeft="FaUserPlus"
               onClick={() => navigate(`${RUTA_BASE}/empleados/nuevo`)}
@@ -238,6 +248,11 @@ export const ColListado = () => {
           )}
         </Acciones>
       </Encabezado>
+
+      <ModalCargaMasiva
+        abierto={modalCargaMasivaAbierto}
+        onCerrar={() => setModalCargaMasivaAbierto(false)}
+      />
 
       <Tarjeta>
         <Filtros>
