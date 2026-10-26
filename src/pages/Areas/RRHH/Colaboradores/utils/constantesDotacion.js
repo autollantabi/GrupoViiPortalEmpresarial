@@ -1,0 +1,276 @@
+import { RUTA_BASE } from "./constantes";
+
+/**
+ * Constantes de dotación y documentación.
+ *
+ * Archivo aparte de constantes.js por el mismo criterio que el servicio: son dos
+ * cosas distintas y constantes.js describe la ficha.
+ *
+ * Los enums vienen del contrato del API y se congelan para que un typo
+ * ("Entregada" por "Entregado") se vea en un solo sitio en vez de estar disperso
+ * por las pantallas.
+ */
+
+/**
+ * Estado de un artículo de dotación o de un documento.
+ *
+ * BAJA solo aplica a artículos de dotación (nunca a documentos): es lo que queda
+ * un artículo reemplazado, con el reemplazo viajando como una fila nueva. No es
+ * un estado que se elija a mano en ModalEntregarItem, sino uno que pone el
+ * backend cuando se agrega un artículo con reemplazaItemId.
+ */
+export const ESTADO_ENTREGA = Object.freeze({
+  PENDIENTE: "Pendiente",
+  ENTREGADO: "Entregado",
+  NO_APLICA: "NoAplica",
+  BAJA: "Baja",
+});
+
+/** Estado de la cabecera de una asignación. Lo calcula el backend. */
+export const ESTADO_ASIGNACION = Object.freeze({
+  PENDIENTE: "Pendiente",
+  PARCIAL: "Parcial",
+  ENTREGADA: "Entregada",
+});
+
+export const TIPO_ASIGNACION = Object.freeze({
+  INICIAL: "Inicial",
+  COMPLEMENTARIA: "Complementaria",
+});
+
+export const ORIGEN_ASIGNACION = Object.freeze({
+  PLANTILLA: "Plantilla",
+  MANUAL: "Manual",
+  HISTORICO: "Historico",
+});
+
+export const CONDICION_DOCUMENTO = Object.freeze({
+  CASADO: "Casado",
+  CON_HIJOS: "ConHijos",
+  CONDUCE: "Conduce",
+  // Union libre reutiliza el mismo valor que ya existe en estado_civil: el back
+  // lo compara contra ese campo, igual que hace con Casado.
+  UNION_LIBRE: "UnionLibre",
+  // Este NO se lee de estado_civil ni de ningún otro dato de "situación
+  // personal": se dispara por el flag esSustitutoDiscapacidad de la ficha.
+  SUSTITUTO_DISCAPACIDAD: "SustitutoDiscapacidad",
+});
+
+/**
+ * Tipos de discapacidad. Los valores viajan en inglés-clave sin tilde porque son
+ * el contrato exacto con el backend (columna CHECK), y las tildes solo van en la
+ * etiqueta que se muestra.
+ */
+export const TIPO_DISCAPACIDAD = Object.freeze([
+  "Fisica",
+  "Intelectual",
+  "Auditiva",
+  "Visual",
+  "Psicosocial",
+  "Multiple",
+]);
+
+export const ETIQUETA_TIPO_DISCAPACIDAD = Object.freeze({
+  Fisica: "Física",
+  Intelectual: "Intelectual",
+  Auditiva: "Auditiva",
+  Visual: "Visual",
+  Psicosocial: "Psicosocial",
+  Multiple: "Múltiple",
+});
+
+/**
+ * Parentesco de la persona sustituida, para el formulario de la ficha.
+ *
+ * El contrato de backend no fija un enum para este campo (a diferencia de
+ * estado_civil o tipo_discapacidad), así que estos códigos son una decisión de
+ * este frontend: conviene revisarlos contra lo que el backend termine aceptando.
+ */
+export const PARENTESCO_SUSTITUTO = Object.freeze([
+  "HijoA",
+  "Conyuge",
+  "PadreMadre",
+  "HermanoA",
+  "Otro",
+]);
+
+export const ETIQUETA_PARENTESCO_SUSTITUTO = Object.freeze({
+  HijoA: "Hijo/a",
+  Conyuge: "Cónyuge",
+  PadreMadre: "Padre/Madre",
+  HermanoA: "Hermano/a",
+  Otro: "Otro",
+});
+
+export const MOTIVO_DOCUMENTO = Object.freeze({
+  BASE: "Base",
+  CARGO: "Cargo",
+  CONDICION: "Condicion",
+});
+
+export const TIPO_CAMPO = Object.freeze({
+  TEXTO: "texto",
+  NUMERO: "numero",
+  LISTA: "lista",
+});
+
+export const ESTADO_CIVIL = Object.freeze([
+  "Soltero",
+  "Casado",
+  "Divorciado",
+  "Viudo",
+  "UnionLibre",
+]);
+
+// ── Etiquetas y tonos ───────────────────────────────────────────────────────
+
+export const ETIQUETA_ENTREGA = Object.freeze({
+  [ESTADO_ENTREGA.PENDIENTE]: "Pendiente",
+  [ESTADO_ENTREGA.ENTREGADO]: "Entregado",
+  [ESTADO_ENTREGA.NO_APLICA]: "No aplica",
+  [ESTADO_ENTREGA.BAJA]: "Dado de baja",
+});
+
+export const TONO_ENTREGA = Object.freeze({
+  [ESTADO_ENTREGA.PENDIENTE]: "aviso",
+  [ESTADO_ENTREGA.ENTREGADO]: "exito",
+  [ESTADO_ENTREGA.NO_APLICA]: "neutro",
+  [ESTADO_ENTREGA.BAJA]: "peligro",
+});
+
+export const ETIQUETA_ASIGNACION = Object.freeze({
+  [ESTADO_ASIGNACION.PENDIENTE]: "Pendiente",
+  [ESTADO_ASIGNACION.PARCIAL]: "Parcial",
+  [ESTADO_ASIGNACION.ENTREGADA]: "Entregada",
+});
+
+export const TONO_ASIGNACION = Object.freeze({
+  [ESTADO_ASIGNACION.PENDIENTE]: "aviso",
+  [ESTADO_ASIGNACION.PARCIAL]: "info",
+  [ESTADO_ASIGNACION.ENTREGADA]: "exito",
+});
+
+/** Por qué se le pide un documento a esta persona. */
+export const ETIQUETA_MOTIVO = Object.freeze({
+  [MOTIVO_DOCUMENTO.BASE]: "Obligatorio",
+  [MOTIVO_DOCUMENTO.CARGO]: "Por su cargo",
+  [MOTIVO_DOCUMENTO.CONDICION]: "Por su situación",
+});
+
+export const ETIQUETA_CONDICION = Object.freeze({
+  [CONDICION_DOCUMENTO.CASADO]: "solo si es casado",
+  [CONDICION_DOCUMENTO.CON_HIJOS]: "solo si tiene hijos",
+  [CONDICION_DOCUMENTO.CONDUCE]: "solo si conduce",
+  [CONDICION_DOCUMENTO.UNION_LIBRE]: "solo si vive en unión libre",
+  [CONDICION_DOCUMENTO.SUSTITUTO_DISCAPACIDAD]: "solo si es sustituto de discapacidad",
+});
+
+export const ETIQUETA_ESTADO_CIVIL = Object.freeze({
+  Soltero: "Soltero/a",
+  Casado: "Casado/a",
+  Divorciado: "Divorciado/a",
+  Viudo: "Viudo/a",
+  UnionLibre: "Unión libre",
+});
+
+/** Cómo se lee cada tabla nueva en la bitácora de la ficha. */
+export const ETIQUETA_TABLA_DOTACION = Object.freeze({
+  dotacion_grupos: "grupo de dotación",
+  dotacion_items: "artículo de dotación",
+  dotacion_plantillas: "regla de dotación",
+  dotacion_plantilla_items: "renglón de regla",
+  dotacion_asignaciones: "dotación",
+  dotacion_asignacion_items: "artículo entregado",
+  documentos_tipos: "tipo de documento",
+  documentos_tipos_cargos: "documento por cargo",
+  empleado_documentos: "documento",
+  documento_archivos: "archivo",
+});
+
+// ── Rutas ───────────────────────────────────────────────────────────────────
+
+export const RUTA_DOTACION = (id) => `${RUTA_BASE}/empleados/${id}/dotacion`;
+export const RUTA_DOCUMENTOS = (id) => `${RUTA_BASE}/empleados/${id}/documentos`;
+export const RUTA_CARGAS_FAMILIARES = (id) => `${RUTA_BASE}/empleados/${id}/cargas-familiares`;
+export const RUTA_FICHA = (id) => `${RUTA_BASE}/empleados/${id}`;
+export const RUTA_CONFIGURACION = `${RUTA_BASE}/configuracion`;
+
+// Fase 3: ciclo de vida laboral y reportes.
+export const RUTA_INDUCCION = (id) => `${RUTA_BASE}/empleados/${id}/induccion`;
+export const RUTA_PAZ_SALVO = (id) => `${RUTA_BASE}/empleados/${id}/paz-salvo`;
+export const RUTA_CERTIFICADOS = (id) => `${RUTA_BASE}/empleados/${id}/certificados`;
+export const RUTA_REPORTE_INGRESOS_SALIDAS = `${RUTA_BASE}/reportes/ingresos-salidas`;
+export const RUTA_MOVIMIENTOS = `${RUTA_BASE}/movimientos`;
+
+/** Secciones de la pantalla de configuración. Van en la query string. */
+export const SECCION_CONFIGURACION = Object.freeze({
+  PLANTILLAS: "plantillas",
+  ITEMS: "items",
+  DOCUMENTOS: "documentos",
+  AREAS: "areas",
+  MOTIVOS_BAJA: "motivos-baja",
+  CUMPLEANIOS: "cumpleanios",
+  // Fase 3.
+  PERFILES_CARGO: "perfiles-cargo",
+  INDUCCION: "induccion",
+  PAZ_SALVO_AREAS: "paz-salvo-areas",
+  // Certificados.
+  EMPRESAS: "empresas",
+});
+
+// ── Archivos ────────────────────────────────────────────────────────────────
+
+/**
+ * Lo que acepta el backend. Se repite acá para poder avisar ANTES de subir 10 MB
+ * por la red y recibir un 400; la comprobación de verdad, incluida la firma real
+ * del archivo, la hace el servidor.
+ */
+export const TAMANIO_MAXIMO_BYTES = 10 * 1024 * 1024;
+
+export const MIME_PERMITIDOS = Object.freeze([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
+/** Para el atributo accept del input, que además filtra el diálogo del sistema. */
+export const ACCEPT_ARCHIVOS = ".pdf,.doc,.docx";
+
+/** Un monto de cartera, como '$ 350.00'. Dólares: es la moneda del país de la operación. */
+export const formatearMonto = (valor) => {
+  const numero = Number(valor);
+  if (!Number.isFinite(numero)) return "—";
+  return numero.toLocaleString("es-EC", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+export const formatearTamanio = (bytes) => {
+  const valor = Number(bytes);
+  if (!Number.isFinite(valor) || valor <= 0) return "—";
+  if (valor < 1024) return `${valor} B`;
+  if (valor < 1024 * 1024) return `${Math.round(valor / 1024)} KB`;
+  return `${(valor / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+/**
+ * Los atributos de un artículo, listos para leerse: "talla: 42 · color: AZUL".
+ *
+ * Es lo que convierte un renglón que dice "BOTAS" en uno accionable.
+ */
+export const describirValores = (valores, campos = []) => {
+  const entradas = Object.entries(valores ?? {}).filter(
+    ([, valor]) => valor !== null && valor !== undefined && String(valor).trim() !== "",
+  );
+
+  if (entradas.length === 0) return "";
+
+  const etiquetas = new Map(campos.map((campo) => [campo.clave, campo.etiqueta]));
+
+  return entradas
+    .map(([clave, valor]) => `${etiquetas.get(clave) ?? clave}: ${valor}`)
+    .join(" · ");
+};
