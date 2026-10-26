@@ -4,7 +4,12 @@ import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { InputUI } from "components/UI/Components/InputUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
-import { ActualizarMembreteEmpresa, ObtenerEmpresas } from "services/empresasService";
+import {
+  ActualizarMembreteEmpresa,
+  AutocompletarMembreteDesdeDimSocios,
+  ObtenerEmpresas,
+  SincronizarEmpresas,
+} from "services/empresasService";
 import { CampoLabel } from "./CampoLabel";
 import { useConsulta } from "../hooks/useConsulta";
 import {
@@ -37,6 +42,7 @@ const soloDigitos = (valor) => valor.replace(/\D/g, "");
 const ModalMembrete = ({ abierto, empresa, onCerrar, onGuardar }) => {
   const [valores, setValores] = useState({});
   const [enviando, setEnviando] = useState(false);
+  const [autocompletando, setAutocompletando] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -44,6 +50,7 @@ const ModalMembrete = ({ abierto, empresa, onCerrar, onGuardar }) => {
     setValores({
       razonSocial: empresa.razonSocial ?? "",
       ruc: empresa.ruc ?? "",
+      nombreComercial: empresa.nombreComercial ?? "",
       representanteLegalNombre: empresa.representanteLegalNombre ?? "",
       representanteLegalCargo: empresa.representanteLegalCargo ?? "",
       direccion: empresa.direccion ?? "",
@@ -54,6 +61,25 @@ const ModalMembrete = ({ abierto, empresa, onCerrar, onGuardar }) => {
   }, [abierto, empresa]);
 
   const campo = (clave) => (valor) => setValores((previos) => ({ ...previos, [clave]: valor }));
+
+  const autocompletarDesdeDimSocios = async () => {
+    if (autocompletando) return;
+    setAutocompletando(true);
+    try {
+      const actualizada = await AutocompletarMembreteDesdeDimSocios(empresa.id);
+      setValores((previos) => ({
+        ...previos,
+        nombreComercial: actualizada.nombreComercial ?? "",
+        direccion: actualizada.direccion ?? previos.direccion,
+        telefono: actualizada.telefono ?? previos.telefono,
+      }));
+      toast.success("Nombre comercial, dirección y teléfono autocompletados.");
+    } catch (e) {
+      toast.error(e.message || "No se pudo autocompletar desde dim_socios");
+    } finally {
+      setAutocompletando(false);
+    }
+  };
 
   const enviar = async (evento) => {
     evento.preventDefault();
@@ -75,6 +101,7 @@ const ModalMembrete = ({ abierto, empresa, onCerrar, onGuardar }) => {
       await onGuardar({
         razonSocial: aTexto(valores.razonSocial),
         ruc: aTexto(valores.ruc),
+        nombreComercial: aTexto(valores.nombreComercial),
         representanteLegalNombre: aTexto(valores.representanteLegalNombre),
         representanteLegalCargo: aTexto(valores.representanteLegalCargo),
         direccion: aTexto(valores.direccion),
@@ -117,6 +144,27 @@ const ModalMembrete = ({ abierto, empresa, onCerrar, onGuardar }) => {
               onChange={(valor) => campo("ruc")(soloDigitos(valor))}
               maxLength={13}
             />
+          </CampoLabel>
+
+          <CampoLabel
+            etiqueta="Nombre comercial"
+            ayuda="Autocompletar también trae dirección y teléfono desde el RUC (dim_socios), sobreescribiendo lo que haya."
+          >
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <InputUI
+                  value={valores.nombreComercial ?? ""}
+                  onChange={campo("nombreComercial")}
+                  maxLength={255}
+                />
+              </div>
+              <ButtonUI
+                text={autocompletando ? "Buscando…" : "Autocompletar"}
+                variant="outlined"
+                onClick={autocompletarDesdeDimSocios}
+                disabled={autocompletando || !valores.ruc}
+              />
+            </div>
           </CampoLabel>
 
           <FilaFormulario>
@@ -169,12 +217,27 @@ export const EditorEmpresas = () => {
   } = useConsulta(({ signal }) => ObtenerEmpresas({ signal }), []);
 
   const [enEdicion, setEnEdicion] = useState(null);
+  const [sincronizando, setSincronizando] = useState(false);
 
   const guardar = async (datos) => {
     await ActualizarMembreteEmpresa(enEdicion.id, datos);
     setEnEdicion(null);
     toast.success("Membrete actualizado.");
     recargar();
+  };
+
+  const sincronizar = async () => {
+    if (sincronizando) return;
+    setSincronizando(true);
+    try {
+      const { sincronizadas } = await SincronizarEmpresas();
+      toast.success(`${sincronizadas} empresa${sincronizadas === 1 ? "" : "s"} sincronizada${sincronizadas === 1 ? "" : "s"} con el Portal.`);
+      recargar();
+    } catch (e) {
+      toast.error(e.message || "No se pudo sincronizar las empresas");
+    } finally {
+      setSincronizando(false);
+    }
   };
 
   if (cargando) return <LoaderUI text="Cargando las empresas…" height="200px" />;
@@ -189,12 +252,23 @@ export const EditorEmpresas = () => {
 
   return (
     <Tarjeta $sinRelleno>
-      <div style={{ padding: 16 }}>
-        <TituloTarjeta style={{ margin: 0 }}>Empresas — membrete para certificados</TituloTarjeta>
-        <TextoTenue>
-          Razón social, RUC y representante legal de cada empresa del grupo. Sin estos datos
-          completos no se puede emitir un certificado de esa empresa.
-        </TextoTenue>
+      <div style={{ padding: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+        <div>
+          <TituloTarjeta style={{ margin: 0 }}>Empresas — membrete para certificados</TituloTarjeta>
+          <TextoTenue>
+            Razón social, RUC y representante legal de cada empresa del grupo. Sin estos datos
+            completos no se puede emitir un certificado de esa empresa. El nombre de cada empresa
+            viene del Portal (dim_empresa); si se agrega una empresa nueva ahí, aparece sola al
+            sincronizar.
+          </TextoTenue>
+        </div>
+        <ButtonUI
+          text={sincronizando ? "Sincronizando…" : "Sincronizar con el Portal"}
+          iconLeft="FaRotate"
+          variant="outlined"
+          onClick={sincronizar}
+          disabled={sincronizando}
+        />
       </div>
 
       <TablaScroll>
@@ -202,6 +276,7 @@ export const EditorEmpresas = () => {
           <thead>
             <tr>
               <Th>Empresa</Th>
+              <Th>Nombre comercial</Th>
               <Th>Razón social</Th>
               <Th>RUC</Th>
               <Th>Representante legal</Th>
@@ -211,7 +286,7 @@ export const EditorEmpresas = () => {
           <tbody>
             {(empresas ?? []).length === 0 ? (
               <tr>
-                <Td colSpan={5}>
+                <Td colSpan={6}>
                   <TextoTenue>Sin empresas registradas.</TextoTenue>
                 </Td>
               </tr>
@@ -229,6 +304,7 @@ export const EditorEmpresas = () => {
                         </>
                       )}
                     </Td>
+                    <Td>{empresa.nombreComercial || "—"}</Td>
                     <Td>{empresa.razonSocial || "—"}</Td>
                     <Td>{empresa.ruc || "—"}</Td>
                     <Td>

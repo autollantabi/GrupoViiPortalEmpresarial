@@ -15,6 +15,7 @@ import { axiosInstanceNew } from "config/axiosConfig";
  * @property {boolean} activa
  * @property {string|null} razonSocial
  * @property {string|null} ruc
+ * @property {string|null} nombreComercial
  * @property {string|null} representanteLegalNombre
  * @property {string|null} representanteLegalCargo
  * @property {string|null} direccion
@@ -57,5 +58,37 @@ export const ActualizarMembreteEmpresa = async (empresaId, datos) => {
     return mapearEmpresa(desenvolver(respuesta));
   } catch (error) {
     return propagar(error, "No se pudo actualizar el membrete de la empresa");
+  }
+};
+
+/**
+ * Alinea id+nombre con dim_empresa (el catálogo real de empresas del Portal).
+ * También corre sola al arrancar el backend; este botón es para no tener que
+ * reiniciar el servidor cuando se agrega una empresa nueva y se la quiere ver
+ * de inmediato en RRHH.
+ * @returns {Promise<{sincronizadas: number}>}
+ */
+export const SincronizarEmpresas = async () => {
+  try {
+    const respuesta = await axiosInstanceNew.post(`${BASE}/sincronizar`);
+    return desenvolver(respuesta) ?? { sincronizadas: 0 };
+  } catch (error) {
+    return propagar(error, "No se pudo sincronizar las empresas");
+  }
+};
+
+/**
+ * Busca nombre comercial, dirección y teléfono en dim_socios por el RUC ya
+ * guardado en la empresa (debe estar completo antes de llamar esto) y los
+ * deja guardados, sobreescribiendo lo que hubiera. Representante legal queda
+ * afuera: no existe en dim_socios, sigue siendo 100% manual.
+ * @returns {Promise<Empresa>}
+ */
+export const AutocompletarMembreteDesdeDimSocios = async (empresaId) => {
+  try {
+    const respuesta = await axiosInstanceNew.post(`${BASE}/${empresaId}/autocompletar-desde-dim-socios`);
+    return mapearEmpresa(desenvolver(respuesta));
+  } catch (error) {
+    return propagar(error, "No se pudo autocompletar desde dim_socios");
   }
 };
