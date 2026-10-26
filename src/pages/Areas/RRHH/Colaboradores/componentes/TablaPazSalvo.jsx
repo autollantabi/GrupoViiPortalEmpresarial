@@ -2,6 +2,7 @@ import React from "react";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { Acciones, Badge, Fila, Tabla, TablaScroll, Td, TextoTenue, Th } from "./piezas";
+import { formatearMonto } from "../utils/constantesDotacion";
 import { formatearFecha, hoyIso } from "../utils/fechas";
 
 /**
@@ -35,6 +36,7 @@ export const TablaPazSalvo = ({
             <Th aria-label="Seleccionar" />
             <Th>Área</Th>
             <Th>Estado</Th>
+            <Th>Novedad</Th>
             <Th>Observación</Th>
             <Th>Plazo</Th>
             <Th aria-label="Acciones" />
@@ -67,6 +69,15 @@ export const TablaPazSalvo = ({
                       <br />
                       <TextoTenue>Por {item.resueltoPor}</TextoTenue>
                     </>
+                  )}
+                </Td>
+                <Td>
+                  {item.tieneNovedad === true ? (
+                    <Badge $tono="peligro">{formatearMonto(item.valor ?? 0)}</Badge>
+                  ) : item.tieneNovedad === false ? (
+                    <Badge $tono="exito">Sin novedad</Badge>
+                  ) : (
+                    "—"
                   )}
                 </Td>
                 <Td>{item.observacion || "—"}</Td>
