@@ -1,47 +1,31 @@
 import React, { createContext, useContext, useState } from "react";
+import { MOBILE_BREAKPOINT } from "hooks/useIsMobile";
 
 const SidebarContext = createContext(null);
 
 export const useSidebar = () => {
   const context = useContext(SidebarContext);
   if (!context) {
-    return { 
-      isExpanded: false, 
+    return {
+      isExpanded: false,
       setIsExpanded: () => {},
       isRightExpanded: false,
-      setIsRightExpanded: () => {},
-      isMinimized: false,
-      setIsMinimized: () => {}
+      setIsRightExpanded: () => {}
     };
   }
   return context;
 };
 
 export const SidebarProvider = ({ children }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // En móvil/tablet el menú inicia abierto; en web se expande con hover
+  const [isExpanded, setIsExpanded] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
+  );
   const [isRightExpanded, setIsRightExpanded] = useState(false);
 
-  const [isMinimized, setIsMinimizedState] = useState(() => {
-    try {
-      return localStorage.getItem("sidebarMinimized") === "true";
-    } catch {
-      return false;
-    }
-  });
-
-  const setIsMinimized = (value) => {
-    setIsMinimizedState(value);
-    try {
-      localStorage.setItem("sidebarMinimized", String(value));
-    } catch {
-      // sin persistencia
-    }
-  };
-
   return (
-    <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isRightExpanded, setIsRightExpanded, isMinimized, setIsMinimized }}>
+    <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isRightExpanded, setIsRightExpanded }}>
       {children}
     </SidebarContext.Provider>
   );
 };
-

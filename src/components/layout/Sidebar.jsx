@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 
@@ -32,18 +32,6 @@ const SidebarContainer = styled.div.withConfig({
   }
 `;
 
-const MobileOverlay = styled.div`
-  display: none;
-
-  @media (max-width: ${MOBILE_BREAKPOINT}px) {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-  }
-`;
-
 const MobileToggleButton = styled.button`
   display: none;
   align-items: center;
@@ -62,6 +50,18 @@ const MobileToggleButton = styled.button`
 
   @media (max-width: ${MOBILE_BREAKPOINT}px) {
     display: flex;
+  }
+`;
+
+const MobileOverlay = styled.div`
+  display: none;
+
+  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
   }
 `;
 
@@ -373,9 +373,10 @@ const Sidebar = () => {
   const { logout } = useAuthContext();
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { isExpanded, setIsExpanded, isMinimized, setIsMinimized } = useSidebar();
+  const { isExpanded, setIsExpanded } = useSidebar();
   const isMobile = useIsMobile();
 
+  const sidebarRef = useRef(null);
   const [activeMenu, setActiveMenu] = useState(new Set());
   // Obtener items del sidebar desde la configuración centralizada
   const { user } = useAuthContext();
@@ -383,21 +384,34 @@ const Sidebar = () => {
   const menuItems = getSidebarItems(userContexts);
 
   const handleMouseEnter = () => {
-    if (!isMobile && !isMinimized) setIsExpanded(true);
+    if (!isMobile) setIsExpanded(true);
   };
 
   const handleMouseLeave = () => {
     if (!isMobile) setIsExpanded(false);
   };
 
+  // Solo móvil/tablet: minimiza o maximiza el menú
   const handleToggleMobile = () => {
     setIsExpanded((prev) => !prev);
   };
 
-  const handleToggleMinimized = () => {
-    setIsMinimized(!isMinimized);
-    setIsExpanded(isMinimized);
-  };
+  // Al cambiar entre web y móvil/tablet: móvil abierto, web colapsado (hover)
+  useEffect(() => {
+    setIsExpanded(isMobile);
+  }, [isMobile, setIsExpanded]);
+
+  // Móvil/tablet: un toque/clic fuera del menú lo oculta
+  useEffect(() => {
+    if (!isMobile || !isExpanded) return undefined;
+    const handleOutside = (e) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
+        setIsExpanded(false);
+      }
+    };
+    document.addEventListener("pointerdown", handleOutside, true);
+    return () => document.removeEventListener("pointerdown", handleOutside, true);
+  }, [isMobile, isExpanded, setIsExpanded]);
 
   const handleCerrarSesion = () => {
     logout(navigate);
@@ -418,17 +432,18 @@ const Sidebar = () => {
 
   return (
     <>
-      <MobileToggleButton
-        type="button"
-        onClick={handleToggleMobile}
-        aria-label={isExpanded ? "Cerrar menú" : "Abrir menú"}
-      >
-        <IconUI name={isExpanded ? "FaXmark" : "FaBars"} color="#fff" />
-      </MobileToggleButton>
-      {isMobile && isExpanded && (
-        <MobileOverlay onClick={() => setIsExpanded(false)} />
+      {isMobile && !isExpanded && (
+        <MobileToggleButton
+          type="button"
+          onClick={handleToggleMobile}
+          aria-label="Abrir menú"
+        >
+          <IconUI name="FaBars" color="#fff" />
+        </MobileToggleButton>
       )}
+      {isMobile && isExpanded && <MobileOverlay />}
       <SidebarContainer
+        ref={sidebarRef}
         $isexpanded={isExpanded}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -457,13 +472,13 @@ const Sidebar = () => {
             <SeparatorUI
               color={hexToRGBA({ hex: theme.colors.white, alpha: 0.2 })}
             />
-            {!isMobile && (
+            {isMobile && (
               <MenuSecondary
                 isexpanded={isExpanded}
                 item={{
-                  icon: isMinimized ? "FaAnglesRight" : "FaAnglesLeft",
-                  title: isMinimized ? "Expandir" : "Minimizar",
-                  onClick: handleToggleMinimized,
+                  icon: "FaAnglesLeft",
+                  title: "Ocultar",
+                  onClick: handleToggleMobile,
                 }}
               />
             )}
