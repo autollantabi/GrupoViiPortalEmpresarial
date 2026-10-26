@@ -49,6 +49,7 @@ import { ComercialMarketing } from "pages/Areas/Marketing/ComercialMarketing";
 
 // RRHH
 import { Documentacion } from "pages/Areas/RRHH/Documentacion";
+import { Colaboradores } from "pages/Areas/RRHH/Colaboradores/Colaboradores";
 
 // DDMRP
 import { Ddmrp_Report } from "pages/Areas/Ddmrp/Ddmrp_Report";
@@ -402,6 +403,24 @@ export const RoutesConfig = [
     title: "Documentación",
     component: Documentacion,
     recurso: "rrhh.documentacion",
+  },
+
+  {
+    title: "Directorio personal",
+    icon: "FaUsers",
+    component: Colaboradores,
+    // Dos niveles de acceso, igual que xcoin.admin / xcoin.viewer:
+    //   rrhh.colaboradores           -> gestión completa (Recursos Humanos)
+    //   rrhh.colaboradores.consulta  -> solo lectura del listado de activos
+    // Quien tenga el recurso raíz `rrhh` obtiene la gestión por herencia. Quien
+    // tenga solo el de consulta no, porque la herencia va de padre a hijo.
+    recurso: "rrhh.colaboradores",
+    recursosAlternativos: ["rrhh.colaboradores.consulta"],
+    // Registra /rrhh/colaboradores/* para que la sección declare sus propias
+    // sub-rutas: tablero, listado, ficha, alta y edición. El ítem del menú sigue
+    // apuntando a /rrhh/colaboradores limpio.
+    // Ver generateRoutes() en src/router/SimpleRouter.jsx
+    subrutas: true,
   },
 
   // ================================= REPORTERIA =================================

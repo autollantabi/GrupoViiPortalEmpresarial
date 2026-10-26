@@ -64,6 +64,13 @@ const configureInterceptors = (instance) => {
   // Interceptor de solicitud
   instance.interceptors.request.use(
     (config) => {
+      // Las dos instancias fijan "Content-Type: application/json" por defecto, lo
+      // que pisa el "multipart/form-data; boundary=..." que el navegador pondría
+      // solo al mandar un FormData (subida de archivos). Sin esto, el backend
+      // recibe el body como si fuera JSON y nunca ve el archivo.
+      if (config.data instanceof FormData) {
+        delete config.headers["Content-Type"];
+      }
       return config;
     },
     (error) => Promise.reject(error)
