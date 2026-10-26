@@ -4,7 +4,7 @@ import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { InputUI } from "components/UI/Components/InputUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
-import { ListarCargos, ListarEmpresas } from "services/colaboradoresService";
+import { ListarEmpresas } from "services/colaboradoresService";
 import { CampoLabel } from "./CampoLabel";
 import { Acciones, AreaTexto, Aviso, FilaFormulario } from "./piezas";
 import { hoyIso } from "../utils/fechas";
@@ -13,24 +13,22 @@ import { hoyIso } from "../utils/fechas";
  * Modal de subrogación: traslada al colaborador a otra empresa del grupo.
  *
  * La empresa actual se excluye de las opciones (no tendría sentido
- * "subrogarlo" a donde ya está). El cargo destino es opcional y por defecto es
- * el mismo que tiene hoy: se manda solo si la persona lo cambia a propósito, así
- * el backend decide qué hacer cuando no viene.
+ * "subrogarlo" a donde ya está). No pide cargo: el cargo es de la persona
+ * (no de la ficha), así que sigue siendo el mismo en la empresa destino sin
+ * que nadie tenga que elegirlo de nuevo. Si hay que cambiarlo, es "Cambiar
+ * cargo" en la ficha, aparte de esto.
  */
 export const ModalSubrogacion = ({ abierto, ficha, onCerrar, onConfirmar }) => {
   const [empresaDestinoId, setEmpresaDestinoId] = useState(null);
-  const [cargoDestinoId, setCargoDestinoId] = useState(null);
   const [fecha, setFecha] = useState(hoyIso());
   const [observacion, setObservacion] = useState("");
   const [errores, setErrores] = useState({});
   const [enviando, setEnviando] = useState(false);
   const [empresas, setEmpresas] = useState([]);
-  const [cargos, setCargos] = useState([]);
 
   useEffect(() => {
     if (!abierto) return;
     setEmpresaDestinoId(null);
-    setCargoDestinoId(ficha?.cargoId ?? null);
     setFecha(hoyIso());
     setObservacion("");
     setErrores({});
@@ -41,14 +39,13 @@ export const ModalSubrogacion = ({ abierto, ficha, onCerrar, onConfirmar }) => {
     if (!abierto) return undefined;
     let cancelado = false;
 
-    Promise.all([ListarEmpresas(), ListarCargos()])
-      .then(([listaEmpresas, listaCargos]) => {
+    ListarEmpresas()
+      .then((listaEmpresas) => {
         if (cancelado) return;
         setEmpresas(listaEmpresas);
-        setCargos(listaCargos);
       })
       .catch((error) => {
-        if (!cancelado) toast.error(error.message || "No se pudieron cargar los catálogos");
+        if (!cancelado) toast.error(error.message || "No se pudieron cargar las empresas");
       });
 
     return () => {
@@ -73,11 +70,6 @@ export const ModalSubrogacion = ({ abierto, ficha, onCerrar, onConfirmar }) => {
     [empresas, ficha],
   );
 
-  const opcionesCargo = useMemo(
-    () => cargos.map((cargo) => ({ value: cargo.id, label: cargo.nombre })),
-    [cargos],
-  );
-
   const validar = () => {
     const nuevos = {};
     if (!empresaDestinoId) nuevos.empresaDestinoId = "Elija la empresa destino.";
@@ -94,7 +86,6 @@ export const ModalSubrogacion = ({ abierto, ficha, onCerrar, onConfirmar }) => {
     try {
       await onConfirmar({
         empresaDestinoId,
-        cargoDestinoId: cargoDestinoId || undefined,
         fecha,
         observacion: observacion.trim() || null,
       });
@@ -133,22 +124,6 @@ export const ModalSubrogacion = ({ abierto, ficha, onCerrar, onConfirmar }) => {
               }}
               isSearchable
               placeholder="Seleccione la empresa"
-              minWidth="100%"
-              maxWidth="100%"
-            />
-          </CampoLabel>
-
-          <CampoLabel
-            etiqueta="Cargo destino"
-            ayuda="Por defecto se conserva el cargo actual."
-          >
-            <SelectUI
-              options={opcionesCargo}
-              value={opcionesCargo.find((opcion) => opcion.value === cargoDestinoId) ?? null}
-              onChange={(opcion) => setCargoDestinoId(opcion?.value ?? null)}
-              isSearchable
-              isClearable
-              placeholder="Mismo cargo actual"
               minWidth="100%"
               maxWidth="100%"
             />

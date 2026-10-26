@@ -289,7 +289,9 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
       nombres: valores.nombres.trim(),
       cedula: aTexto(valores.cedula),
       empresaId: valores.empresaId,
-      cargoNombre: aTexto(valores.cargoNombre),
+      // Solo en el alta: el cargo es de la persona y en edición se cambia
+      // únicamente desde "Cambiar cargo" (deja rastro en el historial).
+      ...(modo === "crear" ? { cargoNombre: aTexto(valores.cargoNombre) } : {}),
       areaNombre: aTexto(valores.areaNombre),
       lineaNombre: aTexto(valores.lineaNombre),
       ciudadNombre: aTexto(valores.ciudadNombre),
@@ -553,8 +555,9 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
         <Tarjeta>
           <TituloTarjeta>Puesto</TituloTarjeta>
           <Aviso $tono="info">
-            Cargo, área, línea y ciudad aceptan valores nuevos: si escribe uno que
-            no está en la lista, se crea al guardar.
+            {modo === "crear"
+              ? "Cargo, área, línea y ciudad aceptan valores nuevos: si escribe uno que no está en la lista, se crea al guardar."
+              : "Área, línea y ciudad aceptan valores nuevos: si escribe uno que no está en la lista, se crea al guardar. El cargo ya no se edita aquí: use \"Cambiar cargo\" en la ficha, que deja rastro en el historial."}
           </Aviso>
           <Separador />
           <FilaFormulario>
@@ -568,16 +571,18 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
                 maxWidth="100%"
               />
             </CampoLabel>
-            <CampoLabel etiqueta="Cargo">
-              <ComboLibreUI
-                value={valores.cargoNombre}
-                onChange={campo("cargoNombre")}
-                opciones={nombres(catalogos?.cargos)}
-                mayusculas
-                maxLength={150}
-                placeholder="JEFE DE BODEGA"
-              />
-            </CampoLabel>
+            {modo === "crear" && (
+              <CampoLabel etiqueta="Cargo">
+                <ComboLibreUI
+                  value={valores.cargoNombre}
+                  onChange={campo("cargoNombre")}
+                  opciones={nombres(catalogos?.cargos)}
+                  mayusculas
+                  maxLength={150}
+                  placeholder="JEFE DE BODEGA"
+                />
+              </CampoLabel>
+            )}
             <CampoLabel etiqueta="Área">
               <ComboLibreUI
                 value={valores.areaNombre}
