@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
-import { MOBILE_BREAKPOINT } from "hooks/useIsMobile";
+import { getIsMobile } from "hooks/useIsMobile";
 
 const SidebarContext = createContext(null);
 
@@ -19,7 +19,7 @@ export const useSidebar = () => {
 export const SidebarProvider = ({ children }) => {
   // En móvil/tablet el menú inicia abierto; en web se expande con hover
   const [isExpanded, setIsExpanded] = useState(
-    () => typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
+    getIsMobile
   );
   const [isRightExpanded, setIsRightExpanded] = useState(false);
 

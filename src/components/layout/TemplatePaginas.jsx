@@ -5,7 +5,7 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 import RightSidebar from "./RightSidebar";
 import { useTheme } from "context/ThemeContext";
-import { MOBILE_BREAKPOINT } from "hooks/useIsMobile";
+import { MOBILE_MEDIA_QUERY } from "hooks/useIsMobile";
 
 const ContenedorContenidoPagina = styled.div`
   display: flex;
@@ -44,7 +44,7 @@ const ContenedorDerecha = styled.div`
   margin-left: 40px; /* Respeta el ancho del sidebar izquierdo cuando está cerrado */
   margin-right: 40px; /* Respeta el ancho del sidebar derecho cuando está cerrado */
 
-  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+  @media ${MOBILE_MEDIA_QUERY} {
     /* En móvil/tablet los sidebars se muestran como drawers superpuestos, no empujan el contenido */
     width: 100vw;
     margin-left: 0;

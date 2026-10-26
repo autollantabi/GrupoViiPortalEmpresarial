@@ -7,7 +7,7 @@ import Reloj from "../UI/Components/RelojUI";
 import { hexToRGBA } from "utils/colors";
 import { useTheme } from "context/ThemeContext";
 import { useSidebar } from "context/SidebarContext";
-import { MOBILE_BREAKPOINT } from "hooks/useIsMobile";
+import { MOBILE_MEDIA_QUERY } from "hooks/useIsMobile";
 import { useAuthContext } from "context/authContext";
 import IconUI from "components/UI/Components/IconsUI";
 import { postgresService } from "services/postgresService";
@@ -38,7 +38,7 @@ const EstructuraHeader = styled.div.withConfig({
   transition: margin-left 0.4s ease-in-out, width 0.4s ease-in-out;
   transition: margin-left 0.4s ease-in-out, margin-right 0.4s ease-in-out, width 0.4s ease-in-out;
 
-  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+  @media ${MOBILE_MEDIA_QUERY} {
     margin-left: 0px;
     margin-right: 0px;
     width: 100vw;

@@ -8,7 +8,7 @@ import { globalConst } from "config/constants";
 import { useAuthContext } from "context/authContext";
 import { useTheme } from "context/ThemeContext";
 import { useSidebar } from "context/SidebarContext";
-import { useIsMobile, MOBILE_BREAKPOINT } from "hooks/useIsMobile";
+import { useIsMobile, MOBILE_MEDIA_QUERY } from "hooks/useIsMobile";
 import { SeparatorUI } from "components/UI/Components/SeparatorUI";
 import ToggleThemeButtonUI from "components/UI/Components/ToggleThemeButtonUI";
 import IconUI from "components/UI/Components/IconsUI";
@@ -26,7 +26,7 @@ const SidebarContainer = styled.div.withConfig({
   left: 0;
   z-index: 1000;
 
-  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+  @media ${MOBILE_MEDIA_QUERY} {
     box-shadow: ${(props) => (props.$isexpanded ? "2px 0 12px rgba(0, 0, 0, 0.35)" : "none")};
     transform: translateX(${(props) => (props.$isexpanded ? "0" : "-100%")});
   }
@@ -48,7 +48,7 @@ const MobileToggleButton = styled.button`
   cursor: pointer;
   z-index: 1001;
 
-  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+  @media ${MOBILE_MEDIA_QUERY} {
     display: flex;
   }
 `;
@@ -56,7 +56,7 @@ const MobileToggleButton = styled.button`
 const MobileOverlay = styled.div`
   display: none;
 
-  @media (max-width: ${MOBILE_BREAKPOINT}px) {
+  @media ${MOBILE_MEDIA_QUERY} {
     display: block;
     position: fixed;
     inset: 0;
