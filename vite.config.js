@@ -14,9 +14,10 @@ const securityHeaders = {
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: "192.168.0.68", // Cambia la IP si es necesario
+    // host: "192.168.0.68", // Cambia la IP si es necesario
+    host: "localhost",
     strictPort: true, // Activa el modo estricto para el puerto  
-    port: 5000, // Mantén el mismo puerto si quieres,
+    port: 5001, // Mantén el mismo puerto si quieres,
     headers: securityHeaders,
     proxy: {
       "/apid1": {
