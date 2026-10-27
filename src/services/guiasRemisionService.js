@@ -62,6 +62,21 @@ export const MarcarGuiaRemisionEnviada = async ({ id, empresa }) => {
   }
 };
 
+/**
+ * Marca una guía de remisión como NO enviada (hgr_enviado = false): vuelve a quedar pendiente de envío.
+ * @param {{id: number, empresa: string}} params - id = hgr_id de la guía
+ * @throws Propaga el error; el mensaje del servidor viene en error.response.data.message
+ */
+export const MarcarGuiaRemisionNoEnviada = async ({ id, empresa }) => {
+  const response = await axiosInstanceNew.patch(`/guias-remision/${id}/no-enviado`, {
+    empresa,
+  });
+
+  if (response.data?.status !== "Ok!") {
+    throw new Error(response.data?.message || "Respuesta inesperada del servidor");
+  }
+};
+
 /** Empresas que participan en el Excel de guías de remisión (IKONIX no existe en este proceso). */
 export const EMPRESAS_EXCEL = ["AUTOLLANTA", "MAXXIMUNDO", "STOX"];
 

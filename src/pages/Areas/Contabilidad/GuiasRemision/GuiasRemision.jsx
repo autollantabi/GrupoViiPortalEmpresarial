@@ -3,7 +3,8 @@
  *
  * Pantalla del recurso "contabilidad.guiasremision". Qué hace:
  *   - Lista paginada de guías (filtros y paginación se resuelven en el servidor; ver guiasRemisionService.js).
- *   - Detalle de una guía en un modal; el supervisor puede marcarla como enviada.
+ *   - Detalle de una guía en un modal; el supervisor puede marcarla como enviada o devolverla a NO enviada.
+ *   - Las guías canceladas (hgr_cancelada) se listan con Estado documento CANCELADO y sin estado de envío.
  *   - "Descargar Excel": genera el Excel de guías con estado documento Aprobado o Enviado y pendientes de envío (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL).
  *   - "Sincronizar" (supervisor con permiso "editar" en usuarios-rol-contexto): ejecuta en el servidor la misma sincronización
  *     de guías que corre cada hora y, al terminar, vuelve a consultar el listado.
@@ -38,6 +39,7 @@ import {
   ListarGuiasRemision,
   MarcarEnviadasDesdeExcel,
   MarcarGuiaRemisionEnviada,
+  MarcarGuiaRemisionNoEnviada,
   SincronizarGuiasRemision,
   TAMANO_MAXIMO_EXCEL_MB,
 } from "services/guiasRemisionService";
@@ -45,7 +47,7 @@ import {
 // Tiempo de espera tras la última tecla antes de consultar al servidor
 const RETARDO_BUSQUEDA_MS = 500;
 
-// Valores de hgr_detalle_estado_electronico (el backend compara ignorando mayúsculas)
+// Valores de hgr_detalle_estado_electronico (el backend compara ignorando mayúsculas) y CANCELADO (hgr_cancelada)
 const OPCIONES_ESTADO = [
   { value: "", label: "TODOS" },
   { value: "PENDIENTE", label: "PENDIENTE" },
@@ -53,6 +55,7 @@ const OPCIONES_ESTADO = [
   { value: "ENVIADO", label: "ENVIADO" },
   { value: "APROBADO", label: "APROBADO" },
   { value: "RECHAZADO", label: "RECHAZADO" },
+  { value: "CANCELADO", label: "CANCELADO" }, // el servidor lo traduce a hgr_cancelada = true
 ];
 
 // Por defecto el listado muestra solo las guías pendientes de envío
@@ -290,10 +293,11 @@ const CirculoIcono = styled.div`
   background: ${({ theme, $color }) => $color || theme.colors.primary}15;
 `;
 
+// Fila clicable; las guías canceladas se resaltan con un tono rojo suave
 const FilaClicable = styled(Fila)`
-  cursor: ${({ $bloqueada }) => ($bloqueada ? "not-allowed" : "pointer")};
-  ${({ $bloqueada, theme }) =>
-    $bloqueada ? `background: ${theme.colors.error}12; color: ${theme.colors.textSecondary};` : ""}
+  cursor: pointer;
+  ${({ $cancelada, theme }) =>
+    $cancelada ? `background: ${theme.colors.error}12; color: ${theme.colors.textSecondary};` : ""}
 `;
 
 const CardModal = styled.div`
@@ -373,7 +377,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const [consultado, setConsultado] = useState(false);
   const [refrescos, setRefrescos] = useState(0);
   const [guiaSeleccionada, setGuiaSeleccionada] = useState(null);
+  // Confirmación del cambio de estado de envío desde el detalle: "enviar" (marcar enviada) o "desmarcar" (marcar NO enviada)
   const [confirmandoEnvio, setConfirmandoEnvio] = useState(false);
+  const [accionEnvio, setAccionEnvio] = useState("enviar");
   const [enviando, setEnviando] = useState(false);
 
   // Descarga del Excel de guías de remisión: su propio rango y empresas (arranca con los filtros de la tabla)
@@ -548,33 +554,31 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
   const recargar = () => setRefrescos((n) => n + 1);
 
-  // El listado no trae guías canceladas (hgr_cancelada = false); por seguridad, si llegara una, solo se avisa sin abrir el modal
-  const abrirDetalle = (guia) => {
-    if (guia.cancelada) {
-      toast.warn("No se puede visualizar el detalle de la guía de remisión", {
-        toastId: "guia-cancelada",
-      });
-      return;
-    }
-    setGuiaSeleccionada(guia);
+  const abrirDetalle = (guia) => setGuiaSeleccionada(guia);
+
+  const pedirConfirmacionEnvio = (accion) => {
+    setAccionEnvio(accion);
+    setConfirmandoEnvio(true);
   };
 
-  const confirmarMarcarEnviado = async () => {
-    if (!puedeMarcarEnviado || !guiaSeleccionada || enviando) return;
+  // Marca la guía como enviada o como NO enviada según la acción confirmada (solo supervisor; el servidor lo vuelve a validar)
+  const confirmarCambioEnvio = async () => {
+    if (!puedeMarcarEnviado || !guiaSeleccionada || guiaSeleccionada.cancelada || enviando) return;
+    const marcarEnviada = accionEnvio === "enviar";
     setEnviando(true);
     try {
-      await MarcarGuiaRemisionEnviada({
-        id: guiaSeleccionada.id,
-        empresa: consulta.empresa,
-      });
-      // El modal pasa a ENVIADO y se vuelve a consultar el listado (la guía deja de
-      // aparecer si el filtro es "pendientes de envío")
-      setGuiaSeleccionada((prev) => (prev ? { ...prev, enviado: true } : prev));
+      const cambiar = marcarEnviada ? MarcarGuiaRemisionEnviada : MarcarGuiaRemisionNoEnviada;
+      await cambiar({ id: guiaSeleccionada.id, empresa: consulta.empresa });
+      // El modal refleja el nuevo estado y se vuelve a consultar el listado (la guía deja de aparecer
+      // si el filtro de envío ya no la incluye)
+      setGuiaSeleccionada((prev) => (prev ? { ...prev, enviado: marcarEnviada } : prev));
       recargar();
-      toast.success("Guía de remisión marcada como enviada");
+      toast.success(
+        marcarEnviada ? "Guía de remisión marcada como enviada" : "Guía de remisión marcada como NO enviada"
+      );
     } catch (err) {
-      console.error("Error al marcar la guía como enviada:", err);
-      toast.error(err?.response?.data?.message || "No se pudo marcar la guía como enviada");
+      console.error("Error al cambiar el estado de envío de la guía:", err);
+      toast.error(err?.response?.data?.message || "No se pudo cambiar el estado de envío de la guía");
     } finally {
       setEnviando(false);
       setConfirmandoEnvio(false);
@@ -758,7 +762,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const renderCelda = (item, columna) => {
     const valor = item[columna.field];
 
+    // Las guías canceladas no tienen estado de envío
     if (columna.isEnviado) {
+      if (item.cancelada) return "—";
       return (
         <Badge $color={item.enviado ? theme.colors.success : theme.colors.textSecondary}>
           {item.enviado ? "SI" : "NO"}
@@ -766,6 +772,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       );
     }
     if (columna.isEstadoElectronico) {
+      if (item.cancelada) return <Badge $color={theme.colors.error}>CANCELADO</Badge>;
       const estado = item.detalleEstadoElectronico;
       return estado ? <Badge $color={colorEstadoElectronico(estado)}>{estado}</Badge> : "—";
     }
@@ -848,7 +855,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                 <FilaClicable
                   key={guia.id}
                   $par={index % 2 === 0}
-                  $bloqueada={guia.cancelada}
+                  $cancelada={guia.cancelada}
                   onClick={() => abrirDetalle(guia)}
                 >
                   {COLUMNAS.map((columna) => (
@@ -1062,14 +1069,25 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         {guiaSeleccionada && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
-            {puedeMarcarEnviado && !guiaSeleccionada.enviado && (
+            {/* Solo supervisor y guías no canceladas: marcar como enviada, o devolverla a NO enviada si ya lo estaba */}
+            {puedeMarcarEnviado && !guiaSeleccionada.cancelada && (
               <div style={{ display: "flex", justifyContent: "end" }}>
-                <ButtonUI
-                  text="Marcar como enviado"
-                  iconLeft="FaFileCircleCheck"
-                  onClick={() => setConfirmandoEnvio(true)}
-                  disabled={enviando}
-                />
+                {guiaSeleccionada.enviado ? (
+                  <ButtonUI
+                    text="Marcar como NO enviado"
+                    iconLeft="FaRotateLeft"
+                    variant="outlined"
+                    onClick={() => pedirConfirmacionEnvio("desmarcar")}
+                    disabled={enviando}
+                  />
+                ) : (
+                  <ButtonUI
+                    text="Marcar como enviado"
+                    iconLeft="FaFileCircleCheck"
+                    onClick={() => pedirConfirmacionEnvio("enviar")}
+                    disabled={enviando}
+                  />
+                )}
               </div>
             )}
 
@@ -1097,27 +1115,34 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                     Estado documento
                   </TextUI>
                   <div>
-                    <Badge $color={colorEstadoElectronico(guiaSeleccionada.detalleEstadoElectronico)}>
-                      {guiaSeleccionada.detalleEstadoElectronico || "—"}
-                    </Badge>
+                    {guiaSeleccionada.cancelada ? (
+                      <Badge $color={theme.colors.error}>CANCELADO</Badge>
+                    ) : (
+                      <Badge $color={colorEstadoElectronico(guiaSeleccionada.detalleEstadoElectronico)}>
+                        {guiaSeleccionada.detalleEstadoElectronico || "—"}
+                      </Badge>
+                    )}
                   </div>
                 </CabeceraItem>
-                <CabeceraItem>
-                  <TextUI size="12px" color={theme.colors.textSecondary}>
-                    Estado de envío
-                  </TextUI>
-                  <div>
-                    <Badge
-                      $color={
-                        guiaSeleccionada.enviado
-                          ? theme.colors.success
-                          : theme.colors.textSecondary
-                      }
-                    >
-                      {guiaSeleccionada.enviado ? "ENVIADO" : "NO ENVIADO"}
-                    </Badge>
-                  </div>
-                </CabeceraItem>
+                {/* Las guías canceladas no tienen estado de envío */}
+                {!guiaSeleccionada.cancelada && (
+                  <CabeceraItem>
+                    <TextUI size="12px" color={theme.colors.textSecondary}>
+                      Estado de envío
+                    </TextUI>
+                    <div>
+                      <Badge
+                        $color={
+                          guiaSeleccionada.enviado
+                            ? theme.colors.success
+                            : theme.colors.textSecondary
+                        }
+                      >
+                        {guiaSeleccionada.enviado ? "ENVIADO" : "NO ENVIADO"}
+                      </Badge>
+                    </div>
+                  </CabeceraItem>
+                )}
               </CabeceraGrid>
             </CardModal>
 
@@ -1367,13 +1392,16 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       <ModalConfirmacionUI
         isOpen={confirmandoEnvio}
         onClose={() => !enviando && setConfirmandoEnvio(false)}
-        onConfirm={confirmarMarcarEnviado}
-        title="Marcar como enviado"
-        message={`¿Confirma que la guía de remisión N° ${guiaSeleccionada?.numeroGuia ?? ""
-          } fue enviada? Esta acción no se puede deshacer desde el portal.`}
+        onConfirm={confirmarCambioEnvio}
+        title={accionEnvio === "enviar" ? "Marcar como enviado" : "Marcar como NO enviado"}
+        message={
+          accionEnvio === "enviar"
+            ? `¿Confirma que la guía de remisión N° ${guiaSeleccionada?.numeroGuia ?? ""} fue enviada?`
+            : `¿Confirma que desea marcar como NO enviada la guía de remisión N° ${guiaSeleccionada?.numeroGuia ?? ""}? Volverá a quedar pendiente de envío.`
+        }
         confirmText={enviando ? "Guardando..." : "Confirmar"}
         confirmColor={theme.colors.primary}
-        iconName="FaFileCircleCheck"
+        iconName={accionEnvio === "enviar" ? "FaFileCircleCheck" : "FaRotateLeft"}
       />
     </ContainerUI>
   );
