@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useTheme } from "context/ThemeContext";
 import { useAuthContext } from "context/authContext";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
@@ -7,9 +7,10 @@ import { SelectUI } from "components/UI/Components/SelectUI";
 import { TextUI } from "components/UI/Components/TextUI";
 import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
+import { IconUI } from "components/UI/Components/IconsUI";
 import * as XLSX from "xlsx";
 import { toast } from "react-toastify";
-import { getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, getGruposUnidades, getGruposHerramientas } from "services/mdmService";
+import { getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, autoguardarItemMDM, approveItemMDM, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, getGruposHerramientas, syncItemsToSap, getSapRequestItem, getMarcaProveedorProcedencia } from "services/mdmService";
 import { generateSAPExport, generateSAPExportSecondaryFile } from "assets/templates/mdmTemplate";
 import { hexToRGBA } from "utils/colors";
 import styled from "styled-components";
@@ -55,6 +56,10 @@ const Tabla = styled.table`
 /* Ancho exacto de la columna de selección: es el desplazamiento con el que
    se congela una segunda columna, así que no puede negociarlo el navegador. */
 const ANCHO_COL_SELECCION = "76px";
+
+/* Ancho de la columna Nombre cuando va congelada (rol 5), misma técnica que
+   Llantas.jsx: acotado a propósito para no comerse el ancho útil del scroll. */
+const ANCHO_COL_NOMBRE = "220px";
 
 const Th = styled.th`
     position: sticky;
@@ -152,15 +157,85 @@ const NumeroFila = styled.span`
     font-variant-numeric: tabular-nums;
 `;
 
-/* Nombre del sistema: el nombre tal como llega al backend, con el prefijo
-   "NEW " cuando el producto se marca como nuevo. Equivale a
-   calcularNombreSistemaFinal de Llantas.jsx, pero herramientas no tiene
-   parser de medidas ni letra de diseño, así que se compone solo del nombre. */
-const calcularNombreSistema = (nombreBase, isNew = false) => {
+/* Pestañas de la sección "Sin aprobar / Aprobados" (mismo look que Llantas.jsx) */
+const TabButton = styled.button`
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    background: transparent;
+    color: ${({ theme, $active }) => ($active ? theme?.colors?.primary : theme?.colors?.textSecondary || "#666")};
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+        color: ${({ theme }) => theme?.colors?.primary};
+    }
+
+    ${({ $active, theme }) =>
+        $active &&
+        `
+        color: ${theme?.colors?.primary};
+        border-bottom-color: ${theme?.colors?.primary};
+    `}
+`;
+
+/* Distintivo de estado para el detalle informativo del ítem (mismo componente que Llantas.jsx) */
+const TONOS_ETIQUETA = {
+    exito: "success",
+    alerta: "error",
+    info: "info",
+    neutro: "textSecondary",
+};
+
+const Etiqueta = styled.span`
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: ${({ theme, $tono }) => theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d"};
+    background-color: ${({ theme, $tono }) =>
+        hexToRGBA({
+            hex: theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d",
+            alpha: 0.12,
+        })};
+    border: 1px solid ${({ theme, $tono }) =>
+        hexToRGBA({
+            hex: theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d",
+            alpha: 0.35,
+        })};
+`;
+
+/* Abreviatura de la marca que se antepone al nombre (va después del "NEW " si aplica).
+   Las marcas disponibles vienen del servicio marca/proveedor/procedencia; una marca sin abreviatura
+   aquí queda sin prefijo de marca. Debe coincidir con utils/nombreHerramientas.ts del backend. */
+const ABREVIATURA_POR_MARCA = { UYUSTOOLS: "UY", SATA: "ST", DONGCHENG: "DC" };
+// Palabras de marca que pudieron escribirse completas (o venir del formato anterior) al inicio del nombre
+const PALABRAS_MARCA_COMPLETAS = ["UYUSTOOLS", "UYUS", "SATA", "DONGCHENG"];
+
+/* Nombre del sistema con el que se guarda el ítem (columna nombre) y con el que se crea en SAP:
+   [NEW ] + [abreviatura de la marca] + nombre. Se conserva lo que escribió el usuario y se corrige el
+   prefijo: se quitan el "NEW " y la abreviatura/nombre de marca que ya traiga al inicio y se vuelven a
+   poner según "es nuevo" y la marca. Ej.: NEW UY LLAVE 10MM, ST LLAVE 10MM, NEW DC TALADRO. */
+const limpiarNombreBase = (nombreBase, marca = "") => {
     if (!nombreBase) return "";
-    // Se limpia un "NEW " previo para no duplicarlo al recalcular
-    const limpio = String(nombreBase).replace(/^NEW\s+/i, "").trim();
-    return isNew ? `NEW ${limpio}` : limpio;
+    const abreviatura = ABREVIATURA_POR_MARCA[String(marca || "").trim().toUpperCase()];
+    const quitar = [...PALABRAS_MARCA_COMPLETAS, ...(abreviatura ? [abreviatura] : [])];
+    const sinNew = String(nombreBase).trim().replace(/^NEW\s+/i, "");
+    return sinNew.replace(new RegExp("^(" + quitar.join("|") + ")\\s+", "i"), "").trim();
+};
+
+const calcularNombreSistema = (nombreBase, isNew = false, marca = "") => {
+    const limpio = limpiarNombreBase(nombreBase, marca);
+    if (!limpio) return "";
+    const abreviatura = ABREVIATURA_POR_MARCA[String(marca || "").trim().toUpperCase()];
+    return `${isNew ? "NEW " : ""}${abreviatura ? `${abreviatura} ` : ""}${limpio}`;
 };
 
 /* Interpreta la columna "Es nuevo" del Excel: admite SI/NO, TRUE/FALSE, 1/0 y X.
@@ -180,6 +255,14 @@ const esNuevo = (item) =>
         ? Boolean(item.isNew)
         : !item?.fueRechazado;
 
+/* Bandera "Visible EasySales" del ítem, con el mismo criterio de fallback
+   que esNuevo: por defecto true para no cambiar el comportamiento de los
+   ítems que aún no traen el campo. */
+const esVisibleEasySales = (item) =>
+    item?.visibleEasySales !== undefined && item?.visibleEasySales !== null
+        ? Boolean(item.visibleEasySales)
+        : true;
+
 const EMPRESA_HERRAMIENTAS = 'IKONIX';
 
 const DICCIONARIO_ROLES = {
@@ -189,6 +272,58 @@ const DICCIONARIO_ROLES = {
     5: 'Compras'    // Usuario
 };
 
+/* Roles del flujo MDM (id_rol → nombre), usado por NOMBRES_FASE. Igual que en Llantas.jsx. */
+const NOMBRES_ROL = {
+    1: "Comercial",
+    2: "Ventas",
+    3: "Tecnico",
+    4: "Marketing",
+    5: "Compras",
+    6: "Bodega",
+};
+
+/* Cada fase la ejecuta un rol concreto: comentariosRol5 → fase 1, comentariosRol3 → fase 2,
+   comentariosRol4 → fase 3, y la aprobación final (fase 4) la hace jefatura. Igual que en Llantas.jsx. */
+const NOMBRES_FASE = {
+    1: `Creación (${NOMBRES_ROL[5]})`,
+    2: `Revisión técnica (${NOMBRES_ROL[3]})`,
+    3: `Imágenes (${NOMBRES_ROL[4]})`,
+    4: `Aprobación (${NOMBRES_ROL[1]})`,
+};
+
+/* Campos del detalle informativo de un ítem aprobado de Herramientas. Los ítems ya vienen
+   normalizados a camelCase por fetchItems, pero se deja un fallback a SCREAMING_SNAKE por si
+   en algún punto se pasa un ítem crudo del backend (mismo criterio que CAMPOS_DETALLE en
+   Llantas.jsx). Las filas sin valor no se pintan. */
+const CAMPOS_DETALLE = [
+    { label: "Código SAP", get: (it) => it.codigoSap || it.CODIGO_SAP },
+    { label: "Código de barras", get: (it) => it.codigo || it.CODIGO_BARRAS },
+    { label: "Marca", get: (it) => it.marca || it.MARCA },
+    { label: "Nombre del sistema", get: (it) => it.NOMBRE_SISTEMA || it.nombreSistema },
+    { label: "Nombre", get: (it) => it.nombre || it.NOMBRE },
+    { label: "Descripción", get: (it) => it.descripcion || it.DESCRIPCION },
+    { label: "Descripción Proveedor", get: (it) => it.nombreExt || it.NOMBRE_EXTRAN_G || it.NOMBRE_EXT },
+    { label: "Código proveedor", get: (it) => it.codigoProveedor || it.CODIGO_PROVEEDOR },
+    { label: "Partida arancelaria", get: (it) => it.partidaArancelaria || it.PARTIDA_ARANCELARIA },
+    { label: "Unidad", get: (it) => it.unidad || it.UNIDAD },
+    { label: "Unidades por empaque", get: (it) => it.unidadesCarton || it.UNIDADES_CARTON },
+    { label: "Cajas por empaque", get: (it) => it.empaquesCarton || it.EMPAQUES_CARTON },
+    { label: "Unidades por caja", get: (it) => it.unidadPaquete || it.UNIDAD_PAQUETE },
+    { label: "Largo de la caja", get: (it) => it.largoCarton || it.LARGO_CARTON },
+    { label: "Ancho de la caja", get: (it) => it.anchoCarton || it.ANCHO_CARTON },
+    { label: "Alto de la caja", get: (it) => it.altoCarton || it.ALTO_CARTON },
+    { label: "VOL/CTN", get: (it) => it.volumenCtn || it.VOLUMEN_CNT },
+    { label: "GW/CTN", get: (it) => it.gwCtn || it.GW_CNT },
+    { label: "Peso", get: (it) => it.peso || it.PESO },
+    { label: "Item código de barras", get: (it) => it.itemCodigoBarras || it.ITEM_CODIGO_BARRAS },
+    { label: "Cartón código de barras", get: (it) => it.cartonCodigoBarras || it.CARTON_CODIGO_BARRAS },
+    { label: "Paquete código de barras", get: (it) => it.paqueteCodigoBarras || it.PAQUETE_CODIGO_BARRAS },
+    { label: "Grupo", get: (it) => it.grupo || it.GRUPO },
+    { label: "Subgrupo", get: (it) => it.subgrupo || it.SUBGRUPO },
+    { label: "Subgrupo 1", get: (it) => it.subgrupo1 || it.SUBGRUPO1 },
+    { label: "Tipo", get: (it) => it.tipo || it.TIPO },
+    { label: "Observaciones", get: (it) => it.comentarios || it.OBSERVACIONES },
+];
 
 const OPTIONS_UNIDAD = [
     { value: "PAIRS", label: "PAIRS" },
@@ -197,11 +332,158 @@ const OPTIONS_UNIDAD = [
     { value: "PCS", label: "PCS" },
 ];
 
-const OPTIONS_MARCA = [
-    { value: "UYUSTOOLS", label: "UYUSTOOLS" },
-    { value: "SATA", label: "SATA" }
-];
+/* ------------------------------------------------------------------ */
+/* Rol 3 (Supervisor/Técnico): fila memorizada y catálogo precalculado  */
+/* Escribir en una celda solo vuelve a dibujar SU fila (no toda la      */
+/* tabla) y las opciones de los desplegables ya no se recalculan        */
+/* filtrando el catálogo completo en cada tecla.                        */
+/* ------------------------------------------------------------------ */
 
+const SEP_CATALOGO = "\u0001";
+
+/* Catálogo Grupo > Subgrupo > Subgrupo 1 > Tipo indexado para consultar sus opciones sin filtrar. */
+const construirCatalogoHerramientas = (filas = []) => {
+    const grupos = new Set();
+    const porGrupo = new Map();
+    const porSubgrupo = new Map();
+    const porSubgrupo1 = new Map();
+    const agregar = (mapa, clave, valor) => {
+        if (!valor) return;
+        if (!mapa.has(clave)) mapa.set(clave, new Set());
+        mapa.get(clave).add(valor);
+    };
+    (Array.isArray(filas) ? filas : []).forEach(f => {
+        if (f.DMH_GRUPO) grupos.add(f.DMH_GRUPO);
+        agregar(porGrupo, f.DMH_GRUPO, f.DMH_SUBGRUPO);
+        agregar(porSubgrupo, `${f.DMH_GRUPO}${SEP_CATALOGO}${f.DMH_SUBGRUPO}`, f.DMH_SUBGRUPO1);
+        agregar(porSubgrupo1, `${f.DMH_GRUPO}${SEP_CATALOGO}${f.DMH_SUBGRUPO}${SEP_CATALOGO}${f.DMH_SUBGRUPO1}`, f.DMH_TIPO);
+    });
+    const aOpciones = (set) => Array.from(set || []).map(k => ({ value: k, label: k }));
+    return {
+        grupos: aOpciones(grupos),
+        subgrupos: (g) => aOpciones(porGrupo.get(g)),
+        subgrupos1: (g, s) => aOpciones(porSubgrupo.get(`${g}${SEP_CATALOGO}${s}`)),
+        tipos: (g, s, s1) => aOpciones(porSubgrupo1.get(`${g}${SEP_CATALOGO}${s}${SEP_CATALOGO}${s1}`)),
+    };
+};
+
+const ESTILO_SELECT_TECNICO = { height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" };
+const propsSelectTecnico = {
+    minWidth: "140px",
+    isCreatable: true,
+    placeholder: "Seleccione o escriba",
+    formatCreateLabel: (texto) => `Usar "${texto}"`,
+    style: ESTILO_SELECT_TECNICO,
+};
+
+const FilaTecnico = React.memo(function FilaTecnico({
+    item, idx, seleccionado, catalogo, theme,
+    onCampo, onAutoguardar, onEnviarAutoguardado, onToggle, onVerMotivo,
+}) {
+    const opcionesSubgrupo = useMemo(() => catalogo.subgrupos(item.grupo), [catalogo, item.grupo]);
+    const opcionesSubgrupo1 = useMemo(() => catalogo.subgrupos1(item.grupo, item.subgrupo), [catalogo, item.grupo, item.subgrupo]);
+    const opcionesTipo = useMemo(() => catalogo.tipos(item.grupo, item.subgrupo, item.subgrupo1), [catalogo, item.grupo, item.subgrupo, item.subgrupo1]);
+    const valorSelect = (v) => (v ? { value: v, label: v } : null);
+    const mayus = (v) => (v?.value || "").toUpperCase();
+
+    return (
+        <Fila $par={idx % 2 === 0} $sel={seleccionado}>
+            <Td $densa $align="center" $fija="left" $w={ANCHO_COL_SELECCION}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <NumeroFila>{idx + 1}</NumeroFila>
+                    <CheckboxUI checked={seleccionado} onChange={(e, checked) => onToggle(item.id, checked)} />
+                </div>
+            </Td>
+            <Td><TextUI size="13px">{item.codigoProveedor || "-"}</TextUI></Td>
+            <Td><TextUI size="13px">{item.nombre || "-"}</TextUI></Td>
+            <Td>
+                <InputUI
+                    value={item.nombreSistema || ""}
+                    onChange={(v) => {
+                        onCampo(item.id, "nombreSistema", v);
+                        onAutoguardar(item.id, { NOMBRE_SISTEMA: v.toUpperCase() }, 1000);
+                    }}
+                    onBlur={() => {
+                        // Se conserva lo escrito pero se corrige el prefijo: [NEW ] + abreviatura de la marca
+                        const corregido = calcularNombreSistema(item.nombreSistema || item.nombre, esNuevo(item), item.marca);
+                        if (corregido && corregido !== item.nombreSistema) {
+                            onCampo(item.id, "nombreSistema", corregido);
+                            onAutoguardar(item.id, { NOMBRE_SISTEMA: corregido });
+                        } else {
+                            onEnviarAutoguardado(item.id);
+                        }
+                    }}
+                    placeholder="Nombre para SAP..."
+                />
+            </Td>
+            <Td>
+                <SelectUI
+                    options={catalogo.grupos}
+                    value={valorSelect(item.grupo)}
+                    onChange={(v) => {
+                        onCampo(item.id, "grupo", v?.value || "");
+                        onCampo(item.id, "subgrupo", "");
+                        onCampo(item.id, "subgrupo1", "");
+                        onCampo(item.id, "tipo", "");
+                        onAutoguardar(item.id, { GRUPO: mayus(v), SUBGRUPO: "", SUBGRUPO1: "", TIPO: "" });
+                    }}
+                    {...propsSelectTecnico}
+                />
+            </Td>
+            <Td>
+                <SelectUI
+                    options={opcionesSubgrupo}
+                    value={valorSelect(item.subgrupo)}
+                    onChange={(v) => {
+                        onCampo(item.id, "subgrupo", v?.value || "");
+                        onCampo(item.id, "subgrupo1", "");
+                        onCampo(item.id, "tipo", "");
+                        onAutoguardar(item.id, { SUBGRUPO: mayus(v), SUBGRUPO1: "", TIPO: "" });
+                    }}
+                    {...propsSelectTecnico}
+                />
+            </Td>
+            <Td>
+                <SelectUI
+                    options={opcionesSubgrupo1}
+                    value={valorSelect(item.subgrupo1)}
+                    onChange={(v) => {
+                        onCampo(item.id, "subgrupo1", v?.value || "");
+                        onCampo(item.id, "tipo", "");
+                        onAutoguardar(item.id, { SUBGRUPO1: mayus(v), TIPO: "" });
+                    }}
+                    {...propsSelectTecnico}
+                />
+            </Td>
+            <Td>
+                <SelectUI
+                    options={opcionesTipo}
+                    value={valorSelect(item.tipo)}
+                    onChange={(v) => {
+                        onCampo(item.id, "tipo", v?.value || "");
+                        onAutoguardar(item.id, { TIPO: mayus(v) });
+                    }}
+                    {...propsSelectTecnico}
+                />
+            </Td>
+            <Td>
+                <InputUI value={item.comentarios || ""} onChange={(v) => onCampo(item.id, "comentarios", v)} placeholder="Comentarios..." />
+            </Td>
+            <Td $align="center">
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <ButtonUI
+                        text="Motivo de rechazo"
+                        variant="outlined"
+                        pcolor={theme?.colors?.warning || "#ffc107"}
+                        style={{ padding: "4px 8px", fontSize: "11px", minWidth: "auto" }}
+                        disabled={!item.motivoRechazo}
+                        onClick={() => onVerMotivo(item.motivoRechazo)}
+                    />
+                </div>
+            </Td>
+        </Fila>
+    );
+});
 
 function Herramientas() {
     const { theme } = useTheme();
@@ -224,27 +506,49 @@ function Herramientas() {
 
     const EMPRESA_HERRAMIENTAS = "IKONIX";
 
-    const [opcionesPallets, setOpcionesPallets] = useState([]);
     const [gruposHerramientasRaw, setGruposHerramientasRaw] = useState([]);
+    // Marcas de IKONIX / HERRAMIENTAS desde core.dim_marca_proveedor_procedencia (administrables en esa tabla,
+    // solo las activas). Si el servicio no responde o no trae filas, se usan las marcas con abreviatura conocida.
+    const [marcaProveedorProcedencia, setMarcaProveedorProcedencia] = useState([]);
+    const opcionesMarca = useMemo(() => {
+        const delServicio = marcaProveedorProcedencia
+            .filter(f =>
+                f.DMPP_ACTIVO !== false &&
+                String(f.DMPP_EMPRESA || "").trim().toUpperCase() === EMPRESA_HERRAMIENTAS &&
+                String(f.DMPP_LINEA_NEGOCIO || "").trim().toUpperCase() === "HERRAMIENTAS")
+            .map(f => String(f.DMPP_MARCA || "").trim().toUpperCase())
+            .filter(Boolean);
+        const marcas = delServicio.length > 0 ? Array.from(new Set(delServicio)) : Object.keys(ABREVIATURA_POR_MARCA);
+        return marcas.map(m => ({ value: m, label: m }));
+    }, [marcaProveedorProcedencia]);
+    const catalogoHerramientas = useMemo(() => construirCatalogoHerramientas(gruposHerramientasRaw), [gruposHerramientasRaw]);
+    const [marcaProveedorProcedenciaRaw, setMarcaProveedorProcedenciaRaw] = useState([]);
+
+    // El "id" real de un proveedor es su código de socio de negocio (DMPP_ID_PROVEEDOR,
+    // tomado en el backend directo de core.dim_marca_proveedor_procedencia.dmpp_codigo_proveedor).
+    // Si todavía no se ha asignado código para esa combinación, se cae al nombre para no
+    // bloquear la selección.
+    const resolverIdProveedor = (fila) => fila?.DMPP_ID_PROVEEDOR || fila?.DMPP_PROVEEDOR || "";
+
+    // Herramientas no encadena el proveedor por marca como Llantas: simplemente se listan
+    // todos los proveedores vigentes de IKONIX/HERRAMIENTAS y, para ítems nuevos, se toma
+    // el primero de la lista como valor por defecto.
+    const opcionesProveedores = (() => {
+        const filas = marcaProveedorProcedenciaRaw.filter(
+            (f) => f.DMPP_EMPRESA === EMPRESA_HERRAMIENTAS && f.DMPP_LINEA_NEGOCIO === "HERRAMIENTAS"
+        );
+        const vistos = new Set();
+        const opciones = [];
+        filas.forEach((f) => {
+            const id = resolverIdProveedor(f);
+            if (!id || vistos.has(id)) return;
+            vistos.add(id);
+            opciones.push({ value: id, label: f.DMPP_PROVEEDOR });
+        });
+        return opciones;
+    })();
 
     useEffect(() => {
-        const fetchPalletsOptions = async () => {
-            try {
-                const response = await getGruposUnidades(EMPRESA_HERRAMIENTAS);
-                if (response?.status === "Ok!" && Array.isArray(response?.data)) {
-                    setOpcionesPallets(response.data.map(item => ({
-                        value: item.UGP_ENTRY,
-                        label: item.UGP_NAME
-                    })));
-                } else {
-                    setOpcionesPallets([]);
-                }
-            } catch (error) {
-                console.error(`Error fetching pallets options for ${EMPRESA_HERRAMIENTAS}:`, error);
-                setOpcionesPallets([]);
-            }
-        };
-
         const fetchGruposHerramientas = async () => {
             try {
                 const response = await getGruposHerramientas();
@@ -255,21 +559,55 @@ function Herramientas() {
             }
         };
 
-        fetchPalletsOptions();
+        const fetchMarcaProveedorProcedencia = async () => {
+            try {
+                const data = await getMarcaProveedorProcedencia();
+                setMarcaProveedorProcedenciaRaw(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error("Error fetching marca-proveedor-procedencia:", error);
+                setMarcaProveedorProcedenciaRaw([]);
+            }
+        };
+
         fetchGruposHerramientas();
+        fetchMarcaProveedorProcedencia();
     }, []);
-    const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
-    const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
+    const [sapRequestPreview, setSapRequestPreview] = useState(null);
+    const [loadingSapRequestId, setLoadingSapRequestId] = useState(null);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
+    const [isSyncingSap, setIsSyncingSap] = useState(false);
+    const [searchTermExport, setSearchTermExport] = useState("");
 
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [approvedItems, setApprovedItems] = useState([]);
+    // Sección "Sin aprobar / Aprobados": pestaña activa, buscador compartido y estado del refresco.
+    // Aprobación comercial (rol 1): bloquea los botones mientras se aprueba/rechaza un ítem.
+    const [isProcessingRol1, setIsProcessingRol1] = useState(false);
+    const [tabAprobados, setTabAprobados] = useState("sinAprobar");
+    const [searchTermAprobados, setSearchTermAprobados] = useState("");
+    const [isRefrescandoAprobados, setIsRefrescandoAprobados] = useState(false);
+    // Todos los ítems no aprobados de la línea (cualquier fase), independiente de lo que el rol
+    // actual tenga filtrado en `items` para trabajar. Alimenta solo la pestaña "Sin aprobar".
+    const [itemsSinAprobarTodos, setItemsSinAprobarTodos] = useState([]);
     const [selectedItemIds, setSelectedItemIds] = useState(new Set());
     const [currentItemIndex, setCurrentItemIndex] = useState(0);
     const fileInputRef = useRef(null);
+    // Resultado de verificar si el diseño (para Herramientas: MARCA + ITEM_CODIGO_BARRAS, ver
+    // getDisenioKey) ya tiene imagen en storage, indexado por esa clave, para no pedirle al
+    // coordinador (rol 4) que la vuelva a subir. El backend resuelve el identificador real
+    // (vía DWH) solo con el ID del ítem; esta clave es puramente local, para deduplicar llamadas.
+    const [imagenesDisenioExistente, setImagenesDisenioExistente] = useState({});
+    // Diseños cuya verificación contra el backend todavía está en curso: mientras esté aquí,
+    // el input de subida se bloquea para no subir una imagen antes de saber si ya existía una.
+    const [disenioVerificando, setDisenioVerificando] = useState({});
+    const disenioCheckEnCurso = useRef(new Set());
+    const [detalleItem, setDetalleItem] = useState(null);
+    // Actualización de imágenes de un producto ya aprobado (rol 4), desde el modal de Detalle:
+    // { webp: bool, png: bool } indica si hay una subida en curso para ese tipo de imagen.
+    const [subiendoImagenDetalle, setSubiendoImagenDetalle] = useState({ webp: false, png: false });
     const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false);
     const [selectedRejectionReason, setSelectedRejectionReason] = useState("");
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -289,11 +627,127 @@ function Herramientas() {
         (it.DIT_GRUPO && it.DIT_GRUPO.toLowerCase().includes(searchTermReview.toLowerCase()))
     );
 
-    const fetchItems = useCallback(async () => {
+    const filteredApprovedItemsForExport = approvedItemsForExport.filter(item =>
+        (item.EMPRESA && item.EMPRESA.toLowerCase().includes(searchTermExport.toLowerCase())) ||
+        (item.CODIGO_SAP && item.CODIGO_SAP.toLowerCase().includes(searchTermExport.toLowerCase())) ||
+        ((item.NOMBRE || item.DESCRIPCION) && (item.NOMBRE || item.DESCRIPCION).toLowerCase().includes(searchTermExport.toLowerCase()))
+    );
+
+    /* Paginación de los modales "Seleccionar ítems para revisar" y "Exportar ítems
+       aprobados a SAP": renderizar de una sola vez listas grandes (DWH, histórico de
+       aprobados) rompía la tabla, así que solo se pinta una página a la vez. */
+    const ITEMS_POR_PAGINA_MODAL = 20;
+    const [paginaReview, setPaginaReview] = useState(1);
+    const [paginaExport, setPaginaExport] = useState(1);
+
+    useEffect(() => { setPaginaReview(1); }, [searchTermReview, itemsToReview]);
+    useEffect(() => { setPaginaExport(1); }, [searchTermExport, approvedItemsForExport]);
+
+    const totalPaginasReview = Math.max(1, Math.ceil(filteredItemsToReview.length / ITEMS_POR_PAGINA_MODAL));
+    const itemsToReviewPaginados = filteredItemsToReview.slice(
+        (paginaReview - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaReview * ITEMS_POR_PAGINA_MODAL,
+    );
+
+    const totalPaginasExport = Math.max(1, Math.ceil(filteredApprovedItemsForExport.length / ITEMS_POR_PAGINA_MODAL));
+    const approvedItemsForExportPaginados = filteredApprovedItemsForExport.slice(
+        (paginaExport - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaExport * ITEMS_POR_PAGINA_MODAL,
+    );
+
+    // Normaliza un ítem crudo del backend al shape camelCase que usan las tablas y el modal de detalle.
+    const mapearItem = useCallback((it) => {
+        const isRol3 = idRolPrincipal === 3;
+        const isRol4 = idRolPrincipal === 4;
+        const isRol5 = idRolPrincipal === 5;
+
+        let faseActual = 1;
+        if (isRol3) faseActual = 2;
+        if (isRol4) faseActual = 3;
+
+        const faseRechazo = (isRol3 || isRol4 || isRol5)
+            ? it.FASES?.find(f => f.FASE === faseActual && f.RECHAZO)
+            : null;
+
+        const f1 = it.FASES?.find(f => f.FASE === 1);
+        const f2 = it.FASES?.find(f => f.FASE === 2);
+        const f3 = it.FASES?.find(f => f.FASE === 3);
+
+        return {
+            id: it.ID,
+            codigoProveedor: it.CODIGO_PROVEEDOR || "",
+            proveedor: it.ID_PROVEEDOR || "",
+            partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+            nombreExt: it.NOMBRE_EXT || "",
+            nombre: it.NOMBRE || "",
+            // Si el backend aún no devuelve ES_NUEVO se deja sin definir
+            // para que esNuevo() aplique el fallback de siempre
+            isNew: it.ES_NUEVO !== undefined && it.ES_NUEVO !== null ? Boolean(it.ES_NUEVO) : undefined,
+            // Mismo criterio que ES_NUEVO: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
+            visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
+            // Nombre tal como lo guarda Compras (con el prefijo "NEW " si es nuevo)
+            nombrePrefijado: it.NOMBRE || "",
+            // Nombre que revisa el Técnico: su borrador autoguardado (nombre_sistema) y, si aún no hay, el
+            // nombre vigente. Si Compras corrige y reenvía, el backend borra el borrador y vale el de Compras.
+            nombreSistema: it.NOMBRE_SISTEMA || it.NOMBRE || "",
+            descripcion: it.DESCRIPCION || "",
+            unidad: it.UNIDAD || "",
+            unidadPaquete: it.UNIDAD_PAQUETE || "",
+            empaquesCarton: it.EMPAQUES_CARTON || "",
+            unidadesCarton: it.UNIDADES_CARTON || "",
+            largoCarton: it.LARGO_CARTON || "",
+            anchoCarton: it.ANCHO_CARTON || "",
+            altoCarton: it.ALTO_CARTON || "",
+            volumenCtn: it.VOLUMEN_CNT || "",
+            gwCtn: it.GW_CNT || "",
+            peso: it.PESO || "",
+            itemCodigoBarras: it.ITEM_CODIGO_BARRAS || "",
+            cartonCodigoBarras: it.CARTON_CODIGO_BARRAS || "",
+            paqueteCodigoBarras: it.PAQUETE_CODIGO_BARRAS || "",
+            grupo: it.GRUPO || "",
+            subgrupo: it.SUBGRUPO || "",
+            subgrupo1: it.SUBGRUPO1 || "",
+            tipo: it.TIPO || "",
+            codigoSap: it.CODIGO_SAP || "",
+            marca: it.MARCA || "",
+            motivoRechazo: faseRechazo ? (faseRechazo.MOTIVO_RECHAZO || faseRechazo.OBSERVACIONES || "") : "",
+            fueRechazado: !!faseRechazo,
+            APROBADO_MDM: it.APROBADO_MDM,
+            comentarios: it.OBSERVACIONES || "",
+            imagenPng: null,
+            imagenWebp: null,
+            imagenUrl: it.RUTA_IMAGEN_WEBP || it.RUTA_IMAGEN_PNG || "",
+            // Se conservan para el modal de Detalle del producto (trazabilidad y
+            // miniaturas de imagen ya publicada), igual que en Llantas.jsx.
+            FASES: it.FASES || [],
+            FASE_ACTUAL: it.FASE_ACTUAL,
+            RUTA_IMAGEN_WEBP: it.RUTA_IMAGEN_WEBP || "",
+            RUTA_IMAGEN_PNG: it.RUTA_IMAGEN_PNG || "",
+            comentariosRol5: f1?.OBSERVACIONES || "",
+            comentariosRol3: f2?.OBSERVACIONES || "",
+            comentariosRol4: f3?.OBSERVACIONES || "",
+            codigo: it.CODIGO_BARRAS || ""
+        };
+    }, [idRolPrincipal]);
+
+    // `soloSeccion`: refresca únicamente la sección "Sin aprobar / Aprobados" y deja `items`
+    // intacto, para no perder las filas nuevas que el rol 5 todavía no ha enviado.
+    const fetchItems = useCallback(async ({ soloSeccion = false } = {}) => {
         if (idRolPrincipal) {
             try {
                 const rawData = await getItemsByRole(idRolPrincipal, "HERRAMIENTAS");
                 if (rawData) {
+                    // Vista informativa de la pestaña "Sin aprobar": TODOS los ítems no aprobados de la
+                    // línea, sin importar en qué fase estén ni si son accionables para el rol actual.
+                    setItemsSinAprobarTodos(
+                        rawData
+                            .filter(it => !it.APROBADO_MDM)
+                            .map(it => ({
+                                ...mapearItem(it),
+                                fueRechazado: Array.isArray(it.FASES) && it.FASES.some(f => f.RECHAZO),
+                            }))
+                    );
+
                     let filteredData = rawData;
                     if (idRolPrincipal === 3) {
                         filteredData = rawData.filter(it =>
@@ -318,70 +772,9 @@ function Herramientas() {
                         );
                     }
 
-                    const mappedItems = filteredData.map(it => {
-                        const isRol3 = idRolPrincipal === 3;
-                        const isRol4 = idRolPrincipal === 4;
-                        const isRol5 = idRolPrincipal === 5;
-                        const isRol1 = idRolPrincipal === 1;
+                    const mappedItems = filteredData.map(mapearItem);
 
-                        let faseActual = 1;
-                        if (isRol3) faseActual = 2;
-                        if (isRol4) faseActual = 3;
-
-                        const faseRechazo = (isRol3 || isRol4 || isRol5)
-                            ? it.FASES?.find(f => f.FASE === faseActual && f.RECHAZO)
-                            : null;
-
-                        const f1 = it.FASES?.find(f => f.FASE === 1);
-                        const f2 = it.FASES?.find(f => f.FASE === 2);
-                        const f3 = it.FASES?.find(f => f.FASE === 3);
-
-                        return {
-                            id: it.ID,
-                            codigoProveedor: it.CODIGO_PROVEEDOR || "",
-                            partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
-                            nombreExt: it.NOMBRE_EXT || "",
-                            nombre: it.NOMBRE || "",
-                            // Si el backend aún no devuelve ES_NUEVO se deja sin definir
-                            // para que esNuevo() aplique el fallback de siempre
-                            isNew: it.ES_NUEVO !== undefined && it.ES_NUEVO !== null ? Boolean(it.ES_NUEVO) : undefined,
-                            nombreSistema: calcularNombreSistema(it.NOMBRE || "", Boolean(it.ES_NUEVO)),
-                            descripcion: it.DESCRIPCION || "",
-                            unidad: it.UNIDAD || "",
-                            unidadPaquete: it.UNIDAD_PAQUETE || "",
-                            empaquesCarton: it.EMPAQUES_CARTON || "",
-                            unidadesCarton: it.UNIDADES_CARTON || "",
-                            largoCarton: it.LARGO_CARTON || "",
-                            anchoCarton: it.ANCHO_CARTON || "",
-                            altoCarton: it.ALTO_CARTON || "",
-                            volumenCtn: it.VOLUMEN_CNT || "",
-                            gwCtn: it.GW_CNT || "",
-                            peso: it.PESO || "",
-                            itemCodigoBarras: it.ITEM_CODIGO_BARRAS || "",
-                            cartonCodigoBarras: it.CARTON_CODIGO_BARRAS || "",
-                            paqueteCodigoBarras: it.PAQUETE_CODIGO_BARRAS || "",
-                            grupo: it.GRUPO || "",
-                            subgrupo: it.SUBGRUPO || "",
-                            subgrupo1: it.SUBGRUPO1 || "",
-                            pallets: it.PALLETS || "",
-                            tipo: it.TIPO || "",
-                            codigoSap: it.CODIGO_SAP || "",
-                            marca: it.MARCA || "",
-                            motivoRechazo: faseRechazo ? (faseRechazo.MOTIVO_RECHAZO || faseRechazo.OBSERVACIONES || "") : "",
-                            fueRechazado: !!faseRechazo,
-                            APROBADO_MDM: it.APROBADO_MDM,
-                            comentarios: it.OBSERVACIONES || "",
-                            imagenPng: null,
-                            imagenWebp: null,
-                            imagenUrl: it.RUTA_IMAGEN_WEBP || it.RUTA_IMAGEN_PNG || "",
-                            comentariosRol5: f1?.OBSERVACIONES || "",
-                            comentariosRol3: f2?.OBSERVACIONES || "",
-                            comentariosRol4: f3?.OBSERVACIONES || "",
-                            codigo: it.CODIGO_BARRAS || ""
-                        };
-                    });
-
-                    setItems(mappedItems.filter(it => !it.APROBADO_MDM));
+                    if (!soloSeccion) setItems(mappedItems.filter(it => !it.APROBADO_MDM));
                     setApprovedItems(mappedItems.filter(it => it.APROBADO_MDM));
 
                     if (idRolPrincipal === 1) {
@@ -394,37 +787,261 @@ function Herramientas() {
                 toast.error("Error al cargar los ítems pendientes.");
             }
         }
-    }, [idRolPrincipal]);
+    }, [idRolPrincipal, mapearItem]);
 
     useEffect(() => {
         fetchItems();
     }, [fetchItems]);
 
+    // Cuando se reemplaza una imagen ya existente, la key en storage (y por lo tanto la URL) no
+    // cambia: el navegador ya tiene esa URL cacheada y seguiría mostrando la versión vieja hasta
+    // recargar la página. Agregar un parámetro único fuerza a que se pida de nuevo.
+    const agregarCacheBusting = (url) => {
+        if (!url) return url;
+        const separador = url.includes('?') ? '&' : '?';
+        return `${url}${separador}_v=${Date.now()}`;
+    };
+
+    // Clave LOCAL (de cliente) para deduplicar verificaciones de imagen. En Herramientas la imagen se
+    // identifica por CODIGO_SAP (si el ítem ya lo tiene) o, si no, por CODIGO_PROVEEDOR; es la misma
+    // regla que aplica el backend (ItemImageUploadService.resolveImageIdentity). Sin ninguno de los dos
+    // se usa una clave única por ID (sin deduplicación entre ítems).
+    const getDisenioKey = (item) => {
+        const marca = item?.marca || item?.MARCA;
+        const codigoImagen = item?.codigoSap || item?.CODIGO_SAP || item?.codigoProveedor || item?.CODIGO_PROVEEDOR;
+        if (marca && codigoImagen) {
+            return `${String(marca).trim().toUpperCase()}|${String(codigoImagen).trim().toUpperCase()}`;
+        }
+        const id = item?.id ?? item?.ID;
+        return id !== undefined && id !== null ? `ITEM_${id}` : null;
+    };
+
+    // Consulta al backend si el ítem ya tiene imagen en storage (R2/SharePoint) y guarda el
+    // resultado en imagenesDisenioExistente, indexado por la clave local. Se usa tanto para la
+    // grilla de pendientes (rol 4) como para el modal de Detalle del producto.
+    const verificarImagenDisenio = useCallback((item, linea) => {
+        const clave = getDisenioKey(item);
+        if (!clave || imagenesDisenioExistente[clave] || disenioCheckEnCurso.current.has(clave)) return;
+        disenioCheckEnCurso.current.add(clave);
+        setDisenioVerificando(prev => ({ ...prev, [clave]: true }));
+        checkDesignImage(linea, item.id ?? item.ID)
+            .then(result => {
+                if (result) {
+                    setImagenesDisenioExistente(prev => ({ ...prev, [clave]: result }));
+                }
+            })
+            .catch(err => {
+                console.error(`Error al verificar imagen existente para ${clave}:`, err);
+            })
+            .finally(() => {
+                disenioCheckEnCurso.current.delete(clave);
+                setDisenioVerificando(prev => {
+                    const next = { ...prev };
+                    delete next[clave];
+                    return next;
+                });
+            });
+    }, [imagenesDisenioExistente]);
+
+    // Rol 4 (coordinador de imágenes): las imágenes se suben una vez por diseño, no por ítem.
+    // Antes de forzar la subida, se verifica si el diseño ya tiene imagen en storage (Cloudflare
+    // R2 / SharePoint) para no pedirla nuevamente.
+    useEffect(() => {
+        if (idRolPrincipal !== 4) return;
+
+        const clavesUnicas = new Map();
+        items.forEach(it => {
+            const clave = getDisenioKey(it);
+            if (clave && !clavesUnicas.has(clave)) {
+                clavesUnicas.set(clave, it);
+            }
+        });
+
+        clavesUnicas.forEach(it => verificarImagenDisenio(it, "HERRAMIENTAS"));
+    }, [idRolPrincipal, items, verificarImagenDisenio]);
+
+    // Al abrir el detalle de un producto aprobado (rol 4), se verifica igual el diseño para
+    // poder mostrar las miniaturas de SharePoint/R2 en la ficha, aunque el ítem ya no esté
+    // en la grilla de pendientes.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !detalleItem) return;
+        verificarImagenDisenio(detalleItem, "HERRAMIENTAS");
+    }, [idRolPrincipal, detalleItem, verificarImagenDisenio]);
+
+    // Bloquea la subida mientras no se sepa con certeza si el diseño ya tiene imagen en storage:
+    // subir "a ciegas" durante ese lapso podría generar un archivo huérfano o duplicado.
+    const disenioEstaVerificando = (item) => {
+        const clave = getDisenioKey(item);
+        return clave ? Boolean(disenioVerificando[clave]) : false;
+    };
+    const hayVerificacionesPendientes = (currentItems) => currentItems.some(disenioEstaVerificando);
+
+    // Actualiza la imagen (WebP en R2, o PNG en SharePoint) de un producto ya aprobado, desde el
+    // modal de Detalle del producto. Al ser el mismo diseño, la subida sobrescribe la imagen
+    // existente: es justamente el flujo para corregir/reemplazar una imagen ya publicada.
+    // Herramientas no tiene campo DISEÑO, así que se envía null (el backend no lo necesita: ya
+    // resuelve el identificador real vía ITEM_CODIGO_BARRAS/DWH con el ID del ítem).
+    const handleActualizarImagenDetalle = async (tipo, file) => {
+        if (!detalleItem) return;
+
+        if (tipo === "webp" && file.type !== "image/webp") {
+            toast.error("Solo se permiten archivos WEBP");
+            return;
+        }
+        if (tipo === "png" && file.type !== "image/png") {
+            toast.error("Solo se permiten archivos PNG");
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error(`La imagen ${tipo.toUpperCase()} no debe superar 2MB`);
+            return;
+        }
+
+        const clave = getDisenioKey(detalleItem);
+        const idItem = detalleItem.id ?? detalleItem.ID;
+        setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: true }));
+        try {
+            if (tipo === "webp") {
+                const res = await uploadItemImages("HERRAMIENTAS", idItem, detalleItem.marca, null, null, file);
+                // Al reemplazar una imagen ya existente, la key (y por lo tanto la URL) es la misma
+                // de antes: sin este parámetro el navegador sirve la versión cacheada y no se ve el
+                // cambio hasta recargar la página.
+                const nuevaUrl = agregarCacheBusting(res?.data?.urls?.webp);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], webp: { exists: true, key: res.data.RUTA_IMAGEN_WEBP, url: nuevaUrl } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_WEBP: nuevaUrl || prev.RUTA_IMAGEN_WEBP } : prev);
+            } else {
+                const res = await uploadItemImagesSharepoint("HERRAMIENTAS", idItem, detalleItem.marca, EMPRESA_HERRAMIENTAS, null, file, null);
+                const nuevaUrl = res?.data?.urls?.png;
+                const nuevaPreview = agregarCacheBusting(res?.data?.urls?.pngPreview || nuevaUrl);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], png: { exists: true, key: res.data.RUTA_IMAGEN_PNG, url: nuevaUrl, previewUrl: nuevaPreview } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_PNG: nuevaUrl || prev.RUTA_IMAGEN_PNG } : prev);
+            }
+            toast.success(`Imagen ${tipo.toUpperCase()} actualizada correctamente.`);
+            fetchItems();
+        } catch (error) {
+            console.error(`Error al actualizar imagen ${tipo}:`, error);
+            toast.error(error?.response?.data?.details || error?.response?.data?.message || `Error al actualizar la imagen ${tipo.toUpperCase()}.`);
+        } finally {
+            setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: false }));
+        }
+    };
+
+    const handleVerSapRequest = async (itemId) => {
+        setLoadingSapRequestId(itemId);
+        try {
+            const response = await getSapRequestItem("HERRAMIENTAS", itemId);
+            setSapRequestPreview(response?.data || null);
+        } catch (error) {
+            console.error("Error al generar el request de SAP:", error);
+            toast.error(error?.response?.data?.details || "No se pudo generar el request de SAP.");
+        } finally {
+            setLoadingSapRequestId(null);
+        }
+    };
+
+    const handleSyncToSap = async () => {
+        const ids = Array.from(selectedApprovedItemIds);
+        if (ids.length === 0) {
+            toast.warning("Seleccione al menos un ítem para sincronizar con SAP.");
+            return;
+        }
+
+        setIsSyncingSap(true);
+        try {
+            const response = await syncItemsToSap("HERRAMIENTAS", ids);
+            const result = response?.data || {};
+            const { Exitosos = 0, Fallidos = 0, Total = 0, PorEmpresa = [], ItemsOmitidos = [] } = result;
+
+            if (Fallidos === 0 && Exitosos > 0) {
+                toast.success(`Sincronización SAP: ${Exitosos} de ${Total} ítems creados correctamente.`);
+            } else if (Exitosos > 0) {
+                toast.warning(`Sincronización SAP: ${Exitosos} exitosos, ${Fallidos} fallidos de ${Total}. Revise la consola para el detalle.`);
+            } else {
+                toast.error(`Sincronización SAP: no se pudo crear ningún ítem (${Fallidos} fallidos de ${Total}). Revise la consola para el detalle.`);
+            }
+
+            console.log("Resultado sincronización SAP:", { PorEmpresa, ItemsOmitidos });
+
+            for (const empresaResult of PorEmpresa) {
+                for (const resultado of empresaResult.Resultados || []) {
+                    if (!resultado.Success) {
+                        console.warn(`❌ ${empresaResult.Empresa} - ${resultado.ItemName}: ${resultado.Message}`);
+                    }
+                }
+            }
+            for (const omitido of ItemsOmitidos) {
+                console.warn(`⚠️ Item omitido (ID ${omitido.ItemId}): ${omitido.Motivo}`);
+            }
+
+            setSelectedApprovedItemIds(new Set());
+            fetchItems();
+        } catch (error) {
+            console.error("Error al sincronizar con SAP:", error);
+            toast.error("Error al sincronizar los ítems con SAP.");
+        } finally {
+            setIsSyncingSap(false);
+        }
+    };
+
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
-            for (const item of currentItems) {
-                if (idRolPrincipal === 3) {
-                    const payloadRole3 = {
-                        ID: item.id,
-                        LINEA_NEGOCIO: "HERRAMIENTAS",
-                        GRUPO: item.grupo || "",
-                        SUBGRUPO: item.subgrupo || "",
-                        SUBGRUPO1: item.subgrupo1 || "",
-                        PALLETS: item.pallets || "",
-                        TIPO: item.tipo || "",
-                        FASE: 2,
-                        OBSERVACIONES: item.comentarios || "",
-                        ...(item.fueRechazado && { RECHAZO: false })
-                    };
-                    await patchItemRole3(payloadRole3);
-                } else if (idRolPrincipal === 4) {
+            let erroresCount = 0;
+            let idsConError = new Set();
+
+            if (idRolPrincipal === 3) {
+                const payloads = currentItems.map(item => ({
+                    ID: item.id,
+                    LINEA_NEGOCIO: "HERRAMIENTAS",
+                    GRUPO: item.grupo || "",
+                    SUBGRUPO: item.subgrupo || "",
+                    SUBGRUPO1: item.subgrupo1 || "",
+                    TIPO: item.tipo || "",
+                    // Nombre con el que se crea en SAP; por defecto el que cargó Compras
+                    NOMBRE_SISTEMA: calcularNombreSistema(item.nombreSistema || item.nombre || "", esNuevo(item), item.marca),
+                    FASE: 2,
+                    OBSERVACIONES: item.comentarios || "",
+                    ...(item.fueRechazado && { RECHAZO: false })
+                }));
+                // El envío ya lleva todos los campos: se descartan los autoguardados que estén por salir
+                currentItems.forEach(item => {
+                    clearTimeout(autoguardadoPendiente.current.get(item.id)?.timer);
+                    autoguardadoPendiente.current.delete(item.id);
+                });
+                const response = await patchItemsRole3Bulk(payloads);
+                const errores = response?.errors || [];
+                erroresCount = errores.length;
+                idsConError = new Set(errores.map(e => e.id));
+            } else if (idRolPrincipal === 4) {
+                // Las imágenes se suben una vez por diseño, no por ítem: se resuelve aquí si
+                // ya existe una imagen para este diseño (verificada por checkDesignImage) y el
+                // usuario no seleccionó un archivo nuevo para ese tipo, en cuyo caso se vincula
+                // la existente en vez de volver a subirla. Mismo patrón que Llantas.jsx.
+                // Los uploads siguen siendo por ítem (son archivos individuales), pero el avance
+                // de fase se agrupa en un solo llamado al final para no disparar un correo por ítem.
+                const payloadsFase3 = [];
+                for (const item of currentItems) {
+                    const disenioExistente = imagenesDisenioExistente[getDisenioKey(item)];
+                    const debeVincularExistente =
+                        (!item.imagenWebp && disenioExistente?.webp?.exists) ||
+                        (!item.imagenPng && disenioExistente?.png?.exists);
+
                     if (item.imagenWebp) {
                         try {
                             await uploadItemImages("HERRAMIENTAS", item.id, item.marca, null, null, item.imagenWebp);
                         } catch (uploadError) {
                             console.error(`Error al subir imagen WebP para el ítem ${item.id}:`, uploadError);
-                            toast.error(`Error al subir imagen WebP`);
+                            toast.error(uploadError?.response?.data?.details || uploadError?.response?.data?.message || `Error al subir imagen WebP`);
                         }
                     }
                     if (item.imagenPng) {
@@ -433,25 +1050,43 @@ function Herramientas() {
                             await uploadItemImagesSharepoint("HERRAMIENTAS", item.id, item.marca, empresaToSend, null, item.imagenPng, null);
                         } catch (uploadError) {
                             console.error(`Error al subir imagen PNG para el ítem ${item.id}:`, uploadError);
-                            toast.error(`Error al subir imagen PNG`);
+                            toast.error(uploadError?.response?.data?.details || uploadError?.response?.data?.message || `Error al subir imagen PNG`);
                         }
                     }
-                    await patchItemRole3({
+                    if (debeVincularExistente) {
+                        try {
+                            await linkExistingItemImage("HERRAMIENTAS", item.id);
+                        } catch (linkError) {
+                            console.error(`Error al vincular imagen existente para el ítem ${item.id}:`, linkError);
+                            toast.error(`Error al vincular imagen existente para ${item.marca || item.id}`);
+                        }
+                    }
+                    payloadsFase3.push({
                         ID: item.id,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
                         LINEA_NEGOCIO: "HERRAMIENTAS",
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
-                } else {
+                }
+                const response = await patchItemsRole3Bulk(payloadsFase3);
+                const errores = response?.errors || [];
+                erroresCount = errores.length;
+                idsConError = new Set(errores.map(e => e.id));
+            } else {
+                const payloadsNuevos = [];
+                const payloadsReenvio = [];
+                for (const item of currentItems) {
                     const payload = {
                         LINEA_NEGOCIO: "HERRAMIENTAS",
                         EMPRESA: EMPRESA_HERRAMIENTAS,
                         CODIGO_PROVEEDOR: item.codigoProveedor || "",
+                        ID_PROVEEDOR: item.proveedor || "",
                         PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
                         NOMBRE_EXT: item.nombreExt || "",
-                        NOMBRE: item.nombreSistema || item.nombre || "",
+                        NOMBRE: item.nombrePrefijado || item.nombre || "",
                         ES_NUEVO: esNuevo(item),
+                        VISIBLE_EASYSALES: esVisibleEasySales(item),
                         DESCRIPCION: item.descripcion || "",
                         UNIDAD: item.unidad || "",
                         UNIDAD_PAQUETE: item.unidadPaquete || "",
@@ -462,7 +1097,8 @@ function Herramientas() {
                         ALTO_CARTON: item.altoCarton || "",
                         VOLUMEN_CNT: item.volumenCtn || "",
                         GW_CNT: item.gwCtn || "",
-                        PESO: item.peso || "",
+                        // Peso ya no se edita en el front: siempre refleja el valor de GW/CTN
+                        PESO: item.gwCtn || "",
                         ITEM_CODIGO_BARRAS: item.itemCodigoBarras || "",
                         CARTON_CODIGO_BARRAS: item.cartonCodigoBarras || "",
                         PAQUETE_CODIGO_BARRAS: item.paqueteCodigoBarras || "",
@@ -471,16 +1107,45 @@ function Herramientas() {
                     };
 
                     if (item.fueRechazado) {
-                        await patchItemRole3({ ...payload, ID: item.id, RECHAZO: false, FASE: 1 });
+                        payloadsReenvio.push({ ...payload, ID: item.id, RECHAZO: false, FASE: 1 });
                     } else {
-                        await saveItemRole5(payload);
+                        payloadsNuevos.push({ ...payload, __localId: item.id });
                     }
                 }
+
+                const [respReenvio, respNuevos] = await Promise.all([
+                    payloadsReenvio.length > 0 ? patchItemsRole3Bulk(payloadsReenvio) : Promise.resolve(null),
+                    payloadsNuevos.length > 0 ? saveItemsRole5Bulk(payloadsNuevos.map(({ __localId, ...p }) => p)) : Promise.resolve(null),
+                ]);
+
+                const erroresReenvio = respReenvio?.errors || [];
+                erroresCount += erroresReenvio.length;
+                erroresReenvio.forEach(e => idsConError.add(e.id));
+
+                const erroresNuevos = respNuevos?.errors || [];
+                erroresCount += erroresNuevos.length;
+                erroresNuevos.forEach(e => idsConError.add(payloadsNuevos[e.index]?.__localId));
             }
-            toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
-            setItems(prev => prev.filter(i => !selectedItemIds.has(i.id)));
-            setSelectedItemIds(new Set());
-            setIsSAPModalOpen(false);
+
+            const enviados = currentItems.length - erroresCount;
+            if (erroresCount === 0) {
+                toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
+            } else if (enviados > 0) {
+                toast.warning(`Se enviaron ${enviados} de ${currentItems.length} ítems a revisión. ${erroresCount} fallaron y quedaron pendientes.`);
+            } else {
+                toast.error(`No se pudo enviar ningún ítem a revisión.`);
+            }
+
+            const idsEnviados = new Set(
+                currentItems.filter(i => !idsConError.has(i.id)).map(i => i.id)
+            );
+            setItems(prev => prev.filter(i => !idsEnviados.has(i.id)));
+            setSelectedItemIds(prev => {
+                const next = new Set(prev);
+                idsEnviados.forEach(id => next.delete(id));
+                return next;
+            });
+            fetchItems({ soloSeccion: true });
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
             toast.error("Error al enviar los ítems a revisión.");
@@ -489,18 +1154,60 @@ function Herramientas() {
         }
     };
 
-    // Modal estado para descripcion
-    const [isDescModalOpen, setIsDescModalOpen] = useState(false);
-    const [descModalTitle, setDescModalTitle] = useState("");
-    const [descModalValue, setDescModalValue] = useState("");
-    const [descModalField, setDescModalField] = useState("");
-    const [descModalItemId, setDescModalItemId] = useState(null);
+    const handleRefrescarAprobados = async () => {
+        setIsRefrescandoAprobados(true);
+        try {
+            await fetchItems({ soloSeccion: true });
+        } finally {
+            setIsRefrescandoAprobados(false);
+        }
+    };
+
+    // Búsqueda compartida por la sección "Sin aprobar / Aprobados": código de proveedor, código
+    // de barras del ítem, código SAP (si ya lo tiene), nombre o marca.
+    const filtrarSeccionAprobados = (lista, termino) => {
+        if (!termino) return lista;
+        const t = termino.toLowerCase();
+        return lista.filter(item =>
+            String(item.codigoProveedor || "").toLowerCase().includes(t) ||
+            String(item.itemCodigoBarras || "").toLowerCase().includes(t) ||
+            String(item.codigoSap || "").toLowerCase().includes(t) ||
+            String(item.nombre || "").toLowerCase().includes(t) ||
+            String(item.marca || "").toLowerCase().includes(t)
+        );
+    };
 
     const eliminarItem = (id) => {
         setItems(prev => prev.filter(i => i.id !== id));
     };
 
+    /* Al aprobar, el backend crea el ítem en SAP en la misma petición (best-effort: si SAP
+       falla el ítem queda aprobado igual). Si el ítem ya tenía código SAP no se hace nada en SAP. */
+    const informarResultadoAprobacion = (sapSync, item) => {
+        if (item?.codigoSap) {
+            toast.success(`Ítem aprobado. Ya tenía código SAP (${item.codigoSap}); no se envió a SAP.`);
+            return;
+        }
+
+        const resultados = (sapSync?.PorEmpresa || []).flatMap(e => e.Resultados || []);
+        const creado = resultados.find(r => r.Success);
+        const motivo =
+            resultados.find(r => !r.Success)?.Message ||
+            sapSync?.ItemsOmitidos?.[0]?.Motivo ||
+            "SAP no respondió";
+
+        if (sapSync && sapSync.Exitosos > 0 && sapSync.Fallidos === 0) {
+            toast.success(`Ítem aprobado y creado en SAP${creado?.ItemCode ? ` (${creado.ItemCode})` : ""}.`);
+            return;
+        }
+
+        console.warn("Aprobado, pero no se creó en SAP:", sapSync || "sin respuesta de sincronización");
+        toast.warning(`Ítem aprobado, pero no se pudo crear en SAP: ${motivo}. Puede reintentarlo desde "Exportar a SAP".`);
+    };
+
     const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
+        if (isProcessingRol1) return;
+        setIsProcessingRol1(true);
         try {
             if (action === "reject") {
                 const roleToPhase = { 5: 1, 3: 2, 4: 3 };
@@ -515,6 +1222,7 @@ function Herramientas() {
                         });
                     }
                 }
+                toast.success("Ítem rechazado correctamente.");
             } else if (action === "approve") {
                 const item = items.find(i => i.id === itemId);
                 if (!item) return;
@@ -525,14 +1233,16 @@ function Herramientas() {
                     LINEA_NEGOCIO: "HERRAMIENTAS",
                     FASE: 2
                 });
-                await approveItemMDM(itemId, "HERRAMIENTAS");
-                toast.success("Ítem aprobado correctamente.");
+                const respuesta = await approveItemMDM(itemId, "HERRAMIENTAS");
+                informarResultadoAprobacion(respuesta?.sapSync, item);
             }
-            setItems(prev => prev.filter(i => i.id !== itemId));
+            await fetchItems();
             setCurrentItemIndex(prev => Math.max(0, prev - 1));
         } catch (error) {
             console.error("Error al procesar acción:", error);
             toast.error("Error al procesar la acción.");
+        } finally {
+            setIsProcessingRol1(false);
         }
     };
 
@@ -553,7 +1263,52 @@ function Herramientas() {
         return v;
     };
 
-    const actualizarCampoFila = (id, campo, valor) => {
+    /* Autoguardado silencioso del rol 3 (Supervisor/Técnico): va dejando en la BD el estado de la revisión de
+       cada ítem sin esperar a "Enviar a revisión". `campos` se acumulan por ítem y se envían juntos:
+       los desplegables guardan al instante y el nombre del sistema al dejar de escribir (esperaMs) o al salir
+       del campo (enviarAutoguardado). Sin mensajes ni respuesta: ver autoguardarItemMDM. */
+    const autoguardadoPendiente = useRef(new Map());
+
+    const enviarAutoguardado = useCallback((id) => {
+        const pendiente = autoguardadoPendiente.current.get(id);
+        if (!pendiente) return;
+        clearTimeout(pendiente.timer);
+        autoguardadoPendiente.current.delete(id);
+        autoguardarItemMDM("HERRAMIENTAS", id, pendiente.campos);
+    }, []);
+
+    const programarAutoguardado = useCallback((id, campos, esperaMs = 0) => {
+        if (idRolPrincipal !== 3) return;
+        const previo = autoguardadoPendiente.current.get(id);
+        if (previo) clearTimeout(previo.timer);
+        autoguardadoPendiente.current.set(id, {
+            campos: { ...(previo?.campos || {}), ...campos },
+            timer: esperaMs > 0 ? setTimeout(() => enviarAutoguardado(id), esperaMs) : null,
+        });
+        if (esperaMs <= 0) enviarAutoguardado(id);
+    }, [idRolPrincipal, enviarAutoguardado]);
+
+    const alternarSeleccion = useCallback((id, marcado) => {
+        setSelectedItemIds(prev => {
+            const siguiente = new Set(prev);
+            if (marcado) siguiente.add(id);
+            else siguiente.delete(id);
+            return siguiente;
+        });
+    }, []);
+
+    const verMotivoRechazo = useCallback((motivo) => {
+        setSelectedRejectionReason(motivo);
+        setIsViewReasonModalOpen(true);
+    }, []);
+
+    // Al salir de la pantalla no se pierde lo que se estaba escribiendo
+    useEffect(() => () => {
+        Array.from(autoguardadoPendiente.current.keys()).forEach(enviarAutoguardado);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const actualizarCampoFila = useCallback((id, campo, valor) => {
         setItems(prev => prev.map(it => {
             if (it.id === id) {
                 let val = valor;
@@ -561,11 +1316,13 @@ function Herramientas() {
                     val = valor.toUpperCase();
                 }
 
-                // El nombre del sistema deriva del nombre y de la bandera "es nuevo"
-                if (campo === "nombre" || campo === "isNew") {
-                    const base = campo === "nombre" ? val : it.nombre;
+                // El nombre final deriva del nombre, de la bandera "es nuevo" y de la marca
+                if (campo === "nombre" || campo === "isNew" || campo === "marca") {
+                    // Al cambiar de marca, el nombre se limpia primero con la marca anterior para no dejar su abreviatura
+                    const base = campo === "nombre" ? val : (campo === "marca" ? limpiarNombreBase(it.nombre, it.marca) : it.nombre);
                     const nuevo = campo === "isNew" ? Boolean(val) : esNuevo(it);
-                    return { ...it, [campo]: val, nombreSistema: calcularNombreSistema(base, nuevo) };
+                    const marca = campo === "marca" ? val : it.marca;
+                    return { ...it, [campo]: val, nombrePrefijado: calcularNombreSistema(base, nuevo, marca) };
                 }
 
                 // Aplicar restricciones estrictas para escritura
@@ -573,41 +1330,31 @@ function Herramientas() {
                     if (val !== "" && !/^\d+$/.test(val)) {
                         return it; // Ignorar el tipeo inválido (ej: puntos o letras)
                     }
-                } else if (["largoCarton", "anchoCarton", "altoCarton", "volumenCtn", "gwCtn", "peso"].includes(campo)) {
+                } else if (["largoCarton", "anchoCarton", "altoCarton", "volumenCtn", "gwCtn"].includes(campo)) {
                     if (val !== "" && !/^\d+(\.\d*)?$/.test(val)) {
                         return it; // Ignorar si tiene letras o múltiples puntos
                     }
+                }
+
+                // Peso ya no se edita en el front: siempre refleja el valor de GW/CTN
+                if (campo === "gwCtn") {
+                    return { ...it, gwCtn: val, peso: val };
                 }
 
                 return { ...it, [campo]: val };
             }
             return it;
         }));
-    };
-
-    const openDescModal = (id, campo, currentVal, title) => {
-        setDescModalItemId(id);
-        setDescModalField(campo);
-        setDescModalValue(currentVal || "");
-        setDescModalTitle(title);
-        setIsDescModalOpen(true);
-    };
-
-    const saveDescModal = () => {
-        if (descModalItemId && descModalField) {
-            actualizarCampoFila(descModalItemId, descModalField, descModalValue);
-        }
-        setIsDescModalOpen(false);
-    };
+    }, []);
 
     const handleDownloadTemplate = () => {
         // Mismo orden que las columnas de la tabla del rol 5
         const headers = [
-            "Marca", "Nombre", "Descripcion", "Codigo Proveedor", "Descripcion Proveedor",
+            "Marca", "Nombre", "Descripcion Proveedor", "Codigo Proveedor",
             "Unidad", "Unidades por empaque", "Cajas por empaque", "Unidades por caja",
             "Largo de la caja", "Ancho de la caja", "Alto de la caja",
             "VOL/CTN", "GW/CTN", "Peso",
-            "Item Codigo Barras", "Carton Codigo Barras", "Paquete codigo Barras",
+            "Codigo de Barra Producto", "Codigo de Barra Caja Madre", "Codigo de Barra Caja Hija",
             "Partida Arancelaria", "Es nuevo"
         ];
         const ws = XLSX.utils.aoa_to_sheet([headers]);
@@ -633,11 +1380,11 @@ function Herramientas() {
 
                 const newItems = data.map(row => ({
                     id: Date.now() + Math.random(),
+                    proveedor: opcionesProveedores[0]?.value || "",
                     codigoProveedor: String(row["Codigo Proveedor"] || "").trim().toUpperCase(),
                     partidaArancelaria: handleNumericInt(row["Partida Arancelaria"] || ""),
                     nombreExt: String(row["Descripcion Proveedor"] || row["Nombre Ext"] || "").trim().toUpperCase(),
                     nombre: String(row["Nombre"] || "").trim().toUpperCase(),
-                    descripcion: String(row["Descripcion"] || "").trim(),
                     unidad: String(row["Unidad"] || "").trim().toUpperCase(),
                     unidadesCarton: handleNumericInt(row["Unidades por empaque"] ?? row["Und x empaque"] ?? ""),
                     empaquesCarton: handleNumericInt(row["Cajas por empaque"] ?? row["Cajas x empaque"] ?? ""),
@@ -646,16 +1393,18 @@ function Herramientas() {
                     anchoCarton: handleNumericDec(row["Ancho de la caja"] || ""),
                     altoCarton: handleNumericDec(row["Alto de la caja"] || ""),
                     volumenCtn: handleNumericDec(row["VOL/CTN"] || ""),
+                    // Peso ya no se toma del Excel: siempre refleja el valor de GW/CTN
                     gwCtn: handleNumericDec(row["GW/CTN"] || ""),
-                    peso: handleNumericDec(row["Peso"] || ""),
-                    itemCodigoBarras: handleNumericInt(row["Item Codigo Barras"] || ""),
-                    cartonCodigoBarras: handleNumericInt(row["Carton Codigo Barras"] || ""),
-                    paqueteCodigoBarras: handleNumericInt(row["Paquete codigo Barras"] || ""),
+                    peso: handleNumericDec(row["GW/CTN"] || ""),
+                    itemCodigoBarras: handleNumericInt(row["Codigo de Barra Producto"] || ""),
+                    cartonCodigoBarras: handleNumericInt(row["Codigo de Barra Caja Madre"] || ""),
+                    paqueteCodigoBarras: handleNumericInt(row["Codigo de Barra Caja Hija"] || ""),
                     marca: String(row["Marca"] || "").trim().toUpperCase(),
                     isNew: interpretarEsNuevo(row["Es nuevo"]),
-                    nombreSistema: calcularNombreSistema(
+                    nombrePrefijado: calcularNombreSistema(
                         String(row["Nombre"] || "").trim().toUpperCase(),
-                        interpretarEsNuevo(row["Es nuevo"])
+                        interpretarEsNuevo(row["Es nuevo"]),
+                        String(row["Marca"] || "").trim().toUpperCase()
                     ),
                 }));
 
@@ -712,7 +1461,7 @@ function Herramientas() {
                                 iconLeft="FaPlus"
                                 pcolor={theme?.colors?.primary}
                                 onClick={() => {
-                                    setItems(prev => [...prev, { id: Date.now() }]);
+                                    setItems(prev => [...prev, { id: Date.now(), proveedor: opcionesProveedores[0]?.value || "" }]);
                                 }}
                             />
                             <input
@@ -741,7 +1490,7 @@ function Herramientas() {
                 </div>
             </div>
 
-            <div style={{ flex: "1 1 auto", minHeight: "62vh", maxHeight: "80vh", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: "1 1 auto", minHeight: "78vh", maxHeight: "90vh", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <TextUI size="14px" weight="600">
                         Ítems de Herramientas ({itemsFiltrados.length})
@@ -845,6 +1594,7 @@ function Herramientas() {
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', overflow: 'auto', paddingRight: '8px' }}>
                                                 {[
                                                     { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
+                                                    { key: 'proveedor', label: "Proveedor", role: 5 },
                                                     { key: 'partidaArancelaria', label: "Partida Arancelaria", role: 5 },
                                                     { key: 'nombreExt', label: "Descripción Proveedor", role: 5 },
                                                     { key: 'descripcion', label: "Descripción", role: 5 },
@@ -858,19 +1608,20 @@ function Herramientas() {
                                                     { key: 'volumenCtn', label: "VOL/CTN", role: 5 },
                                                     { key: 'gwCtn', label: "GW/CTN", role: 5 },
                                                     { key: 'peso', label: "Peso", role: 5 },
-                                                    { key: 'itemCodigoBarras', label: "Item Codigo Barras", role: 5 },
-                                                    { key: 'cartonCodigoBarras', label: "Carton Codigo Barras", role: 5 },
-                                                    { key: 'paqueteCodigoBarras', label: "Paquete codigo Barras", role: 5 },
+                                                    { key: 'itemCodigoBarras', label: "Codigo de Barra Producto", role: 5 },
+                                                    { key: 'cartonCodigoBarras', label: "Codigo de Barra Caja Madre", role: 5 },
+                                                    { key: 'paqueteCodigoBarras', label: "Codigo de Barra Caja Hija", role: 5 },
                                                     { key: 'marca', label: "Marca", role: 5 },
 
+                                                    { key: 'nombreSistema', label: "Nombre del sistema", role: 3 },
                                                     { key: 'grupo', label: "Grupo", role: 3 },
                                                     { key: 'subgrupo', label: "Subgrupo", role: 3 },
                                                     { key: 'subgrupo1', label: "Subgrupo 1", role: 3 },
-                                                    { key: 'cajas', label: "Cajas", role: 3 },
-                                                    { key: 'pallets', label: "Pallets", role: 3 },
                                                     { key: 'tipo', label: "Tipo", role: 3 },
                                                 ].map(({ key, label, role }) => {
-                                                    const value = item[key];
+                                                    const value = key === 'proveedor'
+                                                        ? (item.proveedor ? `${item.proveedor} - ${opcionesProveedores.find(o => o.value === item.proveedor)?.label || ''}` : '')
+                                                        : item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
                                                     let borderColor = isDark ? '#1f2937' : '#eee';
 
@@ -925,6 +1676,7 @@ function Herramientas() {
                                             iconLeft="FaTimes"
                                             variant="outlined"
                                             pcolor={theme?.colors?.error || '#dc3545'}
+                                            disabled={isProcessingRol1}
                                             onClick={() => {
                                                 setItemToReject(item);
                                                 setIsRejectModalOpen(true);
@@ -935,7 +1687,7 @@ function Herramientas() {
                                                 text="Anterior ítem"
                                                 iconLeft="FaChevronLeft"
                                                 variant="outlined"
-                                                disabled={currentItemIndex <= 0}
+                                                disabled={isProcessingRol1 || currentItemIndex <= 0}
                                                 onClick={() => setCurrentItemIndex(prev => prev - 1)}
                                             />
                                             <TextUI size="13px" weight="500" color={theme?.colors?.textSecondary}>
@@ -945,7 +1697,7 @@ function Herramientas() {
                                                 text="Siguiente ítem"
                                                 iconRight="FaChevronRight"
                                                 variant="outlined"
-                                                disabled={currentItemIndex >= itemsFiltrados.length - 1}
+                                                disabled={isProcessingRol1 || currentItemIndex >= itemsFiltrados.length - 1}
                                                 onClick={() => setCurrentItemIndex(prev => prev + 1)}
                                             />
                                         </div>
@@ -953,6 +1705,8 @@ function Herramientas() {
                                             text="Aceptar"
                                             iconLeft="FaCheck"
                                             pcolor={theme?.colors?.success || '#28a745'}
+                                            isAsync
+                                            disabled={isProcessingRol1}
                                             onClick={() => handleActionRol1(item.id, "approve")}
                                         />
                                     </div>
@@ -983,10 +1737,10 @@ function Herramientas() {
                                         {idRolPrincipal === 5 && (
                                             <>
                                                 <Th $min="150px">Marca</Th>
-                                                <Th $min="200px">Nombre</Th>
-                                                <Th $align="center" $min="100px">Descripción</Th>
-                                                <Th $min="150px">Codigo Proveedor</Th>
+                                                <Th $w={ANCHO_COL_NOMBRE} $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                 <Th $min="180px">Descripción Proveedor</Th>
+                                                <Th $min="220px">Proveedor</Th>
+                                                <Th $min="150px">Codigo Proveedor</Th>
                                                 <Th $min="150px">Unidad</Th>
                                                 <Th $min="180px">Unidades por empaque</Th>
                                                 <Th $min="160px">Cajas por empaque</Th>
@@ -997,18 +1751,20 @@ function Herramientas() {
                                                 <Th $min="150px">VOL/CTN</Th>
                                                 <Th $min="150px">GW/CTN</Th>
                                                 <Th $min="150px">Peso</Th>
-                                                <Th $min="150px">Item Codigo Barras</Th>
-                                                <Th $min="150px">Carton Codigo Barras</Th>
-                                                <Th $min="150px">Paquete codigo Barras</Th>
+                                                <Th $min="150px">Codigo de Barra Producto</Th>
+                                                <Th $min="150px">Codigo de Barra Caja Madre</Th>
+                                                <Th $min="150px">Codigo de Barra Caja Hija</Th>
+                                                <Th $min="160px">Partida Arancelaria</Th>
                                                 <Th $min="280px">Nombre Del Sistema</Th>
                                                 <Th $align="center" $w="90px">Es nuevo</Th>
-                                                <Th $min="160px">Partida Arancelaria</Th>
+                                                <Th $align="center" $w="140px">Visible EasySales</Th>
                                                 <Th $min="200px">Comentarios</Th>
                                                 <Th $min="100px" $align="center" $fija="right">Acciones</Th>
                                             </>
                                         )}
                                         {idRolPrincipal === 4 && (
                                             <>
+                                                <Th $min="150px">Codigo Proveedor</Th>
                                                 <Th $min="150px">Nombre</Th>
                                                 <Th $min="200px">Imagen PNG</Th>
                                                 <Th $min="200px">Imagen WEBP</Th>
@@ -1020,12 +1776,11 @@ function Herramientas() {
                                             <>
                                                 <Th $min="150px">Codigo Proveedor</Th>
                                                 <Th $min="150px">Nombre</Th>
+                                                <Th $min="280px">Nombre Del Sistema</Th>
                                                 <Th $min="150px">Grupo</Th>
                                                 <Th $min="150px">Subgrupo</Th>
                                                 <Th $min="150px">Subgrupo 1</Th>
                                                 <Th $min="150px">Tipo</Th>
-                                                <Th $min="150px">Cajas</Th>
-                                                <Th $min="150px">Pallets</Th>
                                                 <Th $min="200px">Comentarios</Th>
                                                 <Th $min="100px" $align="center" $fija="right">Acciones</Th>
                                             </>
@@ -1040,7 +1795,21 @@ function Herramientas() {
                                             </Td>
                                         </tr>
                                     ) : (
-                                        itemsFiltrados.map((item, idx) => (
+                                        itemsFiltrados.map((item, idx) => idRolPrincipal === 3 ? (
+                                            <FilaTecnico
+                                                key={item.id}
+                                                item={item}
+                                                idx={idx}
+                                                seleccionado={selectedItemIds.has(item.id)}
+                                                catalogo={catalogoHerramientas}
+                                                theme={theme}
+                                                onCampo={actualizarCampoFila}
+                                                onAutoguardar={programarAutoguardado}
+                                                onEnviarAutoguardado={enviarAutoguardado}
+                                                onToggle={alternarSeleccion}
+                                                onVerMotivo={verMotivoRechazo}
+                                            />
+                                        ) : (
                                             <Fila key={item.id} $par={idx % 2 === 0} $sel={selectedItemIds.has(item.id)}>
                                                 <Td $densa $align="center" $fija="left" $w={ANCHO_COL_SELECCION}>
                                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
@@ -1056,21 +1825,19 @@ function Herramientas() {
                                                 {idRolPrincipal === 5 && (
                                                     <>
                                                         <Td>
-                                                            <SelectUI options={OPTIONS_MARCA} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} isCreatable={true} />
+                                                            <SelectUI options={opcionesMarca} value={item.marca ? { value: item.marca, label: item.marca } : null} onChange={(v) => actualizarCampoFila(item.id, "marca", v ? v.value : "")} />
                                                         </Td>
-                                                        <Td><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></Td>
-                                                        <Td $align="center">
-                                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                                                <ButtonUI
-                                                                    iconLeft="FaRegNoteSticky"
-                                                                    variant="outlined"
-                                                                    pcolortext={item.descripcion ? (theme?.colors?.success || '#28a745') : undefined}
-                                                                    onClick={() => openDescModal(item.id, "descripcion", item.descripcion, "Descripción")}
-                                                                />
-                                                            </div>
+                                                        <Td $fija="left" $offset={ANCHO_COL_SELECCION} $w={ANCHO_COL_NOMBRE}><InputUI value={item.nombre || ""} onChange={(v) => actualizarCampoFila(item.id, "nombre", v)} /></Td>
+                                                        <Td><InputUI value={item.nombreExt || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExt", v)} /></Td>
+                                                        <Td>
+                                                            <SelectUI
+                                                                options={opcionesProveedores}
+                                                                value={item.proveedor ? { value: item.proveedor, label: opcionesProveedores.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                minWidth="200px"
+                                                            />
                                                         </Td>
                                                         <Td><InputUI value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
-                                                        <Td><InputUI value={item.nombreExt || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExt", v)} /></Td>
                                                         <Td>
                                                             <SelectUI options={OPTIONS_UNIDAD} value={OPTIONS_UNIDAD.find(opt => opt.value === item.unidad) || null} onChange={(v) => actualizarCampoFila(item.id, "unidad", v ? v.value : "")} />
                                                         </Td>
@@ -1082,15 +1849,16 @@ function Herramientas() {
                                                         <Td><InputUI value={item.altoCarton || ""} onChange={(v) => actualizarCampoFila(item.id, "altoCarton", v)} /></Td>
                                                         <Td><InputUI value={item.volumenCtn || ""} onChange={(v) => actualizarCampoFila(item.id, "volumenCtn", v)} /></Td>
                                                         <Td><InputUI value={item.gwCtn || ""} onChange={(v) => actualizarCampoFila(item.id, "gwCtn", v)} /></Td>
-                                                        <Td><InputUI value={item.peso || ""} onChange={(v) => actualizarCampoFila(item.id, "peso", v)} /></Td>
+                                                        <Td><CeldaLectura title={item.gwCtn || ""}>{item.gwCtn || "-"}</CeldaLectura></Td>
                                                         <Td><InputUI value={item.itemCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "itemCodigoBarras", v)} /></Td>
                                                         <Td><InputUI value={item.cartonCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "cartonCodigoBarras", v)} /></Td>
                                                         <Td>
                                                             <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }} value={item.paqueteCodigoBarras || ""} onChange={(v) => actualizarCampoFila(item.id, "paqueteCodigoBarras", v)} />
                                                         </Td>
+                                                        <Td><InputUI value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
                                                         <Td>
-                                                            <CeldaLectura title={item.nombreSistema || ""}>
-                                                                {item.nombreSistema || "-"}
+                                                            <CeldaLectura title={item.nombrePrefijado || ""}>
+                                                                {item.nombrePrefijado || "-"}
                                                             </CeldaLectura>
                                                         </Td>
                                                         <Td $align="center">
@@ -1099,7 +1867,12 @@ function Herramientas() {
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
                                                             />
                                                         </Td>
-                                                        <Td><InputUI value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
+                                                        <Td $align="center">
+                                                            <CheckboxUI
+                                                                checked={esVisibleEasySales(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
+                                                            />
+                                                        </Td>
                                                         <Td>
                                                             <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
                                                         </Td>
@@ -1123,6 +1896,11 @@ function Herramientas() {
                                                 )}
                                                 {idRolPrincipal === 4 && (
                                                     <>
+                                                        <Td $densa>
+                                                            <CeldaLectura>
+                                                                {item.codigoProveedor || "-"}
+                                                            </CeldaLectura>
+                                                        </Td>
                                                         <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "250px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.descripcion || item.nombre}>{item.descripcion || item.nombre || "N/A"}</div></Td>
                                                         <Td $densa>
                                                             <div style={{
@@ -1135,7 +1913,8 @@ function Herramientas() {
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
-                                                                cursor: 'pointer',
+                                                                cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                                opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                                 transition: 'all 0.2s ease',
                                                                 overflow: 'hidden'
                                                             }}
@@ -1147,15 +1926,24 @@ function Herramientas() {
                                                                     e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                     e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                                 }}
-                                                                onClick={() => document.getElementById(`png-upload-${item.id}`).click()}
+                                                                onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`png-upload-${item.id}`).click(); }}
+                                                                title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenPng && imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? "Ya existe una imagen PNG para este diseño. Click para reemplazarla." : undefined)}
                                                             >
-                                                                {item.imagenPng ? (
+                                                                {disenioEstaVerificando(item) ? (
+                                                                    <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                                ) : item.imagenPng ? (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                         <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                             {item.imagenPng.name}
                                                                         </TextUI>
                                                                     </div>
+                                                                ) : imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? (
+                                                                    <img
+                                                                        src={imagenesDisenioExistente[getDisenioKey(item)]?.png?.previewUrl || imagenesDisenioExistente[getDisenioKey(item)]?.png?.url}
+                                                                        alt="Imagen PNG existente"
+                                                                        style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                    />
                                                                 ) : (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                         <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>📄</span>
@@ -1166,6 +1954,7 @@ function Herramientas() {
                                                                     id={`png-upload-${item.id}`}
                                                                     type="file"
                                                                     accept=".png"
+                                                                    disabled={disenioEstaVerificando(item)}
                                                                     style={{ display: 'none' }}
                                                                     onChange={(e) => {
                                                                         const file = e.target.files[0];
@@ -1195,7 +1984,8 @@ function Herramientas() {
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
-                                                                cursor: 'pointer',
+                                                                cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                                opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                                 transition: 'all 0.2s ease',
                                                                 overflow: 'hidden'
                                                             }}
@@ -1207,15 +1997,24 @@ function Herramientas() {
                                                                     e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                     e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                                 }}
-                                                                onClick={() => document.getElementById(`webp-upload-${item.id}`).click()}
+                                                                onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`webp-upload-${item.id}`).click(); }}
+                                                                title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenWebp && imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? "Ya existe una imagen WebP para este diseño. Click para reemplazarla." : undefined)}
                                                             >
-                                                                {item.imagenWebp ? (
+                                                                {disenioEstaVerificando(item) ? (
+                                                                    <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                                ) : item.imagenWebp ? (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                         <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                             {item.imagenWebp.name}
                                                                         </TextUI>
                                                                     </div>
+                                                                ) : imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? (
+                                                                    <img
+                                                                        src={imagenesDisenioExistente[getDisenioKey(item)]?.webp?.url}
+                                                                        alt="Imagen WebP existente"
+                                                                        style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                    />
                                                                 ) : (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                         <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>🖼️</span>
@@ -1226,6 +2025,7 @@ function Herramientas() {
                                                                     id={`webp-upload-${item.id}`}
                                                                     type="file"
                                                                     accept=".webp"
+                                                                    disabled={disenioEstaVerificando(item)}
                                                                     style={{ display: 'none' }}
                                                                     onChange={(e) => {
                                                                         const file = e.target.files[0];
@@ -1264,94 +2064,6 @@ function Herramientas() {
                                                         </Td>
                                                     </>
                                                 )}
-                                                {idRolPrincipal === 3 && (
-                                                    <>
-                                                        <Td>
-                                                            <TextUI size="13px">{item.codigoProveedor || "-"}</TextUI>
-                                                        </Td>
-                                                        <Td>
-                                                            <TextUI size="13px">{item.nombre || "-"}</TextUI>
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={Array.from(new Set(gruposHerramientasRaw.map(g => g.DMH_GRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
-                                                                value={item.grupo ? { value: item.grupo, label: item.grupo } : null}
-                                                                onChange={(v) => {
-                                                                    actualizarCampoFila(item.id, "grupo", v?.value || "");
-                                                                    actualizarCampoFila(item.id, "subgrupo", "");
-                                                                    actualizarCampoFila(item.id, "subgrupo1", "");
-                                                                    actualizarCampoFila(item.id, "tipo", "");
-                                                                }}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo).map(g => g.DMH_SUBGRUPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
-                                                                value={item.subgrupo ? { value: item.subgrupo, label: item.subgrupo } : null}
-                                                                onChange={(v) => {
-                                                                    actualizarCampoFila(item.id, "subgrupo", v?.value || "");
-                                                                    actualizarCampoFila(item.id, "subgrupo1", "");
-                                                                    actualizarCampoFila(item.id, "tipo", "");
-                                                                }}
-                                                                disabled={!item.grupo}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo && g.DMH_SUBGRUPO === item.subgrupo).map(g => g.DMH_SUBGRUPO1))).filter(Boolean).map(k => ({ value: k, label: k }))}
-                                                                value={item.subgrupo1 ? { value: item.subgrupo1, label: item.subgrupo1 } : null}
-                                                                onChange={(v) => {
-                                                                    actualizarCampoFila(item.id, "subgrupo1", v?.value || "");
-                                                                    actualizarCampoFila(item.id, "tipo", "");
-                                                                }}
-                                                                disabled={!item.grupo || !item.subgrupo}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={Array.from(new Set(gruposHerramientasRaw.filter(g => g.DMH_GRUPO === item.grupo && g.DMH_SUBGRUPO === item.subgrupo && g.DMH_SUBGRUPO1 === item.subgrupo1).map(g => g.DMH_TIPO))).filter(Boolean).map(k => ({ value: k, label: k }))}
-                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value || "")}
-                                                                disabled={!item.grupo || !item.subgrupo || !item.subgrupo1}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <SelectUI
-                                                                options={opcionesPallets}
-                                                                value={item.pallets ? { value: item.pallets, label: (opcionesPallets.find(o => o.value == item.pallets)?.label) || item.pallets } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "cajas", v?.value)}
-                                                                minWidth="130px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
-                                                            />
-                                                        </Td>
-                                                        <Td>
-                                                            <InputUI value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} placeholder="Comentarios..." />
-                                                        </Td>
-                                                        <Td $align="center">
-                                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                                                <ButtonUI
-                                                                    text="Motivo de rechazo"
-                                                                    variant="outlined"
-                                                                    pcolor={theme?.colors?.warning || "#ffc107"}
-                                                                    style={{ padding: "4px 8px", fontSize: "11px", minWidth: "auto" }}
-                                                                    disabled={!item.motivoRechazo}
-                                                                    onClick={() => {
-                                                                        setSelectedRejectionReason(item.motivoRechazo);
-                                                                        setIsViewReasonModalOpen(true);
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        </Td>
-                                                    </>
-                                                )}
                                             </Fila>
                                         ))
                                     )}
@@ -1363,40 +2075,15 @@ function Herramientas() {
                 {(idRolPrincipal === 5 || idRolPrincipal === 3 || idRolPrincipal === 4) && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Enviar a revisión"}
+                            text={isSubmitting ? "Enviando..." : (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => selectedItemIds.has(i.id))) ? "Verificando imágenes..." : "Enviar a revisión")}
                             iconLeft="FaCheck"
-                            disabled={isSubmitting || items.filter(i => selectedItemIds.has(i.id)).length === 0}
+                            disabled={isSubmitting || items.filter(i => selectedItemIds.has(i.id)).length === 0 || (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => selectedItemIds.has(i.id))))}
                             onClick={async () => {
                                 const currentItems = items.filter(i => selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
+                                if (idRolPrincipal === 4 && hayVerificacionesPendientes(currentItems)) return;
 
-                                if (idRolPrincipal === 5) {
-                                    const createdItems = currentItems.filter(i => !i.fueRechazado);
-                                    if (createdItems.length > 0) {
-                                        const grouped = {};
-                                        createdItems.forEach(item => {
-                                            const companyName = EMPRESA_HERRAMIENTAS;
-                                            if (!grouped[companyName]) grouped[companyName] = [];
-                                            grouped[companyName].push({
-                                                CODIGO_PROVEEDOR: item.codigoProveedor,
-                                                LINEA_NEGOCIO: "HERRAMIENTAS",
-                                                NOMBRE_EXTRANJERO: item.nombreExt,
-                                                DESCRIPCION: item.nombre,
-                                                PARTIDA_ARANCELARIA: item.partidaArancelaria,
-                                                CODIGO_BARRAS: item.itemCodigoBarras,
-                                                CARTON_CODIGO_BARRAS: item.cartonCodigoBarras,
-                                                PAQUETE_CODIGO_BARRAS: item.paqueteCodigoBarras,
-                                                MARCA: item.marca
-                                            });
-                                        });
-                                        setGroupedItemsByCompany(grouped);
-                                        setIsSAPModalOpen(true);
-                                    } else {
-                                        await handleFinalSubmit(currentItems);
-                                    }
-                                } else {
-                                    await handleFinalSubmit(currentItems);
-                                }
+                                await handleFinalSubmit(currentItems);
                             }}
                             pcolor={theme?.colors?.primary}
                         />
@@ -1404,77 +2091,270 @@ function Herramientas() {
                 )}
             </div>
 
-            {/* Sección de Aprobados */}
-            {idRolPrincipal === 5 && approvedItems.length > 0 && (
-                <div style={{ marginTop: "40px", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 100%", marginBottom: "80px" }}>
-                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.success + "11", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <TextUI size="14px" weight="600" color={theme?.colors?.success}>
-                            Aprobados de HERRAMIENTAS ({approvedItems.length})
-                        </TextUI>
-                    </div>
-                    <TablaScroll>
-                        <Tabla>
-                            <thead>
-                                <tr>
-                                    <Th $min="150px">Código Proveedor</Th>
-                                    <Th $min="140px">Partida Arancelaria</Th>
-                                    <Th $min="180px">Nombre Ext</Th>
-                                    <Th $min="200px">Nombre</Th>
-                                    <Th $min="150px">Item Código Barras</Th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {approvedItems.map((item, idx) => (
-                                    <Fila key={item.id} $par={idx % 2 === 0}>
-                                        <Td>
-                                            <TextUI size="13px">{item.codigoProveedor || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.partidaArancelaria || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.nombreExt || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.nombre || "-"}</TextUI>
-                                        </Td>
-                                        <Td>
-                                            <TextUI size="13px">{item.itemCodigoBarras || "-"}</TextUI>
-                                        </Td>
-                                    </Fila>
-                                ))}
-                            </tbody>
-                        </Tabla>
-                    </TablaScroll>
-                </div>
-            )}
+            {/* Sección Sin aprobar / Aprobados (mismo patrón que Llantas.jsx). "Sin aprobar" muestra todos
+                los ítems de la línea que siguen en el flujo, con la fase en la que está cada uno;
+                "Aprobados" los ya aprobados con su código SAP. El detalle permite ver la trazabilidad
+                y, para el coordinador de imágenes (rol 4), ver/actualizar la imagen publicada. */}
+            {(idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && (() => {
+                const listaActivaSeccion = tabAprobados === "aprobados" ? approvedItems : itemsSinAprobarTodos;
+                const listaFiltradaSeccion = filtrarSeccionAprobados(listaActivaSeccion, searchTermAprobados);
 
-            <ModalUI
-                isOpen={isDescModalOpen}
-                onClose={() => setIsDescModalOpen(false)}
-                title={descModalTitle}
-            >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: '400px' }}>
-                    <textarea
-                        value={descModalValue}
-                        onChange={(e) => setDescModalValue(e.target.value)}
-                        readOnly={!descModalField}
-                        style={{
-                            width: '100%',
-                            minHeight: '150px',
-                            padding: '12px',
-                            borderRadius: '8px',
-                            border: `1px solid ${theme?.colors?.border || '#ccc'}`,
-                            background: theme?.colors?.background || '#fff',
-                            color: theme?.colors?.text || '#000',
-                            resize: 'vertical'
-                        }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                        <ButtonUI text={!descModalField ? "Cerrar" : "Cancelar"} variant="outlined" onClick={() => setIsDescModalOpen(false)} />
-                        {descModalField && <ButtonUI text="Guardar" variant="primary" onClick={saveDescModal} />}
+                return (
+                    <div style={{ backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 auto", maxHeight: "45vh", marginBottom: "16px" }}>
+                        <div style={{ padding: "0 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.backgroundLight || "#fafafa" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                                <div style={{ display: "flex" }}>
+                                    <TabButton type="button" $active={tabAprobados === "sinAprobar"} onClick={() => setTabAprobados("sinAprobar")}>
+                                        Sin aprobar ({itemsSinAprobarTodos.length})
+                                    </TabButton>
+                                    <TabButton type="button" $active={tabAprobados === "aprobados"} onClick={() => setTabAprobados("aprobados")}>
+                                        Aprobados ({approvedItems.length})
+                                    </TabButton>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "8px 0" }}>
+                                    <InputUI
+                                        placeholder="Buscar"
+                                        value={searchTermAprobados}
+                                        onChange={(v) => setSearchTermAprobados(v)}
+                                        iconLeft="FaSearch"
+                                        style={{ minWidth: "320px" }}
+                                    />
+                                    <ButtonUI
+                                        iconLeft="FaArrowsRotate"
+                                        onClick={handleRefrescarAprobados}
+                                        disabled={isRefrescandoAprobados}
+                                        pcolor={theme?.colors?.primary}
+                                        title="Actualizar listado"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <TablaScroll>
+                            <Tabla>
+                                <thead>
+                                    <tr>
+                                        <Th $min="150px">Código Proveedor</Th>
+                                        <Th $min="300px">Nombre</Th>
+                                        <Th $min="130px">Marca</Th>
+                                        <Th $min="170px">Item Código Barras</Th>
+                                        {tabAprobados === "aprobados" ? (
+                                            <Th $min="130px">Código SAP</Th>
+                                        ) : (
+                                            <Th $min="220px">Fase actual</Th>
+                                        )}
+                                        <Th $align="center" $w="80px" $fija="right">Detalle</Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {listaFiltradaSeccion.length === 0 ? (
+                                        <tr>
+                                            <Td colSpan={6} $align="center">
+                                                <TextUI size="12px" color={theme?.colors?.textSecondary}>
+                                                    {listaActivaSeccion.length === 0
+                                                        ? (tabAprobados === "aprobados" ? "No hay ítems aprobados." : "No hay ítems sin aprobar.")
+                                                        : "No se encontraron ítems que coincidan con la búsqueda."}
+                                                </TextUI>
+                                            </Td>
+                                        </tr>
+                                    ) : (
+                                        listaFiltradaSeccion.map((item, idx) => (
+                                            <Fila key={item.id} $par={idx % 2 === 0}>
+                                                <Td><TextUI size="12px">{item.codigoProveedor || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.nombre || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.itemCodigoBarras || "-"}</TextUI></Td>
+                                                {tabAprobados === "aprobados" ? (
+                                                    <Td><TextUI size="12px">{item.codigoSap || "-"}</TextUI></Td>
+                                                ) : (
+                                                    <Td>
+                                                        <Etiqueta $tono={item.fueRechazado ? "alerta" : "info"}>
+                                                            {NOMBRES_FASE[item.FASE_ACTUAL] || (item.FASE_ACTUAL ? `Fase ${item.FASE_ACTUAL}` : "-")}
+                                                        </Etiqueta>
+                                                    </Td>
+                                                )}
+                                                <Td $align="center" $fija="right">
+                                                    <IconUI
+                                                        name="FaEye"
+                                                        size={16}
+                                                        color={theme?.colors?.primary}
+                                                        title="Ver detalle del producto"
+                                                        onClick={() => setDetalleItem(item)}
+                                                        style={{ cursor: "pointer" }}
+                                                    />
+                                                </Td>
+                                            </Fila>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Tabla>
+                        </TablaScroll>
                     </div>
-                </div>
+                );
+            })()}
+
+            {/* Detalle del ítem aprobado: solo lectura, sin acciones (salvo actualizar imagen para
+                el rol 4). Mismo patrón que Llantas.jsx. */}
+            <ModalUI
+                isOpen={Boolean(detalleItem)}
+                onClose={() => setDetalleItem(null)}
+                title="Detalle del producto"
+                width="760px"
+                saveText="Cerrar"
+                onSave={() => setDetalleItem(null)}
+                showCancelButton={false}
+            >
+                {detalleItem && (() => {
+                    const filas = CAMPOS_DETALLE
+                        .map(c => ({ label: c.label, valor: c.get(detalleItem) }))
+                        .filter(f => f.valor !== undefined && f.valor !== null && String(f.valor).trim() !== "");
+
+                    const fases = Array.isArray(detalleItem.FASES) ? detalleItem.FASES : [];
+                    const rechazada = fases.find(f => f.RECHAZO);
+                    const aprobado = detalleItem.APROBADO_MDM === true;
+                    const claveImagenesDetalle = getDisenioKey(detalleItem);
+                    const infoImagenesDetalle = claveImagenesDetalle ? imagenesDisenioExistente[claveImagenesDetalle] : null;
+                    const verificandoImagenesDetalle = claveImagenesDetalle ? Boolean(disenioVerificando[claveImagenesDetalle]) : false;
+                    const webpUrlDetalle = infoImagenesDetalle?.webp?.url || detalleItem.RUTA_IMAGEN_WEBP || null;
+                    const pngUrlDetalle = infoImagenesDetalle?.png?.previewUrl || infoImagenesDetalle?.png?.url || null;
+
+                    // El ModalBody de ModalUI scrollea sin padding propio: el padding
+                    // de este contenedor evita que las tablas queden pegadas a la barra.
+                    return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "18px", padding: "4px 14px 6px 2px" }}>
+                            {/* Estado actual */}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                                <Etiqueta $tono={aprobado ? "exito" : "neutro"}>
+                                    {aprobado ? "Aprobado por MDM" : "En proceso"}
+                                </Etiqueta>
+                                {detalleItem.FASE_ACTUAL !== undefined && detalleItem.FASE_ACTUAL !== null && (
+                                    <Etiqueta $tono="neutro">
+                                        Fase actual: {NOMBRES_FASE[detalleItem.FASE_ACTUAL] || detalleItem.FASE_ACTUAL}
+                                    </Etiqueta>
+                                )}
+                                <Etiqueta $tono={esNuevo(detalleItem) ? "info" : "neutro"}>
+                                    {esNuevo(detalleItem) ? "Producto nuevo" : "Producto existente"}
+                                </Etiqueta>
+                                {rechazada && <Etiqueta $tono="alerta">Tuvo rechazo</Etiqueta>}
+                            </div>
+
+                            {/* Ficha del artículo */}
+                            <TablaScroll style={{ maxHeight: "46vh", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                                <Tabla>
+                                    <thead>
+                                        <tr>
+                                            <Th $w="230px">Campo</Th>
+                                            <Th>Valor</Th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filas.map((f, i) => (
+                                            <Fila key={f.label} $par={i % 2 === 0}>
+                                                <Td><TextUI size="12px" weight="600">{f.label}</TextUI></Td>
+                                                <Td><TextUI size="12px">{String(f.valor)}</TextUI></Td>
+                                            </Fila>
+                                        ))}
+                                    </tbody>
+                                </Tabla>
+                            </TablaScroll>
+
+                            {/* Imágenes del diseño (SharePoint/PNG y R2/WebP), solo para el coordinador (rol 4):
+                                permite ver la imagen publicada actualmente y reemplazarla sin pasar por el flujo
+                                de revisión completo. */}
+                            {idRolPrincipal === 4 && (
+                                <div>
+                                    <TextUI size="13px" weight="600" style={{ marginBottom: "8px", display: "block" }}>
+                                        Imágenes del diseño
+                                    </TextUI>
+                                    <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                                        {[
+                                            { tipo: "png", etiqueta: "Aplicación (PNG)", src: pngUrlDetalle, accept: ".png" },
+                                            { tipo: "webp", etiqueta: "Portal (WebP)", src: webpUrlDetalle, accept: ".webp" },
+                                        ].map(({ tipo, etiqueta, src, accept }) => (
+                                            <div key={tipo} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                                                <div style={{
+                                                    width: "80px",
+                                                    height: "80px",
+                                                    borderRadius: "8px",
+                                                    border: `1px solid ${theme?.colors?.border || "#eee"}`,
+                                                    backgroundColor: isDark ? "#1e293b" : "#f8fafc",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    overflow: "hidden",
+                                                }}>
+                                                    {verificandoImagenesDetalle ? (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                    ) : src ? (
+                                                        <img
+                                                            src={src}
+                                                            alt={etiqueta}
+                                                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                                            onError={(e) => { e.target.style.display = "none"; }}
+                                                        />
+                                                    ) : (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Sin imagen</TextUI>
+                                                    )}
+                                                </div>
+                                                <TextUI size="11px" weight="600">{etiqueta}</TextUI>
+                                                <ButtonUI
+                                                    text={subiendoImagenDetalle[tipo] ? "Subiendo..." : "Actualizar"}
+                                                    variant="outlined"
+                                                    disabled={subiendoImagenDetalle[tipo] || verificandoImagenesDetalle}
+                                                    style={{ padding: "4px 10px", fontSize: "11px", minWidth: "auto" }}
+                                                    onClick={() => document.getElementById(`detalle-upload-${tipo}`).click()}
+                                                />
+                                                <input
+                                                    id={`detalle-upload-${tipo}`}
+                                                    type="file"
+                                                    accept={accept}
+                                                    style={{ display: "none" }}
+                                                    onChange={(e) => {
+                                                        const file = e.target.files[0];
+                                                        if (file) handleActualizarImagenDetalle(tipo, file);
+                                                        e.target.value = "";
+                                                    }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Trazabilidad por fase */}
+                            {fases.length > 0 && (
+                                <div>
+                                    <TextUI size="13px" weight="600" style={{ marginBottom: "8px", display: "block" }}>
+                                        Trazabilidad
+                                    </TextUI>
+                                    <TablaScroll style={{ border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                                        <Tabla>
+                                            <thead>
+                                                <tr>
+                                                    <Th $w="220px">Fase</Th>
+                                                    <Th $w="120px" $align="center">Resultado</Th>
+                                                    <Th>Observaciones</Th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {[...fases].sort((a, b) => (a.FASE || 0) - (b.FASE || 0)).map((f, i) => (
+                                                    <Fila key={f.FASE ?? i} $par={i % 2 === 0}>
+                                                        <Td><TextUI size="12px">{NOMBRES_FASE[f.FASE] || `Fase ${f.FASE}`}</TextUI></Td>
+                                                        <Td $align="center">
+                                                            <Etiqueta $tono={f.RECHAZO ? "alerta" : "exito"}>
+                                                                {f.RECHAZO ? "Rechazado" : "Aprobado"}
+                                                            </Etiqueta>
+                                                        </Td>
+                                                        <Td><TextUI size="12px">{f.OBSERVACIONES || f.MOTIVO_RECHAZO || "-"}</TextUI></Td>
+                                                    </Fila>
+                                                ))}
+                                            </tbody>
+                                        </Tabla>
+                                    </TablaScroll>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
             </ModalUI>
 
             <ModalUI
@@ -1500,8 +2380,6 @@ function Herramientas() {
                         }
                     }
 
-                    const rolesText = Array.from(rejectTargetRoles).map(r => DICCIONARIO_ROLES[r]).join(", ");
-                    toast.error(`Ítem ${itemToReject?.codigo || itemToReject?.diseño} rechazado hacia: ${rolesText}.`);
                     handleActionRol1(itemToReject.id, "reject", Array.from(rejectTargetRoles), rejectObservations);
                     setIsRejectModalOpen(false);
                     setRejectTargetRoles(new Set());
@@ -1570,7 +2448,8 @@ function Herramientas() {
                     setSelectedItemsToReviewIds(new Set());
                 }}
                 title="Seleccionar ítems para revisar"
-                width="800px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <InputUI
@@ -1591,7 +2470,7 @@ function Herramientas() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredItemsToReview.map((item, idx) => (
+                                {itemsToReviewPaginados.map((item, idx) => (
                                     <Fila
                                         key={item.DIT_NUEVOIDENTIFICADOR}
                                         $par={idx % 2 === 0}
@@ -1621,6 +2500,25 @@ function Herramientas() {
                             </tbody>
                         </Tabla>
                     </TablaScroll>
+                    {filteredItemsToReview.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaReview <= 1}
+                                onClick={() => setPaginaReview(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaReview} de {totalPaginasReview} ({filteredItemsToReview.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaReview >= totalPaginasReview}
+                                onClick={() => setPaginaReview(p => p + 1)}
+                            />
+                        </div>
+                    )}
 
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
                         <ButtonUI
@@ -1678,81 +2576,52 @@ function Herramientas() {
             </ModalUI>
 
             <ModalUI
-                isOpen={isSAPModalOpen}
-                onClose={() => setIsSAPModalOpen(false)}
-                title="Descargar datos para subir a SAP"
-                width="500px"
-            >
-                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                    <TextUI text="Se han generado los siguientes archivos por empresa. Por favor descargue cada uno para subir a SAP antes de continuar." variant="small" />
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
-                        {Object.keys(groupedItemsByCompany).map(companyName => (
-                            <ButtonUI
-                                key={EMPRESA_HERRAMIENTAS}
-                                text={`Descargar ${EMPRESA_HERRAMIENTAS}`}
-                                iconLeft="FaDownload"
-                                onClick={() => {
-                                    generateSAPExport(EMPRESA_HERRAMIENTAS, groupedItemsByCompany[companyName], {});
-                                }}
-                            />
-                        ))}
-                    </div>
-                    <div style={{ borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, paddingTop: "16px", marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                        <ButtonUI
-                            text="Cancelar"
-                            variant="outlined"
-                            onClick={() => setIsSAPModalOpen(false)}
-                        />
-                        <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Continuar con el envío"}
-                            pcolor={theme?.colors?.primary}
-                            disabled={isSubmitting}
-                            onClick={async () => {
-                                const currentItems = items.filter(i => selectedItemIds.has(i.id));
-                                handleFinalSubmit(currentItems);
-                            }}
-                        />
-                    </div>
-                </div>
-            </ModalUI>
-
-            <ModalUI
                 isOpen={isSAPExportModalOpen}
                 onClose={() => setIsSAPExportModalOpen(false)}
                 title="Exportar ítems aprobados a SAP"
-                width="1000px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <TextUI size="14px" color={theme?.colors?.textSecondary}>
                         Se muestran todos los ítems aprobados ordenados por fecha de actualización.
                     </TextUI>
-                    <TablaScroll style={{ maxHeight: "500px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                    <InputUI
+                        placeholder="Buscar por empresa, código SAP o descripción..."
+                        value={searchTermExport}
+                        onChange={(v) => setSearchTermExport(v)}
+                        iconLeft="FaSearch"
+                    />
+                    <TablaScroll style={{ maxHeight: "400px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
                         <Tabla>
                             <thead>
                                 <tr>
                                     <Th $align="center" $w="50px">
                                         <CheckboxUI
-                                            checked={approvedItemsForExport.length > 0 && approvedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
+                                            checked={filteredApprovedItemsForExport.length > 0 && filteredApprovedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
                                             onChange={(_, checked) => {
-                                                if (checked) {
-                                                    setSelectedApprovedItemIds(new Set(approvedItemsForExport.map(i => i.ID)));
-                                                } else {
-                                                    setSelectedApprovedItemIds(new Set());
-                                                }
+                                                setSelectedApprovedItemIds(prev => {
+                                                    const newSet = new Set(prev);
+                                                    filteredApprovedItemsForExport.forEach(i => checked ? newSet.add(i.ID) : newSet.delete(i.ID));
+                                                    return newSet;
+                                                });
                                             }}
                                         />
                                     </Th>
                                     <Th>Empresa</Th>
                                     <Th>Código SAP</Th>
                                     <Th>Descripción</Th>
-                                    <Th>Actualizado</Th>
+                                    <Th>Aprobado el</Th>
+                                    <Th $align="center">Request SAP</Th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {approvedItemsForExport.length === 0 ? (
-                                    <tr><Td colSpan={99} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados disponibles.</Td></tr>
+                                {filteredApprovedItemsForExport.length === 0 ? (
+                                    <tr><Td colSpan={99} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>
+                                        {approvedItemsForExport.length === 0 ? "No hay ítems aprobados disponibles." : "No se encontraron ítems que coincidan con la búsqueda."}
+                                    </Td></tr>
                                 ) : (
-                                    approvedItemsForExport.map((item, idx) => (
+                                    approvedItemsForExportPaginados.map((item, idx) => (
                                         <Fila key={item.ID} $par={idx % 2 === 0} $sel={selectedApprovedItemIds.has(item.ID)} style={{ cursor: "pointer" }} onClick={() => {
                                             const newSet = new Set(selectedApprovedItemIds);
                                             if (newSet.has(item.ID)) newSet.delete(item.ID);
@@ -1769,12 +2638,40 @@ function Herramientas() {
                                             <Td style={{ color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</Td>
                                             <Td style={{ color: theme?.colors?.text }}>{item.NOMBRE || item.DESCRIPCION}</Td>
                                             <Td style={{ color: theme?.colors?.textSecondary }}>{new Date(item.updatedAt).toLocaleString()}</Td>
+                                            <Td $align="center" onClick={(e) => e.stopPropagation()}>
+                                                <ButtonUI
+                                                    text={loadingSapRequestId === item.ID ? "Generando..." : "Ver request"}
+                                                    iconLeft="FaCode"
+                                                    variant="outlined"
+                                                    disabled={loadingSapRequestId !== null}
+                                                    onClick={() => handleVerSapRequest(item.ID)}
+                                                />
+                                            </Td>
                                         </Fila>
                                     ))
                                 )}
                             </tbody>
                         </Tabla>
                     </TablaScroll>
+                    {filteredApprovedItemsForExport.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaExport <= 1}
+                                onClick={() => setPaginaExport(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaExport} de {totalPaginasExport} ({filteredApprovedItemsForExport.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaExport >= totalPaginasExport}
+                                onClick={() => setPaginaExport(p => p + 1)}
+                            />
+                        </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
                         {Object.entries(
                             approvedItemsForExport
@@ -1798,8 +2695,58 @@ function Herramientas() {
                                 }}
                             />
                         ))}
+                        {selectedApprovedItemIds.size > 0 && (
+                            <ButtonUI
+                                text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
+                                iconLeft="FaCloudUploadAlt"
+                                onClick={handleSyncToSap}
+                                disabled={isSyncingSap}
+                                pcolor={theme?.colors?.primary || "#0d6efd"}
+                            />
+                        )}
                     </div>
                 </div>
+            </ModalUI>
+
+            <ModalUI
+                isOpen={!!sapRequestPreview}
+                onClose={() => setSapRequestPreview(null)}
+                title="Request a SAP"
+                width="90vw"
+                maxWidth="900px"
+            >
+                {sapRequestPreview && (
+                    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <TextUI size="14px" color={theme?.colors?.text}>
+                            <strong>{sapRequestPreview.Modo === "ACTUALIZACION" ? "Actualización" : "Creación"}</strong>
+                            {" · "}{sapRequestPreview.Empresa}
+                            {sapRequestPreview.CodigoSap ? ` · Código SAP ${sapRequestPreview.CodigoSap}` : ""}
+                        </TextUI>
+                        <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                            {sapRequestPreview.Metodo} {sapRequestPreview.Endpoint}
+                        </TextUI>
+                        {sapRequestPreview.Nota && (
+                            <TextUI size="13px" color={theme?.colors?.warning || "#b26a00"}>
+                                {sapRequestPreview.Nota}
+                            </TextUI>
+                        )}
+                        <pre style={{ margin: 0, padding: "12px", maxHeight: "50vh", overflow: "auto", fontSize: "12px", borderRadius: "8px", border: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>
+                            {JSON.stringify(sapRequestPreview.Body, null, 2)}
+                        </pre>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                            <ButtonUI
+                                text="Copiar JSON"
+                                iconLeft="FaCopy"
+                                variant="outlined"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(JSON.stringify(sapRequestPreview.Body, null, 2));
+                                    toast.success("Request copiado.");
+                                }}
+                            />
+                            <ButtonUI text="Cerrar" onClick={() => setSapRequestPreview(null)} />
+                        </div>
+                    </div>
+                )}
             </ModalUI>
         </div>
     );

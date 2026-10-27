@@ -11,8 +11,9 @@ import { ModalUI } from "components/UI/Components/ModalUI";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemsRole5Bulk, patchItemsRole3Bulk, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getNeumaticosDWH, getItemsCaracteristicas, syncItemsToSap, getMarcaProveedorProcedencia } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
+import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
 import styled from "styled-components";
 
@@ -213,6 +214,32 @@ const NumeroFila = styled.span`
     font-variant-numeric: tabular-nums;
 `;
 
+/* Pestañas de la sección "Sin aprobar / Aprobados" (mismo look que MantenimientoPermisosNuevos) */
+const TabButton = styled.button`
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    background: transparent;
+    color: ${({ theme, $active }) => ($active ? theme?.colors?.primary : theme?.colors?.textSecondary || "#666")};
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+        color: ${({ theme }) => theme?.colors?.primary};
+    }
+
+    ${({ $active, theme }) =>
+        $active &&
+        `
+        color: ${theme?.colors?.primary};
+        border-bottom-color: ${theme?.colors?.primary};
+    `}
+`;
+
 const LINEAS_NEGOCIO = [
     { value: "LLANTAS", label: "LLANTAS" },
     { value: "LUBRICANTES", label: "LUBRICANTES" },
@@ -234,6 +261,7 @@ const CATEGORIAS_LLANTAS = {
                     "PASAJERO": ["P(PASSENGER)", "HP (HIGH PERFORMANCE)", "UHP (ULTRA HIGH PERFORMANCE)"],
                     "TAXI": ["TAXI"],
                     "RUN FLAT": ["RUN FLAT"], //Cambiar eje
+                    "EV": ["HP (HIGH PERFORMANCE)", "UHP (ULTRA HIGH PERFORMANCE)"]
                 },
             },
             "COMPETENCIA": {
@@ -251,6 +279,7 @@ const CATEGORIAS_LLANTAS = {
                     "ON": ["P(PASSENGER)", "RUN FLAT", "UHP (ULTRA HIGH PERFORMANCE)", "HP (HIGH PERFORMANCE)", "HT (HIGHWAY TERRAIN)"],
                     "ON/OFF": ["RT( RUGGED TERRAIN)", "AT(ALL TERRAIN)"],
                     "OFF": ["MT(MUD TERRAIN)"],
+                    "EV": ["HP (HIGH PERFORMANCE)", "UHP (ULTRA HIGH PERFORMANCE)"]
                 },
             },
             "COMERCIAL": {
@@ -357,6 +386,10 @@ const CATEGORIAS_LLANTAS_MOTO = {
     }
 };
 
+// La línea de negocio se guarda y se compara siempre con espacios ("LLANTAS MOTO"). Los registros antiguos
+// guardados con guion bajo ("LLANTAS_MOTO") se normalizan al leerlos para que hagan match con el filtro.
+const normalizarLinea = (linea) => (linea ? String(linea).trim().toUpperCase().replace(/[_\s]+/g, " ") : linea);
+
 const getCategoriasPorLinea = (linea) => linea === "LLANTAS MOTO" ? CATEGORIAS_LLANTAS_MOTO : CATEGORIAS_LLANTAS;
 
 
@@ -364,6 +397,15 @@ const MARCAS_POR_EMPRESA = {
     "AUTOLLANTA": ["FORTUNE", "MAXTREK", "ROADWING"],
     "STOX": ["CST", "FARROAD BRAND", "ANSU", "BAYI", "BYCROSS", "WONDERLAND", "ANTARES"],
     "MAXXIMUNDO": ["MAXXIS LIVIANO", "MAXXIS PESADO", "APLUS", "ROADCRUZA", "HAOHUA"],
+};
+
+// Código numérico de empresa que espera el servicio web de proveedores (distinto del ID interno del portal).
+const CODIGO_EMPRESA_PROVEEDORES = {
+    AUTOLLANTA: 1,
+    MAXXIMUNDO: 2,
+    STOX: 3,
+    IKONIX: 4,
+    AUTOMAX: 5,
 };
 
 function validarRequerido(valor) {
@@ -457,7 +499,8 @@ const DICCIONARIO_COLOR_LETRA_CODIGO = {
     "01": "LN",
     "02": "OBL",
     "03": "OOL",
-    "04": "RBL"
+    "04": "RBL",
+    "99": "",
 };
 
 const OPTIONS_COLOR_LETRA = [
@@ -466,14 +509,36 @@ const OPTIONS_COLOR_LETRA = [
     { value: "02", label: "02" },
     { value: "03", label: "03" },
     { value: "04", label: "04" },
+    { value: "99", label: "99" },
 ];
 
-const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {
+// MAXXIS LIVIANO / MAXXIS PESADO son marcas distintas para el resto del sistema
+// (selección, mapeo de codMarca, etc.), pero en el nombre del sistema ambas deben
+// figurar simplemente como "MAXXIS".
+const normalizarMarcaNombreSistema = (marca) => {
+    const m = String(marca || "").trim().toUpperCase();
+    if (!m) return "";
+    if (m === "MAXXIS LIVIANO" || m === "MAXXIS PESADO") return "MAXXIS";
+    return m;
+};
+
+const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false, marca = "") => {
     if (!nombreBase) return "";
     // Limpiamos cualquier "NEW " previo para evitar duplicaciones si se rellama la función
     let baseLimpia = nombreBase.startsWith("NEW ") ? nombreBase.replace(/^NEW\s+/, "") : nombreBase;
+    const marcaNormalizada = normalizarMarcaNombreSistema(marca);
+    // Si nombreBase ya traía la marca (p.ej. porque se reusó el nombreSistema completo como
+    // base, a falta de nombreSistemaBase), se quita para no duplicarla al anteponerla de nuevo.
+    if (marcaNormalizada) {
+        const prefijoEscapado = marcaNormalizada.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        baseLimpia = baseLimpia.replace(new RegExp(`^${prefijoEscapado}\\s+`, "i"), "");
+    }
     const codigo = DICCIONARIO_COLOR_LETRA_CODIGO[colorCod];
-    const res = codigo ? `${baseLimpia} ${codigo}`.trim() : baseLimpia;
+    let res = codigo ? `${baseLimpia} ${codigo}`.trim() : baseLimpia;
+    // El nombre del sistema siempre inicia con la marca seleccionada.
+    if (marcaNormalizada) {
+        res = `${marcaNormalizada} ${res}`.trim();
+    }
     return isNew ? `NEW ${res}` : res;
 };
 
@@ -484,16 +549,20 @@ const calcularNombreSistemaFinal = (nombreBase, colorCod, isNew = false) => {
 const COLUMNAS_PLANTILLA = [
     { header: "EMPRESA", ancho: 16 },
     { header: "MARCA", ancho: 16 },
+    { header: "TIPO", ancho: 18 },
     { header: "NOMBRE", alias: ["DESCRIPCION"], ancho: 42 },
     { header: "DISENIO", ancho: 18 },
     { header: "LETRA_DISENIO", ancho: 15 },
     { header: "COLOR_LETRA", ancho: 13 },
     { header: "CODIGO_BARRAS", ancho: 28 },
     { header: "CODIGO_PROVEEDOR", ancho: 20 },
+    { header: "PROVEEDOR", ancho: 28 },
+    { header: "PROCEDENCIA", ancho: 18 },
     { header: "DESCRIPCION_PROVEEDOR", alias: ["NOMBRE_EXTRANJERO"], ancho: 34 },
-    { header: "CUBICAJE", ancho: 12 },
     { header: "PARTIDA_ARANCELARIA", ancho: 22 },
     { header: "ES_NUEVO", ancho: 11 },
+    { header: "VISIBLE_EASYSALES", ancho: 18 },
+    { header: "COMENTARIOS", ancho: 30 },
 ];
 
 /* Devuelve el valor de una columna aceptando también sus encabezados antiguos. */
@@ -506,20 +575,10 @@ const valorPlantilla = (fila, header) => {
     return "";
 };
 
-/* El cubicaje puede llegar como número, con coma decimal o con unidad
-   ("0,45 m3"). Se toma el primer número de la celda; quitar solo los caracteres
-   no numéricos pegaría el "3" de "m3" al valor. */
-const normalizarCubicaje = (valor) => {
-    if (valor === undefined || valor === null) return "";
-    if (typeof valor === "number") return String(valor);
-    const encontrado = String(valor).trim().replace(",", ".").match(/\d+(\.\d+)?/);
-    return encontrado ? encontrado[0] : "";
-};
-
-/* Interpreta la columna ES_NUEVO: admite SI/NO, TRUE/FALSE, 1/0 y X.
-   Vacío se toma como nuevo, que es como se comportaba la importación antes
-   de que existiera la columna. */
-const interpretarEsNuevo = (valor) => {
+/* Interpreta una columna de bandera SI/NO del Excel (ES_NUEVO, VISIBLE_EASYSALES):
+   admite SI/NO, TRUE/FALSE, 1/0 y X. Vacío se toma como afirmativo, que es como
+   se comportaba la importación antes de que existiera la columna ES_NUEVO. */
+const interpretarFlagBooleano = (valor) => {
     if (valor === undefined || valor === null || String(valor).trim() === "") return true;
     if (typeof valor === "boolean") return valor;
     return ["SI", "SÍ", "S", "TRUE", "VERDADERO", "V", "1", "X", "YES", "Y"]
@@ -536,8 +595,10 @@ const CAMPOS_DETALLE = [
     { label: "Código SAP", get: (it) => it.CODIGO_SAP },
     { label: "Código de barras", get: (it) => it.codigo || it.CODIGO_BARRAS },
     { label: "Código proveedor", get: (it) => it.codigoProveedor || it.CODIGO_PROVEEDOR },
-    { label: "Línea de negocio", get: (it) => it.linea || it.LINEA_NEGOCIO },
+    { label: "Procedencia", get: (it) => it.procedencia || it.PROCEDENCIA },
+    { label: "Línea de negocio", get: (it) => normalizarLinea(it.linea || it.LINEA_NEGOCIO) },
     { label: "Marca", get: (it) => it.marca || it.MARCA },
+    { label: "Tipo", get: (it) => it.tipo || it.TIPO },
     { label: "Nombre del sistema", get: (it) => it.nombreSistema },
     { label: "Descripción", get: (it) => it.descripcion || it.DESCRIPCION },
     { label: "Descripción Proveedor", get: (it) => it.nombreExtranjero || it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO },
@@ -588,6 +649,15 @@ const esNuevo = (item) =>
         ? Boolean(item.isNew)
         : !item?.fueRechazado;
 
+/* Bandera "Visible EasySales" del ítem. Por defecto true (equivalente al
+   "SI" que el export SAP enviaba siempre en U_MA_ITM_EASY antes de existir
+   este checkbox), así los ítems ya cargados sin el campo no cambian de
+   comportamiento. */
+const esVisibleEasySales = (item) =>
+    item?.visibleEasySales !== undefined && item?.visibleEasySales !== null
+        ? Boolean(item.visibleEasySales)
+        : true;
+
 // Se movió calcularCodigoBarras dentro del componente para usar el estado dinámico
 
 function Llantas() {
@@ -595,6 +665,10 @@ function Llantas() {
     const { user } = useAuthContext();
     const [mapeoMarcas, setMapeoMarcas] = useState([]);
     const [caracteristicasMDM, setCaracteristicasMDM] = useState({});
+    // Combinaciones marca -> proveedor -> procedencia por empresa y línea de negocio,
+    // desde core.dim_marca_proveedor_procedencia (DWH postgres). Reemplaza a MARCAS_POR_EMPRESA
+    // y a ListarProveedores como origen de datos para el MDM de Llantas/Llantas Moto.
+    const [marcaProveedorProcedencia, setMarcaProveedorProcedencia] = useState([]);
 
 
     useEffect(() => {
@@ -610,6 +684,18 @@ function Llantas() {
     }, []);
 
     useEffect(() => {
+        const fetchMarcaProveedorProcedencia = async () => {
+            try {
+                const data = await getMarcaProveedorProcedencia();
+                setMarcaProveedorProcedencia(data || []);
+            } catch (error) {
+                console.error("Error fetching marca-proveedor-procedencia:", error);
+            }
+        };
+        fetchMarcaProveedorProcedencia();
+    }, []);
+
+    useEffect(() => {
         const fetchCaracteristicas = async () => {
             try {
                 const data = await getItemsCaracteristicas();
@@ -621,27 +707,54 @@ function Llantas() {
         fetchCaracteristicas();
     }, []);
 
+    // Tabla CODIGO LETRA (alfabeto español, incluye Ñ y el dígrafo CH)
+    const CODIGO_LETRA_DISENO = {
+        A: "01", B: "02", C: "03", D: "04", E: "05", F: "06", G: "07", H: "08",
+        I: "09", J: "10", K: "11", L: "12", M: "13", N: "14", "Ñ": "15", O: "16",
+        P: "17", Q: "18", R: "19", S: "20", T: "21", U: "22", V: "23", W: "24",
+        X: "25", Y: "26", Z: "27", CH: "28",
+    };
+
+    /* Segmento DISEÑO del código de barras:
+       1) limpia el diseño de caracteres especiales/puntuación (deja solo A-Z/0-9/Ñ)
+       2) si el diseño limpio EMPIEZA con una letra (o el dígrafo CH), esa letra se
+          reemplaza por su código de CODIGO_LETRA_DISENO y se conserva el resto tal cual
+       3) si el diseño limpio NO empieza con una letra (arranca con dígito, ej. "207A"),
+          el segmento es "00" + diseño limpio completo — no se busca ninguna letra
+          más adelante en la cadena para reemplazarla
+       Ej: "KS-062" -> limpio "KS062" -> K=11 -> "11" + "S062" = "11S062"
+       Ej: "207A" -> limpio "207A" (no empieza con letra) -> "00" + "207A" = "00207A" */
+    function construirSegmentoDiseño(diseñoCrudo) {
+        const limpio = String(diseñoCrudo || "").trim().toUpperCase().replace(/[^A-Z0-9Ñ]/g, "");
+        if (!limpio) return "0000";
+        const primero = limpio[0];
+        if (!/[A-ZÑ]/.test(primero)) {
+            return `00${limpio}`;
+        }
+        const esCH = primero === "C" && limpio[1] === "H";
+        const letra = esCH ? "CH" : primero;
+        const codigo = CODIGO_LETRA_DISENO[letra] || "00";
+        const resto = limpio.slice(letra.length);
+        return `${codigo}${resto}`;
+    }
+
 
     const calcularCodigoBarras = useCallback((item) => {
         if (!item) return "";
+
         const mapping = mapeoMarcas.find(m =>
             String(m.marca || "").toUpperCase() === String(item.marca || "").toUpperCase() &&
-            String(m.partida_arancelaria || "").toUpperCase() === String(item.partidaArancelaria || "").toUpperCase()
+            String(m.tipo || "").toUpperCase() === String(item.tipo || "").toUpperCase()
         );
-
         const codMarca = mapping ? mapping.valor : "0000";
-        const parsed = item.parsedData || {};
 
-        // Sin ningún dato cargado el código quedaría en puros ceros (un código
-        // fantasma para una fila vacía), así que no se emite.
         const tieneDatos = Boolean(
             item.marca || item.diseño || item.letraDiseño || item.colorLetra ||
-            Object.keys(parsed).length > 0
+            item.rin || item.ancho || item.serie || item.lonas
         );
         if (!tieneDatos) return "";
 
-        // Los campos ausentes se rellenan con el placeholder "00"; nunca se
-        // concatena el valor crudo, porque String(undefined) => "undefined".
+        const parsed = item.parsedData || {};
         const limpiar = (valor, relleno) => {
             if (valor === undefined || valor === null) return relleno;
             const texto = String(valor).trim();
@@ -649,30 +762,23 @@ function Llantas() {
             return texto;
         };
 
-        const lonas = limpiar(parsed.lonas, "00").padStart(2, "0").slice(0, 2);
-        const firstChar = String(item.diseño || "").charAt(0);
-        const ancho = limpiar(parsed.ancho, "00");
-        const alto = limpiar(parsed.serie, "00");
+        // El rin de camión/agrícola usa medios números (17.5, 22.5, 24.5...) y el
+        // punto SÍ va en el código. Solo se recorta una letra final si trae sufijo.
+        let rin = limpiar(item.rin, limpiar(parsed.rin, "00")).toUpperCase();
+        if (/[A-Z]$/.test(rin)) rin = rin.slice(0, -1);
 
-        let rin = String(parsed.rin || "00");
-        if (rin.charAt(rin.length - 1) >= 'A' && rin.charAt(rin.length - 1) <= 'Z') {
-            rin = rin.substring(0, 2);
-        }
+        const ancho = limpiar(item.ancho, limpiar(parsed.ancho, "00"));
+        const alto = limpiar(item.serie, limpiar(parsed.serie, "00"));
+        const lonas = limpiar(item.lonas, limpiar(parsed.lonas, "00")).padStart(2, "0").slice(0, 2);
 
-        let designNum = "00";
-        if (firstChar) {
-            const c = firstChar.toUpperCase();
-            if (c >= 'A' && c <= 'Z') {
-                designNum = (c.charCodeAt(0) - 64).toString().padStart(2, '0');
-            }
-        }
+        const diseñoSegmento = construirSegmentoDiseño(item.diseño);
+        const letraDiseño = String(item.letraDiseño || "00").trim().toUpperCase();
+        const colorLetra = String(item.colorLetra || "00").trim().toUpperCase();
 
-        const diseño = String(item.diseño || "0000");
-        const letraDiseño = String(item.letraDiseño || "00");
-        const colorLetra = String(item.colorLetra || "00");
-        const carga = String(parsed.carga || "00");
-        const velocidad = String(parsed.velocidad || "00");
-        return `${codMarca}${rin}${ancho}${alto}${lonas}${designNum}${diseño}${letraDiseño}${colorLetra}${carga}${velocidad}`.toUpperCase().replace(/\s+/g, '');
+        // DEFINEMARCA+RIN+ANCHO+ALTO+PR+[CODIGO_LETRA+DISEÑO_SIN_1RA_LETRA]+LETRADEDISEÑOS+COLORDELETRA
+        return `${codMarca}${rin}${ancho}${alto}${lonas}${diseñoSegmento}${letraDiseño}${colorLetra}`
+            .toUpperCase()
+            .replace(/\s+/g, "");
     }, [mapeoMarcas]);
     const isDark = theme?.name === 'dark';
 
@@ -690,7 +796,7 @@ function Llantas() {
         if (v.startsWith(".")) v = "0" + v;
         const parts = v.split(".");
         if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
-        if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].substring(0, 2);
+        if (parts.length === 2 && parts[1].length > 2) v = parts[0] + "." + parts[1].substring(0, 3);
         return v;
     };
 
@@ -768,6 +874,13 @@ function Llantas() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
     const debounceTimeouts = useRef({});
+    // Resultado de verificar si el diseño (MARCA + DISEÑO) ya tiene imagen en storage,
+    // indexado por "MARCA|DISEÑO", para no pedirle al coordinador (rol 4) que la vuelva a subir.
+    const [imagenesDisenioExistente, setImagenesDisenioExistente] = useState({});
+    // Diseños cuya verificación contra el backend todavía está en curso: mientras esté aquí,
+    // el input de subida se bloquea para no subir una imagen antes de saber si ya existía una.
+    const [disenioVerificando, setDisenioVerificando] = useState({});
+    const disenioCheckEnCurso = useRef(new Set());
 
     const handleDownloadTemplate = () => {
         if (!lineaSeleccionada) return;
@@ -813,15 +926,24 @@ function Llantas() {
                     let marcaImportada = leer("MARCA");
 
                     if (idEmpresa) {
-                        const companyName = String(diccionarioEmpresas[idEmpresa]).trim().toUpperCase();
-                        const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key =>
-                            companyName === key || companyName.includes(key) || key.includes(companyName)
-                        );
-                        const allowedMarcas = matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
-                        const marcaEsValida = allowedMarcas.some(b => b.toUpperCase() === marcaImportada);
+                        if (esLlantas) {
+                            // Marca válida = existe en dim_marca_proveedor_procedencia para esta empresa+línea.
+                            const marcasValidas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmpresa], lineaSeleccionada.value)
+                                .map(f => String(f.DMPP_MARCA || "").toUpperCase());
+                            if (!marcasValidas.includes(marcaImportada)) {
+                                marcaImportada = "";
+                            }
+                        } else {
+                            const companyName = String(diccionarioEmpresas[idEmpresa]).trim().toUpperCase();
+                            const matchKey = Object.keys(MARCAS_POR_EMPRESA).find(key =>
+                                companyName === key || companyName.includes(key) || key.includes(companyName)
+                            );
+                            const allowedMarcas = matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
+                            const marcaEsValida = allowedMarcas.some(b => b.toUpperCase() === marcaImportada);
 
-                        if (!marcaEsValida && lineaSeleccionada.value !== 'LLANTAS MOTO') {
-                            marcaImportada = "";
+                            if (!marcaEsValida && lineaSeleccionada.value !== 'LLANTAS MOTO') {
+                                marcaImportada = "";
+                            }
                         }
                     } else {
                         idEmpresa = "";
@@ -837,18 +959,90 @@ function Llantas() {
                         descripcionRol5: nombre,
                         descripcion: nombre,
                         codigoProveedor: leer("CODIGO_PROVEEDOR"),
+                        proveedorNombreImportado: String(valorPlantilla(row, "PROVEEDOR") || "").trim(),
+                        proveedor: "", // se resuelve más abajo contra el listado real de proveedores de la empresa
+                        procedenciaImportada: String(valorPlantilla(row, "PROCEDENCIA") || "").trim(),
+                        procedencia: "", // se resuelve más abajo (Llantas/Llantas Moto)
                         nombreExtranjero: leer("DESCRIPCION_PROVEEDOR"),
                         partidaArancelaria: leer("PARTIDA_ARANCELARIA"),
                         diseño: leer("DISENIO").slice(0, 20),
                         letraDiseño: leer("LETRA_DISENIO"),
                         colorLetra: leer("COLOR_LETRA"),
                         codigo: leer("CODIGO_BARRAS"), // si no viene, más abajo se calcula
-                        cubicaje: normalizarCubicaje(valorPlantilla(row, "CUBICAJE")),
-                        isNew: interpretarEsNuevo(valorPlantilla(row, "ES_NUEVO")),
+                        isNew: interpretarFlagBooleano(valorPlantilla(row, "ES_NUEVO")),
+                        visibleEasySales: interpretarFlagBooleano(valorPlantilla(row, "VISIBLE_EASYSALES")),
                         marca: marcaImportada,
-                        comentarios: ""
+                        tipo: leer("TIPO"),
+                        comentarios: leer("COMENTARIOS")
                     };
                 });
+
+                if (esLlantas) {
+                    // Resolver Proveedor y Procedencia contra core.dim_marca_proveedor_procedencia,
+                    // igual que los selectores en cascada de la tabla.
+                    baseItems.forEach(it => {
+                        if (!it.marca) return;
+                        if (it.proveedorNombreImportado) {
+                            const opcionesProveedor = getProveedorOptions(it.idEmpresa, it.marca);
+                            const matchProveedor = opcionesProveedor.find(
+                                o => String(o.label).trim().toUpperCase() === it.proveedorNombreImportado.toUpperCase()
+                            );
+                            it.proveedor = matchProveedor ? matchProveedor.value : "";
+                        }
+                        if (it.proveedor) {
+                            const opcionesProcedencia = getProcedenciaOptions(it.idEmpresa, it.marca, it.proveedor);
+                            if (it.procedenciaImportada) {
+                                const matchProcedencia = opcionesProcedencia.find(
+                                    o => String(o.label).trim().toUpperCase() === it.procedenciaImportada.toUpperCase()
+                                );
+                                it.procedencia = matchProcedencia ? matchProcedencia.value : "";
+                            } else if (opcionesProcedencia.length === 1) {
+                                it.procedencia = opcionesProcedencia[0].value;
+                            }
+                        }
+                    });
+
+                    // Partida arancelaria: ya no es un valor libre del Excel, se deriva del tipo
+                    // (core.dim_partidas_arancelarias). Si el tipo tiene una sola partida válida se
+                    // usa esa; si tiene más de una, se respeta la del Excel solo si es una opción
+                    // válida para ese tipo, y si no se limpia (se completa manualmente en la tabla).
+                    baseItems.forEach(it => {
+                        const opcionesPartida = getPartidaArancelariaOptionsForTipo(it.tipo);
+                        if (opcionesPartida.length === 1) {
+                            it.partidaArancelaria = opcionesPartida[0].value;
+                        } else if (opcionesPartida.length > 1) {
+                            const matchPartida = opcionesPartida.find(o => o.value === it.partidaArancelaria);
+                            it.partidaArancelaria = matchPartida ? matchPartida.value : "";
+                        } else {
+                            it.partidaArancelaria = "";
+                        }
+                    });
+                } else {
+                    // Resolver "Proveedor" (selección real, distinta de Código Proveedor libre)
+                    // contra el listado de proveedores de cada empresa, igual que hace el
+                    // selector de la tabla. Solo se consulta una vez por empresa presente en el archivo.
+                    const empresasAResolver = Array.from(new Set(baseItems.map(it => it.idEmpresa).filter(Boolean)));
+                    const proveedoresPorEmpresaImportados = {};
+                    for (const idEmp of empresasAResolver) {
+                        const codigoEmpresaProveedor = getCodigoProveedorEmpresa(idEmp);
+                        if (!codigoEmpresaProveedor) continue;
+                        try {
+                            const proveedoresResp = await ListarProveedores(codigoEmpresaProveedor);
+                            proveedoresPorEmpresaImportados[idEmp] = Array.isArray(proveedoresResp)
+                                ? proveedoresResp.map(({ value, name }) => ({ value, label: name }))
+                                : [];
+                        } catch (err) {
+                            console.error(`Error al obtener proveedores para importar (empresa ${idEmp}):`, err);
+                            proveedoresPorEmpresaImportados[idEmp] = [];
+                        }
+                    }
+                    baseItems.forEach(it => {
+                        if (!it.proveedorNombreImportado) return;
+                        const opciones = proveedoresPorEmpresaImportados[it.idEmpresa] || [];
+                        const match = opciones.find(o => String(o.label).trim().toUpperCase() === it.proveedorNombreImportado.toUpperCase());
+                        it.proveedor = match ? match.value : "";
+                    });
+                }
 
                 // Ejecutar parseLlantas para los ítems importados
                 const descripciones = baseItems.map(it => it.descripcion);
@@ -867,9 +1061,11 @@ function Llantas() {
                     const itemWithParsed = {
                         ...it,
                         nombreSistemaBase: baseName,
-                        nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra, esNuevo(it)),
+                        nombreSistema: calcularNombreSistemaFinal(baseName, it.colorLetra, esNuevo(it), it.marca),
                         parsedData: parsed
                     };
+                    delete itemWithParsed.proveedorNombreImportado;
+                    delete itemWithParsed.procedenciaImportada;
                     return {
                         ...itemWithParsed,
                         codigo: it.codigo ? it.codigo : calcularCodigoBarras(itemWithParsed) // <-- Prioriza el del Excel, si no viene lo calcula
@@ -894,6 +1090,9 @@ function Llantas() {
     const [itemToReject, setItemToReject] = useState(null);
     const [isViewReasonModalOpen, setIsViewReasonModalOpen] = useState(false);
     const [detalleItem, setDetalleItem] = useState(null);
+    // Actualización de imágenes de un producto ya aprobado (rol 4), desde el modal de Detalle:
+    // { webp: bool, png: bool } indica si hay una subida en curso para ese tipo de imagen.
+    const [subiendoImagenDetalle, setSubiendoImagenDetalle] = useState({ webp: false, png: false });
     const [selectedRejectionReason, setSelectedRejectionReason] = useState("");
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [itemsToReview, setItemsToReview] = useState([]);
@@ -905,6 +1104,19 @@ function Llantas() {
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
+    const [isSyncingSap, setIsSyncingSap] = useState(false);
+    const [searchTermExport, setSearchTermExport] = useState("");
+
+    // Sección "Sin aprobar / Aprobados": pestaña activa, buscador compartido entre ambas y
+    // estado de refresco (spinner del botón mientras fetchItems está en curso).
+    // Aprobación comercial (rol 1): bloquea los botones mientras se aprueba/rechaza un ítem.
+    const [isProcessingRol1, setIsProcessingRol1] = useState(false);
+    const [tabAprobados, setTabAprobados] = useState("sinAprobar");
+    const [searchTermAprobados, setSearchTermAprobados] = useState("");
+    const [isRefrescandoAprobados, setIsRefrescandoAprobados] = useState(false);
+    // Todos los ítems no aprobados de la línea (cualquier fase), independiente de lo que el rol
+    // actual tenga filtrado en `items` para trabajar. Alimenta solo la pestaña "Sin aprobar".
+    const [itemsSinAprobarTodos, setItemsSinAprobarTodos] = useState([]);
 
     const filteredItemsToReview = useMemo(() => {
         if (!searchTermReview) return itemsToReview;
@@ -917,14 +1129,97 @@ function Llantas() {
         );
     }, [itemsToReview, searchTermReview]);
 
+    const filteredApprovedItemsForExport = useMemo(() => {
+        if (!searchTermExport) return approvedItemsForExport;
+        const lowSearch = searchTermExport.toLowerCase();
+        return approvedItemsForExport.filter(item =>
+            String(item.EMPRESA || "").toLowerCase().includes(lowSearch) ||
+            String(item.CODIGO_SAP || "").toLowerCase().includes(lowSearch) ||
+            String(item.DESCRIPCION || "").toLowerCase().includes(lowSearch)
+        );
+    }, [approvedItemsForExport, searchTermExport]);
+
+    /* Paginación de los modales "Seleccionar ítems para revisar" y "Exportar ítems
+       aprobados a SAP": renderizar de una sola vez listas grandes (DWH, histórico de
+       aprobados) rompía la tabla, así que solo se pinta una página a la vez. */
+    const ITEMS_POR_PAGINA_MODAL = 20;
+    const [paginaReview, setPaginaReview] = useState(1);
+    const [paginaExport, setPaginaExport] = useState(1);
+
+    useEffect(() => { setPaginaReview(1); }, [searchTermReview, itemsToReview]);
+    useEffect(() => { setPaginaExport(1); }, [searchTermExport, approvedItemsForExport]);
+
+    const totalPaginasReview = Math.max(1, Math.ceil(filteredItemsToReview.length / ITEMS_POR_PAGINA_MODAL));
+    const itemsToReviewPaginados = filteredItemsToReview.slice(
+        (paginaReview - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaReview * ITEMS_POR_PAGINA_MODAL,
+    );
+
+    const totalPaginasExport = Math.max(1, Math.ceil(filteredApprovedItemsForExport.length / ITEMS_POR_PAGINA_MODAL));
+    const approvedItemsForExportPaginados = filteredApprovedItemsForExport.slice(
+        (paginaExport - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaExport * ITEMS_POR_PAGINA_MODAL,
+    );
+
     // Selector global para el nuevo ítem
     const [lineaSeleccionada, setLineaSeleccionada] = useState(null);
     const esLlantas = lineaSeleccionada?.value === "LLANTAS" || lineaSeleccionada?.value === "LLANTAS MOTO";
     const esLubricantes = lineaSeleccionada?.value === "LUBRICANTES";
     const esHerramientas = lineaSeleccionada?.value === "HERRAMIENTAS";
 
+    useEffect(() => { setSearchTermAprobados(""); }, [lineaSeleccionada]);
+
+    // Proveedores por empresa (rol 5): la empresa se selecciona por fila, así que se cachean por código de empresa.
+    const [proveedoresPorEmpresa, setProveedoresPorEmpresa] = useState({});
+    const proveedoresEnCargaRef = useRef(new Set());
+
+    const asegurarProveedoresEmpresa = useCallback((codigoEmpresa) => {
+        if (!codigoEmpresa || proveedoresPorEmpresa[codigoEmpresa] || proveedoresEnCargaRef.current.has(codigoEmpresa)) return;
+        proveedoresEnCargaRef.current.add(codigoEmpresa);
+        ListarProveedores(codigoEmpresa)
+            .then((data) => {
+                const opciones = Array.isArray(data) ? data.map(({ value, name }) => ({ value, label: name })) : [];
+                setProveedoresPorEmpresa(prev => ({ ...prev, [codigoEmpresa]: opciones }));
+            })
+            .catch((error) => {
+                console.error(`Error al obtener proveedores para empresa ${codigoEmpresa}:`, error);
+                setProveedoresPorEmpresa(prev => ({ ...prev, [codigoEmpresa]: [] }));
+            })
+            .finally(() => {
+                proveedoresEnCargaRef.current.delete(codigoEmpresa);
+            });
+    }, [proveedoresPorEmpresa]);
+
+    const getCodigoProveedorEmpresa = useCallback((idEmpresaFila) => {
+        const nombreEmpresa = diccionarioEmpresas[idEmpresaFila];
+        if (!nombreEmpresa) return undefined;
+        return CODIGO_EMPRESA_PROVEEDORES[String(nombreEmpresa).trim().toUpperCase()];
+    }, [diccionarioEmpresas]);
+
+    // Cuando se selecciona/carga la empresa de una fila (rol 5), se asegura la lista de proveedores de esa empresa.
+    useEffect(() => {
+        if (idRolPrincipal !== 5 && idRolPrincipal !== 1) return;
+        items.forEach(it => {
+            if (it.linea !== lineaSeleccionada?.value) return;
+            const codigoEmpresa = getCodigoProveedorEmpresa(it.idEmpresa);
+            if (codigoEmpresa) asegurarProveedoresEmpresa(codigoEmpresa);
+        });
+    }, [items, idRolPrincipal, lineaSeleccionada, getCodigoProveedorEmpresa, asegurarProveedoresEmpresa]);
+
     if (idRolPrincipal === 5 && lineaSeleccionada?.value === "LLANTAS MOTO") {
-        opcionesEmpresasPermitidas = opcionesEmpresasPermitidas.filter(opt => opt.label && opt.label.toUpperCase().includes("MAXXIMUNDO"));
+        // Solo se muestran las empresas que tienen al menos una combinación activa
+        // marca/proveedor/procedencia configurada para LLANTAS MOTO.
+        const empresasConLlantasMoto = new Set(
+            marcaProveedorProcedencia
+                .filter(row =>
+                    row.DMPP_ACTIVO !== false &&
+                    String(row.DMPP_LINEA_NEGOCIO || "").trim().toUpperCase() === "LLANTAS MOTO"
+                )
+                .map(row => String(row.DMPP_EMPRESA || "").trim().toUpperCase())
+        );
+        opcionesEmpresasPermitidas = opcionesEmpresasPermitidas.filter(opt =>
+            opt.label && empresasConLlantasMoto.has(String(opt.label).trim().toUpperCase())
+        );
     }
 
     const fetchItems = useCallback(async () => {
@@ -934,6 +1229,26 @@ function Llantas() {
                 if (rawData) {
                     const data = rawData;
                     let processedItems = data;
+
+                    // Vista informativa de la pestaña "Sin aprobar": TODOS los ítems no aprobados de
+                    // la línea, sin importar en qué fase estén ni si son accionables para el rol
+                    // actual (a diferencia de `items`, que cada rol filtra a solo lo que le toca
+                    // revisar/corregir). Se conserva el objeto crudo (...it) para que el modal de
+                    // Detalle pueda leer todos sus campos por el fallback SCREAMING_SNAKE de CAMPOS_DETALLE.
+                    const todosNoAprobados = data.filter(it => !it.APROBADO_MDM).map(it => ({
+                        ...it,
+                        id: it.ID,
+                        linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
+                        idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
+                        codigo: it.CODIGO_BARRAS || "",
+                        marca: it.MARCA || "",
+                        diseño: it.DISENIO || "",
+                        nombreSistema: it.DESCRIPCION || it.NOMBRE || "",
+                        comentarios: it.OBSERVACIONES || "",
+                        fueRechazado: Array.isArray(it.FASES) && it.FASES.some(f => f.RECHAZO),
+                    }));
+                    setItemsSinAprobarTodos(todosNoAprobados);
+
                     if (idRolPrincipal === 3) {
                         const filtered = data.filter(it =>
                             it.APROBADO_MDM ||
@@ -957,7 +1272,7 @@ function Llantas() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                                linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                                 diseño: parsed.diseno || it.DISENIO || "",
                                 rin: parsed.rin || it.RIN || "",
                                 serie: parsed.serie || it.SERIE || "",
@@ -987,7 +1302,7 @@ function Llantas() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                                linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                                 codigo: it.CODIGO_BARRAS || "",
                                 marca: it.MARCA || "",
                                 diseño: it.DISENIO || "",
@@ -1021,21 +1336,28 @@ function Llantas() {
                             const banderaNueva = it.ES_NUEVO !== undefined && it.ES_NUEVO !== null
                                 ? Boolean(it.ES_NUEVO)
                                 : undefined;
+                            // Mismo criterio que ES_NUEVO: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
+                            const banderaVisibleEasySales = it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null
+                                ? Boolean(it.VISIBLE_EASYSALES)
+                                : undefined;
                             const itemWithBase = {
                                 ...it,
                                 isNew: banderaNueva,
+                                visibleEasySales: banderaVisibleEasySales,
                                 id: it.ID,
-                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                                linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
                                 descripcionRol5: it.DESCRIPCION || "",
                                 descripcion: it.DESCRIPCION || "",
                                 parsedData: parsed,
                                 nombreSistemaBase: parsed.NOMBRE || it.DESCRIPCION || "",
-                                nombreSistema: calcularNombreSistemaFinal(parsed.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", banderaNueva ?? false),
+                                nombreSistema: calcularNombreSistemaFinal(parsed.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", banderaNueva ?? false, it.MARCA || ""),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
-                                cubicaje: it.CUBICAJE || "",
+                                proveedor: it.ID_PROVEEDOR || "",
+                                procedencia: it.PROCEDENCIA || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                tipo: it.TIPO || "",
                                 marca: it.MARCA || "",
                                 diseño: it.DISENIO || "",
                                 letraDiseño: it.LETRA_DISENIO || "",
@@ -1058,7 +1380,7 @@ function Llantas() {
                             return {
                                 ...it,
                                 id: it.ID,
-                                linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                                linea: normalizarLinea(it.LINEA_NEGOCIO) || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || it.EMPRESA || "",
                                 codigo: it.CODIGO_BARRAS || "",
                                 marca: it.MARCA || "",
@@ -1066,9 +1388,12 @@ function Llantas() {
                                 descripcion: it.DESCRIPCION || "",
                                 descripcionRol5: it.DESCRIPCION || "",
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                proveedor: it.ID_PROVEEDOR || "",
+                                procedencia: it.PROCEDENCIA || "",
                                 cubicaje: it.CUBICAJE || "",
                                 nombreExtranjero: it.NOMBRE_EXTRAN_G || it.NOMBRE_EXTRANJERO || "",
                                 partidaArancelaria: it.PARTIDA_ARANCELARIA || "",
+                                tipo: it.TIPO || "",
                                 rin: it.RIN || "",
                                 serie: it.SERIE || "",
                                 lonas: it.LONAS || "",
@@ -1089,7 +1414,7 @@ function Llantas() {
                         });
                     }
                     if (idRolPrincipal === 1) {
-                        const approved = data.filter(it => it.APROBADO_MDM === true && it.LINEA_NEGOCIO === lineaSeleccionada.value);
+                        const approved = data.filter(it => it.APROBADO_MDM === true && normalizarLinea(it.LINEA_NEGOCIO) === lineaSeleccionada.value);
                         setApprovedItemsForExport(approved.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
                     }
 
@@ -1112,71 +1437,301 @@ function Llantas() {
         fetchItems();
     }, [fetchItems]);
 
+    // Refresco manual de la sección "Sin aprobar / Aprobados", sin recargar el resto de la página.
+    const handleRefrescarAprobados = async () => {
+        setIsRefrescandoAprobados(true);
+        try {
+            await fetchItems();
+        } finally {
+            setIsRefrescandoAprobados(false);
+        }
+    };
+
+    // Búsqueda compartida por la sección "Sin aprobar / Aprobados": código de barras, código
+    // SAP (si el ítem ya lo tiene), diseño o nombre.
+    const filtrarSeccionAprobados = (lista, termino) => {
+        if (!termino) return lista;
+        const t = termino.toLowerCase();
+        return lista.filter(item =>
+            String(item.codigo || item.CODIGO_BARRAS || "").toLowerCase().includes(t) ||
+            String(item.codigoSap || item.CODIGO_SAP || "").toLowerCase().includes(t) ||
+            String(item.diseño || item.DISENIO || "").toLowerCase().includes(t) ||
+            String(item.nombreSistema || item.descripcionRol5 || item.descripcion || "").toLowerCase().includes(t)
+        );
+    };
+
+    // Cuando se reemplaza una imagen ya existente, la key en storage (y por lo tanto la URL) no
+    // cambia: el navegador ya tiene esa URL cacheada y seguiría mostrando la versión vieja hasta
+    // recargar la página. Agregar un parámetro único fuerza a que se pida de nuevo.
+    const agregarCacheBusting = (url) => {
+        if (!url) return url;
+        const separador = url.includes('?') ? '&' : '?';
+        return `${url}${separador}_v=${Date.now()}`;
+    };
+
+    const getDisenioKey = (item) => item?.marca && item?.diseño
+        ? `${String(item.marca).trim().toUpperCase()}|${String(item.diseño).trim().toUpperCase()}`
+        : null;
+
+    // Consulta al backend si el diseño (MARCA + DISEÑO) de `item` ya tiene imagen en storage
+    // (R2/SharePoint) y guarda el resultado en imagenesDisenioExistente, indexado por diseño.
+    // Se usa tanto para la grilla de pendientes (rol 4) como para el modal de Detalle del producto.
+    const verificarImagenDisenio = useCallback((item, linea) => {
+        const clave = getDisenioKey(item);
+        if (!clave || imagenesDisenioExistente[clave] || disenioCheckEnCurso.current.has(clave)) return;
+        disenioCheckEnCurso.current.add(clave);
+        setDisenioVerificando(prev => ({ ...prev, [clave]: true }));
+        checkDesignImage(linea, item.ID ?? item.id)
+            .then(result => {
+                if (result) {
+                    setImagenesDisenioExistente(prev => ({ ...prev, [clave]: result }));
+                }
+            })
+            .catch(err => {
+                console.error(`Error al verificar imagen existente para ${clave}:`, err);
+            })
+            .finally(() => {
+                disenioCheckEnCurso.current.delete(clave);
+                setDisenioVerificando(prev => {
+                    const next = { ...prev };
+                    delete next[clave];
+                    return next;
+                });
+            });
+    }, [imagenesDisenioExistente]);
+
+    // Rol 4 (coordinador de imágenes): las imágenes se suben una vez por diseño (MARCA + DISEÑO),
+    // no por ítem. Antes de forzar la subida, se verifica si el diseño ya tiene imagen en storage
+    // (Cloudflare R2 / SharePoint) para no pedirla nuevamente.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !lineaSeleccionada) return;
+
+        const pendientes = items.filter(it => it.linea === lineaSeleccionada.value && it.marca && it.diseño);
+        const clavesUnicas = new Map();
+        pendientes.forEach(it => {
+            const clave = getDisenioKey(it);
+            if (clave && !clavesUnicas.has(clave)) {
+                clavesUnicas.set(clave, it);
+            }
+        });
+
+        clavesUnicas.forEach(it => verificarImagenDisenio(it, lineaSeleccionada.value));
+    }, [idRolPrincipal, lineaSeleccionada, items, verificarImagenDisenio]);
+
+    // Al abrir el detalle de un producto aprobado (rol 4), se verifica igual el diseño para
+    // poder mostrar las miniaturas de SharePoint/R2 en la ficha, aunque el ítem ya no esté
+    // en la grilla de pendientes.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !detalleItem) return;
+        const linea = normalizarLinea(detalleItem.linea || detalleItem.LINEA_NEGOCIO) || lineaSeleccionada?.value;
+        if (!linea) return;
+        verificarImagenDisenio(detalleItem, linea);
+    }, [idRolPrincipal, detalleItem, lineaSeleccionada, verificarImagenDisenio]);
+
+    // Bloquea la subida mientras no se sepa con certeza si el diseño ya tiene imagen en storage:
+    // subir "a ciegas" durante ese lapso podría generar un archivo huérfano o duplicado.
+    const disenioEstaVerificando = (item) => {
+        const clave = getDisenioKey(item);
+        return clave ? Boolean(disenioVerificando[clave]) : false;
+    };
+    const hayVerificacionesPendientes = (currentItems) => currentItems.some(disenioEstaVerificando);
+
+    // Actualiza la imagen (WebP en R2, o PNG en SharePoint) de un producto ya aprobado, desde el
+    // modal de Detalle del producto. Al ser el mismo diseño, la subida sobrescribe la imagen
+    // existente: es justamente el flujo para corregir/reemplazar una imagen ya publicada.
+    const handleActualizarImagenDetalle = async (tipo, file) => {
+        if (!detalleItem) return;
+        const linea = normalizarLinea(detalleItem.linea || detalleItem.LINEA_NEGOCIO) || lineaSeleccionada?.value;
+        if (!linea) return;
+
+        if (tipo === "webp" && file.type !== "image/webp") {
+            toast.error("Solo se permiten archivos WEBP");
+            return;
+        }
+        if (tipo === "png" && file.type !== "image/png") {
+            toast.error("Solo se permiten archivos PNG");
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error(`La imagen ${tipo.toUpperCase()} no debe superar 2MB`);
+            return;
+        }
+
+        const clave = getDisenioKey(detalleItem);
+        setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: true }));
+        try {
+            if (tipo === "webp") {
+                const res = await uploadItemImages(linea, detalleItem.ID ?? detalleItem.id, detalleItem.marca, detalleItem.diseño, null, file);
+                // Al reemplazar una imagen ya existente, la key (y por lo tanto la URL) es la misma
+                // de antes: sin este parámetro el navegador sirve la versión cacheada y no se ve el
+                // cambio hasta recargar la página.
+                const nuevaUrl = agregarCacheBusting(res?.data?.urls?.webp);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], webp: { exists: true, key: res.data.RUTA_IMAGEN_WEBP, url: nuevaUrl } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_WEBP: nuevaUrl || prev.RUTA_IMAGEN_WEBP } : prev);
+            } else {
+                const empresaToSend = detalleItem.EMPRESA || "";
+                const res = await uploadItemImagesSharepoint(linea, detalleItem.ID ?? detalleItem.id, detalleItem.marca, empresaToSend, detalleItem.diseño, file, null);
+                const nuevaUrl = res?.data?.urls?.png;
+                const nuevaPreview = agregarCacheBusting(res?.data?.urls?.pngPreview || nuevaUrl);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], png: { exists: true, key: res.data.RUTA_IMAGEN_PNG, url: nuevaUrl, previewUrl: nuevaPreview } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_PNG: nuevaUrl || prev.RUTA_IMAGEN_PNG } : prev);
+            }
+            toast.success(`Imagen ${tipo.toUpperCase()} actualizada correctamente.`);
+            fetchItems();
+        } catch (error) {
+            console.error(`Error al actualizar imagen ${tipo}:`, error);
+            toast.error(`Error al actualizar la imagen ${tipo.toUpperCase()}.`);
+        } finally {
+            setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: false }));
+        }
+    };
+
+    const handleSyncToSap = async () => {
+        const ids = Array.from(selectedApprovedItemIds);
+        if (ids.length === 0) {
+            toast.warning("Seleccione al menos un ítem para sincronizar con SAP.");
+            return;
+        }
+
+        setIsSyncingSap(true);
+        try {
+            const response = await syncItemsToSap(lineaSeleccionada.value, ids);
+            const result = response?.data || {};
+            const { Exitosos = 0, Fallidos = 0, Total = 0, PorEmpresa = [], ItemsOmitidos = [] } = result;
+
+            if (Fallidos === 0 && Exitosos > 0) {
+                toast.success(`Sincronización SAP: ${Exitosos} de ${Total} ítems creados correctamente.`);
+            } else if (Exitosos > 0) {
+                toast.warning(`Sincronización SAP: ${Exitosos} exitosos, ${Fallidos} fallidos de ${Total}. Revise la consola para el detalle.`);
+            } else {
+                toast.error(`Sincronización SAP: no se pudo crear ningún ítem (${Fallidos} fallidos de ${Total}). Revise la consola para el detalle.`);
+            }
+
+            console.log("Resultado sincronización SAP:", { PorEmpresa, ItemsOmitidos });
+
+            for (const empresaResult of PorEmpresa) {
+                for (const resultado of empresaResult.Resultados || []) {
+                    if (!resultado.Success) {
+                        console.warn(`❌ ${empresaResult.Empresa} - ${resultado.ItemName}: ${resultado.Message}`);
+                    }
+                }
+            }
+            for (const omitido of ItemsOmitidos) {
+                console.warn(`⚠️ Item omitido (ID ${omitido.ItemId}): ${omitido.Motivo}`);
+            }
+
+            setSelectedApprovedItemIds(new Set());
+            fetchItems();
+        } catch (error) {
+            console.error("Error al sincronizar con SAP:", error);
+            toast.error("Error al sincronizar los ítems con SAP.");
+        } finally {
+            setIsSyncingSap(false);
+        }
+    };
+
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
+            let erroresCount = 0;
+            const idsConError = new Set();
+
             if (idRolPrincipal === 5) {
+                const payloadsNuevos = [];
+                const payloadsReenvio = [];
                 for (const item of currentItems) {
                     if (item.fueRechazado) {
-                        const payload = {
+                        payloadsReenvio.push({
                             ID: item.id,
                             EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
                             CODIGO_BARRAS: item.codigo || "",
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                            CUBICAJE: item.cubicaje || "",
+                            ID_PROVEEDOR: item.proveedor || "",
+                            PROCEDENCIA: item.procedencia || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                            TIPO: item.tipo || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
-                            LINEA_NEGOCIO: lineaSeleccionada.value,
+                            LINEA_NEGOCIO: normalizarLinea(lineaSeleccionada.value),
                             ES_NUEVO: esNuevo(item),
+                            VISIBLE_EASYSALES: esVisibleEasySales(item),
                             RECHAZO: false,
                             FASE: 1
-                        };
-                        await patchItemRole3(payload);
+                        });
                     } else {
-                        const payload = {
+                        payloadsNuevos.push({
+                            __localId: item.id,
                             EMPRESA: diccionarioEmpresas[item.idEmpresa] || "",
                             CODIGO_BARRAS: item.codigo || "",
                             DESCRIPCION: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
                             CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                            CUBICAJE: item.cubicaje || "",
+                            ID_PROVEEDOR: item.proveedor || "",
+                            PROCEDENCIA: item.procedencia || "",
                             NOMBRE_EXTRANJERO: item.nombreExtranjero || "",
                             PARTIDA_ARANCELARIA: item.partidaArancelaria || "",
+                            TIPO: item.tipo || "",
                             MARCA: item.marca || "",
                             OBSERVACIONES: item.comentarios || "",
-                            LINEA_NEGOCIO: lineaSeleccionada.value,
+                            LINEA_NEGOCIO: normalizarLinea(lineaSeleccionada.value),
                             ES_NUEVO: esNuevo(item),
-                        };
-                        await saveItemRole5(payload);
+                            VISIBLE_EASYSALES: esVisibleEasySales(item),
+                        });
                     }
                 }
+
+                const [respReenvio, respNuevos] = await Promise.all([
+                    payloadsReenvio.length > 0 ? patchItemsRole3Bulk(payloadsReenvio) : Promise.resolve(null),
+                    payloadsNuevos.length > 0 ? saveItemsRole5Bulk(payloadsNuevos.map(({ __localId, ...p }) => p)) : Promise.resolve(null),
+                ]);
+
+                (respReenvio?.errors || []).forEach(e => idsConError.add(e.id));
+                (respNuevos?.errors || []).forEach(e => idsConError.add(payloadsNuevos[e.index]?.__localId));
+                erroresCount = idsConError.size;
             } else if (idRolPrincipal === 3) {
-                for (const item of currentItems) {
-                    const payload = {
-                        ID: item.ID,
-                        DISENIO: item.diseño || "",
-                        ANCHO: item.ancho || "",
-                        LONAS: item.lonas || "",
-                        NOMENCLATURA: item.nomenclatura || "",
-                        CARGA: item.carga || "",
-                        VELOCIDAD: item.velocidad || "",
-                        RIN: item.rin || "",
-                        SERIE: item.serie || "",
-                        OBSERVACIONES: item.comentarios || "",
-                        FASE: 2,
-                        CATEGORIA: item.categoria || "",
-                        SEGMENTO: item.segmento || "",
-                        APLICACION: item.aplicacion || "",
-                        EJE: item.eje || "",
-                        LINEA_NEGOCIO: lineaSeleccionada.value,
-                        ...(item.fueRechazado && { RECHAZO: false })
-                    };
-                    await patchItemRole3(payload);
-                }
+                const payloads = currentItems.map(item => ({
+                    ID: item.ID,
+                    DISENIO: item.diseño || "",
+                    ANCHO: item.ancho || "",
+                    LONAS: item.lonas || "",
+                    NOMENCLATURA: item.nomenclatura || "",
+                    CARGA: item.carga || "",
+                    VELOCIDAD: item.velocidad || "",
+                    RIN: item.rin || "",
+                    SERIE: item.serie || "",
+                    OBSERVACIONES: item.comentarios || "",
+                    FASE: 2,
+                    CATEGORIA: item.categoria || "",
+                    SEGMENTO: item.segmento || "",
+                    APLICACION: item.aplicacion || "",
+                    EJE: item.eje || "",
+                    LINEA_NEGOCIO: normalizarLinea(lineaSeleccionada.value),
+                    ...(item.fueRechazado && { RECHAZO: false })
+                }));
+                const response = await patchItemsRole3Bulk(payloads);
+                (response?.errors || []).forEach(e => idsConError.add(e.id));
+                erroresCount = idsConError.size;
             } else if (idRolPrincipal === 4) {
+                const payloadsFase3 = [];
                 for (const item of currentItems) {
+                    const empresaToSend = item.EMPRESA || "";
+                    const disenioExistente = imagenesDisenioExistente[getDisenioKey(item)];
+                    // Solo se vincula lo que el diseño ya tiene en storage Y que este ítem no está subiendo de nuevo.
+                    const debeVincularExistente =
+                        (!item.imagenWebp && disenioExistente?.webp?.exists) ||
+                        (!item.imagenPng && disenioExistente?.png?.exists);
+
                     if (item.imagenWebp) {
                         try {
                             await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, item.diseño, null, item.imagenWebp);
@@ -1187,26 +1742,53 @@ function Llantas() {
                     }
                     if (item.imagenPng) {
                         try {
-                            const empresaToSend = item.EMPRESA || "";
                             await uploadItemImagesSharepoint(lineaSeleccionada.value, item.ID, item.marca, empresaToSend, item.diseño, item.imagenPng, null);
                         } catch (uploadError) {
                             console.error(`Error al subir imagen PNG para el ítem ${item.ID}:`, uploadError);
                             toast.error(`Error al subir imagen PNG para ${item.marca} ${item.diseño}`);
                         }
                     }
-                    await patchItemRole3({
+                    if (debeVincularExistente) {
+                        // Las imágenes se suben una vez por diseño (MARCA + DISEÑO), no por ítem:
+                        // aquí se vincula al ítem la que ya existe en storage, sin volver a subirla.
+                        try {
+                            await linkExistingItemImage(lineaSeleccionada.value, item.ID);
+                        } catch (linkError) {
+                            console.error(`Error al vincular imagen existente para el ítem ${item.ID}:`, linkError);
+                            toast.error(`Error al vincular imagen existente para ${item.marca} ${item.diseño}`);
+                        }
+                    }
+                    payloadsFase3.push({
                         ID: item.ID,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
-                        LINEA_NEGOCIO: lineaSeleccionada.value,
+                        LINEA_NEGOCIO: normalizarLinea(lineaSeleccionada.value),
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
                 }
+                const response = await patchItemsRole3Bulk(payloadsFase3);
+                (response?.errors || []).forEach(e => idsConError.add(e.id));
+                erroresCount = idsConError.size;
             }
 
-            toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
-            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))));
-            setSelectedItemIds(new Set());
+            const enviados = currentItems.length - erroresCount;
+            if (erroresCount === 0) {
+                toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
+            } else if (enviados > 0) {
+                toast.warning(`Se enviaron ${enviados} de ${currentItems.length} ítems a revisión. ${erroresCount} fallaron y quedaron pendientes.`);
+            } else {
+                toast.error(`No se pudo enviar ningún ítem a revisión.`);
+            }
+
+            const idsEnviados = new Set(
+                currentItems.filter(i => !idsConError.has(i.id)).map(i => i.id)
+            );
+            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && idsEnviados.has(i.id))));
+            setSelectedItemIds(prev => {
+                const next = new Set(prev);
+                idsEnviados.forEach(id => next.delete(id));
+                return next;
+            });
             setIsSAPModalOpen(false);
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
@@ -1222,7 +1804,39 @@ function Llantas() {
         setItems(prev => prev.filter(i => i.id !== id));
     };
 
+    /* Al aprobar, el backend crea el ítem en SAP en la misma petición (best-effort:
+       si SAP falla el ítem queda aprobado igual). Aquí se le dice al usuario qué
+       pasó de verdad, en vez de dar siempre por bueno el envío a SAP. */
+    const informarResultadoAprobacion = (sapSync, linea) => {
+        // HERRAMIENTAS se sincroniza al crearse, no al aprobar
+        if (String(linea).toUpperCase() === "HERRAMIENTAS") {
+            toast.success("Ítem aprobado correctamente.");
+            return;
+        }
+
+        const resultados = (sapSync?.PorEmpresa || []).flatMap(e => e.Resultados || []);
+        const creado = resultados.find(r => r.Success);
+        const motivo =
+            resultados.find(r => !r.Success)?.Message ||
+            sapSync?.ItemsOmitidos?.[0]?.Motivo ||
+            "SAP no respondió";
+
+        if (sapSync && sapSync.Exitosos > 0 && sapSync.Fallidos === 0) {
+            toast.success(
+                `Ítem aprobado y creado en SAP${creado?.ItemCode ? ` (${creado.ItemCode})` : ""}.`
+            );
+            return;
+        }
+
+        console.warn("Aprobado, pero no se creó en SAP:", sapSync || "sin respuesta de sincronización");
+        toast.warning(
+            `Ítem aprobado, pero no se pudo crear en SAP: ${motivo}. Puede reintentarlo desde "Crear artículos en SAP".`
+        );
+    };
+
     const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
+        if (isProcessingRol1) return;
+        setIsProcessingRol1(true);
         try {
             if (action === "reject") {
                 // Mapeo Rol -> Fase
@@ -1244,15 +1858,17 @@ function Llantas() {
                     }
                 }
             } else if (action === "approve") {
-                await approveItemMDM(itemId, lineaSeleccionada.value);
-                toast.success("Ítem aprobado correctamente.");
+                const respuesta = await approveItemMDM(itemId, lineaSeleccionada.value);
+                informarResultadoAprobacion(respuesta?.sapSync, lineaSeleccionada.value);
             }
-            setItems(prev => prev.filter(i => i.id !== itemId));
+            await fetchItems();
             // Si era el último ítem, retroceder el índice
             setCurrentItemIndex(prev => Math.max(0, prev - 1));
         } catch (error) {
             console.error("Error al procesar acción:", error);
             toast.error("Error al procesar la acción.");
+        } finally {
+            setIsProcessingRol1(false);
         }
     };
 
@@ -1265,10 +1881,26 @@ function Llantas() {
         return matchKey ? MARCAS_POR_EMPRESA[matchKey] : [];
     }, [diccionarioEmpresas]);
 
+    // Filas activas de core.dim_marca_proveedor_procedencia para una empresa + línea de negocio
+    // dadas. Es la fuente de Marca/Proveedor/Procedencia para Llantas y Llantas Moto.
+    const getFilasMarcaProveedorProcedencia = useCallback((nombreEmpresa, linea) => {
+        if (!nombreEmpresa || !linea) return [];
+        const empresaNorm = String(nombreEmpresa).trim().toUpperCase();
+        const lineaNorm = String(linea).trim().toUpperCase();
+        return marcaProveedorProcedencia.filter(row =>
+            row.DMPP_ACTIVO !== false &&
+            String(row.DMPP_EMPRESA || "").trim().toUpperCase() === empresaNorm &&
+            String(row.DMPP_LINEA_NEGOCIO || "").trim().toUpperCase() === lineaNorm
+        );
+    }, [marcaProveedorProcedencia]);
+
     const getBrandOptions = useCallback((idEmp) => {
-        if (idRolPrincipal === 5 && lineaSeleccionada?.value === "LLANTAS MOTO") {
-            return ["CST", "KEYSTONE", "MAXXIS MOTO"].map(b => ({ value: b, label: b }));
+        if (esLlantas) {
+            const filas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmp], lineaSeleccionada?.value);
+            const marcas = Array.from(new Set(filas.map(f => f.DMPP_MARCA).filter(Boolean)));
+            return marcas.map(m => ({ value: m, label: m }));
         }
+        // LUBRICANTES / HERRAMIENTAS conservan el listado histórico hardcodeado.
         const brands = getMarcasForEmpresa(idEmp);
         if (brands.length > 0) {
             return brands.map(b => ({ value: b, label: b }));
@@ -1276,21 +1908,82 @@ function Llantas() {
         const allBrands = Object.values(MARCAS_POR_EMPRESA).flat();
         const uniqueBrands = Array.from(new Set(allBrands));
         return uniqueBrands.map(b => ({ value: b, label: b }));
-    }, [getMarcasForEmpresa, idRolPrincipal, lineaSeleccionada]);
+    }, [esLlantas, diccionarioEmpresas, lineaSeleccionada, getFilasMarcaProveedorProcedencia, getMarcasForEmpresa]);
+
+    // El "id" real de un proveedor es su código de socio de negocio (DMPP_ID_PROVEEDOR,
+    // resuelto en el backend contra core.dim_socios). Si ese cruce no encontró un socio tipo
+    // PROVEEDOR con ese nombre exacto para la empresa (dato faltante en SAP/dim_socios, no un
+    // error del usuario), se cae al nombre para no bloquear la selección; queda así
+    // identificable para corregirlo en origen.
+    const resolverIdProveedor = (fila) => fila?.DMPP_ID_PROVEEDOR || fila?.DMPP_PROVEEDOR || "";
+
+    // Opciones de "Proveedor" válidas para una marca (Llantas/Llantas Moto), desde
+    // core.dim_marca_proveedor_procedencia. value = código de socio (no el nombre).
+    const getProveedorOptions = useCallback((idEmp, marca) => {
+        if (!marca) return [];
+        const filas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmp], lineaSeleccionada?.value)
+            .filter(f => String(f.DMPP_MARCA || "").trim().toUpperCase() === String(marca).trim().toUpperCase());
+        const vistos = new Set();
+        const opciones = [];
+        filas.forEach(f => {
+            const id = resolverIdProveedor(f);
+            if (!id || vistos.has(id)) return;
+            vistos.add(id);
+            opciones.push({ value: id, label: f.DMPP_PROVEEDOR });
+        });
+        return opciones;
+    }, [diccionarioEmpresas, lineaSeleccionada, getFilasMarcaProveedorProcedencia]);
+
+    // Opciones de "Procedencia" válidas para una combinación marca+proveedor (Llantas/Llantas
+    // Moto), desde core.dim_marca_proveedor_procedencia. Puede no haber ninguna (procedencia nula).
+    // `idProveedor` es el value que entrega getProveedorOptions (código de socio o, en su
+    // defecto, el nombre).
+    const getProcedenciaOptions = useCallback((idEmp, marca, idProveedor) => {
+        if (!marca || !idProveedor) return [];
+        const filas = getFilasMarcaProveedorProcedencia(diccionarioEmpresas[idEmp], lineaSeleccionada?.value)
+            .filter(f =>
+                String(f.DMPP_MARCA || "").trim().toUpperCase() === String(marca).trim().toUpperCase() &&
+                resolverIdProveedor(f) === idProveedor
+            );
+        const procedencias = Array.from(new Set(filas.map(f => f.DMPP_PROCEDENCIA).filter(Boolean)));
+        return procedencias.map(p => ({ value: p, label: p }));
+    }, [diccionarioEmpresas, lineaSeleccionada, getFilasMarcaProveedorProcedencia]);
+
+    // Opciones de "Tipo" (AUTO/CAMIONETA, INDUSTRIAL, CAMION, MOTO) válidas para una marca:
+    // se derivan de mapeoMarcas (dim_caracteristicas_neumaticos), así que solo se ofrecen
+    // combinaciones marca+tipo que realmente tienen un codMarca definido.
+    const getTipoOptionsForMarca = useCallback((marca) => {
+        if (!marca) return [];
+        const tipos = mapeoMarcas
+            .filter(m => String(m.marca || "").toUpperCase() === String(marca).toUpperCase())
+            .map(m => m.tipo)
+            .filter(Boolean);
+        const uniqueTipos = Array.from(new Set(tipos));
+        return uniqueTipos.map(t => ({ value: t, label: t }));
+    }, [mapeoMarcas]);
+
+    // Partidas arancelarias válidas para un tipo de neumático (core.dim_partidas_arancelarias,
+    // vía /dwh-postgres/neumaticos). La mayoría de tipos tiene una sola partida (se autocompleta
+    // sin mostrar select); AUTO/CAMIONETA y CAMION tienen 2, así que ahí sí se muestra el select
+    // ya acotado a esas opciones en vez del listado fijo por línea de negocio que había antes.
+    const getPartidaArancelariaOptionsForTipo = useCallback((tipo) => {
+        if (!tipo) return [];
+        const fila = mapeoMarcas.find(m => String(m.tipo || "").toUpperCase() === String(tipo).toUpperCase());
+        const partidas = Array.from(new Set(fila?.partidas_arancelarias || []));
+        return partidas.map(p => ({ value: p, label: p }));
+    }, [mapeoMarcas]);
 
     const actualizarCampoFila = (id, campo, valor) => {
         let val = typeof valor === 'string' ? valor.toUpperCase() : valor;
 
-        if (idRolPrincipal === 5 && campo === "cubicaje") {
-            val = valor.replace(/[^0-9.]/g, "");
-            if (val.startsWith(".")) val = "0" + val;
-            const parts = val.split(".");
-            if (parts.length > 2) val = parts[0] + "." + parts.slice(1).join("");
-        } else if (idRolPrincipal === 3) {
-            if (["rin", "serie", "ancho"].includes(campo)) val = handleRinSerieAncho(valor);
-            else if (campo === "lonas") val = handleNumericInput(valor);
-            else if (campo === "carga") val = handleCargaInput(valor);
-            else if (campo === "velocidad") val = handleVelocidadInput(valor);
+        if (idRolPrincipal === 3 && ["rin", "serie", "ancho", "lonas"].includes(campo)) {
+            setItems(prev => prev.map(it => {
+                if (it.id !== id) return it;
+                const baseItem = { ...it, [campo]: val };
+                baseItem.codigo = calcularCodigoBarras(baseItem);
+                return baseItem;
+            }));
+            return;
         }
 
         if (idRolPrincipal === 5 && campo === "isNew") {
@@ -1301,7 +1994,8 @@ function Llantas() {
                 baseItem.nombreSistema = calcularNombreSistemaFinal(
                     it.nombreSistemaBase || it.nombreSistema || "",
                     it.colorLetra,
-                    baseItem.isNew
+                    baseItem.isNew,
+                    it.marca
                 );
                 return baseItem;
             }));
@@ -1316,8 +2010,23 @@ function Llantas() {
                     const brandIsAllowed = allowedMarcas.some(b => String(b).trim().toUpperCase() === String(it.marca).trim().toUpperCase());
                     if (it.marca && !brandIsAllowed && lineaSeleccionada?.value !== 'LLANTAS MOTO') {
                         baseItem.marca = "";
-                        baseItem.codigo = calcularCodigoBarras(baseItem);
                     }
+                    // El tipo depende de marca+empresa: al cambiar de empresa se reinicia
+                    // siempre para forzar a recargar/reelegir con la nueva combinación.
+                    if (it.tipo) {
+                        baseItem.tipo = "";
+                    }
+                    // El nombre del sistema inicia con la marca: si esta se limpió por el
+                    // cambio de empresa, se recalcula para que deje de mostrarla.
+                    if (baseItem.marca !== it.marca) {
+                        baseItem.nombreSistema = calcularNombreSistemaFinal(
+                            it.nombreSistemaBase || it.nombreSistema || "",
+                            it.colorLetra,
+                            esNuevo(it),
+                            baseItem.marca
+                        );
+                    }
+                    baseItem.codigo = calcularCodigoBarras(baseItem);
                     return baseItem;
                 }
                 return it;
@@ -1330,27 +2039,70 @@ function Llantas() {
                 if (it.id === id) {
                     const baseItem = { ...it, marca: val };
 
-                    const brandName = String(val).trim().toUpperCase();
-                    let companyKey = null;
-                    for (const [comp, brands] of Object.entries(MARCAS_POR_EMPRESA)) {
-                        if (brands.some(b => b.toUpperCase() === brandName)) {
-                            companyKey = comp;
-                            break;
+                    // Para Llantas/Llantas Moto la empresa se elige primero y la marca ya viene
+                    // filtrada por esa empresa (dim_marca_proveedor_procedencia), así que no debe
+                    // reinferirse la empresa a partir de la marca (eso solo aplica al listado
+                    // hardcodeado histórico de Lubricantes/Herramientas).
+                    if (!esLlantas) {
+                        const brandName = String(val).trim().toUpperCase();
+                        let companyKey = null;
+                        for (const [comp, brands] of Object.entries(MARCAS_POR_EMPRESA)) {
+                            if (brands.some(b => b.toUpperCase() === brandName)) {
+                                companyKey = comp;
+                                break;
+                            }
+                        }
+                        if (companyKey && lineaSeleccionada?.value !== 'LLANTAS MOTO') {
+                            const companyId = Object.keys(diccionarioEmpresas).find(
+                                k => String(diccionarioEmpresas[k]).trim().toUpperCase() === companyKey
+                            );
+                            if (companyId) {
+                                baseItem.idEmpresa = companyId;
+                            }
                         }
                     }
-                    if (companyKey && lineaSeleccionada?.value !== 'LLANTAS MOTO') {
-                        const companyId = Object.keys(diccionarioEmpresas).find(
-                            k => String(diccionarioEmpresas[k]).trim().toUpperCase() === companyKey
-                        );
-                        if (companyId) {
-                            baseItem.idEmpresa = companyId;
-                        }
+
+                    // El tipo (AUTO/CAMIONETA, INDUSTRIAL, CAMION, MOTO) depende de la marca: al
+                    // cambiar a una marca distinta se reinicia siempre, para forzar a recargar/
+                    // reelegir el tipo con las opciones de la nueva marca (no solo cuando el valor
+                    // previo queda inválido).
+                    const marcaCambio = String(it.marca || "").trim().toUpperCase() !== String(val || "").trim().toUpperCase();
+                    if (it.tipo && marcaCambio) {
+                        baseItem.tipo = "";
                     }
+
+                    // Proveedor y procedencia dependen de la marca (dim_marca_proveedor_procedencia):
+                    // al cambiar de marca se reinician para forzar a reelegir con la nueva combinación.
+                    if (esLlantas && marcaCambio) {
+                        baseItem.proveedor = "";
+                        baseItem.procedencia = "";
+                    }
+
+                    // El nombre del sistema siempre inicia con la marca seleccionada actualmente.
+                    baseItem.nombreSistema = calcularNombreSistemaFinal(
+                        it.nombreSistemaBase || it.nombreSistema || "",
+                        it.colorLetra,
+                        esNuevo(it),
+                        val
+                    );
 
                     baseItem.codigo = calcularCodigoBarras(baseItem);
                     return baseItem;
                 }
                 return it;
+            }));
+            return;
+        }
+
+        if (idRolPrincipal === 5 && esLlantas && campo === "proveedor") {
+            setItems(prev => prev.map(it => {
+                if (it.id !== id) return it;
+                const baseItem = { ...it, proveedor: val };
+                // Si la combinación marca+proveedor solo tiene una procedencia posible, se
+                // autocompleta; si no, se limpia para que se vuelva a elegir manualmente.
+                const opcionesProcedencia = getProcedenciaOptions(it.idEmpresa, it.marca, val);
+                baseItem.procedencia = opcionesProcedencia.length === 1 ? opcionesProcedencia[0].value : "";
+                return baseItem;
             }));
             return;
         }
@@ -1371,7 +2123,7 @@ function Llantas() {
                                     ...it,
                                     parsedData: parsed,
                                     nombreSistemaBase: parsedName,
-                                    nombreSistema: calcularNombreSistemaFinal(parsedName, it.colorLetra, esNuevo(it))
+                                    nombreSistema: calcularNombreSistemaFinal(parsedName, it.colorLetra, esNuevo(it), it.marca)
                                 };
                                 return {
                                     ...baseItem,
@@ -1390,13 +2142,20 @@ function Llantas() {
         }
 
         if (idRolPrincipal === 5) {
-            const barcodeFields = ["partidaArancelaria", "diseño", "letraDiseño", "colorLetra"];
+            const barcodeFields = ["partidaArancelaria", "tipo", "diseño", "letraDiseño", "colorLetra", "rin", "ancho", "serie", "lonas"];
             if (barcodeFields.includes(campo)) {
                 setItems(prev => prev.map(it => {
                     if (it.id === id) {
                         const baseItem = { ...it, [campo]: val };
                         if (campo === "colorLetra") {
-                            baseItem.nombreSistema = calcularNombreSistemaFinal(it.nombreSistemaBase || it.nombreSistema || "", val, esNuevo(it));
+                            baseItem.nombreSistema = calcularNombreSistemaFinal(it.nombreSistemaBase || it.nombreSistema || "", val, esNuevo(it), it.marca);
+                        }
+                        if (campo === "tipo") {
+                            // La partida arancelaria depende del tipo (core.dim_partidas_arancelarias):
+                            // si hay una sola opción se autocompleta; si hay más de una (hoy solo pasa
+                            // con AUTO/CAMIONETA y CAMION) se limpia para que se elija en el select acotado.
+                            const opcionesPartida = getPartidaArancelariaOptionsForTipo(val);
+                            baseItem.partidaArancelaria = opcionesPartida.length === 1 ? opcionesPartida[0].value : "";
                         }
                         return {
                             ...baseItem,
@@ -1483,7 +2242,7 @@ function Llantas() {
                                 style={{ display: "none" }}
                                 ref={fileInputRef}
                                 onChange={handleImportExcel}
-                            />  
+                            />
                             <ButtonUI
                                 text="Importar desde Excel"
                                 iconLeft="FaFileExcel"
@@ -1618,6 +2377,8 @@ function Llantas() {
                                                     { key: 'codigo', label: "Código Barras", role: 5 },
                                                     { key: 'idEmpresa', label: "Empresa", role: 5 },
                                                     { key: 'codigoProveedor', label: "Cód. Proveedor", role: 5 },
+                                                    { key: 'proveedor', label: "Proveedor", role: 5 },
+                                                    { key: 'procedencia', label: "Procedencia", role: 5 },
                                                     { key: 'cubicaje', label: "Cubicaje", role: 5 },
                                                     { key: 'descripcionRol5', label: "Descripción Comercial", role: 5 },
                                                     { key: 'nombreExtranjero', label: "Descripción Proveedor", role: 5 },
@@ -1636,7 +2397,18 @@ function Llantas() {
                                                     { key: 'aplicacion', label: "Aplicación", role: 3 },
                                                     { key: 'eje', label: "Eje", role: 3 },
                                                 ].map(({ key, label, role }) => {
-                                                    const value = item[key];
+                                                    // En ambos casos "proveedor" guarda el código de socio de negocio de SAP
+                                                    // (CardCode), no el nombre, así que siempre se resuelve el nombre legible
+                                                    // para mostrarlo: para Llantas/Llantas Moto contra dim_marca_proveedor_procedencia
+                                                    // (getProveedorOptions), para el resto de líneas contra proveedoresPorEmpresa.
+                                                    const esLlantasItem = item.linea === "LLANTAS" || item.linea === "LLANTAS MOTO";
+                                                    const value = key === 'proveedor'
+                                                        ? (item.proveedor
+                                                            ? (esLlantasItem
+                                                                ? (getProveedorOptions(item.idEmpresa, item.marca).find(o => o.value === item.proveedor)?.label || item.proveedor)
+                                                                : `${item.proveedor} - ${(proveedoresPorEmpresa[getCodigoProveedorEmpresa(item.idEmpresa)] || []).find(o => o.value === item.proveedor)?.label || ''}`)
+                                                            : '')
+                                                        : item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
                                                     let borderColor = isDark ? '#1f2937' : '#eee';
 
@@ -1678,6 +2450,7 @@ function Llantas() {
                                             iconLeft="FaTimes"
                                             variant="outlined"
                                             pcolor={theme?.colors?.error || '#dc3545'}
+                                            disabled={isProcessingRol1}
                                             onClick={() => {
                                                 setItemToReject(item);
                                                 setIsRejectModalOpen(true);
@@ -1688,7 +2461,7 @@ function Llantas() {
                                                 text="Anterior ítem"
                                                 iconLeft="FaChevronLeft"
                                                 variant="outlined"
-                                                disabled={currentItemIndex <= 0}
+                                                disabled={isProcessingRol1 || currentItemIndex <= 0}
                                                 onClick={() => setCurrentItemIndex(prev => prev - 1)}
                                             />
                                             <TextUI size="13px" weight="500" color={theme?.colors?.textSecondary}>
@@ -1698,7 +2471,7 @@ function Llantas() {
                                                 text="Siguiente ítem"
                                                 iconRight="FaChevronRight"
                                                 variant="outlined"
-                                                disabled={currentItemIndex >= itemsFiltrados.length - 1}
+                                                disabled={isProcessingRol1 || currentItemIndex >= itemsFiltrados.length - 1}
                                                 onClick={() => setCurrentItemIndex(prev => prev + 1)}
                                             />
                                         </div>
@@ -1706,9 +2479,11 @@ function Llantas() {
                                             text="Aceptar"
                                             iconLeft="FaCheck"
                                             pcolor={theme?.colors?.success || '#28a745'}
+                                            isAsync
+                                            disabled={isProcessingRol1}
                                             onClick={() => {
                                                 toast.success(`Ítem ${item.codigo || item.diseño} aceptado exitosamente`);
-                                                handleActionRol1(item.id, "approve");
+                                                return handleActionRol1(item.id, "approve");
                                             }}
                                         />
                                     </div>
@@ -1770,7 +2545,7 @@ function Llantas() {
                                                 <>
                                                     <Th>Marca</Th>
                                                     <Th $min="150px">Diseño</Th>
-                                                    <Th $min="250px">Nombre</Th>
+                                                    <Th $w="250px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                     <Th>Imagen PNG</Th>
                                                     <Th>Imagen WebP</Th>
                                                     <Th $min="200px">Comentarios</Th>
@@ -1781,17 +2556,20 @@ function Llantas() {
                                                 <>
                                                     <Th>Empresa</Th>
                                                     <Th $min="200px">Marca</Th>
-                                                    <Th $min="380px">Nombre</Th>
+                                                    <Th $min="140px">Tipo</Th>
+                                                    <Th $w="380px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                     <Th $min="150px">Diseño</Th>
                                                     <Th>Letra Diseño</Th>
                                                     <Th>Color Letra</Th>
                                                     <Th $min="300px">Código Barras</Th>
                                                     <Th>Código Proveedor</Th>
+                                                    <Th $min="220px">Proveedor</Th>
+                                                    <Th $min="160px">Procedencia</Th>
                                                     <Th>Descripción Proveedor</Th>
-                                                    <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
                                                     <Th $min="380px">Nombre Del Sistema</Th>
                                                     <Th $align="center" $w="90px">Es nuevo</Th>
+                                                    <Th $align="center" $w="140px">Visible EasySales</Th>
                                                     <Th $min="200px">Comentarios</Th>
                                                     <Th $min="100px" $w="100px" $align="center" $fija="right">Acciones</Th>
                                                 </>
@@ -1826,7 +2604,26 @@ function Llantas() {
                                                 {idRolPrincipal !== 5 && idRolPrincipal !== 3 && idRolPrincipal !== 4 && (
                                                     <>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.marcaRef || ""} onChange={(v) => actualizarCampoFila(item.id, "marcaRef", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={
+                                                                    lineaSeleccionada?.value === "LLANTAS MOTO"
+                                                                        ? [{ value: "4011.40.00.00", label: "4011.40.00.00" }]
+                                                                        : [
+                                                                            { value: "4011.10.10.00", label: "4011.10.10.00" },
+                                                                            { value: "4011.20.10.10", label: "4011.20.10.10" },
+                                                                            { value: "4011.20.10.90", label: "4011.20.10.90" },
+                                                                            { value: "4011.20.90.10", label: "4011.20.90.10" },
+                                                                            { value: "4011.20.90.90", label: "4011.20.90.90" },
+                                                                            { value: "4011.40.00.00", label: "4011.40.00.00" },
+                                                                        ]
+                                                                }
+                                                                value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
+                                                                minWidth="150px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "150px" }} value={item.medida || ""} onChange={(v) => actualizarCampoFila(item.id, "medida", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.robustez || ""} onChange={(v) => actualizarCampoFila(item.id, "robustez", v)} /></Td>
@@ -1841,10 +2638,10 @@ function Llantas() {
                                                             </CeldaLectura>
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.rin || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "rin", handleNumericInput(v))} /></Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.rin || ""} formatValue={handleRinSerieAncho} onChange={(v) => actualizarCampoFila(item.id, "rin", handleRinSerieAncho(v))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.serie || ""} formatValue={handleOneDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "serie", handleOneDecimalInput(v))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.lonas || ""} formatValue={handleNumericInput} onChange={(v) => actualizarCampoFila(item.id, "lonas", handleNumericInput(v))} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.ancho || ""} formatValue={handleOneDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "ancho", handleOneDecimalInput(v))} /></Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.ancho || ""} formatValue={handleRinSerieAncho} onChange={(v) => actualizarCampoFila(item.id, "ancho", handleRinSerieAncho(v))} /></Td>
                                                         <Td $densa>
                                                             <SelectUI
                                                                 options={TIPOS_LLANTAS}
@@ -1942,7 +2739,7 @@ function Llantas() {
                                                                 {item.diseño || "-"}
                                                             </CeldaLectura>
                                                         </Td>
-                                                        <Td $densa>
+                                                        <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="250px">
                                                             <CeldaLectura>
                                                                 {item.descripcion || "-"}
                                                             </CeldaLectura>
@@ -1958,7 +2755,8 @@ function Llantas() {
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
-                                                                cursor: 'pointer',
+                                                                cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                                opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                                 transition: 'all 0.2s ease',
                                                                 overflow: 'hidden'
                                                             }}
@@ -1970,15 +2768,24 @@ function Llantas() {
                                                                     e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                     e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                                 }}
-                                                                onClick={() => document.getElementById(`png-upload-${item.id}`).click()}
+                                                                onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`png-upload-${item.id}`).click(); }}
+                                                                title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenPng && imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? "Ya existe una imagen PNG para este diseño. Click para reemplazarla." : undefined)}
                                                             >
-                                                                {item.imagenPng ? (
+                                                                {disenioEstaVerificando(item) ? (
+                                                                    <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                                ) : item.imagenPng ? (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                         <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                             {item.imagenPng.name}
                                                                         </TextUI>
                                                                     </div>
+                                                                ) : imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? (
+                                                                    <img
+                                                                        src={imagenesDisenioExistente[getDisenioKey(item)]?.png?.previewUrl || imagenesDisenioExistente[getDisenioKey(item)]?.png?.url}
+                                                                        alt="Imagen PNG existente"
+                                                                        style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                    />
                                                                 ) : (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                         <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>📄</span>
@@ -1989,6 +2796,7 @@ function Llantas() {
                                                                     id={`png-upload-${item.id}`}
                                                                     type="file"
                                                                     accept=".png"
+                                                                    disabled={disenioEstaVerificando(item)}
                                                                     style={{ display: 'none' }}
                                                                     onChange={(e) => {
                                                                         const file = e.target.files[0];
@@ -2018,7 +2826,8 @@ function Llantas() {
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
-                                                                cursor: 'pointer',
+                                                                cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                                opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                                 transition: 'all 0.2s ease',
                                                                 overflow: 'hidden'
                                                             }}
@@ -2030,15 +2839,24 @@ function Llantas() {
                                                                     e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                     e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                                 }}
-                                                                onClick={() => document.getElementById(`webp-upload-${item.id}`).click()}
+                                                                onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`webp-upload-${item.id}`).click(); }}
+                                                                title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenWebp && imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? "Ya existe una imagen WebP para este diseño. Click para reemplazarla." : undefined)}
                                                             >
-                                                                {item.imagenWebp ? (
+                                                                {disenioEstaVerificando(item) ? (
+                                                                    <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                                ) : item.imagenWebp ? (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                         <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                             {item.imagenWebp.name}
                                                                         </TextUI>
                                                                     </div>
+                                                                ) : imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? (
+                                                                    <img
+                                                                        src={imagenesDisenioExistente[getDisenioKey(item)]?.webp?.url}
+                                                                        alt="Imagen WebP existente"
+                                                                        style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                    />
                                                                 ) : (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                         <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>🖼️</span>
@@ -2049,6 +2867,7 @@ function Llantas() {
                                                                     id={`webp-upload-${item.id}`}
                                                                     type="file"
                                                                     accept=".webp"
+                                                                    disabled={disenioEstaVerificando(item)}
                                                                     style={{ display: 'none' }}
                                                                     onChange={(e) => {
                                                                         const file = e.target.files[0];
@@ -2110,7 +2929,16 @@ function Llantas() {
                                                                 isCreatable={true}
                                                             />
                                                         </Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={getTipoOptionsForMarca(item.marca)}
+                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value)}
+                                                                minWidth="160px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="380px"><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
                                                         <Td $densa><InputUI maxLength={20} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 20))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></Td>
                                                         <Td $densa>
@@ -2124,32 +2952,65 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
+                                                        <Td $densa>
+                                                            {(() => {
+                                                                const opcionesProveedor = getProveedorOptions(item.idEmpresa, item.marca);
+                                                                return (
+                                                                    <SelectUI
+                                                                        options={opcionesProveedor}
+                                                                        value={item.proveedor ? { value: item.proveedor, label: opcionesProveedor.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                        onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                        minWidth="200px"
+                                                                        style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                                    />
+                                                                );
+                                                            })()}
+                                                        </Td>
                                                         <Td $densa>
                                                             <SelectUI
-                                                                options={
-                                                                    lineaSeleccionada?.value === "LLANTAS MOTO"
-                                                                        ? [{ value: "4011.40.00.00", label: "4011.40.00.00" }]
-                                                                        : [
-                                                                            { value: "4011.20.10.00", label: "4011.20.10.00" },
-                                                                            { value: "4011.20.90.00", label: "4011.20.90.00" },
-                                                                            { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                            { value: "4011.80.00.12", label: "4011.80.00.12" },
-                                                                            { value: "4011.10.90.00", label: "4011.10.90.00" },
-                                                                        ]
-                                                                }
-                                                                value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
-                                                                minWidth="140px"
+                                                                options={getProcedenciaOptions(item.idEmpresa, item.marca, item.proveedor)}
+                                                                value={item.procedencia ? { value: item.procedencia, label: item.procedencia } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "procedencia", v?.value)}
+                                                                minWidth="160px"
                                                                 style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
                                                             />
+                                                        </Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
+                                                        <Td $densa>
+                                                            {(() => {
+                                                                // Ya no se elige libremente: se deriva del tipo (core.dim_partidas_arancelarias).
+                                                                // Solo se muestra un select cuando el tipo tiene más de una partida válida
+                                                                // (hoy: AUTO/CAMIONETA y CAMION); si tiene una sola, se muestra de solo lectura.
+                                                                const opcionesPartida = getPartidaArancelariaOptionsForTipo(item.tipo);
+                                                                if (opcionesPartida.length > 1) {
+                                                                    return (
+                                                                        <SelectUI
+                                                                            options={opcionesPartida}
+                                                                            value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
+                                                                            onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
+                                                                            minWidth="140px"
+                                                                            style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                                        />
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "12px", minWidth: "140px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap" }}>
+                                                                        {item.partidaArancelaria || "—"}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </Td>
                                                         <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
                                                         <Td $densa $align="center">
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa $align="center">
+                                                            <CheckboxUI
+                                                                checked={esVisibleEasySales(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                             />
                                                         </Td>
                                                         <Td $densa>
@@ -2222,17 +3083,19 @@ function Llantas() {
                                                 <>
                                                     <Th>Empresa</Th>
                                                     <Th $min="200px">Marca</Th>
+                                                    <Th $min="140px">Tipo</Th>
                                                     <Th $min="380px">Nombre</Th>
                                                     <Th $min="150px">Diseño</Th>
                                                     <Th>Letra Diseño</Th>
                                                     <Th>Color Letra</Th>
                                                     <Th $min="300px">Código Barras</Th>
                                                     <Th>Cód. Proveedor</Th>
+                                                    <Th $min="220px">Proveedor</Th>
                                                     <Th>Descripción Proveedor</Th>
-                                                    <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
                                                     <Th $min="380px">Nombre Del Sistema</Th>
                                                     <Th $align="center" $w="90px">Es nuevo</Th>
+                                                    <Th $align="center" $w="140px">Visible EasySales</Th>
                                                     <Th $min="200px">Comentarios</Th>
                                                     <Th $min="100px" $w="100px" $align="center" $fija="right">Acciones</Th>
                                                 </>
@@ -2304,6 +3167,15 @@ function Llantas() {
                                                                 isCreatable={true}
                                                             />
                                                         </Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={getTipoOptionsForMarca(item.marca)}
+                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value)}
+                                                                minWidth="160px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
                                                         <Td $densa><InputUI maxLength={20} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 20))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></Td>
@@ -2318,28 +3190,34 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
                                                         <Td $densa>
-                                                            <SelectUI
-                                                                options={[
-                                                                    { value: "4011.20.10.00", label: "4011.20.10.00" },
-                                                                    { value: "4011.20.90.00", label: "4011.20.90.00" },
-                                                                    { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                    { value: "4011.80.00.12", label: "4011.80.00.12" },
-                                                                    { value: "4011.10.90.00", label: "4011.10.90.00" },
-                                                                ]}
-                                                                value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
+                                                            {(() => {
+                                                                const codigoEmpresaProveedor = getCodigoProveedorEmpresa(item.idEmpresa);
+                                                                const opcionesProveedor = codigoEmpresaProveedor ? (proveedoresPorEmpresa[codigoEmpresaProveedor] || []) : [];
+                                                                return (
+                                                                    <SelectUI
+                                                                        options={opcionesProveedor}
+                                                                        value={item.proveedor ? { value: item.proveedor, label: opcionesProveedor.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                        onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                        minWidth="200px"
+                                                                        style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                                    />
+                                                                );
+                                                            })()}
                                                         </Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
                                                         <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
                                                         <Td $densa $align="center">
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa $align="center">
+                                                            <CheckboxUI
+                                                                checked={esVisibleEasySales(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                             />
                                                         </Td>
                                                         <Td $densa>
@@ -2403,17 +3281,19 @@ function Llantas() {
                                                 <>
                                                     <Th>Empresa</Th>
                                                     <Th $min="200px">Marca</Th>
+                                                    <Th $min="140px">Tipo</Th>
                                                     <Th $min="380px">Nombre</Th>
                                                     <Th $min="150px">Diseño</Th>
                                                     <Th>Letra Diseño</Th>
                                                     <Th>Color Letra</Th>
                                                     <Th $min="300px">Código Barras</Th>
                                                     <Th>Cód. Proveedor</Th>
+                                                    <Th $min="220px">Proveedor</Th>
                                                     <Th>Descripción Proveedor</Th>
-                                                    <Th>Cubicaje</Th>
                                                     <Th>Partida Arancelaria</Th>
                                                     <Th $min="380px">Nombre Del Sistema</Th>
                                                     <Th $align="center" $w="90px">Es nuevo</Th>
+                                                    <Th $align="center" $w="140px">Visible EasySales</Th>
                                                     <Th $min="200px">Comentarios</Th>
                                                     <Th $min="100px" $w="100px" $align="center" $fija="right">Acciones</Th>
                                                 </>
@@ -2481,6 +3361,15 @@ function Llantas() {
                                                                 isCreatable={true}
                                                             />
                                                         </Td>
+                                                        <Td $densa>
+                                                            <SelectUI
+                                                                options={getTipoOptionsForMarca(item.marca)}
+                                                                value={item.tipo ? { value: item.tipo, label: item.tipo } : null}
+                                                                onChange={(v) => actualizarCampoFila(item.id, "tipo", v?.value)}
+                                                                minWidth="160px"
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
+                                                            />
+                                                        </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "380px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} /></Td>
                                                         <Td $densa><InputUI maxLength={20} style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.diseño || ""} onChange={(v) => actualizarCampoFila(item.id, "diseño", v.slice(0, 20))} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.letraDiseño || ""} onChange={(v) => actualizarCampoFila(item.id, "letraDiseño", v)} /></Td>
@@ -2495,29 +3384,34 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "300px" }} value={item.codigo || ""} onChange={(v) => actualizarCampoFila(item.id, "codigo", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "100px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
-                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "80px" }} value={item.cubicaje || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "cubicaje", handleDecimalInput(v))} /></Td>
                                                         <Td $densa>
-                                                            <SelectUI
-                                                                options={[
-                                                                    { value: "4011.20.10.00", label: "4011.20.10.00" },
-                                                                    { value: "4011.20.90.00", label: "4011.20.90.00" },
-                                                                    { value: "4011.10.10.00", label: "4011.10.10.00" },
-                                                                    { value: "4011.80.00.12", label: "4011.80.00.12" },
-                                                                    { value: "4011.10.90.00", label: "4011.10.90.00" },
-
-                                                                ]}
-                                                                value={item.partidaArancelaria ? { value: item.partidaArancelaria, label: item.partidaArancelaria } : null}
-                                                                onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v?.value)}
-                                                                minWidth="140px"
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase" }}
-                                                            />
+                                                            {(() => {
+                                                                const codigoEmpresaProveedor = getCodigoProveedorEmpresa(item.idEmpresa);
+                                                                const opcionesProveedor = codigoEmpresaProveedor ? (proveedoresPorEmpresa[codigoEmpresaProveedor] || []) : [];
+                                                                return (
+                                                                    <SelectUI
+                                                                        options={opcionesProveedor}
+                                                                        value={item.proveedor ? { value: item.proveedor, label: opcionesProveedor.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                                        onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                                        minWidth="200px"
+                                                                        style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                                    />
+                                                                );
+                                                            })()}
                                                         </Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
+                                                        <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
                                                         <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
                                                         <Td $densa $align="center">
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
                                                                 onChange={(_, checked) => actualizarCampoFila(item.id, "isNew", checked)}
+                                                            />
+                                                        </Td>
+                                                        <Td $densa $align="center">
+                                                            <CheckboxUI
+                                                                checked={esVisibleEasySales(item)}
+                                                                onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
                                                             />
                                                         </Td>
                                                         <Td $densa>
@@ -2557,12 +3451,13 @@ function Llantas() {
                 {lineaSeleccionada && idRolPrincipal !== 1 && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Enviar a revisión"}
+                            text={isSubmitting ? "Enviando..." : (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))) ? "Verificando imágenes..." : "Enviar a revisión")}
                             iconLeft="FaCheck"
-                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
+                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0 || (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))))}
                             onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
+                                if (idRolPrincipal === 4 && hayVerificacionesPendientes(currentItems)) return;
 
                                 if (idRolPrincipal === 5) {
                                     const createdItems = currentItems.filter(i => !i.fueRechazado);
@@ -2575,9 +3470,9 @@ function Llantas() {
                                             grouped[companyName].push({
                                                 CODIGO_BARRAS: item.codigo,
                                                 CODIGO_PROVEEDOR: item.codigoProveedor,
-                                                CUBICAJE: item.cubicaje,
+                                                ID_PROVEEDOR: item.proveedor,
                                                 MARCA: item.marca,
-                                                LINEA_NEGOCIO: item.linea,
+                                                LINEA_NEGOCIO: normalizarLinea(item.linea),
                                                 NOMBRE_EXTRANJERO: item.nombreExtranjero,
                                                 DESCRIPCION: item.nombreSistema,
                                                 PARTIDA_ARANCELARIA: item.partidaArancelaria
@@ -2597,53 +3492,107 @@ function Llantas() {
                 )}
             </div>
 
-            {/* Sección de Aprobados */}
-            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && approvedItems.filter(i => i.linea === lineaSeleccionada.value).length > 0 && (
-                <div style={{ backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 auto", maxHeight: "45vh", marginBottom: "16px" }}>
-                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.success + "11", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <TextUI size="14px" weight="600" color={theme?.colors?.success}>
-                            Aprobados {lineaSeleccionada ? `de ${lineaSeleccionada.label}` : ""} ({approvedItems.filter(i => i.linea === lineaSeleccionada.value).length})
-                        </TextUI>
+            {/* Sección de Sin aprobar / Aprobados */}
+            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && (() => {
+                const itemsSinAprobarSeccion = itemsSinAprobarTodos.filter(i => i.linea === lineaSeleccionada.value);
+                const itemsAprobadosSeccion = approvedItems.filter(i => i.linea === lineaSeleccionada.value);
+                const listaActivaSeccion = tabAprobados === "aprobados" ? itemsAprobadosSeccion : itemsSinAprobarSeccion;
+                const listaFiltradaSeccion = filtrarSeccionAprobados(listaActivaSeccion, searchTermAprobados);
+
+                return (
+                    <div style={{ backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 auto", maxHeight: "45vh", marginBottom: "16px" }}>
+                        <div style={{ padding: "0 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.backgroundLight || "#fafafa" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                                <div style={{ display: "flex" }}>
+                                    <TabButton type="button" $active={tabAprobados === "sinAprobar"} onClick={() => setTabAprobados("sinAprobar")}>
+                                        Sin aprobar ({itemsSinAprobarSeccion.length})
+                                    </TabButton>
+                                    <TabButton type="button" $active={tabAprobados === "aprobados"} onClick={() => setTabAprobados("aprobados")}>
+                                        Aprobados ({itemsAprobadosSeccion.length})
+                                    </TabButton>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "8px 0" }}>
+                                    <InputUI
+                                        placeholder="Buscar"
+                                        value={searchTermAprobados}
+                                        onChange={(v) => setSearchTermAprobados(v)}
+                                        iconLeft="FaSearch"
+                                        style={{ minWidth: "320px" }}
+                                    />
+                                    <ButtonUI
+                                        iconLeft="FaArrowsRotate"
+                                        onClick={handleRefrescarAprobados}
+                                        disabled={isRefrescandoAprobados}
+                                        pcolor={theme?.colors?.primary}
+                                        title="Actualizar listado"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <TablaScroll>
+                            <Tabla>
+                                <thead>
+                                    <tr>
+                                        <Th>Empresa</Th>
+                                        <Th $min="250px">Código de barras</Th>
+                                        <Th $min="350px">Nombre</Th>
+                                        <Th>Marca</Th>
+                                        <Th $min="150px">Diseño</Th>
+                                        {tabAprobados === "aprobados" ? (
+                                            <Th>Código SAP</Th>
+                                        ) : (
+                                            <Th $min="180px">Fase actual</Th>
+                                        )}
+                                        <Th $align="center" $w="80px" $fija="right">Detalle</Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {listaFiltradaSeccion.length === 0 ? (
+                                        <tr>
+                                            <Td colSpan={7} $align="center">
+                                                <TextUI size="12px" color={theme?.colors?.textSecondary}>
+                                                    {listaActivaSeccion.length === 0
+                                                        ? (tabAprobados === "aprobados" ? "No hay ítems aprobados." : "No hay ítems sin aprobar.")
+                                                        : "No se encontraron ítems que coincidan con la búsqueda."}
+                                                </TextUI>
+                                            </Td>
+                                        </tr>
+                                    ) : (
+                                        listaFiltradaSeccion.map((item, idx) => (
+                                            <Fila key={item.id} $par={idx % 2 === 0}>
+                                                <Td><TextUI size="12px">{diccionarioEmpresas[item.idEmpresa] || item.EMPRESA || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.diseño || item.DISENIO || "-"}</TextUI></Td>
+                                                {tabAprobados === "aprobados" ? (
+                                                    <Td><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></Td>
+                                                ) : (
+                                                    <Td>
+                                                        <Etiqueta $tono={item.fueRechazado ? "alerta" : "info"}>
+                                                            {NOMBRES_FASE[item.FASE_ACTUAL] || (item.FASE_ACTUAL ? `Fase ${item.FASE_ACTUAL}` : "-")}
+                                                        </Etiqueta>
+                                                    </Td>
+                                                )}
+                                                <Td $align="center" $fija="right">
+                                                    <IconUI
+                                                        name="FaEye"
+                                                        size={16}
+                                                        color={theme?.colors?.primary}
+                                                        title="Ver detalle del producto"
+                                                        onClick={() => setDetalleItem(item)}
+                                                        style={{ cursor: "pointer" }}
+                                                    />
+                                                </Td>
+                                            </Fila>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Tabla>
+                        </TablaScroll>
                     </div>
-                    <TablaScroll>
-                        <Tabla>
-                            <thead>
-                                <tr>
-                                    <Th>Empresa</Th>
-                                    <Th>Código SAP</Th>
-                                    <Th $min="250px">Código de barras</Th>
-                                    <Th $min="350px">Nombre</Th>
-                                    <Th>Marca</Th>
-                                    <Th $min="150px">Diseño</Th>
-                                    <Th $align="center" $w="80px" $fija="right">Detalle</Th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {approvedItems.filter(i => i.linea === lineaSeleccionada.value).map((item, idx) => (
-                                    <Fila key={item.id} $par={idx % 2 === 0}>
-                                        <Td><TextUI size="12px">{diccionarioEmpresas[item.idEmpresa] || item.EMPRESA || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
-                                        <Td><TextUI size="12px">{item.diseño || item.DISENIO || "-"}</TextUI></Td>
-                                        <Td $align="center" $fija="right">
-                                            <IconUI
-                                                name="FaEye"
-                                                size={16}
-                                                color={theme?.colors?.primary}
-                                                title="Ver detalle del producto"
-                                                onClick={() => setDetalleItem(item)}
-                                                style={{ cursor: "pointer" }}
-                                            />
-                                        </Td>
-                                    </Fila>
-                                ))}
-                            </tbody>
-                        </Tabla>
-                    </TablaScroll>
-                </div>
-            )}
+                );
+            })()}
 
             <ModalUI
                 isOpen={isRejectModalOpen}
@@ -2734,6 +3683,11 @@ function Llantas() {
                     const fases = Array.isArray(detalleItem.FASES) ? detalleItem.FASES : [];
                     const rechazada = fases.find(f => f.RECHAZO);
                     const aprobado = detalleItem.APROBADO_MDM === true;
+                    const claveImagenesDetalle = getDisenioKey(detalleItem);
+                    const infoImagenesDetalle = claveImagenesDetalle ? imagenesDisenioExistente[claveImagenesDetalle] : null;
+                    const verificandoImagenesDetalle = claveImagenesDetalle ? Boolean(disenioVerificando[claveImagenesDetalle]) : false;
+                    const webpUrlDetalle = infoImagenesDetalle?.webp?.url || detalleItem.RUTA_IMAGEN_WEBP || null;
+                    const pngUrlDetalle = infoImagenesDetalle?.png?.previewUrl || infoImagenesDetalle?.png?.url || null;
 
                     // El ModalBody de ModalUI scrollea sin padding propio: el padding
                     // de este contenedor evita que las tablas queden pegadas a la barra.
@@ -2774,6 +3728,69 @@ function Llantas() {
                                     </tbody>
                                 </Tabla>
                             </TablaScroll>
+
+                            {/* Imágenes del diseño (SharePoint/PNG y R2/WebP), solo para el coordinador (rol 4):
+                                permite ver la imagen publicada actualmente y reemplazarla sin pasar por el flujo
+                                de revisión completo. */}
+                            {idRolPrincipal === 4 && (
+                                <div>
+                                    <TextUI size="13px" weight="600" style={{ marginBottom: "8px", display: "block" }}>
+                                        Imágenes del diseño
+                                    </TextUI>
+                                    <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                                        {[
+                                            { tipo: "png", etiqueta: "Aplicación (PNG)", src: pngUrlDetalle, accept: ".png" },
+                                            { tipo: "webp", etiqueta: "Portal (WebP)", src: webpUrlDetalle, accept: ".webp" },
+                                        ].map(({ tipo, etiqueta, src, accept }) => (
+                                            <div key={tipo} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                                                <div style={{
+                                                    width: "80px",
+                                                    height: "80px",
+                                                    borderRadius: "8px",
+                                                    border: `1px solid ${theme?.colors?.border || "#eee"}`,
+                                                    backgroundColor: isDark ? "#1e293b" : "#f8fafc",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    overflow: "hidden",
+                                                }}>
+                                                    {verificandoImagenesDetalle ? (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                    ) : src ? (
+                                                        <img
+                                                            src={src}
+                                                            alt={etiqueta}
+                                                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                                            onError={(e) => { e.target.style.display = "none"; }}
+                                                        />
+                                                    ) : (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Sin imagen</TextUI>
+                                                    )}
+                                                </div>
+                                                <TextUI size="11px" weight="600">{etiqueta}</TextUI>
+                                                <ButtonUI
+                                                    text={subiendoImagenDetalle[tipo] ? "Subiendo..." : "Actualizar"}
+                                                    variant="outlined"
+                                                    disabled={subiendoImagenDetalle[tipo] || verificandoImagenesDetalle}
+                                                    style={{ padding: "4px 10px", fontSize: "11px", minWidth: "auto" }}
+                                                    onClick={() => document.getElementById(`detalle-upload-${tipo}`).click()}
+                                                />
+                                                <input
+                                                    id={`detalle-upload-${tipo}`}
+                                                    type="file"
+                                                    accept={accept}
+                                                    style={{ display: "none" }}
+                                                    onChange={(e) => {
+                                                        const file = e.target.files[0];
+                                                        if (file) handleActualizarImagenDetalle(tipo, file);
+                                                        e.target.value = "";
+                                                    }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Trazabilidad por fase */}
                             {fases.length > 0 && (
@@ -2835,7 +3852,8 @@ function Llantas() {
                     setSelectedItemsToReviewIds(new Set());
                 }}
                 title="Seleccionar ítems para revisar"
-                width="800px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <InputUI
@@ -2849,14 +3867,14 @@ function Llantas() {
                             <thead>
                                 <tr>
                                     <Th $w="46px" $align="center"></Th>
-                                    <Th $align="center">Código</Th>
                                     <Th $align="center">Nombre</Th>
+                                    <Th $align="center">Código Sap</Th>
                                     <Th $align="center">Diseño</Th>
                                     <Th $align="center">Fabricante</Th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredItemsToReview.map((item, idx) => (
+                                {itemsToReviewPaginados.map((item, idx) => (
                                     <Fila
                                         key={item.DIT_CODIGO}
                                         $par={idx % 2 === 0}
@@ -2877,8 +3895,8 @@ function Llantas() {
                                                 onChange={() => { }} // handled by tr onClick
                                             />
                                         </Td>
-                                        <Td style={{ color: theme?.colors?.text }}>{item.DIT_NUEVOIDENTIFICADOR}</Td>
                                         <Td style={{ color: theme?.colors?.text }}>{item.DIT_NOMBRE}</Td>
+                                        <Td style={{ color: theme?.colors?.text }}>{item.DIT_NUEVOIDENTIFICADOR}</Td>
                                         <Td style={{ color: theme?.colors?.text }}>{item.DIT_DISENIO}</Td>
                                         <Td style={{ color: theme?.colors?.text }}>{item.DIT_MARCA}</Td>
                                     </Fila>
@@ -2886,6 +3904,25 @@ function Llantas() {
                             </tbody>
                         </Tabla>
                     </TablaScroll>
+                    {filteredItemsToReview.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaReview <= 1}
+                                onClick={() => setPaginaReview(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaReview} de {totalPaginasReview} ({filteredItemsToReview.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaReview >= totalPaginasReview}
+                                onClick={() => setPaginaReview(p => p + 1)}
+                            />
+                        </div>
+                    )}
 
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
                         <ButtonUI
@@ -2983,22 +4020,32 @@ function Llantas() {
                 isOpen={isSAPExportModalOpen}
                 onClose={() => setIsSAPExportModalOpen(false)}
                 title="Exportar ítems aprobados a SAP"
-                width="1000px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <TextUI size="14px" color={theme?.colors?.textSecondary}>
                         Se muestran todos los ítems aprobados ordenados por fecha de actualización.
                     </TextUI>
-                    <TablaScroll style={{ maxHeight: "500px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                    <InputUI
+                        placeholder="Buscar por empresa, código SAP o nombre..."
+                        value={searchTermExport}
+                        onChange={(v) => setSearchTermExport(v)}
+                        iconLeft="FaSearch"
+                    />
+                    <TablaScroll style={{ maxHeight: "400px", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
                         <Tabla>
                             <thead>
                                 <tr>
                                     <Th $align="center" $w="50px">
                                         <CheckboxUI
-                                            checked={approvedItemsForExport.length > 0 && approvedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
+                                            checked={filteredApprovedItemsForExport.length > 0 && filteredApprovedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
                                             onChange={(_, checked) => {
-                                                if (checked) setSelectedApprovedItemIds(new Set(approvedItemsForExport.map(i => i.ID)));
-                                                else setSelectedApprovedItemIds(new Set());
+                                                setSelectedApprovedItemIds(prev => {
+                                                    const newSet = new Set(prev);
+                                                    filteredApprovedItemsForExport.forEach(i => checked ? newSet.add(i.ID) : newSet.delete(i.ID));
+                                                    return newSet;
+                                                });
                                             }}
                                         />
                                     </Th>
@@ -3009,24 +4056,32 @@ function Llantas() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {approvedItemsForExport.length === 0 ? (
+                                {filteredApprovedItemsForExport.length === 0 ? (
                                     <tr>
-                                        <Td colSpan={5} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados para exportar.</Td>
+                                        <Td colSpan={5} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>
+                                            {approvedItemsForExport.length === 0 ? "No hay ítems aprobados para exportar." : "No se encontraron ítems que coincidan con la búsqueda."}
+                                        </Td>
                                     </tr>
                                 ) : (
-                                    approvedItemsForExport.map((item, idx) => (
-                                        <Fila key={item.ID} $par={idx % 2 === 0} $sel={selectedApprovedItemIds.has(item.ID)}>
+                                    approvedItemsForExportPaginados.map((item, idx) => (
+                                        <Fila
+                                            key={item.ID}
+                                            $par={idx % 2 === 0}
+                                            $sel={selectedApprovedItemIds.has(item.ID)}
+                                            style={{ cursor: "pointer" }}
+                                            onClick={() => {
+                                                setSelectedApprovedItemIds(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (newSet.has(item.ID)) newSet.delete(item.ID);
+                                                    else newSet.add(item.ID);
+                                                    return newSet;
+                                                });
+                                            }}
+                                        >
                                             <Td $align="center">
                                                 <CheckboxUI
                                                     checked={selectedApprovedItemIds.has(item.ID)}
-                                                    onChange={(_, checked) => {
-                                                        setSelectedApprovedItemIds(prev => {
-                                                            const newSet = new Set(prev);
-                                                            if (checked) newSet.add(item.ID);
-                                                            else newSet.delete(item.ID);
-                                                            return newSet;
-                                                        });
-                                                    }}
+                                                    onChange={() => { }} // handled by row onClick
                                                 />
                                             </Td>
                                             <Td style={{ color: theme?.colors?.text }}>{item.EMPRESA}</Td>
@@ -3039,6 +4094,25 @@ function Llantas() {
                             </tbody>
                         </Tabla>
                     </TablaScroll>
+                    {filteredApprovedItemsForExport.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaExport <= 1}
+                                onClick={() => setPaginaExport(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaExport} de {totalPaginasExport} ({filteredApprovedItemsForExport.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaExport >= totalPaginasExport}
+                                onClick={() => setPaginaExport(p => p + 1)}
+                            />
+                        </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
                         {Object.entries(
                             approvedItemsForExport
@@ -3060,6 +4134,15 @@ function Llantas() {
                                 pcolor={theme?.colors?.success || "#28a745"}
                             />
                         ))}
+                        {selectedApprovedItemIds.size > 0 && (
+                            <ButtonUI
+                                text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
+                                iconLeft="FaCloudUploadAlt"
+                                onClick={handleSyncToSap}
+                                disabled={isSyncingSap}
+                                pcolor={theme?.colors?.primary || "#0d6efd"}
+                            />
+                        )}
                     </div>
                 </div>
             </ModalUI>

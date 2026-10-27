@@ -813,3 +813,45 @@ export async function ActualizarRegistroPedido(id, datos) {
     return error.response?.data || null;
   }
 }
+
+export async function ListarPedidosImportacion({
+  page = 1,
+  size = 15,
+  empresa,
+  proveedor = null,
+  numeroDocumento = null,
+  estado = null,
+  fechaDesde = null,
+  fechaHasta = null,
+  backorder = null,
+}) {
+  try {
+    const res = await axiosInstanceNew.post(
+      `/importaciones/pedidosImportacion?page=${page}&size=${size}&empresa=${encodeURIComponent(
+        empresa
+      )}`,
+      {
+        proveedor,
+        numeroDocumento,
+        estado,
+        fechaDesde,
+        fechaHasta,
+        backorder,
+      }
+    );
+    return res.data;
+  } catch (error) {
+    return error.response?.data || null;
+  }
+}
+
+export async function ObtenerDetalleSkuPedido(idImportacion) {
+  try {
+    const res = await axiosInstanceNew.get(
+      `/importaciones/detalleSku/${idImportacion}`
+    );
+    return res.data;
+  } catch (error) {
+    return error.response?.data || null;
+  }
+}

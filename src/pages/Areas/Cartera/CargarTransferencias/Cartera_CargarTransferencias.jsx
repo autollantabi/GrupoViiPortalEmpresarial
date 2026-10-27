@@ -419,6 +419,14 @@ export const Cartera_CargarTransferencias = () => {
               pcolor={theme.colors.primary}
               style={{ minWidth: "200px" }}
             />
+
+            <ButtonUI
+              isAsync
+              text="Ejecutar Banco Pichincha"
+              onClick={() => ejecutarBanco("bancopichincha")}
+              pcolor={theme.colors.primary}
+              style={{ minWidth: "200px" }}
+            />
           </ContainerUI>
 
           <ContainerUI

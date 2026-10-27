@@ -60,6 +60,25 @@ export const saveItemRole5 = async (item) => {
 };
 
 /**
+ * Crea varios ítems nuevos en un solo request (específico para Rol 5).
+ * El backend guarda todos los ítems y envía UNA sola notificación por correo listando
+ * todos, en vez de una por ítem. Para HERRAMIENTAS sincroniza a SAP de inmediato (todos
+ * los ítems en un solo llamado); LLANTAS/LUBRICANTES no se sincronizan hasta la
+ * aprobación de Jefatura.
+ * @param {Array<Object>} items - Ítems mapeados, mismo shape que `saveItemRole5`
+ * @returns {Promise<{status:string, message:string, data:Array, errors?:Array, sapSync?:Object}>}
+ */
+export const saveItemsRole5Bulk = async (items) => {
+    try {
+        const response = await axiosInstanceNew.post("/mdm/items/bulk", { items });
+        return response.data;
+    } catch (error) {
+        console.error("Error en saveItemsRole5Bulk:", error);
+        throw error;
+    }
+};
+
+/**
  * Actualiza un ítem (específico para Rol 3).
  * @param {Object} item - Datos del ítem mapeados
  * @returns {Promise<any>}
@@ -70,6 +89,39 @@ export const patchItemRole3 = async (item) => {
         return response.data;
     } catch (error) {
         console.error("Error en patchItemRole3:", error);
+        throw error;
+    }
+};
+
+/**
+ * Autoguardado silencioso de campos sueltos de un ítem mientras el rol los va completando (ej. el
+ * Técnico de Herramientas): solo escribe los campos indicados. No avanza de fase ni notifica, y no
+ * devuelve respuesta ni muestra mensajes: si falla se ignora, y el siguiente cambio (o el envío a
+ * revisión, que manda todos los campos) lo vuelve a intentar.
+ * @param {string} lineaNegocio - Ej. "HERRAMIENTAS"
+ * @param {number} itemId - ID del ítem
+ * @param {Object} campos - Campos en formato del backend, ej. { GRUPO: "X", SUBGRUPO: "" }
+ */
+export const autoguardarItemMDM = (lineaNegocio, itemId, campos) => {
+    axiosInstanceNew
+        .patch("/mdm/items", { ID: itemId, LINEA_NEGOCIO: lineaNegocio, ...campos })
+        .catch((error) => console.debug("Autoguardado MDM no realizado:", error?.message));
+};
+
+/**
+ * Actualiza varios ítems en un solo request (avance de fase / reenvío tras rechazo).
+ * El backend agrupa los ítems que avanzan a la misma fase (y los reenviados tras
+ * rechazo) y envía UNA sola notificación por grupo listando todos sus ítems, en vez de
+ * una por ítem.
+ * @param {Array<Object>} items - Ítems mapeados, mismo shape que `patchItemRole3`
+ * @returns {Promise<{status:string, message:string, data:null, errors?:Array}>}
+ */
+export const patchItemsRole3Bulk = async (items) => {
+    try {
+        const response = await axiosInstanceNew.patch("/mdm/items/bulk", { items });
+        return response.data;
+    } catch (error) {
+        console.error("Error en patchItemsRole3Bulk:", error);
         throw error;
     }
 };
@@ -153,6 +205,50 @@ export const uploadItemImagesSharepoint = async (lineaNegocio, id, marca, empres
 };
 
 /**
+ * Verifica si el ítem ya tiene imagen (por su diseño/identificador, no por ítem individual) en
+ * Cloudflare R2 (webp) y/o SharePoint (png), sin subir ningún archivo. El backend resuelve MARCA
+ * y el identificador de imagen desde el propio ítem (DISEÑO para LLANTAS/LLANTAS_MOTO, o vía DWH
+ * para LUBRICANTES/HERRAMIENTAS), así que solo hace falta el ID. Aplica a las 3 líneas de negocio.
+ * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LLANTAS_MOTO, LUBRICANTES, HERRAMIENTAS)
+ * @param {number|string} id - ID del ítem
+ * @returns {Promise<{webp: {exists: boolean, url: string|null}, png: {exists: boolean, url: string|null, previewUrl: string|null}}|null>}
+ */
+export const checkDesignImage = async (lineaNegocio, id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/items/check-design-image/${lineaNegocio}`, {
+            params: { ID: id }
+        });
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error en checkDesignImage:", error);
+        throw error;
+    }
+};
+
+/**
+ * Vincula a un ítem la imagen ya existente en storage para su mismo diseño/identificador (sin
+ * volver a subir el archivo), cuando otro ítem con esa misma identidad ya la tiene cargada.
+ * Aplica a las 3 líneas de negocio.
+ * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LLANTAS_MOTO, LUBRICANTES, HERRAMIENTAS)
+ * @param {number|string} id - ID del ítem
+ * @returns {Promise<any>}
+ */
+export const linkExistingItemImage = async (lineaNegocio, id) => {
+    try {
+        const response = await axiosInstanceNew.post(`/mdm/items/link-existing-image/${lineaNegocio}`, {
+            ID: id,
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error en linkExistingItemImage:", error);
+        throw error;
+    }
+};
+
+/**
  * Obtiene los ítems del DWH por línea de negocio.
  * @param {string} lineaNegocio - Línea de negocio (LLANTAS, LUBRICANTES, etc)
  * @returns {Promise<Array>}
@@ -216,6 +312,24 @@ export const getNeumaticosDWH = async () => {
         return [];
     } catch (error) {
         console.error("Error en getNeumaticosDWH:", error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene las combinaciones de marca, proveedor y procedencia por empresa y línea de negocio,
+ * desde core.dim_marca_proveedor_procedencia (DWH Postgres).
+ * @returns {Promise<Array>}
+ */
+export const getMarcaProveedorProcedencia = async () => {
+    try {
+        const response = await axiosInstanceNew.get("/dwh-postgres/marca-proveedor-procedencia");
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getMarcaProveedorProcedencia:", error);
         throw error;
     }
 };
@@ -298,6 +412,30 @@ export const getGruposUnidadesAlternativas = async (empresa, id) => {
 };
 
 /**
+ * Sincroniza items aprobados hacia SAP: el front solo envía los IDs seleccionados,
+ * el backend consulta los items, homologa los campos y llama al integrador SAP.
+ * @param {string} lineaNegocio - LLANTAS | LUBRICANTES | HERRAMIENTAS
+ * @param {Array<number>} ids - IDs de items del portal a sincronizar
+ * @returns {Promise<Object>} - { LineaNegocio, Total, Exitosos, Fallidos, PorEmpresa, ItemsOmitidos }
+ */
+export const syncItemsToSap = async (lineaNegocio, ids) => {
+    const response = await axiosInstanceNew.post(`/mdm/items/${lineaNegocio}/sync-sap`, { ids });
+    return response.data;
+};
+
+/**
+ * Obtiene (sin enviarlo) el request que se mandaría a SAP para un item del portal.
+ * Si el item ya tiene CODIGO_SAP, `Modo` es ACTUALIZACION (flujo aún no implementado).
+ * @param {string} lineaNegocio - HERRAMIENTAS (LLANTAS y LUBRICANTES aún responden 501)
+ * @param {number} id - ID del item en el portal
+ * @returns {Promise<Object>} - { Modo, ActualizacionImplementada, CodigoSap, Metodo, Endpoint, Body, Nota }
+ */
+export const getSapRequestItem = async (lineaNegocio, id) => {
+    const response = await axiosInstanceNew.get(`/mdm/items/${lineaNegocio}/${id}/sap-request`);
+    return response.data;
+};
+
+/**
  * Obtiene los grupos, subgrupos y tipos para Herramientas.
  * @returns {Promise<Array>}
  */
@@ -308,5 +446,236 @@ export const getGruposHerramientas = async () => {
     } catch (error) {
         console.error("Error en getGruposHerramientas:", error);
         return [];
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* MDM de Clientes                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Listado paginado de los clientes del MDM.
+ *
+ * La paginación y los filtros los resuelve la base de datos: la tabla
+ * portal_empresarial_dev.item_cliente puede crecer mucho y nunca se trae
+ * completa al navegador.
+ *
+ * @param {Object} filtros
+ * @param {number} [filtros.page=1] - Página solicitada (1 en adelante)
+ * @param {number} [filtros.size=15] - Registros por página
+ * @param {string} [filtros.empresa] - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @param {string} [filtros.estado] - PENDIENTE | APROBADO | RECHAZADO
+ * @param {string} [filtros.busqueda] - Texto libre; busca por código o nombre
+ * @param {string} [filtros.identificacion] - Número de identificación exacto (sin "C" inicial)
+ * @param {string} [filtros.nombre] - Nombre del cliente; coincidencia parcial
+ * @returns {Promise<{Paginacion: Object, Clientes: Array}>}
+ */
+export const getClientesMDM = async ({
+    page = 1,
+    size = 15,
+    empresa = null,
+    estado = null,
+    busqueda = null,
+    identificacion = null,
+    nombre = null,
+} = {}) => {
+    try {
+        const params = { page, size };
+        if (empresa) params.empresa = empresa;
+        if (estado) params.estado = estado;
+        if (busqueda) params.busqueda = busqueda;
+        if (identificacion) params.identificacion = identificacion;
+        if (nombre) params.nombre = nombre;
+
+        const response = await axiosInstanceNew.get("/mdm/clientes", { params });
+
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return { Paginacion: null, Clientes: [] };
+    } catch (error) {
+        console.error("Error en getClientesMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Detalle de un cliente del MDM (cabecera + direcciones).
+ * @param {number|string} id - ic_serial del cliente
+ * @returns {Promise<Object|null>}
+ */
+export const getClienteMDM = async (id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/clientes/${id}`);
+
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error en getClienteMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * ¿Ya existe un cliente con ese código (C + identificación) en la empresa?
+ * @param {string} empresa
+ * @param {string} codigo - Con o sin la "C" inicial
+ * @returns {Promise<{EXISTE: boolean, CLIENTE: ({ID: number, CODIGO: string, NOMBRE: string, ESTADO: string}|null)}>}
+ */
+export const existeClienteMDM = async (empresa, codigo) => {
+    const response = await axiosInstanceNew.get("/mdm/clientes/existe", {
+        params: { empresa, codigo },
+    });
+    return response.data?.data || { EXISTE: false, CLIENTE: null };
+};
+
+/**
+ * Crea un cliente nuevo en el MDM (estado PENDIENTE). Requiere el permiso "editar"
+ * sobre mdm.clientes. Los fallos llegan como error de axios: 400 (dato inválido, con
+ * `campo`), 403 (sin permiso) y 409 (ya existe, con `existente`).
+ * @param {Object} cliente - Ficha completa + DIRECCIONES (PRINCIPAL y GENERAL)
+ * @returns {Promise<Object>} El cliente creado
+ */
+export const crearClienteMDM = async (cliente) => {
+    const response = await axiosInstanceNew.post("/mdm/clientes", cliente);
+    return response.data?.data;
+};
+
+/**
+ * Guarda la ficha de un cliente del MDM.
+ * @param {number|string} id - ic_serial del cliente
+ * @param {Object} cliente - Cabecera + direcciones ya recortadas
+ * @returns {Promise<Object>} El cliente tal como quedó guardado
+ */
+export const actualizarClienteMDM = async (id, cliente) => {
+    const response = await axiosInstanceNew.patch(`/mdm/clientes/${id}`, cliente);
+    return response.data?.data;
+};
+
+/**
+ * "Sincronizar en SAP": guarda la ficha (validando cada campo), crea el socio de
+ * negocio en SAP y, con la respuesta de SAP, guarda el código SAP y aprueba el
+ * cliente. Los fallos llegan como error de axios con `response.status`:
+ * 400 dato inválido (con `campo`), 409 rechazado/ya existe en SAP/el código SAP no existe,
+ * 422 SAP rechazó la creación, 502 sin comunicación con SAP.
+ * @param {number|string} id - ic_serial del cliente
+ * @param {Object} cliente - La misma ficha que recibe actualizarClienteMDM
+ * @returns {Promise<{data: Object, sap: {compania: string, codigo: string, mensaje: string}}>}
+ */
+export const sincronizarClienteSapMDM = async (id, cliente) => {
+    const response = await axiosInstanceNew.post(`/mdm/clientes/${id}/sincronizar-sap`, cliente);
+    return { data: response.data?.data, sap: response.data?.sap };
+};
+
+/**
+ * Cotizaciones de un cliente dentro de su empresa.
+ * @param {number|string} id - ic_serial del cliente
+ * @returns {Promise<Array>}
+ */
+export const getCotizacionesCliente = async (id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/clientes/${id}/cotizaciones`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCotizacionesCliente:", error);
+        throw error;
+    }
+};
+
+/**
+ * Detalle de una cotización con sus artículos.
+ * @param {number|string} id - ico_serial de la cotización
+ * @returns {Promise<Object|null>}
+ */
+export const getCotizacionMDM = async (id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/cotizaciones/${id}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error en getCotizacionMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Códigos RI de impuesto sobre la renta de una empresa (core.dim_codigo_impuesto)
+ * y cuáles van marcados según Entrega Retención.
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<{CODIGOS: Array<{CODIGO: string, NOMBRE: string}>, SELECCIONADOS: {SI: string[], NO: string[]}}>}
+ */
+export const getCodigosImpuestoMDM = async (empresa) => {
+    const vacio = { CODIGOS: [], SELECCIONADOS: { SI: [], NO: [] } };
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/codigos-impuesto/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || vacio;
+        }
+        return vacio;
+    } catch (error) {
+        console.error("Error en getCodigosImpuestoMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Rutas activas de una empresa (core.dim_rutas). Cada una trae su SERIAL, que es
+ * lo que se guarda en el cliente.
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{SERIAL: number, NOMBRE: string}>>}
+ */
+export const getRutasMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/rutas/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getRutasMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Condiciones de pago activas de una empresa (core.dim_codigo_condicion_pago).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{SERIAL: number, CODIGO: number, NOMBRE: string}>>}
+ */
+export const getCondicionesPagoMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/condiciones-pago/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCondicionesPagoMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Vendedores activos de una empresa (core.dim_vendedores, activos y de EasySales).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
+ */
+export const getVendedoresMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/vendedores/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getVendedoresMDM:", error);
+        throw error;
     }
 };

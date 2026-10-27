@@ -12,6 +12,9 @@ export const API_URL = ENV.VITE_API_URL ?? "";
 /** Base URL API nueva (auth, /auth/me, 5W2H, transacciones cartera, permisos, etc.) */
 export const API_URL_NEW = ENV.VITE_API_URL_NEW ?? "";
 
+/** Base URL del backend Python "maestro_articulos" (DDMRP), en la VM del portal (192.168.0.68:8502) */
+export const API_URL_DDMRP_MV = ENV.VITE_API_URL_DDMRP_MV ?? "";
+
 /** Clave para encriptar/desencriptar id-session en localStorage */
 export const ENCRYPTION_KEY = ENV.VITE_ENCRYPTION_KEY ?? "default-encryption-key-change-in-env";
 
@@ -27,6 +30,7 @@ export const ENV_NAME = ENV.VITE_ENV ?? ENV.MODE ?? "development";
 export default {
   API_URL,
   API_URL_NEW,
+  API_URL_DDMRP_MV,
   ENCRYPTION_KEY,
   MODE,
   FRONT_DEV,

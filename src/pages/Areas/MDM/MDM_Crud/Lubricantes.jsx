@@ -8,13 +8,175 @@ import { SelectUI } from "components/UI/Components/SelectUI";
 import { TextUI } from "components/UI/Components/TextUI";
 import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
+import { IconUI } from "components/UI/Components/IconsUI";
 import { hexToRGBA } from "utils/colors";
 import { toast } from "react-toastify";
-import { parseLlantas, getItemsByRole, saveItemRole5, patchItemRole3, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades } from "services/mdmService";
+import { parseLlantas, getItemsByRole, saveItemsRole5Bulk, patchItemRole3, patchItemsRole3Bulk, rejectItemPhase, uploadItemImages, uploadItemImagesSharepoint, checkDesignImage, linkExistingItemImage, getItemsDWHByLinea, createItemFromDWH, approveItemMDM, getItemsCaracteristicas, getGruposUnidades, syncItemsToSap, getSapRequestItem } from "services/mdmService";
 import { ListarEmpresasAdmin } from "services/administracionService";
+import { ListarProveedores } from "services/importacionesService";
 import { generateSAPExport } from "assets/templates/mdmTemplate";
+import styled from "styled-components";
+
+/* ------------------------------------------------------------------ */
+/* Primitivas de tabla (mismo patrón que Llantas.jsx) — usadas por la   */
+/* sección "Aprobados" y por el modal "Detalle del producto".           */
+/* ------------------------------------------------------------------ */
+
+const TablaScroll = styled.div`
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+
+    &::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    &::-webkit-scrollbar-track {
+        background: ${({ theme }) => theme?.colors?.backgroundLight || "#fafafa"};
+    }
+    &::-webkit-scrollbar-thumb {
+        background: ${({ theme }) => theme?.colors?.borderDark || "#ced4da"};
+        border-radius: 5px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+        background: ${({ theme }) => theme?.colors?.textSecondary || "#6c757d"};
+    }
+    &::-webkit-scrollbar-corner {
+        background: ${({ theme }) => theme?.colors?.backgroundLight || "#fafafa"};
+    }
+`;
+
+const Tabla = styled.table`
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    text-align: left;
+`;
+
+const Th = styled.th`
+    position: sticky;
+    top: 0;
+    z-index: ${({ $fija }) => ($fija ? 5 : 3)};
+    ${({ $fija, $offset }) => ($fija === "left" ? `left: ${$offset || "0"};` : "")}
+    ${({ $fija, $offset }) => ($fija === "right" ? `right: ${$offset || "0"};` : "")}
+    padding: 10px 14px;
+    text-align: ${({ $align }) => $align || "left"};
+    ${({ $min }) => ($min ? `min-width: ${$min};` : "")}
+    ${({ $w, $fija }) =>
+        !$w
+            ? ""
+            : $fija
+                ? `width: ${$w}; min-width: ${$w}; max-width: ${$w};`
+                : `width: ${$w};`}
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background-color: #3c3c3b;
+    color: ${({ theme }) => theme?.colors?.white || "#ffffff"};
+    border-bottom: 2px solid ${({ theme }) => theme?.colors?.white || "#ffffff"};
+    border-right: 1px solid ${({ theme }) => hexToRGBA({ hex: theme?.colors?.white || "#ffffff", alpha: 0.25 })};
+
+    ${({ $fija, theme }) =>
+        $fija === "left"
+            ? `border-right: 2px solid ${theme?.colors?.white || "#ffffff"};`
+            : ""}
+    ${({ $fija, theme }) =>
+        $fija === "right"
+            ? `border-left: 2px solid ${theme?.colors?.white || "#ffffff"};`
+            : ""}
+`;
+
+const Td = styled.td`
+    padding: ${({ $densa }) => ($densa ? "4px 8px" : "9px 14px")};
+    text-align: ${({ $align }) => $align || "left"};
+    vertical-align: middle;
+    max-width: none;
+    border-bottom: 1px solid ${({ theme }) => theme?.colors?.borderLight || "#e9ecef"};
+    border-right: 1px solid ${({ theme }) => theme?.colors?.borderLight || "#e9ecef"};
+
+    ${({ $fija }) =>
+        $fija
+            ? `position: sticky; z-index: 2; background-color: inherit;`
+            : ""}
+    ${({ $fija, $offset }) => ($fija === "left" ? `left: ${$offset || "0"};` : "")}
+    ${({ $fija, $offset }) => ($fija === "right" ? `right: ${$offset || "0"};` : "")}
+    ${({ $w, $fija }) =>
+        $w && $fija ? `width: ${$w}; min-width: ${$w}; max-width: ${$w};` : ""}
+    ${({ $fija, theme }) =>
+        $fija === "left"
+            ? `border-right: 2px solid ${theme?.colors?.border || "#dee2e6"};`
+            : ""}
+    ${({ $fija, theme }) =>
+        $fija === "right"
+            ? `border-left: 2px solid ${theme?.colors?.border || "#dee2e6"};`
+            : ""}
+`;
+
+const FILA_HOVER = { claro: "#eef0f2", oscuro: "#343434" };
+const FILA_SELECCION = { claro: "#e4e7eb", oscuro: "#3d3d3d" };
+
+const tonoFila = (theme, tono) =>
+    theme?.name === "dark" ? tono.oscuro : tono.claro;
+
+const Fila = styled.tr`
+    background-color: ${({ theme, $par }) =>
+        $par
+            ? theme?.colors?.backgroundLight || "#fafafa"
+            : theme?.colors?.background || "#f5f5f5"};
+    transition: background-color 0.12s ease;
+
+    ${({ theme, $sel }) =>
+        $sel ? `background-color: ${tonoFila(theme, FILA_SELECCION)};` : ""}
+
+    &:hover {
+        background-color: ${({ theme }) => tonoFila(theme, FILA_HOVER)};
+    }
+`;
+
+/* Distintivo de estado para el detalle informativo del ítem */
+const TONOS_ETIQUETA = {
+    exito: "success",
+    alerta: "error",
+    info: "info",
+    neutro: "textSecondary",
+};
+
+const Etiqueta = styled.span`
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: ${({ theme, $tono }) => theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d"};
+    background-color: ${({ theme, $tono }) =>
+        hexToRGBA({
+            hex: theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d",
+            alpha: 0.12,
+        })};
+    border: 1px solid ${({ theme, $tono }) =>
+        hexToRGBA({
+            hex: theme?.colors?.[TONOS_ETIQUETA[$tono] || "textSecondary"] || "#6c757d",
+            alpha: 0.35,
+        })};
+`;
 
 const EMPRESA_LUBRICANTES = "MAXXIMUNDO";
+
+// Código numérico de empresa que espera el servicio web de proveedores (distinto del ID interno del portal).
+const CODIGO_EMPRESA_PROVEEDORES = {
+    AUTOLLANTA: 1,
+    MAXXIMUNDO: 2,
+    STOX: 3,
+    IKONIX: 4,
+    AUTOMAX: 5,
+};
 
 const MARCAS_POR_EMPRESA = {
     "AUTOLLANTA": ["FORTUNE", "MAXTREK", "ROADWING"],
@@ -50,6 +212,7 @@ const OPTIONS_ORIGEN_LUB = [
 const OPTIONS_MEDIDA_LUB = [
     { value: "LT", label: "LT" },
     { value: "KG", label: "KG" },
+    { value: "UGL", label: "UGL" }
 ];
 
 // Opciones Rol 3 (Técnico/Supervisor)
@@ -91,16 +254,178 @@ const OPTIONS_PRESENTACION_LUB = [
     { value: "PAIL", label: "PAIL" },
 ];
 
-const calcularNombreSistemaFinal = (nombreBase, isNew = false) => {
-    if (!nombreBase) return "";
-    // Limpiamos cualquier "NEW " previo para evitar duplicaciones si se rellama la función
-    let baseLimpia = nombreBase.startsWith("NEW ") ? nombreBase.replace(/^NEW\s+/, "") : nombreBase;
-    return isNew ? `NEW ${baseLimpia}` : baseLimpia;
+/* Ancho exacto de la columna de selección de fila: es el desplazamiento con
+   el que se congela la columna Nombre, así que no puede negociarlo el navegador. */
+const ANCHO_COL_SELECCION_LUB = "40px";
+
+/* Bandera "Visible EasySales" del ítem: por defecto true (equivalente al "SI"
+   que el export SAP enviaba siempre en U_MA_ITM_EASY antes de existir este
+   checkbox), así los ítems ya cargados sin el campo no cambian de comportamiento. */
+const esVisibleEasySales = (item) =>
+    item?.visibleEasySales !== undefined && item?.visibleEasySales !== null
+        ? Boolean(item.visibleEasySales)
+        : true;
+
+const normalizarTexto = (texto) =>
+    String(texto ?? "").trim().normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+
+/* Código que se añade al final del código de proveedor según el país de origen. */
+const CODIGO_ORIGEN_LUB = {
+    "ESTADOS UNIDOS": "U859",
+    "ALEMANIA": "D236",
+    "TURQUIA": "T124",
+    "PERU": "E225",
 };
 
+/* Solo los ítems de origen Perú llevan este texto al final del nombre. */
+const SUFIJO_NOMBRE_ORIGEN_PERU = "PETK";
+
+const getCodigoOrigen = (origen) => CODIGO_ORIGEN_LUB[normalizarTexto(origen)] || "";
+
+/* {codigoProveedor}{codigoOrigen}. Si el código ya termina con el código de origen no se vuelve a añadir. */
+const construirCodigoProveedor = (codigoBase, origen) => {
+    const base = String(codigoBase ?? "").trim();
+    const sufijo = getCodigoOrigen(origen);
+    if (!base || !sufijo || base.toUpperCase().endsWith(sufijo)) return base;
+    return `${base}${sufijo}`;
+};
+
+/* Sufijo fijo del código de barras generado por Compras: queda pendiente de validar. */
+const SUFIJO_CODIGO_BARRAS_LUB = "_X_VALIDAR";
+
+/* Código de barras que arma Compras: {codigoProveedor con origen}_X_VALIDAR. Siempre lleva el sufijo. */
+const construirCodigoBarras = (codigoBase, origen) => {
+    const codigoProveedor = construirCodigoProveedor(codigoBase, origen);
+    if (!codigoProveedor) return "";
+    return codigoProveedor.toUpperCase().endsWith(SUFIJO_CODIGO_BARRAS_LUB)
+        ? codigoProveedor
+        : `${codigoProveedor}${SUFIJO_CODIGO_BARRAS_LUB}`;
+};
+
+/* Quita el código de origen del final, sea de cualquier país (se usa al cambiar el origen de un ítem). */
+const quitarCualquierSufijoOrigen = (codigo) => {
+    const valor = String(codigo ?? "").trim();
+    const sufijo = Object.values(CODIGO_ORIGEN_LUB).find(s => valor.length > s.length && valor.toUpperCase().endsWith(s));
+    return sufijo ? valor.slice(0, -sufijo.length) : valor;
+};
+
+/* Quita los "NEW " del inicio (aunque vengan repetidos) y el " PETK" del final, para poder
+   reconstruir el nombre sin duplicarlos. */
+const limpiarNombreBase = (nombre) =>
+    String(nombre ?? "")
+        .trim()
+        .replace(/^(NEW\s+)+/i, "")
+        .replace(/(\s+PETK)+$/i, "")
+        .trim();
+
+/* Nombre final del sistema: [NEW ]{nombre}[ PETK]. */
+const construirNombreSistema = (nombreBase, { nuevo = false, origen = "" } = {}) => {
+    const base = limpiarNombreBase(nombreBase);
+    if (!base) return "";
+    const conSufijo = normalizarTexto(origen) === "PERU" ? `${base} ${SUFIJO_NOMBRE_ORIGEN_PERU}` : base;
+    return nuevo ? `NEW ${conSufijo}` : conSufijo;
+};
+
+/* "Nuevo" por defecto es true en ítems nuevos; los que vuelven rechazados lo traen según su nombre guardado. */
+const esItemNuevo = (item) =>
+    item?.esNuevo !== undefined && item?.esNuevo !== null ? Boolean(item.esNuevo) : !item?.fueRechazado;
+
+/* El nombre del sistema se deriva siempre del nombre base + "Nuevo" + origen, así que cambia en el
+   acto al editar cualquiera de ellos. */
+const getNombreSistema = (item) =>
+    construirNombreSistema(
+        item?.nombreSistemaBase || item?.descripcionRol5 || item?.nombreLub || item?.descripcion || "",
+        { nuevo: esItemNuevo(item), origen: item?.origen }
+    );
+
+
+/* Pestañas de la sección "Sin aprobar / Aprobados" (mismo look que Llantas.jsx y Herramientas.jsx) */
+const TabButton = styled.button`
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    background: transparent;
+    color: ${({ theme, $active }) => ($active ? theme?.colors?.primary : theme?.colors?.textSecondary || "#666")};
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+        color: ${({ theme }) => theme?.colors?.primary};
+    }
+
+    ${({ $active, theme }) =>
+        $active &&
+        `
+        color: ${theme?.colors?.primary};
+        border-bottom-color: ${theme?.colors?.primary};
+    `}
+`;
 
 // Línea fija para esta página — definida a nivel módulo para referencia estable
 const LINEA_LUBRICANTES = { value: "LUBRICANTES", label: "LUBRICANTES" };
+
+/* Roles del flujo MDM (id_rol → nombre), usado solo para las etiquetas de
+   fase de la Trazabilidad del modal de Detalle (genérico, igual que en Llantas.jsx). */
+const NOMBRES_ROL = {
+    1: "Comercial",
+    2: "Ventas",
+    3: "Tecnico",
+    4: "Marketing",
+    5: "Compras",
+    6: "Bodega",
+};
+
+/* Cada fase la ejecuta un rol concreto: FASE 1 = creación (rol 5), FASE 2 =
+   revisión técnica (rol 3), FASE 3 = imágenes (rol 4), FASE 4 = aprobación (rol 1). */
+const NOMBRES_FASE = {
+    1: `Creación (${NOMBRES_ROL[5]})`,
+    2: `Revisión técnica (${NOMBRES_ROL[3]})`,
+    3: `Imágenes (${NOMBRES_ROL[4]})`,
+    4: `Aprobación (${NOMBRES_ROL[1]})`,
+};
+
+/* Campos del detalle informativo de un ítem aprobado de Lubricantes.
+   Los ítems se construyen con `...it`, así que conservan tanto los campos
+   normalizados del front (camelCase) como los que devuelve el backend
+   (SCREAMING_SNAKE); se toma el primero disponible. Las filas sin valor no
+   se pintan. No existe campo "diseño" en esta línea de negocio. */
+const CAMPOS_DETALLE = [
+    { label: "Código SAP", get: (it) => it.CODIGO_SAP },
+    { label: "Código de barras", get: (it) => it.codigo || it.CODIGO_BARRAS },
+    { label: "Código proveedor", get: (it) => it.codigoProveedor || it.CODIGO_PROVEEDOR },
+    { label: "Código Shell", get: (it) => it.codigoShell || it.CODIGO_SHELL },
+    { label: "Línea de negocio", get: (it) => it.linea || it.LINEA_NEGOCIO },
+    { label: "Marca", get: (it) => it.marca || it.MARCA },
+    { label: "Nombre del sistema", get: (it) => it.nombreSistema },
+    { label: "Descripción", get: (it) => it.descripcion || it.descripcionRol5 || it.DESCRIPCION || it.NOMBRE },
+    { label: "Nombre extranjero", get: (it) => it.nombreExtranjero || it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO },
+    { label: "Estrategia", get: (it) => it.estrategia || it.ESTRATEGIA },
+    { label: "Origen", get: (it) => it.origen || it.ORIGEN },
+    { label: "Empaque", get: (it) => it.empaque || it.EMPAQUE },
+    { label: "OUM", get: (it) => it.oum || it.OUM || it.uom || it.UOM },
+    { label: "Familia", get: (it) => it.familia || it.FAMILIA },
+    { label: "Viscosidad", get: (it) => it.viscosidad || it.VISCOSIDAD },
+    { label: "Clase", get: (it) => it.clase || it.CLASE },
+    { label: "SAE", get: (it) => it.sae || it.SAE },
+    { label: "ISOVG", get: (it) => it.isovg || it.ISOVG },
+    { label: "API", get: (it) => it.api || it.API },
+    { label: "ACEA", get: (it) => it.acea || it.ACEA },
+    { label: "JASO", get: (it) => it.jaso || it.JASO },
+    { label: "ISO DIN", get: (it) => it.isoDin || it.ISO_DIN },
+    { label: "Pallets", get: (it) => it.pallets || it.PALLETS },
+    { label: "Presentación", get: (it) => it.presentacion || it.PRESENTACION },
+    { label: "Unidades por pallet", get: (it) => it.unidadesPallet || it.UNIDADES_POR_PALLET },
+    { label: "Unidades por caja", get: (it) => it.unidadesCaja || it.UNIDADES_POR_CAJA },
+    { label: "Aplicación", get: (it) => it.aplicacion || it.APLICACION },
+    { label: "Grado de grasa", get: (it) => it.gradoGrasa || it.GRADO_DE_LA_GRASA },
+    { label: "Peso material bruto", get: (it) => it.pesoMaterialBruto || it.PESO_MATERIAL_BRUTO },
+    { label: "Clasificación", get: (it) => it.clasificacion || it.CLASIFICACION },
+    { label: "Observaciones", get: (it) => it.comentarios || it.OBSERVACIONES },
+];
 
 function Lubricantes() {
     const { theme } = useTheme();
@@ -144,6 +469,7 @@ function Lubricantes() {
 
     const [diccionarioEmpresas, setDiccionarioEmpresas] = useState({});
     const [opcionesPallets, setOpcionesPallets] = useState([]);
+    const [opcionesProveedores, setOpcionesProveedores] = useState([]);
 
     useEffect(() => {
         const fetchEmpresas = async () => {
@@ -179,7 +505,19 @@ function Lubricantes() {
             }
         };
 
+        const fetchProveedoresOptions = async () => {
+            try {
+                const codigoEmpresa = CODIGO_EMPRESA_PROVEEDORES[EMPRESA_LUBRICANTES];
+                const data = await ListarProveedores(codigoEmpresa);
+                setOpcionesProveedores(Array.isArray(data) ? data.map(({ value, name }) => ({ value, label: name })) : []);
+            } catch (error) {
+                console.error(`Error fetching proveedores options for ${EMPRESA_LUBRICANTES}:`, error);
+                setOpcionesProveedores([]);
+            }
+        };
+
         fetchPalletsOptions();
+        fetchProveedoresOptions();
     }, []);
 
 
@@ -210,6 +548,18 @@ function Lubricantes() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
     const debounceTimeouts = useRef({});
+    // Resultado de verificar si el diseño (MARCA + NOMBRE, clave local del front — no existe
+    // campo DISEÑO en Lubricantes) ya tiene imagen en storage, indexado por esa clave, para no
+    // pedirle al coordinador (rol 4) que la vuelva a subir.
+    const [imagenesDisenioExistente, setImagenesDisenioExistente] = useState({});
+    // Diseños cuya verificación contra el backend todavía está en curso: mientras esté aquí,
+    // el input de subida se bloquea para no subir una imagen antes de saber si ya existía una.
+    const [disenioVerificando, setDisenioVerificando] = useState({});
+    const disenioCheckEnCurso = useRef(new Set());
+    const [detalleItem, setDetalleItem] = useState(null);
+    // Actualización de imágenes de un producto ya aprobado (rol 4), desde el modal de Detalle:
+    // { webp: bool, png: bool } indica si hay una subida en curso para ese tipo de imagen.
+    const [subiendoImagenDetalle, setSubiendoImagenDetalle] = useState({ webp: false, png: false });
 
     const handleDownloadTemplate = () => {
         if (!lineaSeleccionada) return;
@@ -264,7 +614,7 @@ function Lubricantes() {
                         id: Date.now() + Math.random(),
                         linea: lineaSeleccionada.value,
                         nombreLub: String(row.NOMBRE || "").trim().toUpperCase(),
-                        codigoProveedor: String(row.CODIGO_PROVEEDOR || "").trim().toUpperCase(),
+                        codigoProveedor: construirCodigoProveedor(String(row.CODIGO_PROVEEDOR || "").trim().toUpperCase(), origen),
                         codigoShell: String(row.CODIGO_SHELL || "").trim().toUpperCase(),
                         marca: String(row.MARCA || "").trim().toUpperCase(),
                         nombreExtranjero: String(row.NOMBRE_FORANEO || "").trim().toUpperCase(),
@@ -294,7 +644,8 @@ function Lubricantes() {
                     const itemWithParsed = {
                         ...it,
                         nombreSistemaBase: baseName,
-                        nombreSistema: calcularNombreSistemaFinal(baseName, true),
+                        esNuevo: true,
+                        nombreSistema: construirNombreSistema(baseName, { nuevo: true, origen: it.origen }),
                         parsedData: parsed
                     };
                     return itemWithParsed;
@@ -325,9 +676,22 @@ function Lubricantes() {
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
     const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
     const [approvedItems, setApprovedItems] = useState([]);
+    // Sección "Sin aprobar / Aprobados": pestaña activa, buscador compartido y estado del refresco.
+    // Aprobación comercial (rol 1): bloquea los botones mientras se aprueba/rechaza un ítem.
+    const [isProcessingRol1, setIsProcessingRol1] = useState(false);
+    const [tabAprobados, setTabAprobados] = useState("sinAprobar");
+    const [searchTermAprobados, setSearchTermAprobados] = useState("");
+    const [isRefrescandoAprobados, setIsRefrescandoAprobados] = useState(false);
+    // Todos los ítems no aprobados de la línea (cualquier fase), independiente de lo que el rol
+    // actual tenga filtrado en `items` para trabajar. Alimenta solo la pestaña "Sin aprobar".
+    const [itemsSinAprobarTodos, setItemsSinAprobarTodos] = useState([]);
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
     const [approvedItemsForExport, setApprovedItemsForExport] = useState([]);
+    const [isSyncingSap, setIsSyncingSap] = useState(false);
+    const [sapRequestPreview, setSapRequestPreview] = useState(null);
+    const [loadingSapRequestId, setLoadingSapRequestId] = useState(null);
+    const [searchTermExport, setSearchTermExport] = useState("");
 
     const filteredItemsToReview = useMemo(() => {
         if (!searchTermReview) return itemsToReview;
@@ -340,16 +704,67 @@ function Lubricantes() {
         );
     }, [itemsToReview, searchTermReview]);
 
+    const filteredApprovedItemsForExport = useMemo(() => {
+        if (!searchTermExport) return approvedItemsForExport;
+        const lowSearch = searchTermExport.toLowerCase();
+        return approvedItemsForExport.filter(item =>
+            String(item.EMPRESA || "").toLowerCase().includes(lowSearch) ||
+            String(item.CODIGO_SAP || "").toLowerCase().includes(lowSearch) ||
+            String(item.NOMBRE || item.DESCRIPCION || "").toLowerCase().includes(lowSearch)
+        );
+    }, [approvedItemsForExport, searchTermExport]);
+
+    /* Paginación de los modales "Seleccionar ítems para revisar" y "Exportar ítems
+       aprobados a SAP": renderizar de una sola vez listas grandes (DWH, histórico de
+       aprobados) rompía la tabla, así que solo se pinta una página a la vez. */
+    const ITEMS_POR_PAGINA_MODAL = 20;
+    const [paginaReview, setPaginaReview] = useState(1);
+    const [paginaExport, setPaginaExport] = useState(1);
+
+    useEffect(() => { setPaginaReview(1); }, [searchTermReview, itemsToReview]);
+    useEffect(() => { setPaginaExport(1); }, [searchTermExport, approvedItemsForExport]);
+
+    const totalPaginasReview = Math.max(1, Math.ceil(filteredItemsToReview.length / ITEMS_POR_PAGINA_MODAL));
+    const itemsToReviewPaginados = filteredItemsToReview.slice(
+        (paginaReview - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaReview * ITEMS_POR_PAGINA_MODAL,
+    );
+
+    const totalPaginasExport = Math.max(1, Math.ceil(filteredApprovedItemsForExport.length / ITEMS_POR_PAGINA_MODAL));
+    const approvedItemsForExportPaginados = filteredApprovedItemsForExport.slice(
+        (paginaExport - 1) * ITEMS_POR_PAGINA_MODAL,
+        paginaExport * ITEMS_POR_PAGINA_MODAL,
+    );
+
     // Línea fija: LUBRICANTES (referencia estable desde módulo)
     const lineaSeleccionada = LINEA_LUBRICANTES;
 
-    const fetchItems = useCallback(async () => {
+    // `soloSeccion`: refresca únicamente la sección "Sin aprobar / Aprobados" y deja `items`
+    // intacto, para no perder las filas nuevas que el rol 5 todavía no ha enviado.
+    const fetchItems = useCallback(async ({ soloSeccion = false } = {}) => {
         if (idRolPrincipal && lineaSeleccionada) {
             try {
                 const rawData = await getItemsByRole(idRolPrincipal, lineaSeleccionada.value);
                 if (rawData) {
                     const data = rawData;
                     let processedItems = data;
+
+                    // Vista informativa de la pestaña "Sin aprobar": TODOS los ítems no aprobados de la
+                    // línea, sin importar en qué fase estén ni si son accionables para el rol actual.
+                    // Se conserva el objeto crudo (...it) para que el modal de Detalle lea todos sus campos.
+                    setItemsSinAprobarTodos(
+                        data.filter(it => !it.APROBADO_MDM).map(it => ({
+                            ...it,
+                            id: it.ID,
+                            linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
+                            codigo: it.CODIGO_BARRAS || "",
+                            codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                            marca: it.MARCA || "",
+                            descripcion: it.NOMBRE || it.DESCRIPCION || "",
+                            comentarios: it.OBSERVACIONES || "",
+                            fueRechazado: Array.isArray(it.FASES) && it.FASES.some(f => f.RECHAZO),
+                        }))
+                    );
                     if (idRolPrincipal === 3) {
                         const filtered = data.filter(it =>
                             it.APROBADO_MDM ||
@@ -423,6 +838,7 @@ function Lubricantes() {
                                 id: it.ID,
                                 linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 codigo: it.CODIGO_BARRAS || "",
+                                codigoProveedor: it.CODIGO_PROVEEDOR || "",
                                 marca: it.MARCA || "",
                                 descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 comentarios: it.OBSERVACIONES || "",
@@ -464,17 +880,25 @@ function Lubricantes() {
                                 }
                             }
 
+                            const nombreGuardado = it.NOMBRE || it.DESCRIPCION || "";
+                            const esNuevo = /^\s*NEW\s/i.test(nombreGuardado);
+                            const nombreBase = parsed["Posible Descripcion"] || nombreGuardado;
+
                             const itemWithBase = {
                                 ...it,
                                 id: it.ID,
                                 linea: it.LINEA_NEGOCIO || lineaSeleccionada.value,
                                 idEmpresa: Object.keys(diccionarioEmpresas).find(k => diccionarioEmpresas[k] === it.EMPRESA) || "",
+                                // Mismo criterio que ES_NUEVO en las otras líneas: sin valor del backend, esVisibleEasySales() aplica el fallback (true)
+                                visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
                                 descripcionRol5: it.NOMBRE || it.DESCRIPCION || "",
                                 descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 parsedData: parsed,
-                                nombreSistemaBase: parsed["Posible Descripcion"] || it.NOMBRE || it.DESCRIPCION || "",
-                                nombreSistema: calcularNombreSistemaFinal(parsed["Posible Descripcion"] || it.NOMBRE || it.DESCRIPCION || "", it.COLOR_LETRA || "", false),
+                                esNuevo,
+                                nombreSistemaBase: nombreBase,
+                                nombreSistema: construirNombreSistema(nombreBase, { nuevo: esNuevo, origen: it.ORIGEN }),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                proveedor: it.ID_PROVEEDOR || "",
                                 codigoShell: it.CODIGO_SHELL || "",
                                 marca: it.MARCA || "",
                                 nombreExtranjero: it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO || "",
@@ -506,6 +930,7 @@ function Lubricantes() {
                                 descripcion: it.NOMBRE || it.DESCRIPCION || "",
                                 descripcionRol5: it.NOMBRE || it.DESCRIPCION || "",
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
+                                proveedor: it.ID_PROVEEDOR || "",
                                 codigoShell: it.CODIGO_SHELL || "",
                                 nombreExtranjero: it.NOMBRE_FORANEO || it.NOMBRE_EXTRANJERO || "",
                                 estrategia: it.ESTRATEGIA || "",
@@ -520,6 +945,7 @@ function Lubricantes() {
                                 acea: it.ACEA || "",
                                 jaso: it.JASO || "",
                                 isoDin: it.ISO_DIN || "",
+                                pallets: it.PALLETS || "",
                                 presentacion: it.PRESENTACION || "",
                                 unidadesPallet: it.UNIDADES_POR_PALLET || "",
                                 unidadesCaja: it.UNIDADES_POR_CAJA || "",
@@ -544,7 +970,7 @@ function Lubricantes() {
                     const pendingItems = processedItems.filter(it => !it.APROBADO_MDM);
                     const approvedList = processedItems.filter(it => it.APROBADO_MDM);
 
-                    setItems(pendingItems);
+                    if (!soloSeccion) setItems(pendingItems);
                     setApprovedItems(approvedList);
 
                     if (idRolPrincipal === 1) setCurrentItemIndex(0);
@@ -560,18 +986,229 @@ function Lubricantes() {
         fetchItems();
     }, [fetchItems]);
 
+    // Cuando se reemplaza una imagen ya existente, la key en storage (y por lo tanto la URL) no
+    // cambia: el navegador ya tiene esa URL cacheada y seguiría mostrando la versión vieja hasta
+    // recargar la página. Agregar un parámetro único fuerza a que se pida de nuevo.
+    const agregarCacheBusting = (url) => {
+        if (!url) return url;
+        const separador = url.includes('?') ? '&' : '?';
+        return `${url}${separador}_v=${Date.now()}`;
+    };
+
+    // Clave LOCAL (solo de front) para deduplicar verificaciones de imagen. En Lubricantes la imagen se
+    // identifica por CODIGO_SAP (si el ítem ya lo tiene) o, si no, por CODIGO_PROVEEDOR; es la misma regla
+    // que aplica el backend (ItemImageUploadService.resolveImageIdentity), y se guarda bajo la MARCA
+    // (SHELL / PENNZOIL). Sin ninguno de los dos se usa una clave única por ID.
+    const getDisenioKey = (item) => {
+        if (!item) return null;
+        const marca = item.marca || item.MARCA;
+        const codigoImagen = item.CODIGO_SAP || item.codigoSap || item.codigoProveedor || item.CODIGO_PROVEEDOR;
+        if (marca && codigoImagen) {
+            return `${String(marca).trim().toUpperCase()}|${String(codigoImagen).trim().toUpperCase()}`;
+        }
+        const id = item.ID ?? item.id;
+        return id !== undefined && id !== null ? `ITEM_${id}` : null;
+    };
+
+    // Consulta al backend si el ítem ya tiene imagen en storage (R2/SharePoint) y guarda el
+    // resultado en imagenesDisenioExistente, indexado por la clave local. Se usa tanto para la
+    // grilla de pendientes (rol 4) como para el modal de Detalle del producto.
+    const verificarImagenDisenio = useCallback((item, linea) => {
+        const clave = getDisenioKey(item);
+        if (!clave || imagenesDisenioExistente[clave] || disenioCheckEnCurso.current.has(clave)) return;
+        disenioCheckEnCurso.current.add(clave);
+        setDisenioVerificando(prev => ({ ...prev, [clave]: true }));
+        checkDesignImage(linea, item.ID ?? item.id)
+            .then(result => {
+                if (result) {
+                    setImagenesDisenioExistente(prev => ({ ...prev, [clave]: result }));
+                }
+            })
+            .catch(err => {
+                console.error(`Error al verificar imagen existente para ${clave}:`, err);
+            })
+            .finally(() => {
+                disenioCheckEnCurso.current.delete(clave);
+                setDisenioVerificando(prev => {
+                    const next = { ...prev };
+                    delete next[clave];
+                    return next;
+                });
+            });
+    }, [imagenesDisenioExistente]);
+
+    // Rol 4 (coordinador de imágenes): las imágenes se suben una vez por diseño, no por ítem.
+    // Antes de forzar la subida, se verifica si el diseño ya tiene imagen en storage (Cloudflare
+    // R2 / SharePoint) para no pedirla nuevamente.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !lineaSeleccionada) return;
+
+        const pendientes = items.filter(it => it.linea === lineaSeleccionada.value && getDisenioKey(it));
+        const clavesUnicas = new Map();
+        pendientes.forEach(it => {
+            const clave = getDisenioKey(it);
+            if (clave && !clavesUnicas.has(clave)) {
+                clavesUnicas.set(clave, it);
+            }
+        });
+
+        clavesUnicas.forEach(it => verificarImagenDisenio(it, lineaSeleccionada.value));
+    }, [idRolPrincipal, lineaSeleccionada, items, verificarImagenDisenio]);
+
+    // Al abrir el detalle de un producto aprobado (rol 4), se verifica igual el diseño para
+    // poder mostrar las miniaturas de SharePoint/R2 en la ficha, aunque el ítem ya no esté
+    // en la grilla de pendientes.
+    useEffect(() => {
+        if (idRolPrincipal !== 4 || !detalleItem) return;
+        const linea = detalleItem.linea || detalleItem.LINEA_NEGOCIO || lineaSeleccionada?.value;
+        if (!linea) return;
+        verificarImagenDisenio(detalleItem, linea);
+    }, [idRolPrincipal, detalleItem, lineaSeleccionada, verificarImagenDisenio]);
+
+    // Bloquea la subida mientras no se sepa con certeza si el diseño ya tiene imagen en storage:
+    // subir "a ciegas" durante ese lapso podría generar un archivo huérfano o duplicado.
+    const disenioEstaVerificando = (item) => {
+        const clave = getDisenioKey(item);
+        return clave ? Boolean(disenioVerificando[clave]) : false;
+    };
+    const hayVerificacionesPendientes = (currentItems) => currentItems.some(disenioEstaVerificando);
+
+    // Actualiza la imagen (WebP en R2, o PNG en SharePoint) de un producto ya aprobado, desde el
+    // modal de Detalle del producto. Al ser el mismo diseño, la subida sobrescribe la imagen
+    // existente: es justamente el flujo para corregir/reemplazar una imagen ya publicada.
+    const handleActualizarImagenDetalle = async (tipo, file) => {
+        if (!detalleItem) return;
+        const linea = detalleItem.linea || detalleItem.LINEA_NEGOCIO || lineaSeleccionada?.value;
+        if (!linea) return;
+
+        if (tipo === "webp" && file.type !== "image/webp") {
+            toast.error("Solo se permiten archivos WEBP");
+            return;
+        }
+        if (tipo === "png" && file.type !== "image/png") {
+            toast.error("Solo se permiten archivos PNG");
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error(`La imagen ${tipo.toUpperCase()} no debe superar 2MB`);
+            return;
+        }
+
+        const clave = getDisenioKey(detalleItem);
+        setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: true }));
+        try {
+            if (tipo === "webp") {
+                const res = await uploadItemImages(linea, detalleItem.ID ?? detalleItem.id, detalleItem.marca, null, null, file);
+                // Al reemplazar una imagen ya existente, la key (y por lo tanto la URL) es la misma
+                // de antes: sin este parámetro el navegador sirve la versión cacheada y no se ve el
+                // cambio hasta recargar la página.
+                const nuevaUrl = agregarCacheBusting(res?.data?.urls?.webp);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], webp: { exists: true, key: res.data.RUTA_IMAGEN_WEBP, url: nuevaUrl } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_WEBP: nuevaUrl || prev.RUTA_IMAGEN_WEBP } : prev);
+            } else {
+                const empresaToSend = detalleItem.EMPRESA || EMPRESA_LUBRICANTES;
+                const res = await uploadItemImagesSharepoint(linea, detalleItem.ID ?? detalleItem.id, detalleItem.marca, empresaToSend, null, file, null);
+                const nuevaUrl = res?.data?.urls?.png;
+                const nuevaPreview = agregarCacheBusting(res?.data?.urls?.pngPreview || nuevaUrl);
+                if (clave && nuevaUrl) {
+                    setImagenesDisenioExistente(prev => ({
+                        ...prev,
+                        [clave]: { ...prev[clave], png: { exists: true, key: res.data.RUTA_IMAGEN_PNG, url: nuevaUrl, previewUrl: nuevaPreview } },
+                    }));
+                }
+                setDetalleItem(prev => prev ? { ...prev, RUTA_IMAGEN_PNG: nuevaUrl || prev.RUTA_IMAGEN_PNG } : prev);
+            }
+            toast.success(`Imagen ${tipo.toUpperCase()} actualizada correctamente.`);
+            fetchItems();
+        } catch (error) {
+            console.error(`Error al actualizar imagen ${tipo}:`, error);
+            toast.error(`Error al actualizar la imagen ${tipo.toUpperCase()}.`);
+        } finally {
+            setSubiendoImagenDetalle(prev => ({ ...prev, [tipo]: false }));
+        }
+    };
+
+    const handleVerSapRequest = async (itemId) => {
+        setLoadingSapRequestId(itemId);
+        try {
+            const response = await getSapRequestItem("LUBRICANTES", itemId);
+            setSapRequestPreview(response?.data || null);
+        } catch (error) {
+            console.error("Error al generar el request de SAP:", error);
+            toast.error(error?.response?.data?.details || error?.response?.data?.message || "No se pudo generar el request de SAP.");
+        } finally {
+            setLoadingSapRequestId(null);
+        }
+    };
+
+    const handleSyncToSap = async () => {
+        const ids = Array.from(selectedApprovedItemIds);
+        if (ids.length === 0) {
+            toast.warning("Seleccione al menos un ítem para sincronizar con SAP.");
+            return;
+        }
+
+        setIsSyncingSap(true);
+        try {
+            const response = await syncItemsToSap("LUBRICANTES", ids);
+            const result = response?.data || {};
+            const { Exitosos = 0, Fallidos = 0, Total = 0, PorEmpresa = [], ItemsOmitidos = [] } = result;
+
+            if (Fallidos === 0 && Exitosos > 0) {
+                toast.success(`Sincronización SAP: ${Exitosos} de ${Total} ítems creados correctamente.`);
+            } else if (Exitosos > 0) {
+                toast.warning(`Sincronización SAP: ${Exitosos} exitosos, ${Fallidos} fallidos de ${Total}. Revise la consola para el detalle.`);
+            } else {
+                toast.error(`Sincronización SAP: no se pudo crear ningún ítem (${Fallidos} fallidos de ${Total}). Revise la consola para el detalle.`);
+            }
+
+            console.log("Resultado sincronización SAP:", { PorEmpresa, ItemsOmitidos });
+
+            for (const empresaResult of PorEmpresa) {
+                for (const resultado of empresaResult.Resultados || []) {
+                    if (!resultado.Success) {
+                        console.warn(`❌ ${empresaResult.Empresa} - ${resultado.ItemName}: ${resultado.Message}`);
+                    }
+                }
+            }
+            for (const omitido of ItemsOmitidos) {
+                console.warn(`⚠️ Item omitido (ID ${omitido.ItemId}): ${omitido.Motivo}`);
+            }
+
+            setSelectedApprovedItemIds(new Set());
+            fetchItems();
+        } catch (error) {
+            console.error("Error al sincronizar con SAP:", error);
+            toast.error("Error al sincronizar los ítems con SAP.");
+        } finally {
+            setIsSyncingSap(false);
+        }
+    };
+
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
         try {
+            let erroresCount = 0;
+            const idsConError = new Set();
+
             if (idRolPrincipal === 5) {
+                const payloadsNuevos = [];
+                const payloadsReenvio = [];
                 for (const item of currentItems) {
                     if (item.fueRechazado) {
-                        const payload = {
+                        payloadsReenvio.push({
                             ID: item.id,
                             LINEA_NEGOCIO: lineaSeleccionada.value,
-                            NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
-                            CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                            CODIGO_SHELL: item.codigoProveedor || "",
+                            NOMBRE: getNombreSistema(item) || item.descripcionRol5 || item.descripcion || "",
+                            CODIGO_PROVEEDOR: construirCodigoProveedor(item.codigoProveedor, item.origen),
+                            ID_PROVEEDOR: item.proveedor || "",
+                            CODIGO_SHELL: construirCodigoProveedor(item.codigoProveedor, item.origen),
+                            CODIGO_BARRAS: construirCodigoBarras(item.codigoProveedor, item.origen),
                             MARCA: item.marca || "",
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
                             ESTRATEGIA: item.estrategia || "",
@@ -580,16 +1217,19 @@ function Lubricantes() {
                             OUM: item.oum || item.OUM || item.uom || item.UOM || "",
                             EMPRESA: EMPRESA_LUBRICANTES,
                             OBSERVACIONES: item.comentarios || "",
+                            VISIBLE_EASYSALES: esVisibleEasySales(item),
                             RECHAZO: false,
                             FASE: 1
-                        };
-                        await patchItemRole3(payload);
+                        });
                     } else {
-                        const payload = {
+                        payloadsNuevos.push({
+                            __localId: item.id,
                             LINEA_NEGOCIO: lineaSeleccionada.value,
-                            NOMBRE: item.nombreSistema || item.descripcionRol5 || item.descripcion || "",
-                            CODIGO_PROVEEDOR: item.codigoProveedor || "",
-                            CODIGO_SHELL: item.codigoProveedor || "",
+                            NOMBRE: getNombreSistema(item) || item.descripcionRol5 || item.descripcion || "",
+                            CODIGO_PROVEEDOR: construirCodigoProveedor(item.codigoProveedor, item.origen),
+                            ID_PROVEEDOR: item.proveedor || "",
+                            CODIGO_SHELL: construirCodigoProveedor(item.codigoProveedor, item.origen),
+                            CODIGO_BARRAS: construirCodigoBarras(item.codigoProveedor, item.origen),
                             MARCA: item.marca || "",
                             NOMBRE_FORANEO: item.nombreExtranjero || "",
                             ESTRATEGIA: item.estrategia || "",
@@ -599,41 +1239,58 @@ function Lubricantes() {
                             MEDIDA: item.medida || "",
                             OUM: item.oum || item.OUM || item.uom || item.UOM || "",
                             EMPRESA: EMPRESA_LUBRICANTES,
-                            OBSERVACIONES: item.comentarios || ""
-                        };
-                        await saveItemRole5(payload);
+                            OBSERVACIONES: item.comentarios || "",
+                            VISIBLE_EASYSALES: esVisibleEasySales(item),
+                        });
                     }
                 }
+
+                const [respReenvio, respNuevos] = await Promise.all([
+                    payloadsReenvio.length > 0 ? patchItemsRole3Bulk(payloadsReenvio) : Promise.resolve(null),
+                    payloadsNuevos.length > 0 ? saveItemsRole5Bulk(payloadsNuevos.map(({ __localId, ...p }) => p)) : Promise.resolve(null),
+                ]);
+
+                (respReenvio?.errors || []).forEach(e => idsConError.add(e.id));
+                (respNuevos?.errors || []).forEach(e => idsConError.add(payloadsNuevos[e.index]?.__localId));
+                erroresCount = idsConError.size;
             } else if (idRolPrincipal === 3) {
-                for (const item of currentItems) {
-                    const payload = {
-                        ID: item.ID,
-                        LINEA_NEGOCIO: lineaSeleccionada.value,
-                        FAMILIA: item.familia || "",
-                        VISCOSIDAD: item.viscosidad || "",
-                        CLASE: item.clase || "",
-                        SAE: item.sae || "",
-                        ISOVG: item.isovg || "",
-                        API: item.api || "",
-                        ACEA: item.acea || "",
-                        JASO: item.jaso || "",
-                        ISO_DIN: item.isoDin || item.iso_din || "",
-                        PALLETS: item.pallets || "",
-                        PRESENTACION: item.presentacion || "",
-                        UNIDADES_POR_PALLET: item.unidades_por_pallet || item.unidadesPallet || "",
-                        UNIDADES_POR_CAJA: item.unidades_por_caja || item.unidadesCaja || "",
-                        APLICACION: item.aplicacion || "",
-                        GRADO_DE_LA_GRASA: item.grado_de_la_grasa || item.gradoGrasa || "",
-                        PESO_MATERIAL_BRUTO: item.pesoMaterialBruto || item.peso_material_bruto || item.pesoBruto || "",
-                        CLASIFICACION: item.clasificacion || "",
-                        OBSERVACIONES: item.comentarios || "",
-                        FASE: 2,
-                        ...(item.fueRechazado && { RECHAZO: false })
-                    };
-                    await patchItemRole3(payload);
-                }
+                const payloads = currentItems.map(item => ({
+                    ID: item.ID,
+                    LINEA_NEGOCIO: lineaSeleccionada.value,
+                    FAMILIA: item.familia || "",
+                    VISCOSIDAD: item.viscosidad || "",
+                    CLASE: item.clase || "",
+                    SAE: item.sae || "",
+                    ISOVG: item.isovg || "",
+                    API: item.api || "",
+                    ACEA: item.acea || "",
+                    JASO: item.jaso || "",
+                    ISO_DIN: item.isoDin || item.iso_din || "",
+                    PALLETS: item.pallets || "",
+                    PRESENTACION: item.presentacion || "",
+                    UNIDADES_POR_PALLET: item.unidades_por_pallet || item.unidadesPallet || "",
+                    UNIDADES_POR_CAJA: item.unidades_por_caja || item.unidadesCaja || "",
+                    APLICACION: item.aplicacion || "",
+                    GRADO_DE_LA_GRASA: item.grado_de_la_grasa || item.gradoGrasa || "",
+                    PESO_MATERIAL_BRUTO: item.pesoMaterialBruto || item.peso_material_bruto || item.pesoBruto || "",
+                    CLASIFICACION: item.clasificacion || "",
+                    OBSERVACIONES: item.comentarios || "",
+                    FASE: 2,
+                    ...(item.fueRechazado && { RECHAZO: false })
+                }));
+                const response = await patchItemsRole3Bulk(payloads);
+                (response?.errors || []).forEach(e => idsConError.add(e.id));
+                erroresCount = idsConError.size;
             } else if (idRolPrincipal === 4) {
+                const payloadsFase3 = [];
                 for (const item of currentItems) {
+                    const empresaToSend = item.EMPRESA || EMPRESA_LUBRICANTES;
+                    const disenioExistente = imagenesDisenioExistente[getDisenioKey(item)];
+                    // Solo se vincula lo que el diseño ya tiene en storage Y que este ítem no está subiendo de nuevo.
+                    const debeVincularExistente =
+                        (!item.imagenWebp && disenioExistente?.webp?.exists) ||
+                        (!item.imagenPng && disenioExistente?.png?.exists);
+
                     if (item.imagenWebp) {
                         try {
                             await uploadItemImages(lineaSeleccionada.value, item.ID, item.marca, null, null, item.imagenWebp);
@@ -644,14 +1301,23 @@ function Lubricantes() {
                     }
                     if (item.imagenPng) {
                         try {
-                            const empresaToSend = item.EMPRESA || "";
                             await uploadItemImagesSharepoint(lineaSeleccionada.value, item.ID, item.marca, empresaToSend, null, item.imagenPng, null);
                         } catch (uploadError) {
                             console.error(`Error al subir imagen PNG para el ítem ${item.ID}:`, uploadError);
                             toast.error(`Error al subir imagen PNG para ${item.marca} ${item.descripcion || ""}`);
                         }
                     }
-                    await patchItemRole3({
+                    if (debeVincularExistente) {
+                        // Las imágenes se suben una vez por diseño, no por ítem: aquí se vincula
+                        // al ítem la que ya existe en storage, sin volver a subirla.
+                        try {
+                            await linkExistingItemImage(lineaSeleccionada.value, item.ID);
+                        } catch (linkError) {
+                            console.error(`Error al vincular imagen existente para el ítem ${item.ID}:`, linkError);
+                            toast.error(`Error al vincular imagen existente para ${item.marca} ${item.descripcion || ""}`);
+                        }
+                    }
+                    payloadsFase3.push({
                         ID: item.ID,
                         FASE: 3,
                         OBSERVACIONES: item.comentarios || "",
@@ -659,11 +1325,30 @@ function Lubricantes() {
                         ...(item.fueRechazado && { RECHAZO: false })
                     });
                 }
+                const response = await patchItemsRole3Bulk(payloadsFase3);
+                (response?.errors || []).forEach(e => idsConError.add(e.id));
+                erroresCount = idsConError.size;
             }
 
-            toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
-            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))));
-            setSelectedItemIds(new Set());
+            const enviados = currentItems.length - erroresCount;
+            if (erroresCount === 0) {
+                toast.success(`Se enviaron a revisión ${currentItems.length} ítems seleccionados.`);
+            } else if (enviados > 0) {
+                toast.warning(`Se enviaron ${enviados} de ${currentItems.length} ítems a revisión. ${erroresCount} fallaron y quedaron pendientes.`);
+            } else {
+                toast.error(`No se pudo enviar ningún ítem a revisión.`);
+            }
+
+            const idsEnviados = new Set(
+                currentItems.filter(i => !idsConError.has(i.id)).map(i => i.id)
+            );
+            setItems(prev => prev.filter(i => !(i.linea === lineaSeleccionada.value && idsEnviados.has(i.id))));
+            setSelectedItemIds(prev => {
+                const next = new Set(prev);
+                idsEnviados.forEach(id => next.delete(id));
+                return next;
+            });
+            fetchItems({ soloSeccion: true });
             setIsSAPModalOpen(false);
         } catch (error) {
             console.error("Error al enviar a revisión:", error);
@@ -679,7 +1364,57 @@ function Lubricantes() {
         setItems(prev => prev.filter(i => i.id !== id));
     };
 
+    /* Al aprobar ("Aceptar"), el backend crea el ítem en SAP en la misma petición (best-effort: si SAP
+       falla el ítem queda aprobado igual). Si el ítem ya tenía código SAP no se hace nada en SAP. */
+    const informarResultadoAprobacion = (sapSync, item) => {
+        const codigoExistente = item?.CODIGO_SAP || item?.codigoSap;
+        if (codigoExistente) {
+            toast.success(`Ítem aprobado. Ya tenía código SAP (${codigoExistente}); no se envió a SAP.`);
+            return;
+        }
+
+        const resultados = (sapSync?.PorEmpresa || []).flatMap(e => e.Resultados || []);
+        const creado = resultados.find(r => r.Success);
+        const motivo =
+            resultados.find(r => !r.Success)?.Message ||
+            sapSync?.ItemsOmitidos?.[0]?.Motivo ||
+            "SAP no respondió";
+
+        if (sapSync && sapSync.Exitosos > 0 && sapSync.Fallidos === 0) {
+            toast.success(`Ítem aprobado y creado en SAP${creado?.ItemCode ? ` (${creado.ItemCode})` : ""}.`);
+            return;
+        }
+
+        console.warn("Aprobado, pero no se creó en SAP:", sapSync || "sin respuesta de sincronización");
+        toast.warning(`Ítem aprobado, pero no se pudo crear en SAP: ${motivo}. Puede reintentarlo desde "Exportar a SAP".`);
+    };
+
+    const handleRefrescarAprobados = async () => {
+        setIsRefrescandoAprobados(true);
+        try {
+            await fetchItems({ soloSeccion: true });
+        } finally {
+            setIsRefrescandoAprobados(false);
+        }
+    };
+
+    // Búsqueda compartida por la sección "Sin aprobar / Aprobados": código de proveedor, código de
+    // barras, código SAP (si ya lo tiene), descripción o marca.
+    const filtrarSeccionAprobados = (lista, termino) => {
+        if (!termino) return lista;
+        const t = termino.toLowerCase();
+        return lista.filter(item =>
+            String(item.codigoProveedor || item.CODIGO_PROVEEDOR || "").toLowerCase().includes(t) ||
+            String(item.codigo || item.CODIGO_BARRAS || "").toLowerCase().includes(t) ||
+            String(item.CODIGO_SAP || "").toLowerCase().includes(t) ||
+            String(item.nombreSistema || item.descripcionRol5 || item.descripcion || "").toLowerCase().includes(t) ||
+            String(item.marca || "").toLowerCase().includes(t)
+        );
+    };
+
     const handleActionRol1 = async (itemId, action, rolesRechazo = [], observaciones = {}) => {
+        if (isProcessingRol1) return;
+        setIsProcessingRol1(true);
         try {
             if (action === "reject") {
                 // Mapeo Rol -> Fase
@@ -701,28 +1436,28 @@ function Lubricantes() {
                     }
                 }
             } else if (action === "approve") {
+                // El código de barras ya lo genera Compras (rol 5) al crear el ítem; Comercial no lo completa.
                 const item = items.find(i => i.id === itemId);
-                if (!item || !item.codigo || item.codigo.trim() === "") {
-                    toast.error("Debe digitar el código de barras antes de aprobar el ítem.");
-                    return;
-                }
+                if (!item) return;
 
                 await patchItemRole3({
                     ID: itemId,
-                    CODIGO_BARRAS: item.codigo,
+                    ...(item.codigo && item.codigo.trim() !== "" ? { CODIGO_BARRAS: item.codigo } : {}),
                     LINEA_NEGOCIO: lineaSeleccionada.value,
                     FASE: 2
                 });
 
-                await approveItemMDM(itemId, lineaSeleccionada.value);
-                toast.success("Ítem aprobado correctamente.");
+                const respuesta = await approveItemMDM(itemId, lineaSeleccionada.value);
+                informarResultadoAprobacion(respuesta?.sapSync, item);
             }
-            setItems(prev => prev.filter(i => i.id !== itemId));
+            await fetchItems();
             // Si era el último ítem, retroceder el índice
             setCurrentItemIndex(prev => Math.max(0, prev - 1));
         } catch (error) {
             console.error("Error al procesar acción:", error);
             toast.error("Error al procesar la acción.");
+        } finally {
+            setIsProcessingRol1(false);
         }
     };
 
@@ -753,6 +1488,15 @@ function Lubricantes() {
                 }
                 return it;
             }));
+            return;
+        }
+
+        // Al elegir el origen, el código de proveedor ya digitado se reemplaza directamente por
+        // {codigo}{codigoOrigen}; si antes tenía el código de otro país, se cambia por el nuevo.
+        if (idRolPrincipal === 5 && campo === "origen") {
+            setItems(prev => prev.map(it => it.id === id
+                ? { ...it, origen: val, codigoProveedor: construirCodigoProveedor(quitarCualquierSufijoOrigen(it.codigoProveedor), val) }
+                : it));
             return;
         }
 
@@ -801,7 +1545,7 @@ function Lubricantes() {
                                     ...it,
                                     parsedData: parsed,
                                     nombreSistemaBase: parsedName,
-                                    nombreSistema: calcularNombreSistemaFinal(parsedName, !it.fueRechazado)
+                                    nombreSistema: construirNombreSistema(parsedName, { nuevo: esItemNuevo(it), origen: it.origen })
                                 };
                                 return baseItem;
                             }
@@ -1005,6 +1749,7 @@ function Lubricantes() {
                                                 {[
                                                     { key: 'codigo', label: "Código de Barras", role: 5 },
                                                     { key: 'codigoProveedor', label: "Codigo Proveedor", role: 5 },
+                                                    { key: 'proveedor', label: "Proveedor", role: 5 },
                                                     { key: 'marca', label: "Marca", role: 5 },
                                                     { key: 'nombreExtranjero', label: "Nombre Foraneo", role: 5 },
                                                     { key: 'estrategia', label: "Estrategia", role: 5 },
@@ -1030,7 +1775,13 @@ function Lubricantes() {
                                                     { key: 'pesoMaterialBruto', label: "Peso material bruto", role: 3 },
                                                     { key: 'clasificacion', label: "Clasificacion", role: 3 },
                                                 ].map(({ key, label, role }) => {
-                                                    const value = key === 'OUM' ? (item.oum || item.OUM || item.uom || item.UOM) : item[key];
+                                                    const value = key === 'OUM'
+                                                        ? (item.oum || item.OUM || item.uom || item.UOM)
+                                                        : key === 'pallets'
+                                                            ? (item.pallets ? (opcionesPallets.find(o => o.value == item.pallets)?.label || item.pallets) : '')
+                                                        : key === 'proveedor'
+                                                            ? (item.proveedor ? `${item.proveedor} - ${opcionesProveedores.find(o => o.value === item.proveedor)?.label || ''}` : '')
+                                                            : item[key];
                                                     let bgColor = isDark ? '#111827' : '#fafafa';
                                                     let borderColor = isDark ? '#1f2937' : '#eee';
 
@@ -1091,6 +1842,7 @@ function Lubricantes() {
                                             iconLeft="FaTimes"
                                             variant="outlined"
                                             pcolor={theme?.colors?.error || '#dc3545'}
+                                            disabled={isProcessingRol1}
                                             onClick={() => {
                                                 setItemToReject(item);
                                                 setIsRejectModalOpen(true);
@@ -1101,7 +1853,7 @@ function Lubricantes() {
                                                 text="Anterior ítem"
                                                 iconLeft="FaChevronLeft"
                                                 variant="outlined"
-                                                disabled={currentItemIndex <= 0}
+                                                disabled={isProcessingRol1 || currentItemIndex <= 0}
                                                 onClick={() => setCurrentItemIndex(prev => prev - 1)}
                                             />
                                             <TextUI size="13px" weight="500" color={theme?.colors?.textSecondary}>
@@ -1111,7 +1863,7 @@ function Lubricantes() {
                                                 text="Siguiente ítem"
                                                 iconRight="FaChevronRight"
                                                 variant="outlined"
-                                                disabled={currentItemIndex >= itemsFiltrados.length - 1}
+                                                disabled={isProcessingRol1 || currentItemIndex >= itemsFiltrados.length - 1}
                                                 onClick={() => setCurrentItemIndex(prev => prev + 1)}
                                             />
                                         </div>
@@ -1119,10 +1871,9 @@ function Lubricantes() {
                                             text="Aceptar"
                                             iconLeft="FaCheck"
                                             pcolor={theme?.colors?.success || '#28a745'}
-                                            onClick={() => {
-                                                toast.success(`Ítem ${item.codigo || item.descripcion} aceptado exitosamente`);
-                                                handleActionRol1(item.id, "approve");
-                                            }}
+                                            isAsync
+                                            disabled={isProcessingRol1}
+                                            onClick={() => handleActionRol1(item.id, "approve")}
                                         />
                                     </div>
                                 </div>
@@ -1133,7 +1884,7 @@ function Lubricantes() {
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                                 <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
                                     <tr>
-                                        <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "40px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>
+                                        <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: ANCHO_COL_SELECCION_LUB, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, left: idRolPrincipal === 5 ? 0 : undefined, zIndex: idRolPrincipal === 5 ? 11 : 10 }}>
                                             <CheckboxUI
                                                 checked={itemsFiltrados.length > 0 && itemsFiltrados.every(i => selectedItemIds.has(i.id))}
                                                 onChange={(_, checked) => {
@@ -1178,7 +1929,7 @@ function Lubricantes() {
                                             <>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de Barras</th>
 
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. SHELL</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "180px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Extranjero</th>
@@ -1212,6 +1963,7 @@ function Lubricantes() {
                                         {/* Rol 4: Marketing */}
                                         {idRolPrincipal === 4 && (
                                             <>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código Proveedor</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "250px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripción</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Imagen PNG</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Imagen WebP</th>
@@ -1220,17 +1972,21 @@ function Lubricantes() {
                                         )}
                                         {idRolPrincipal === 5 && (
                                             <>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripcion</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, left: ANCHO_COL_SELECCION_LUB, zIndex: 11 }}>Nombre</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "180px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Extranjero</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Cód. Proveedor</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "150px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de Barras</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "220px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Proveedor</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "120px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Estrategia</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Origen</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Empaque</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Unidades</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "100px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Medida</th>
-                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Del Sistema</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "160px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Medida</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "120px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>OUM (Litros)</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "90px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nuevo</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "140px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Visible EasySales</th>
+                                                <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "380px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Nombre Del Sistema</th>
                                                 <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "200px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Comentarios</th>
                                             </>
                                         )}
@@ -1240,13 +1996,13 @@ function Lubricantes() {
                                 <tbody>
                                     {itemsFiltrados.length === 0 ? (
                                         <tr>
-                                            <td colSpan={idRolPrincipal === 5 ? 14 : idRolPrincipal === 3 ? 20 : idRolPrincipal === 4 ? 6 : idRolPrincipal === 1 ? 33 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
+                                            <td colSpan={idRolPrincipal === 5 ? 18 : idRolPrincipal === 3 ? 20 : idRolPrincipal === 4 ? 7 : idRolPrincipal === 1 ? 33 : 7} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary || "#888" }}>
                                                 No hay ítems de Lubricantes
                                             </td>
                                         </tr>
                                     ) : itemsFiltrados.map(item => (
                                         <tr key={item.id} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
-                                            <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                                            <td style={{ padding: "4px 8px", textAlign: "center", ...(idRolPrincipal === 5 ? { position: "sticky", left: 0, zIndex: 2, backgroundColor: theme?.colors?.background || "#fff" } : {}) }}>
                                                 <CheckboxUI
                                                     checked={selectedItemIds.has(item.id)}
                                                     onChange={(_, checked) => {
@@ -1392,6 +2148,11 @@ function Lubricantes() {
                                             {idRolPrincipal === 4 && (
                                                 <>
                                                     <td style={{ padding: "4px 8px" }}>
+                                                        <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.codigoProveedor || ""}>
+                                                            {item.codigoProveedor || "-"}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: "4px 8px" }}>
                                                         <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                                             {item.descripcion || "-"}
                                                         </div>
@@ -1407,7 +2168,8 @@ function Lubricantes() {
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            cursor: 'pointer',
+                                                            cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                            opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                             transition: 'all 0.2s ease',
                                                             overflow: 'hidden'
                                                         }}
@@ -1419,15 +2181,24 @@ function Lubricantes() {
                                                                 e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                 e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                             }}
-                                                            onClick={() => document.getElementById(`png-upload-${item.id}`).click()}
+                                                            onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`png-upload-${item.id}`).click(); }}
+                                                            title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenPng && imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? "Ya existe una imagen PNG para este diseño. Click para reemplazarla." : undefined)}
                                                         >
-                                                            {item.imagenPng ? (
+                                                            {disenioEstaVerificando(item) ? (
+                                                                <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                            ) : item.imagenPng ? (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                     <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                         {item.imagenPng.name}
                                                                     </TextUI>
                                                                 </div>
+                                                            ) : imagenesDisenioExistente[getDisenioKey(item)]?.png?.exists ? (
+                                                                <img
+                                                                    src={imagenesDisenioExistente[getDisenioKey(item)]?.png?.previewUrl || imagenesDisenioExistente[getDisenioKey(item)]?.png?.url}
+                                                                    alt="Imagen PNG existente"
+                                                                    style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                />
                                                             ) : (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                     <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>📄</span>
@@ -1438,6 +2209,7 @@ function Lubricantes() {
                                                                 id={`png-upload-${item.id}`}
                                                                 type="file"
                                                                 accept=".png"
+                                                                disabled={disenioEstaVerificando(item)}
                                                                 style={{ display: 'none' }}
                                                                 onChange={(e) => {
                                                                     const file = e.target.files[0];
@@ -1467,7 +2239,8 @@ function Lubricantes() {
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            cursor: 'pointer',
+                                                            cursor: disenioEstaVerificando(item) ? 'wait' : 'pointer',
+                                                            opacity: disenioEstaVerificando(item) ? 0.6 : 1,
                                                             transition: 'all 0.2s ease',
                                                             overflow: 'hidden'
                                                         }}
@@ -1479,15 +2252,24 @@ function Lubricantes() {
                                                                 e.currentTarget.style.borderColor = isDark ? '#475569' : '#cbd5e1';
                                                                 e.currentTarget.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
                                                             }}
-                                                            onClick={() => document.getElementById(`webp-upload-${item.id}`).click()}
+                                                            onClick={() => { if (!disenioEstaVerificando(item)) document.getElementById(`webp-upload-${item.id}`).click(); }}
+                                                            title={disenioEstaVerificando(item) ? "Verificando si el diseño ya tiene imagen en storage..." : (!item.imagenWebp && imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? "Ya existe una imagen WebP para este diseño. Click para reemplazarla." : undefined)}
                                                         >
-                                                            {item.imagenWebp ? (
+                                                            {disenioEstaVerificando(item) ? (
+                                                                <TextUI size="11px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                            ) : item.imagenWebp ? (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 8px', width: '100%' }}>
                                                                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
                                                                     <TextUI size="11px" color={theme?.colors?.text} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                         {item.imagenWebp.name}
                                                                     </TextUI>
                                                                 </div>
+                                                            ) : imagenesDisenioExistente[getDisenioKey(item)]?.webp?.exists ? (
+                                                                <img
+                                                                    src={imagenesDisenioExistente[getDisenioKey(item)]?.webp?.url}
+                                                                    alt="Imagen WebP existente"
+                                                                    style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }}
+                                                                />
                                                             ) : (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                     <span style={{ color: theme?.colors?.primary, fontSize: '14px' }}>🖼️</span>
@@ -1498,6 +2280,7 @@ function Lubricantes() {
                                                                 id={`webp-upload-${item.id}`}
                                                                 type="file"
                                                                 accept=".webp"
+                                                                disabled={disenioEstaVerificando(item)}
                                                                 style={{ display: 'none' }}
                                                                 onChange={(e) => {
                                                                     const file = e.target.files[0];
@@ -1527,8 +2310,8 @@ function Lubricantes() {
                                             )}
                                             {idRolPrincipal === 5 && (
                                                 <>
-                                                    {/* Descripción */}
-                                                    <td style={{ padding: "4px 8px" }}>
+                                                    {/* Nombre */}
+                                                    <td style={{ padding: "4px 8px", position: "sticky", left: ANCHO_COL_SELECCION_LUB, zIndex: 2, backgroundColor: theme?.colors?.background || "#fff" }}>
                                                         {item.fueRechazado ? (
                                                             <div style={{ fontSize: "12px", minHeight: "30px", display: "flex", alignItems: "center", padding: "0 8px", backgroundColor: hexToRGBA({ hex: theme?.colors?.primary || "#000", alpha: 0.05 }), borderRadius: "4px", color: theme?.colors?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: "220px" }} title={item.descripcionRol5}>
                                                                 {item.descripcionRol5 || "-"}
@@ -1537,8 +2320,24 @@ function Lubricantes() {
                                                             <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "220px" }} value={item.descripcionRol5 || ""} onChange={(v) => actualizarCampoFila(item.id, "descripcionRol5", v)} />
                                                         )}
                                                     </td>
-                                                    {/* Código Proveedor */}
-                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} /></td>
+                                                    {/* Nombre Extranjero */}
+                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></td>
+                                                    {/* Código Proveedor: al elegir el origen se le agrega directamente el código del país */}
+                                                    <td style={{ padding: "4px 8px" }}>
+                                                        <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.codigoProveedor || ""} onChange={(v) => actualizarCampoFila(item.id, "codigoProveedor", v)} />
+                                                    </td>
+                                                    {/* Código de Barras: lo arma Compras a partir del código de proveedor + _X_VALIDAR (no editable) */}
+                                                    <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "150px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap" }} title={construirCodigoBarras(item.codigoProveedor, item.origen)}>{construirCodigoBarras(item.codigoProveedor, item.origen) || "-"}</div></td>
+                                                    {/* Proveedor */}
+                                                    <td style={{ padding: "4px 8px" }}>
+                                                        <SelectUI
+                                                            options={opcionesProveedores}
+                                                            value={item.proveedor ? { value: item.proveedor, label: opcionesProveedores.find(o => o.value === item.proveedor)?.label || item.proveedor } : null}
+                                                            onChange={(v) => actualizarCampoFila(item.id, "proveedor", v?.value)}
+                                                            minWidth="200px"
+                                                            style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
+                                                        />
+                                                    </td>
                                                     {/* Marca */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <SelectUI
@@ -1553,8 +2352,6 @@ function Lubricantes() {
                                                             isCreatable={true}
                                                         />
                                                     </td>
-                                                    {/* Nombre Foráneo */}
-                                                    <td style={{ padding: "4px 8px" }}><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></td>
                                                     {/* Estrategia */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <SelectUI
@@ -1585,16 +2382,30 @@ function Lubricantes() {
                                                             options={OPTIONS_MEDIDA_LUB}
                                                             value={item.medida ? { value: item.medida, label: item.medida } : null}
                                                             onChange={(v) => actualizarCampoFila(item.id, "medida", v?.value)}
-                                                            minWidth="90px"
+                                                            minWidth="150px"
                                                             style={{ height: "30px", fontSize: "12px", minHeight: "30px" }}
                                                         />
                                                     </td>
-                                                    {/* Nombre del Sistema */}
-                                                    <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></td>
                                                     {/* oum */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.oum || item.OUM || item.uom || item.UOM || ""} formatValue={handleDecimalInput} onChange={(v) => actualizarCampoFila(item.id, "oum", handleDecimalInput(v))} />
                                                     </td>
+                                                    {/* Nuevo: antepone "NEW" al nombre del sistema */}
+                                                    <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                                                        <CheckboxUI
+                                                            checked={esItemNuevo(item)}
+                                                            onChange={(_, checked) => actualizarCampoFila(item.id, "esNuevo", checked)}
+                                                        />
+                                                    </td>
+                                                    {/* Visible EasySales */}
+                                                    <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                                                        <CheckboxUI
+                                                            checked={esVisibleEasySales(item)}
+                                                            onChange={(_, checked) => actualizarCampoFila(item.id, "visibleEasySales", checked)}
+                                                        />
+                                                    </td>
+                                                    {/* Nombre del Sistema */}
+                                                    <td style={{ padding: "4px 8px" }}><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={getNombreSistema(item)}>{getNombreSistema(item) || "N/A"}</div></td>
                                                     {/* Comentarios */}
                                                     <td style={{ padding: "4px 8px" }}>
                                                         <InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }} value={item.comentarios || ""} onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)} />
@@ -1627,12 +2438,13 @@ function Lubricantes() {
                 {lineaSeleccionada && idRolPrincipal !== 1 && (
                     <div style={{ padding: "12px 16px", borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, display: "flex", justifyContent: "flex-end" }}>
                         <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Enviar a revisión"}
+                            text={isSubmitting ? "Enviando..." : (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))) ? "Verificando imágenes..." : "Enviar a revisión")}
                             iconLeft="FaCheck"
-                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0}
+                            disabled={isSubmitting || items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length === 0 || (idRolPrincipal === 4 && hayVerificacionesPendientes(items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id))))}
                             onClick={async () => {
                                 const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
                                 if (currentItems.length === 0) return;
+                                if (idRolPrincipal === 4 && hayVerificacionesPendientes(currentItems)) return;
 
                                 if (idRolPrincipal === 5) {
                                     const createdItems = currentItems.filter(i => !i.fueRechazado);
@@ -1643,11 +2455,11 @@ function Lubricantes() {
                                             const companyName = EMPRESA_LUBRICANTES;
                                             if (!grouped[companyName]) grouped[companyName] = [];
                                             grouped[companyName].push({
-                                                CODIGO_PROVEEDOR: item.codigoProveedor,
+                                                CODIGO_PROVEEDOR: construirCodigoProveedor(item.codigoProveedor, item.origen),
                                                 MARCA: item.marca,
                                                 LINEA_NEGOCIO: item.linea,
                                                 NOMBRE_EXTRANJERO: item.nombreExtranjero,
-                                                DESCRIPCION: item.nombreSistema,
+                                                DESCRIPCION: getNombreSistema(item),
                                             });
                                         });
                                         setGroupedItemsByCompany(grouped);
@@ -1664,42 +2476,271 @@ function Lubricantes() {
                 )}
             </div>
 
-            {/* Sección de Aprobados */}
-            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && approvedItems.filter(i => i.linea === lineaSeleccionada.value).length > 0 && (
-                <div style={{ marginTop: "200px", backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 100%", marginBottom: "80px" }}>
-                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.success + "11", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <TextUI size="14px" weight="600" color={theme?.colors?.success}>
-                            Aprobados {lineaSeleccionada ? `de ${lineaSeleccionada.label}` : ""} ({approvedItems.filter(i => i.linea === lineaSeleccionada.value).length})
-                        </TextUI>
-                    </div>
-                    <div style={{ flex: 1, overflow: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                            <thead>
-                                <tr>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Empresa</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código SAP</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "250px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Código de barras</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, minWidth: "350px", backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Descripción</th>
-                                    <th style={{ padding: "10px 16px", textAlign: "left", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text, backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>Marca</th>
+            {/* Sección Sin aprobar / Aprobados (mismo patrón que Llantas.jsx y Herramientas.jsx). "Sin aprobar"
+                muestra todos los ítems de la línea que siguen en el flujo, con la fase en la que está cada
+                uno; "Aprobados" los ya aprobados con su código SAP. El detalle permite ver la trazabilidad
+                y, para el coordinador de imágenes (rol 4), ver/actualizar la imagen publicada. */}
+            {lineaSeleccionada && (idRolPrincipal === 3 || idRolPrincipal === 4 || idRolPrincipal === 5) && (() => {
+                const itemsSinAprobarSeccion = itemsSinAprobarTodos.filter(i => i.linea === lineaSeleccionada.value);
+                const itemsAprobadosSeccion = approvedItems.filter(i => i.linea === lineaSeleccionada.value);
+                const listaActivaSeccion = tabAprobados === "aprobados" ? itemsAprobadosSeccion : itemsSinAprobarSeccion;
+                const listaFiltradaSeccion = filtrarSeccionAprobados(listaActivaSeccion, searchTermAprobados);
 
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {approvedItems.filter(i => i.linea === lineaSeleccionada.value).map(item => (
-                                    <tr key={item.id} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, opacity: 0.8 }}>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{EMPRESA_LUBRICANTES}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></td>
-                                        <td style={{ padding: "10px 16px" }}><TextUI size="12px">{item.marca || "-"}</TextUI></td>
-
+                return (
+                    <div style={{ backgroundColor: theme?.colors?.background || "#fff", borderRadius: 8, border: `1px solid ${theme?.colors?.border || "#eee"}`, overflow: "hidden", display: "flex", flexDirection: "column", flex: "0 0 auto", maxHeight: "45vh", marginBottom: "16px" }}>
+                        <div style={{ padding: "0 16px", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, backgroundColor: theme?.colors?.backgroundLight || "#fafafa" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                                <div style={{ display: "flex" }}>
+                                    <TabButton type="button" $active={tabAprobados === "sinAprobar"} onClick={() => setTabAprobados("sinAprobar")}>
+                                        Sin aprobar ({itemsSinAprobarSeccion.length})
+                                    </TabButton>
+                                    <TabButton type="button" $active={tabAprobados === "aprobados"} onClick={() => setTabAprobados("aprobados")}>
+                                        Aprobados ({itemsAprobadosSeccion.length})
+                                    </TabButton>
+                                </div>
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "8px 0" }}>
+                                    <InputUI
+                                        placeholder="Buscar"
+                                        value={searchTermAprobados}
+                                        onChange={(v) => setSearchTermAprobados(v)}
+                                        iconLeft="FaSearch"
+                                        style={{ minWidth: "320px" }}
+                                    />
+                                    <ButtonUI
+                                        iconLeft="FaArrowsRotate"
+                                        onClick={handleRefrescarAprobados}
+                                        disabled={isRefrescandoAprobados}
+                                        pcolor={theme?.colors?.primary}
+                                        title="Actualizar listado"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <TablaScroll>
+                            <Tabla>
+                                <thead>
+                                    <tr>
+                                        <Th>Empresa</Th>
+                                        <Th $min="150px">Código proveedor</Th>
+                                        <Th $min="200px">Código de barras</Th>
+                                        <Th $min="350px">Descripción</Th>
+                                        <Th>Marca</Th>
+                                        {tabAprobados === "aprobados" ? (
+                                            <Th>Código SAP</Th>
+                                        ) : (
+                                            <Th $min="200px">Fase actual</Th>
+                                        )}
+                                        <Th $align="center" $w="80px" $fija="right">Detalle</Th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {listaFiltradaSeccion.length === 0 ? (
+                                        <tr>
+                                            <Td colSpan={7} $align="center">
+                                                <TextUI size="12px" color={theme?.colors?.textSecondary}>
+                                                    {listaActivaSeccion.length === 0
+                                                        ? (tabAprobados === "aprobados" ? "No hay ítems aprobados." : "No hay ítems sin aprobar.")
+                                                        : "No se encontraron ítems que coincidan con la búsqueda."}
+                                                </TextUI>
+                                            </Td>
+                                        </tr>
+                                    ) : (
+                                        listaFiltradaSeccion.map((item, idx) => (
+                                            <Fila key={item.id} $par={idx % 2 === 0}>
+                                                <Td><TextUI size="12px">{EMPRESA_LUBRICANTES}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.codigoProveedor || item.CODIGO_PROVEEDOR || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.codigo || item.CODIGO_BARRAS || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.nombreSistema || item.descripcionRol5 || item.descripcion || "-"}</TextUI></Td>
+                                                <Td><TextUI size="12px">{item.marca || "-"}</TextUI></Td>
+                                                {tabAprobados === "aprobados" ? (
+                                                    <Td><TextUI size="12px">{item.CODIGO_SAP || "-"}</TextUI></Td>
+                                                ) : (
+                                                    <Td>
+                                                        <Etiqueta $tono={item.fueRechazado ? "alerta" : "info"}>
+                                                            {NOMBRES_FASE[item.FASE_ACTUAL] || (item.FASE_ACTUAL ? `Fase ${item.FASE_ACTUAL}` : "-")}
+                                                        </Etiqueta>
+                                                    </Td>
+                                                )}
+                                                <Td $align="center" $fija="right">
+                                                    <IconUI
+                                                        name="FaEye"
+                                                        size={16}
+                                                        color={theme?.colors?.primary}
+                                                        title="Ver detalle del producto"
+                                                        onClick={() => setDetalleItem(item)}
+                                                        style={{ cursor: "pointer" }}
+                                                    />
+                                                </Td>
+                                            </Fila>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Tabla>
+                        </TablaScroll>
                     </div>
-                </div>
-            )}
+                );
+            })()}
+
+            {/* Detalle del ítem aprobado: solo lectura, sin acciones. */}
+            <ModalUI
+                isOpen={Boolean(detalleItem)}
+                onClose={() => setDetalleItem(null)}
+                title="Detalle del producto"
+                width="760px"
+                saveText="Cerrar"
+                onSave={() => setDetalleItem(null)}
+                showCancelButton={false}
+            >
+                {detalleItem && (() => {
+                    const filas = CAMPOS_DETALLE
+                        .map(c => ({ label: c.label, valor: c.get(detalleItem) }))
+                        .filter(f => f.valor !== undefined && f.valor !== null && String(f.valor).trim() !== "");
+
+                    const fases = Array.isArray(detalleItem.FASES) ? detalleItem.FASES : [];
+                    const rechazada = fases.find(f => f.RECHAZO);
+                    const aprobado = detalleItem.APROBADO_MDM === true;
+                    const claveImagenesDetalle = getDisenioKey(detalleItem);
+                    const infoImagenesDetalle = claveImagenesDetalle ? imagenesDisenioExistente[claveImagenesDetalle] : null;
+                    const verificandoImagenesDetalle = claveImagenesDetalle ? Boolean(disenioVerificando[claveImagenesDetalle]) : false;
+                    const webpUrlDetalle = infoImagenesDetalle?.webp?.url || detalleItem.RUTA_IMAGEN_WEBP || null;
+                    const pngUrlDetalle = infoImagenesDetalle?.png?.previewUrl || infoImagenesDetalle?.png?.url || null;
+
+                    // El ModalBody de ModalUI scrollea sin padding propio: el padding
+                    // de este contenedor evita que las tablas queden pegadas a la barra.
+                    return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "18px", padding: "4px 14px 6px 2px" }}>
+                            {/* Estado actual */}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                                <Etiqueta $tono={aprobado ? "exito" : "neutro"}>
+                                    {aprobado ? "Aprobado por MDM" : "En proceso"}
+                                </Etiqueta>
+                                {detalleItem.FASE_ACTUAL !== undefined && detalleItem.FASE_ACTUAL !== null && (
+                                    <Etiqueta $tono="neutro">
+                                        Fase actual: {NOMBRES_FASE[detalleItem.FASE_ACTUAL] || detalleItem.FASE_ACTUAL}
+                                    </Etiqueta>
+                                )}
+                                {rechazada && <Etiqueta $tono="alerta">Tuvo rechazo</Etiqueta>}
+                            </div>
+
+                            {/* Ficha del artículo */}
+                            <TablaScroll style={{ maxHeight: "46vh", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                                <Tabla>
+                                    <thead>
+                                        <tr>
+                                            <Th $w="230px">Campo</Th>
+                                            <Th>Valor</Th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filas.map((f, i) => (
+                                            <Fila key={f.label} $par={i % 2 === 0}>
+                                                <Td><TextUI size="12px" weight="600">{f.label}</TextUI></Td>
+                                                <Td><TextUI size="12px">{String(f.valor)}</TextUI></Td>
+                                            </Fila>
+                                        ))}
+                                    </tbody>
+                                </Tabla>
+                            </TablaScroll>
+
+                            {/* Imágenes del diseño (SharePoint/PNG y R2/WebP), solo para el coordinador (rol 4):
+                                permite ver la imagen publicada actualmente y reemplazarla sin pasar por el flujo
+                                de revisión completo. */}
+                            {idRolPrincipal === 4 && (
+                                <div>
+                                    <TextUI size="13px" weight="600" style={{ marginBottom: "8px", display: "block" }}>
+                                        Imágenes del diseño
+                                    </TextUI>
+                                    <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                                        {[
+                                            { tipo: "png", etiqueta: "Aplicación (PNG)", src: pngUrlDetalle, accept: ".png" },
+                                            { tipo: "webp", etiqueta: "Portal (WebP)", src: webpUrlDetalle, accept: ".webp" },
+                                        ].map(({ tipo, etiqueta, src, accept }) => (
+                                            <div key={tipo} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                                                <div style={{
+                                                    width: "80px",
+                                                    height: "80px",
+                                                    borderRadius: "8px",
+                                                    border: `1px solid ${theme?.colors?.border || "#eee"}`,
+                                                    backgroundColor: isDark ? "#1e293b" : "#f8fafc",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    overflow: "hidden",
+                                                }}>
+                                                    {verificandoImagenesDetalle ? (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Verificando...</TextUI>
+                                                    ) : src ? (
+                                                        <img
+                                                            src={src}
+                                                            alt={etiqueta}
+                                                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                                            onError={(e) => { e.target.style.display = "none"; }}
+                                                        />
+                                                    ) : (
+                                                        <TextUI size="10px" color={theme?.colors?.textSecondary}>Sin imagen</TextUI>
+                                                    )}
+                                                </div>
+                                                <TextUI size="11px" weight="600">{etiqueta}</TextUI>
+                                                <ButtonUI
+                                                    text={subiendoImagenDetalle[tipo] ? "Subiendo..." : "Actualizar"}
+                                                    variant="outlined"
+                                                    disabled={subiendoImagenDetalle[tipo] || verificandoImagenesDetalle}
+                                                    style={{ padding: "4px 10px", fontSize: "11px", minWidth: "auto" }}
+                                                    onClick={() => document.getElementById(`detalle-upload-${tipo}`).click()}
+                                                />
+                                                <input
+                                                    id={`detalle-upload-${tipo}`}
+                                                    type="file"
+                                                    accept={accept}
+                                                    style={{ display: "none" }}
+                                                    onChange={(e) => {
+                                                        const file = e.target.files[0];
+                                                        if (file) handleActualizarImagenDetalle(tipo, file);
+                                                        e.target.value = "";
+                                                    }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Trazabilidad por fase */}
+                            {fases.length > 0 && (
+                                <div>
+                                    <TextUI size="13px" weight="600" style={{ marginBottom: "8px", display: "block" }}>
+                                        Trazabilidad
+                                    </TextUI>
+                                    <TablaScroll style={{ border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                                        <Tabla>
+                                            <thead>
+                                                <tr>
+                                                    <Th $w="220px">Fase</Th>
+                                                    <Th $w="120px" $align="center">Resultado</Th>
+                                                    <Th>Observaciones</Th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {[...fases].sort((a, b) => (a.FASE || 0) - (b.FASE || 0)).map((f, i) => (
+                                                    <Fila key={f.FASE ?? i} $par={i % 2 === 0}>
+                                                        <Td><TextUI size="12px">{NOMBRES_FASE[f.FASE] || `Fase ${f.FASE}`}</TextUI></Td>
+                                                        <Td $align="center">
+                                                            <Etiqueta $tono={f.RECHAZO ? "alerta" : "exito"}>
+                                                                {f.RECHAZO ? "Rechazado" : "Aprobado"}
+                                                            </Etiqueta>
+                                                        </Td>
+                                                        <Td><TextUI size="12px">{f.OBSERVACIONES || f.MOTIVO_RECHAZO || "-"}</TextUI></Td>
+                                                    </Fila>
+                                                ))}
+                                            </tbody>
+                                        </Tabla>
+                                    </TablaScroll>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
+            </ModalUI>
 
             <ModalUI
                 isOpen={isRejectModalOpen}
@@ -1794,7 +2835,8 @@ function Lubricantes() {
                     setSelectedItemsToReviewIds(new Set());
                 }}
                 title="Seleccionar ítems para revisar"
-                width="800px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <InputUI
@@ -1815,7 +2857,7 @@ function Lubricantes() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredItemsToReview.map(item => (
+                                {itemsToReviewPaginados.map(item => (
                                     <tr
                                         key={item.DIT_NUEVOIDENTIFICADOR}
                                         style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer" }}
@@ -1843,6 +2885,25 @@ function Lubricantes() {
                             </tbody>
                         </table>
                     </div>
+                    {filteredItemsToReview.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaReview <= 1}
+                                onClick={() => setPaginaReview(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaReview} de {totalPaginasReview} ({filteredItemsToReview.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaReview >= totalPaginasReview}
+                                onClick={() => setPaginaReview(p => p + 1)}
+                            />
+                        </div>
+                    )}
 
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
                         <ButtonUI
@@ -1940,60 +3001,107 @@ function Lubricantes() {
                 isOpen={isSAPExportModalOpen}
                 onClose={() => setIsSAPExportModalOpen(false)}
                 title="Exportar ítems aprobados a SAP"
-                width="1000px"
+                width="95vw"
+                maxWidth="1300px"
             >
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <TextUI size="14px" color={theme?.colors?.textSecondary}>
                         Se muestran todos los ítems aprobados ordenados por fecha de actualización.
                     </TextUI>
-                    <div style={{ maxHeight: "500px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
+                    <InputUI
+                        placeholder="Buscar por empresa, código SAP o descripción..."
+                        value={searchTermExport}
+                        onChange={(v) => setSearchTermExport(v)}
+                        iconLeft="FaSearch"
+                    />
+                    <div style={{ maxHeight: "400px", overflow: "auto", border: `1px solid ${theme?.colors?.border || "#eee"}`, borderRadius: "8px" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead style={{ backgroundColor: theme?.colors?.backgroundCard || "#f8f9fa", position: "sticky", top: 0, zIndex: 10 }}>
                                 <tr>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, width: "50px" }}>
                                         <CheckboxUI
-                                            checked={approvedItemsForExport.length > 0 && approvedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
+                                            checked={filteredApprovedItemsForExport.length > 0 && filteredApprovedItemsForExport.every(i => selectedApprovedItemIds.has(i.ID))}
                                             onChange={(_, checked) => {
-                                                if (checked) setSelectedApprovedItemIds(new Set(approvedItemsForExport.map(i => i.ID)));
-                                                else setSelectedApprovedItemIds(new Set());
+                                                setSelectedApprovedItemIds(prev => {
+                                                    const newSet = new Set(prev);
+                                                    filteredApprovedItemsForExport.forEach(i => checked ? newSet.add(i.ID) : newSet.delete(i.ID));
+                                                    return newSet;
+                                                });
                                             }}
                                         />
                                     </th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Empresa</th>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Código SAP</th>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Descripción</th>
                                     <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Aprobado el</th>
+                                    <th style={{ padding: "12px", textAlign: "center", borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>Request SAP</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {approvedItemsForExport.length === 0 ? (
+                                {filteredApprovedItemsForExport.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>No hay ítems aprobados para exportar.</td>
+                                        <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: theme?.colors?.textSecondary }}>
+                                            {approvedItemsForExport.length === 0 ? "No hay ítems aprobados para exportar." : "No se encontraron ítems que coincidan con la búsqueda."}
+                                        </td>
                                     </tr>
                                 ) : (
-                                    approvedItemsForExport.map(item => (
-                                        <tr key={item.ID} style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}` }}>
+                                    approvedItemsForExportPaginados.map(item => (
+                                        <tr
+                                            key={item.ID}
+                                            style={{ borderBottom: `1px solid ${theme?.colors?.border || "#eee"}`, cursor: "pointer" }}
+                                            onClick={() => {
+                                                setSelectedApprovedItemIds(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (newSet.has(item.ID)) newSet.delete(item.ID);
+                                                    else newSet.add(item.ID);
+                                                    return newSet;
+                                                });
+                                            }}
+                                        >
                                             <td style={{ padding: "10px", textAlign: "center" }}>
                                                 <CheckboxUI
                                                     checked={selectedApprovedItemIds.has(item.ID)}
-                                                    onChange={(_, checked) => {
-                                                        setSelectedApprovedItemIds(prev => {
-                                                            const newSet = new Set(prev);
-                                                            if (checked) newSet.add(item.ID);
-                                                            else newSet.delete(item.ID);
-                                                            return newSet;
-                                                        });
-                                                    }}
+                                                    onChange={() => { }} // handled by tr onClick
                                                 />
                                             </td>
+                                            <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.EMPRESA}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.text }}>{item.CODIGO_SAP || "-"}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.text, fontSize: "12px" }}>{item.NOMBRE || item.DESCRIPCION || "-"}</td>
                                             <td style={{ padding: "10px", color: theme?.colors?.textSecondary, fontSize: "11px" }}>{new Date(item.updatedAt).toLocaleString()}</td>
+                                            <td style={{ padding: "10px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                                                <ButtonUI
+                                                    text={loadingSapRequestId === item.ID ? "Generando..." : "Ver request"}
+                                                    iconLeft="FaCode"
+                                                    variant="outlined"
+                                                    disabled={loadingSapRequestId !== null}
+                                                    onClick={() => handleVerSapRequest(item.ID)}
+                                                />
+                                            </td>
                                         </tr>
                                     ))
                                 )}
                             </tbody>
                         </table>
                     </div>
+                    {filteredApprovedItemsForExport.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                            <ButtonUI
+                                text="Anterior"
+                                variant="outlined"
+                                disabled={paginaExport <= 1}
+                                onClick={() => setPaginaExport(p => p - 1)}
+                            />
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Página {paginaExport} de {totalPaginasExport} ({filteredApprovedItemsForExport.length} ítems)
+                            </TextUI>
+                            <ButtonUI
+                                text="Siguiente"
+                                variant="outlined"
+                                disabled={paginaExport >= totalPaginasExport}
+                                onClick={() => setPaginaExport(p => p + 1)}
+                            />
+                        </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" }}>
                         {Object.entries(
                             approvedItemsForExport
@@ -2016,8 +3124,58 @@ function Lubricantes() {
                                 pcolor={theme?.colors?.success || "#28a745"}
                             />
                         ))}
+                        {selectedApprovedItemIds.size > 0 && (
+                            <ButtonUI
+                                text={isSyncingSap ? "Sincronizando..." : `Crear artículos en SAP (${selectedApprovedItemIds.size})`}
+                                iconLeft="FaCloudUploadAlt"
+                                onClick={handleSyncToSap}
+                                disabled={isSyncingSap}
+                                pcolor={theme?.colors?.primary || "#0d6efd"}
+                            />
+                        )}
                     </div>
                 </div>
+            </ModalUI>
+
+            <ModalUI
+                isOpen={!!sapRequestPreview}
+                onClose={() => setSapRequestPreview(null)}
+                title="Request a SAP"
+                width="90vw"
+                maxWidth="900px"
+            >
+                {sapRequestPreview && (
+                    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <TextUI size="14px" color={theme?.colors?.text}>
+                            <strong>{sapRequestPreview.Modo === "ACTUALIZACION" ? "Actualización" : "Creación"}</strong>
+                            {" · "}{sapRequestPreview.Empresa}
+                            {sapRequestPreview.CodigoSap ? ` · Código SAP ${sapRequestPreview.CodigoSap}` : ""}
+                        </TextUI>
+                        <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                            {sapRequestPreview.Metodo} {sapRequestPreview.Endpoint}
+                        </TextUI>
+                        {sapRequestPreview.Nota && (
+                            <TextUI size="13px" color={theme?.colors?.warning || "#b26a00"}>
+                                {sapRequestPreview.Nota}
+                            </TextUI>
+                        )}
+                        <pre style={{ margin: 0, padding: "12px", maxHeight: "50vh", overflow: "auto", fontSize: "12px", borderRadius: "8px", border: `1px solid ${theme?.colors?.border || "#eee"}`, color: theme?.colors?.text }}>
+                            {JSON.stringify(sapRequestPreview.Body, null, 2)}
+                        </pre>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                            <ButtonUI
+                                text="Copiar JSON"
+                                iconLeft="FaCopy"
+                                variant="outlined"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(JSON.stringify(sapRequestPreview.Body, null, 2));
+                                    toast.success("Request copiado.");
+                                }}
+                            />
+                            <ButtonUI text="Cerrar" onClick={() => setSapRequestPreview(null)} />
+                        </div>
+                    </div>
+                )}
             </ModalUI>
         </div>
     );

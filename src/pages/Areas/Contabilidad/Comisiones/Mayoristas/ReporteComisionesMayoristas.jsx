@@ -10,15 +10,27 @@ import { TablaInfoUI } from "components/UI/Components/TablaInfoUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
 
+// Ordena por VENDEDOR alfabéticamente, dejando siempre la fila TOTAL al final
+const ordenarComisiones = (datos) => {
+  const filaTotal = datos.find((fila) => fila.VENDEDOR === "TOTAL");
+  const vendedores = datos
+    .filter((fila) => fila.VENDEDOR !== "TOTAL")
+    .sort((a, b) => a.VENDEDOR.localeCompare(b.VENDEDOR));
+
+  const ordenados = filaTotal ? [...vendedores, filaTotal] : vendedores;
+
+  return ordenados.map((fila, index) => ({ ...fila, ORDEN: index }));
+};
+
 const ContenedorPrincipal = styled.div`
   display: flex;
-  flex-direction: ${({ flexDirection }) => flexDirection || "row"};
-  justify-content: ${({ justifyContent }) => justifyContent || "flex-start"};
-  align-items: ${({ alignItems }) => alignItems || "flex-start"};
-  width: ${({ width }) => width || "100%"};
-  height: ${({ height }) => height || "auto"};
-  gap: ${({ gap }) => gap || "0"};
-  padding: ${({ padding }) => padding || "0"};
+  flex-direction: ${({ $flexDirection }) => $flexDirection || "row"};
+  justify-content: ${({ $justifyContent }) => $justifyContent || "flex-start"};
+  align-items: ${({ $alignItems }) => $alignItems || "flex-start"};
+  width: ${({ $width }) => $width || "100%"};
+  height: ${({ $height }) => $height || "auto"};
+  gap: ${({ $gap }) => $gap || "0"};
+  padding: ${({ $padding }) => $padding || "0"};
 `;
 
 export const ComisionesMayoristas = ({
@@ -124,7 +136,7 @@ export const ComisionesMayoristas = ({
         mes: mes.value,
         anio: anioSl.value,
       });
-      setData(datosReporte);
+      setData(ordenarComisiones(datosReporte));
       return datosReporte.length > 0 ? true : false;
     }
   };
@@ -156,11 +168,11 @@ export const ComisionesMayoristas = ({
   if (!tienePermiso.general) {
     return (
       <ContenedorPrincipal
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
-        height="100%"
+        $flexDirection="column"
+        $justifyContent="center"
+        $alignItems="center"
+        $width="100%"
+        $height="100%"
       >
         <p>No tienes permisos para acceder a Comisiones Mayoristas.</p>
       </ContenedorPrincipal>
@@ -188,17 +200,17 @@ export const ComisionesMayoristas = ({
 
   return (
     <ContenedorPrincipal
-      flexDirection="column"
-      justifyContent="flex-start"
-      alignItems="flex-start"
-      height="100%"
-      width="100%"
-      padding="0"
+      $flexDirection="column"
+      $justifyContent="flex-start"
+      $alignItems="flex-start"
+      $height="100%"
+      $width="100%"
+      $padding="0"
     >
       <ContenedorPrincipal
-        width="100%"
-        justifyContent="flex-start"
-        gap="10px"
+        $width="100%"
+        $justifyContent="flex-start"
+        $gap="10px"
       >
         <SelectUI
           options={empresas}
@@ -247,11 +259,13 @@ export const ComisionesMayoristas = ({
         columns={columnsConfig}
         onSort={handleSort}
         defaultFilters={["VENDEDOR"]}
-        sortedInitial={{ column: "CODIGO", direction: "asc" }}
+        sortedInitial={{ column: "ORDEN", direction: "asc" }}
         onFilterChange={handleSort}
         excel={tienePermiso.exportar}
         filenameExcel={fileName()}
+        columnasOcultasExcel={["ORDEN"]}
         nombresColumnasPersonalizadosExcel={nombresPersonalizados}
+        allowAddFilters={false}
       />
     </ContenedorPrincipal>
   );

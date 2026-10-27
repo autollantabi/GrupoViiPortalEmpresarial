@@ -14,6 +14,7 @@ import {
     appShellService_obtenerEstadosCanjes,
     appShellService_obtenerCanjesConEstados,
     appShellService_actualizarEstadoCanje,
+    appShellService_obtenerRoles,
 } from "services/appShell_Service";
 
 function mapCanjeApiToComponent(apiCanje) {
@@ -28,6 +29,7 @@ function mapCanjeApiToComponent(apiCanje) {
         nombreCanje: producto?.NAME ?? producto?.name ?? "Canje",
         codigoCliente: usuario?.CARD_ID ?? usuario?.card_id ?? null,
         nombreCliente,
+        tipoUsuario: usuario?.ROL_USUARIO ?? usuario?.rol_usuario ?? null,
         cantidad: apiCanje.QUANTITY ?? apiCanje.quantity ?? null,
         fechaOrigen: apiCanje.REDEMPTION_DATE ?? apiCanje.redemption_date ?? null,
         especificacion: apiCanje.SELECTED_SPECIFICATION ?? apiCanje.selected_specification ?? null,
@@ -228,13 +230,23 @@ export default function AS_GestionCanjes({
     });
     const [filtroCliente, setFiltroCliente] = useState(null);
     const [filtroEstado, setFiltroEstado] = useState(null);
+    const [filtroRol, setFiltroRol] = useState(null);
     const [estadosCanjes, setEstadosCanjes] = useState([]);
+    const [rolesDisponibles, setRolesDisponibles] = useState([]);
     const [loadingCanjes, setLoadingCanjes] = useState(true);
 
     useEffect(() => {
         appShellService_obtenerEstadosCanjes().then((res) => {
             if (res.success && Array.isArray(res.data) && res.data.length > 0) {
                 setEstadosCanjes(res.data);
+            }
+        });
+    }, []);
+
+    useEffect(() => {
+        appShellService_obtenerRoles().then((res) => {
+            if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                setRolesDisponibles(res.data);
             }
         });
     }, []);
@@ -372,19 +384,32 @@ export default function AS_GestionCanjes({
         [nombresEstados]
     );
 
+    const opcionesRol = useMemo(() => {
+        const roles = rolesDisponibles
+            .map((r) => {
+                const nombre = r.NAME_ROLE ?? r.name_role ?? "";
+                if (!nombre) return null;
+                return { value: nombre.toUpperCase(), label: nombre };
+            })
+            .filter(Boolean);
+        return [{ value: "", label: "Todos los tipos de usuario" }, ...roles];
+    }, [rolesDisponibles]);
+
     const canjesFiltrados = useMemo(() => {
         return canjes.filter((c) => {
             const estadoActual = getEstadoActual(c);
             if (filtroCliente?.value && c.id !== filtroCliente.value) return false;
             if (filtroEstado?.value && estadoActual !== filtroEstado.value) return false;
+            if (filtroRol?.value && (c.tipoUsuario ?? "").toUpperCase() !== filtroRol.value) return false;
             return true;
         });
-    }, [canjes, filtroCliente, filtroEstado]);
+    }, [canjes, filtroCliente, filtroEstado, filtroRol]);
 
-    const hayFiltrosActivos = !!(filtroCliente?.value || filtroEstado?.value);
+    const hayFiltrosActivos = !!(filtroCliente?.value || filtroEstado?.value || filtroRol?.value);
     const limpiarFiltros = useCallback(() => {
         setFiltroCliente(null);
         setFiltroEstado(null);
+        setFiltroRol(null);
     }, []);
 
     return (
@@ -439,6 +464,17 @@ export default function AS_GestionCanjes({
                                 onChange={(opt) => setFiltroEstado(opt?.value === "" ? null : opt)}
                                 placeholder="Todos los estados"
                                 label="Estados"
+                                minWidth="200px"
+                                maxWidth="240px"
+                            />
+                        </ContenedorFlex>
+                        <ContenedorFlex style={{ flexDirection: "column", gap: 4, minWidth: 200 }}>
+                            <SelectUI
+                                options={opcionesRol}
+                                value={filtroRol ?? opcionesRol[0]}
+                                onChange={(opt) => setFiltroRol(opt?.value === "" ? null : opt)}
+                                placeholder="Todos los tipos de usuario"
+                                label="Tipo de usuario"
                                 minWidth="200px"
                                 maxWidth="240px"
                             />

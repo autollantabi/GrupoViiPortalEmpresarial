@@ -8,14 +8,27 @@
       "Bash(NODE_OPTIONS=\"--max-old-space-size=6144\" npx vite build)",
       "Bash(grep -n \"const ModalUI\\\\|^\\\\s*\\\\w*,\\\\?$\\\\|}\\) =>\" src/components/UI/Components/ModalUI.jsx)",
       "Bash(node -e \"const i=require\\('react-icons/fa6'\\); console.log\\('FaEye:', typeof i.FaEye\\); console.log\\('otros usados en Llantas:', ['FaSearch','FaFileExport','FaPlus','FaFileExcel','FaDownload','FaCheck'].map\\(n=>n+'='+\\(typeof i[n]\\)\\).join\\(' '\\)\\)\")",
-      "Bash(node -e ' *)",
-      "Bash(cd /home/administrador/Frontend/PortalEmpresarial *)",
-      "Bash(cd /home/administrador/Backend/backend-portal/backend-portal-produccion/backend-portal *)",
-      "Read(//home/administrador/Backend/backend-portal/backend-portal-produccion/backend-portal/**)",
-      "Bash(npx tsc *)"
-    ],
-    "additionalDirectories": [
-      "/home/administrador/Frontend/PortalEmpresarial/src/pages/Areas/MDM/MDM_Crud"
+      "WebFetch(domain:claude.ai)",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && find . -maxdepth 3 -not -path '*/bin/*' -not -path '*/obj/*' -not -path '*/.git/*' | sort)",
+      "Read(//c/Users/sfigueroa/Documents/Maxximundo/PortalEmpresarialBack/v1-portal-empresarial-back-new/**)",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && pwd && ls -la 2>&1 | head -50)",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && find src -type d | sort)",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && echo \"--- controllers ---\" && find src/controllers -type f | sort && echo \"--- controllers/SAP ---\" && ls -la src/controllers/SAP && echo \"--- routes ---\" && find src/routes -type f | sort)",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && grep -v -i 'password\\\\|secret' .env)",
+      "Read(//c/Users/sfigueroa/Documents/Maxximundo/PortalEmpresarialBack/v1-portal-empresarial-back-new/src/config/**)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Llantas.jsx --jsx=automatic --bundle=false --loader=jsx --outfile=/dev/null)",
+      "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Herramientas.jsx --jsx=automatic --bundle=false --loader=jsx --outfile=/dev/null)",
+      "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Llantas.jsx --jsx=automatic --bundle=false)",
+      "Bash(echo \"Llantas exit=$?\")",
+      "Bash(./node_modules/.bin/esbuild src/pages/Areas/MDM/MDM_Crud/Herramientas.jsx --jsx=automatic --bundle=false)",
+      "Bash(echo \"Herramientas exit=$?\")",
+      "Bash(ls \"c:/Users/sfigueroa/Documents/Maxximundo/PortalEmpresarial/\" 2>/dev/null)",
+      "Read(//c/Users/sfigueroa/Documents/Maxximundo/PortalEmpresarial/**)",
+      "Bash(powershell -NoProfile -Command \"Test-Path 'C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new'\")",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && ls -la)",
+      "Bash(cd \"C:\\\\Users\\\\sfigueroa\\\\Documents\\\\Maxximundo\\\\PortalEmpresarialBack\\\\v1-portal-empresarial-back-new\" && find src -maxdepth 3 -type d | sort)"
     ]
   }
 }

@@ -73,8 +73,10 @@ export const getSidebarItems = (userContexts = []) => {
   const rootItems = [];
 
   RoutesConfig.forEach((item) => {
-    // Saltar rutas públicas, metadata de grupos (rootOnly) e items sin recurso (como "/")
-    if (item.public || item.rootOnly || !item.recurso) return;
+    // Saltar rutas públicas, metadata de grupos (rootOnly), rutas ocultas
+    // (hideInSidebar: detalles que se abren desde otra pantalla, no desde el
+    // menú) e items sin recurso (como "/")
+    if (item.public || item.rootOnly || item.hideInSidebar || !item.recurso) return;
 
     // Verificar acceso al recurso
     const hasAccess = hasAccessToResource(userContexts, item.recurso);

@@ -47,6 +47,28 @@ export async function appShellService_obtenerCanjesConEstados() {
 }
 
 /**
+ * Obtener el catálogo de roles (tipo de usuario) de ClubShellMax, para filtros
+ * @returns {Promise<Object>} { success, data: [{ ID_ROLE, NAME_ROLE }], message }
+ */
+export async function appShellService_obtenerRoles() {
+  try {
+    const response = await axiosInstanceNew.get(`/club-shell-maxx/roles`);
+    return {
+      success: true,
+      data: response?.data?.data ?? [],
+      message: response.data?.message || "Roles obtenidos",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      message:
+        error.response?.data?.message || "Error al obtener los roles",
+    };
+  }
+}
+
+/**
  * Actualizar el estado de un canje (agregar entrada al historial)
  * @param {number} canjeId - ID del canje
  * @param {number} estadoId - ID del nuevo estado

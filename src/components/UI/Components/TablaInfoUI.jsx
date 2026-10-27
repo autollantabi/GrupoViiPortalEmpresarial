@@ -116,6 +116,7 @@ export const TablaInfoUI = ({
   onFilteredDataChange = null,
   uniqueKey = "ID",
   footerData = null,
+  allowAddFilters = true,
 }) => {
   const [filteredData, setFilteredData] = useState(data);
   const { theme } = useTheme();
@@ -377,6 +378,7 @@ export const TablaInfoUI = ({
               }
               placeholder="Todos"
               isSearchable
+              isClearable
               minWidth="150px"
               maxWidth="250px"
               menuMaxHeight="200px"
@@ -481,20 +483,22 @@ export const TablaInfoUI = ({
         {activeFiltersLabel.map((column) => renderFilterComponent(column))}
 
         {/* Botón para agregar filtros opcionales */}
-        <div style={{ minWidth: "100px", maxWidth: "225px" }}>
-          {/* <label style={{ fontSize: "13px" }}>Agregar Filtros</label> */}
-          <SelectUI
-            options={optionalFilters.map((column) => ({
-              value: column.field,
-              label: column.header,
-            }))}
-            onChange={handleAddFilter}
-            placeholder="Agregar Filtro"
-            isSearchable
-            minWidth="150px"
-            maxWidth="250px"
-          />
-        </div>
+        {allowAddFilters && (
+          <div style={{ minWidth: "100px", maxWidth: "225px" }}>
+            {/* <label style={{ fontSize: "13px" }}>Agregar Filtros</label> */}
+            <SelectUI
+              options={optionalFilters.map((column) => ({
+                value: column.field,
+                label: column.header,
+              }))}
+              onChange={handleAddFilter}
+              placeholder="Agregar Filtro"
+              isSearchable
+              minWidth="150px"
+              maxWidth="250px"
+            />
+          </div>
+        )}
 
         {/* Filtro global */}
         {/* <div style={{ minWidth: "100px", maxWidth: "150px" }}>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import styled, { keyframes } from "styled-components";
+import styled, { keyframes, css } from "styled-components";
 import { NegociacionForwarder } from "./SeccionesImportaciones/NegociacionForwarder";
+import { DetalleSku } from "./SeccionesImportaciones/DetalleSku";
 import { DocumentosProveedor } from "./SeccionesImportaciones/DocumentosProveedor";
 import { Transacciones } from "./SeccionesImportaciones/Transacciones";
 import { PermisosImportacion } from "./SeccionesImportaciones/PermisosImportacion";
@@ -110,6 +111,15 @@ const ContenedorVentana = styled.div`
   height: 95%;
   border-radius: 20px;
   animation: ${intro} 0.8s ease-in-out;
+
+  /* Detalle Sku puede traer tablas muy anchas: se acota el ancho de la
+     ventana para que ese contenido haga scroll interno en vez de agrandar
+     el modal indefinidamente. */
+  ${({ $anchoAcotado }) =>
+    $anchoAcotado &&
+    css`
+      width: min(1400px, 95vw);
+    `}
 `;
 const ContenedorVentanaP = styled.div`
   display: flex;
@@ -128,6 +138,13 @@ const ContenedorVentanaP = styled.div`
   z-index: 101;
   box-shadow: ${({ theme }) => theme.colors.boxShadow || "0 0 10px rgba(0, 0, 0, 0.3)"};
   animation: ${intro} 0.8s ease-in-out;
+
+  ${({ $anchoAcotado }) =>
+    $anchoAcotado &&
+    css`
+      width: min(1400px, 95vw);
+      max-width: 95vw;
+    `}
 `;
 const ContenedorBarraLateral = styled.div`
   display: flex;
@@ -142,13 +159,26 @@ const ContenedorInformacion = styled.div`
   padding: 25px;
   width: 100%;
   min-width: 650px;
-  background-color: ${({ theme }) => theme.name === "dark" 
+  background-color: ${({ theme }) => theme.name === "dark"
     ? theme.colors.backgroundDark || theme.colors.backgroundCard
     : theme.colors.background || theme.colors.backgroundCard};
   border-radius: 10px;
   overflow-y: auto;
   color: ${({ theme }) => theme.colors.text};
   border: 1px solid ${({ theme }) => theme.colors.border || "transparent"};
+
+  /* Permite que el contenido (p.ej. la tabla ancha de Detalle Sku) se
+     contenga y haga scroll propio en vez de forzar el crecimiento del
+     modal (típico bug de flex-item con min-width:auto). overflow-x
+     queda en "auto" (no "hidden") como red de seguridad: si algo
+     igual se desborda, el usuario puede llegar a verlo con scroll en
+     vez de perderlo de forma invisible. */
+  ${({ $anchoAcotado }) =>
+    $anchoAcotado &&
+    css`
+      min-width: 0;
+      overflow-x: auto;
+    `}
 `;
 const BotonCerrar = styled.div`
   position: absolute;
@@ -260,6 +290,10 @@ const Boton1 = styled.button`
     }
   }
 `;
+
+// Sección informativa (solo lectura) que no forma parte del flujo de etapas
+// numeradas: se muestra siempre disponible, sin importar la ETAPA actual.
+const SECCION_DETALLE_SKU = "DETALLE_SKU";
 
 // Configuración de secciones
 const SECCIONES_CONFIG = [
@@ -645,9 +679,9 @@ const BarraLateralImportacion = ({
 
   return (
     <ContendorSecciones style={{ overflowY: "auto" }}>
-      {seccionesAMostrar.map((nombreSeccion, index) => {
+      {seccionesAMostrar.flatMap((nombreSeccion, index) => {
         const realIndex = secciones.indexOf(nombreSeccion); // Encontrar el índice real en el array original
-        return (
+        const tabSeccion = (
           <div
             key={index}
             onClick={() => enviarSeccion(realIndex)}
@@ -666,6 +700,25 @@ const BarraLateralImportacion = ({
             </span>
           </div>
         );
+
+        // Pestaña informativa (solo lectura), fuera del flujo de etapas: se
+        // inserta siempre justo después de "Negociación Forwarder" y nunca
+        // se bloquea por la ETAPA actual.
+        if (nombreSeccion !== "NEGOCIACIÓN FORWARDER") {
+          return [tabSeccion];
+        }
+
+        return [
+          tabSeccion,
+          <div
+            key="detalleSku"
+            onClick={() => establecerSeccion(SECCION_DETALLE_SKU)}
+            className={seccionActual === SECCION_DETALLE_SKU ? "active" : ""}
+          >
+            <div className="indicador" style={{ display: "block", width: "3px" }}></div>
+            <span>DETALLE SKU</span>
+          </div>,
+        ];
       })}
       {etapa >= 9 &&
         tieneRolVentas &&
@@ -857,6 +910,10 @@ export const VentanaEdicionImportacion = ({
       return <div>No hay datos disponibles</div>;
     }
 
+    if (seccionActual === SECCION_DETALLE_SKU) {
+      return <DetalleSku idImportacion={datos.importaciones[0].ID_CARGA} />;
+    }
+
     const seccion = seccionesPermitidas.find((s) => s.id === seccionActual);
     if (!seccion) return <div>Sección no disponible</div>;
 
@@ -1007,9 +1064,11 @@ export const VentanaEdicionImportacion = ({
     );
   }
 
+  const esDetalleSku = seccionActual === SECCION_DETALLE_SKU;
+
   return (
     <ContenedorPrincipal>
-      <ContenedorVentanaP>
+      <ContenedorVentanaP $anchoAcotado={esDetalleSku}>
         <BotonCerrar
           onClick={() => {
             mostrarVentanaEdicion(false);
@@ -1036,7 +1095,7 @@ export const VentanaEdicionImportacion = ({
         </div>
 
         {datos && datos.importaciones && datos.importaciones.length > 0 ? (
-          <ContenedorVentana>
+          <ContenedorVentana $anchoAcotado={esDetalleSku}>
             <ContenedorBarraLateral>
               <BarraLateralImportacion
                 establecerSeccion={setSeccionActual}
@@ -1055,7 +1114,9 @@ export const VentanaEdicionImportacion = ({
               />
             </ContenedorBarraLateral>
 
-            <ContenedorInformacion>{renderizarSeccion()}</ContenedorInformacion>
+            <ContenedorInformacion $anchoAcotado={esDetalleSku}>
+              {renderizarSeccion()}
+            </ContenedorInformacion>
           </ContenedorVentana>
         ) : (
           <div>No se encontraron datos para esta importación</div>

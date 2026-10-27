@@ -80,6 +80,7 @@ export const InputUI = ({
   placeholder = "",
   value = "",
   onChange,
+  onBlur,
   formatValue = (val) => val, // Función para formatear el valor mostrado
   iconLeft,
   iconRight,
@@ -154,6 +155,7 @@ export const InputUI = ({
           placeholder={placeholder}
           value={value !== undefined && value !== null ? formatValue(value) : formatValue(inputValue)} // Formato al mostrar
           onChange={handleChange}
+          onBlur={onBlur}
           onKeyPress={handleKeyPress}
           onKeyDown={handleKeyDown}
           onFocus={onFocus}

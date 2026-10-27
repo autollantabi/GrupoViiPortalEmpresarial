@@ -26,6 +26,7 @@ import Linea from "pages/Areas/Negocio/Linea/Linea";
 // Compras
 import { Compras_Reportes } from "pages/Areas/Compras/Reportes/Compras_Reportes";
 import { Importaciones } from "pages/Areas/Compras/Importaciones/Importaciones";
+import { PedidosImportacion } from "pages/Areas/Compras/PedidosImportacion/PedidosImportacion";
 import { RegistroPedidos } from "pages/Areas/Compras/RegistroPedidos/RegistroPedidos";
 import { Creditos } from "pages/Areas/Compras/Creditos/Creditos";
 import { Anticipos } from "pages/Areas/Compras/Anticipos/Anticipos";
@@ -37,6 +38,7 @@ import { ComisionesMayoristas } from "pages/Areas/Contabilidad/Comisiones/Mayori
 import { ComisionesTecnicentroContainer } from "pages/Areas/Contabilidad/Comisiones/Tecnicentro/ComisionesTecnicentro";
 import { ComisionesTecnicentroCategoriasContainer } from "pages/Areas/Contabilidad/Comisiones/Tecnicentro/ComisionesTecnicentroCategorias";
 import { ComisionesLubricantes } from "pages/Areas/Contabilidad/Comisiones/Lubricantes/ReporteComisionesLubricantes";
+import { GuiasRemision } from "pages/Areas/Contabilidad/GuiasRemision/GuiasRemision";
 import { CalculadoraPrecios } from "pages/Areas/Comercial/CalculadoraPrecios/CalculadoraPrecios";
 
 
@@ -48,6 +50,9 @@ import { ComercialMarketing } from "pages/Areas/Marketing/ComercialMarketing";
 // RRHH
 import { Documentacion } from "pages/Areas/RRHH/Documentacion";
 import { Colaboradores } from "pages/Areas/RRHH/Colaboradores/Colaboradores";
+
+// DDMRP
+import { Ddmrp_Report } from "pages/Areas/Ddmrp/Ddmrp_Report";
 
 import { ReporteriaComercial } from "pages/Areas/Reporteria/Comercial/ReporteriaComercial";
 import { ReporteriaCobranzas } from "pages/Areas/Reporteria/Cobranzas/ReporteriaCobranzas";
@@ -70,12 +75,13 @@ import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import Llantas from "pages/Areas/MDM/MDM_Crud/Llantas";
 import Lubricantes from "pages/Areas/MDM/MDM_Crud/Lubricantes";
 import Herramientas from "pages/Areas/MDM/MDM_Crud/Herramientas";
+import Clientes from "pages/Areas/MDM/MDM_Crud/Clientes";
+import ClienteDetalle from "pages/Areas/MDM/MDM_Crud/ClienteDetalle";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
 import { VisitasAsignadas } from "pages/Areas/Visitas/Asignadas/VisitasAsignadas";
 import { ReporteriaComecialTecnicentro } from "pages/Areas/Reporteria/ComercialTecnicentro/ReporteriaComercialTecnicentro"
-import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import { ReporteClienteSinCompra } from "pages/Areas/Reporteria/ClientesSinCompra/ClientesSinCompra";
 import { ReporteCalificacionScoreCrediticio } from "pages/Areas/Reporteria/CalificacionScoreCrediticio/CalificacionScoreCrediticio";
 import { ReporteInventariosQuedados } from "pages/Areas/Reporteria/InventariosQuedados/InventariosQuedados";
@@ -85,6 +91,17 @@ import { ReporteVentasLubricantes } from "pages/Areas/Reporteria/VentasLubricant
 import { ReporteVentasClientesPorMes } from "pages/Areas/Reporteria/VentasClientesPorMes/VentasClientesPorMes";
 import { ClientesEnrutados } from "pages/Areas/Reporteria/ClientesEnrutados/ClientesEnrutados";
 import { ReporteAnalisisPorCliente } from "pages/Areas/Reporteria/AnalisisPorCliente/AnalisisPorCliente";
+import { ReporteriaComecialTecnicentroOld } from "pages/Areas/Reporteria/ComercialTecnicentroOld/ReporteriaComercialTecnicentroOld";
+import { ReporteListaPrecios } from "pages/Areas/Reporteria/ListaPrecios/ListaPrecios";
+import { ReportePareto } from "pages/Areas/Reporteria/ReportePareto/ReportePareto";
+import { ReportePricingNeumaticos } from "pages/Areas/Reporteria/PricingNeumaticos/PricingNeumaticos";
+import { ReporteAutomaxNeumaticos } from "pages/Areas/Reporteria/AutomaxNeumaticos/ReporteAutomaxNeumaticos";
+import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
+import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
+import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnidadesVendidas/ReporteIkonixUnidadesVendidas";
+import { ReporteCobus } from "pages/Areas/Reporteria/ReporteCobus/Cobus";
+import { ReporteTop200ClientesIkonix } from "pages/Areas/Reporteria/NuevoReporte/NuevoReporte";
+import { ReporteInventarioBodegaHerramientas } from "pages/Areas/Reporteria/InventarioBodegaHerramientas/ReporteInventarioBodegaHerramientas";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -205,6 +222,11 @@ export const RoutesConfig = [
     recurso: "compras.importaciones",
   },
   {
+    title: "Pedidos Importación",
+    component: PedidosImportacion,
+    recurso: "compras.pedidosimportacion",
+  },
+  {
     title: "Créditos",
     component: Creditos,
     recurso: "compras.creditos",
@@ -250,6 +272,11 @@ export const RoutesConfig = [
     title: "Lubricantes",
     component: ComisionesLubricantes,
     recurso: "contabilidad.comisiones.lubricantes",
+  },
+  {
+    title: "Guías Remisión",
+    component: GuiasRemision,
+    recurso: "contabilidad.guiasremision",
   },
 
   // ================================= XCOIN =================================
@@ -316,11 +343,23 @@ export const RoutesConfig = [
     component: Marketing5w2h,
     recurso: "marketing.5w2h",
   },
+  // ================================= DDMRP =================================
+  {
+    recurso: "ddmrp",
+    title: "DDMRP",
+    icon: "FaBoxesStacked",
+    rootOnly: true,
+  },
+  {
+    title: "Reporte DDMRP",
+    component: Ddmrp_Report,
+    recurso: "ddmrp.reporte",
+  },
   // ================================= MDM =================================
   {
     recurso: "mdm",
     title: "MDM",
-    icon: "FaDatabase",
+    icon: "FaCheck",
     rootOnly: true,
   },
   {
@@ -337,6 +376,20 @@ export const RoutesConfig = [
     title: "Herramientas",
     component: Herramientas,
     recurso: "mdm.herramientas",
+  },
+  {
+    title: "Clientes",
+    component: Clientes,
+    recurso: "mdm.clientes",
+  },
+  {
+    // Se abre al hacer clic en una fila del listado, no desde el menú.
+    // Comparte el recurso con el listado para heredar sus permisos.
+    title: "Detalle de Cliente",
+    component: ClienteDetalle,
+    recurso: "mdm.clientes",
+    path: "/mdm/clientes/:id",
+    hideInSidebar: true,
   },
   // ================================= RRHH =================================
   {
@@ -399,6 +452,11 @@ export const RoutesConfig = [
     recurso: "reportes.comercialtecnicentro",
   },
   {
+    title: "Comercial Tecnicentro Antiguo",
+    component: ReporteriaComecialTecnicentroOld,
+    recurso: "reportes.comercialtecnicentroold",
+  },
+  {
     title: "Flash de Ventas",
     component: ReporteriaComercialFlashdeVentas,
     recurso: "reportes.flashventas",
@@ -444,7 +502,7 @@ export const RoutesConfig = [
     recurso: "reportes.camion",
   },
   {
-    title: "Consolidado",
+    title: "Consolidado Cartera",
     component: ReporteriaConsolidado,
     recurso: "reportes.consolidado",
   },
@@ -489,6 +547,11 @@ export const RoutesConfig = [
     recurso: "reportes.importacionescobus",
   },
   {
+    title: "Cobus",
+    component: ReporteCobus,
+    recurso: "reportes.cobus",
+  },
+  {
     title: "Top Clientes",
     component: ReporteTopVendedores,
     recurso: "reportes.topvendedores",
@@ -512,6 +575,41 @@ export const RoutesConfig = [
     title: "Análisis por cliente",
     component: ReporteAnalisisPorCliente,
     recurso: "reportes.analisisporcliente",
+  },
+  {
+    title: "Lista Precios",
+    component: ReporteListaPrecios,
+    recurso: "reportes.listaprecios",
+  },
+  {
+    title: "Reporte Pareto",
+    component: ReportePareto,
+    recurso: "reportes.reportepareto",
+  },
+  {
+    title: "Pricing Neumáticos Nuevo",
+    component: ReportePricingNeumaticos,
+    recurso: "reportes.pricingneumaticos",
+  },
+  {
+    title: "Automax Neumáticos",
+    component: ReporteAutomaxNeumaticos,
+    recurso: "reportes.automaxneumaticos",
+  },
+  {
+    title: "Unidades Vendidas",
+    component: ReporteIkonixUnidadesVendidas,
+    recurso: "reportes.unidadesvendidas",
+  },
+  {
+    title: "Top 200 clientes Ikonix",
+    component: ReporteTop200ClientesIkonix,
+    recurso: "reportes.top200clientesikonix",
+  },
+  {
+    title: "Inventario Bodega Herramientas",
+    component: ReporteInventarioBodegaHerramientas,
+    recurso: "reportes.inventariobodegaherramientas"
   },
   // ================================= VISITAS =================================
   {
@@ -543,6 +641,12 @@ export const RoutesConfig = [
     icon: "FaDatabase",
     component: StreamlitEmbed,
     recurso: "cobus",
+  },
+  {
+    title: "Víaticos",
+    icon: "FaMoneyBill1Wave",
+    component: ViaticosEmbed,
+    recurso: "viaticos",
   },
 
 ];

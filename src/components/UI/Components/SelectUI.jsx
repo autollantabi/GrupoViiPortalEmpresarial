@@ -111,7 +111,7 @@ export const SelectUI = ({
         borderWidth: "1px",
         borderStyle: "solid",
         minHeight: "38px",
-        height: "38px",
+        height: "auto",
         padding: "0 4px 0 2px",
         boxShadow: "none",
         backgroundColor: theme.colors?.selectBackground || theme.colors?.inputBackground || theme.colors?.backgroundCard || "#ffffff",
@@ -167,6 +167,8 @@ export const SelectUI = ({
     valueContainer: (provided) => ({
       ...provided,
       padding: "2px 4px",
+      flexWrap: "wrap",
+      rowGap: "4px",
     }),
     menu: (provided, state) => {
       const fondo = theme.colors?.selectMenuBackground || theme.colors?.selectBackground || theme.colors?.backgroundCard || "#ffffff";
@@ -245,10 +247,20 @@ export const SelectUI = ({
     indicatorsContainer: (provided) => ({
       ...provided,
       padding: "0",
-      width: "24px",
+      // Sin ancho fijo: con isClearable hay dos iconos (limpiar y desplegar) y
+      // con 24px el segundo se salía del borde del control.
       minWidth: "24px",
+      // En los multi-select el contenedor de valores crece hacia abajo, así que
+      // los iconos se anclan arriba; en el resto van centrados con el texto.
+      ...(isMulti
+        ? { alignSelf: "flex-start", marginTop: "6px" }
+        : { alignSelf: "stretch", alignItems: "center" }),
     }),
     dropdownIndicator: (provided) => ({
+      ...provided,
+      padding: "2px",
+    }),
+    clearIndicator: (provided) => ({
       ...provided,
       padding: "2px",
     }),

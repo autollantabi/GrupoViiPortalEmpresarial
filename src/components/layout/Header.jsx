@@ -7,6 +7,7 @@ import Reloj from "../UI/Components/RelojUI";
 import { hexToRGBA } from "utils/colors";
 import { useTheme } from "context/ThemeContext";
 import { useSidebar } from "context/SidebarContext";
+import { MOBILE_MEDIA_QUERY } from "hooks/useIsMobile";
 import { useAuthContext } from "context/authContext";
 import IconUI from "components/UI/Components/IconsUI";
 import { postgresService } from "services/postgresService";
@@ -36,6 +37,15 @@ const EstructuraHeader = styled.div.withConfig({
   }};
   transition: margin-left 0.4s ease-in-out, width 0.4s ease-in-out;
   transition: margin-left 0.4s ease-in-out, margin-right 0.4s ease-in-out, width 0.4s ease-in-out;
+
+  @media ${MOBILE_MEDIA_QUERY} {
+    margin-left: 0px;
+    margin-right: 0px;
+    width: 100vw;
+    padding-left: 46px;
+    box-sizing: border-box;
+  }
+
   background: ${(props) => {
     const start = props.theme.colors.headerGradientStart || props.theme.colors.primary;
     const end = props.theme.colors.headerGradientEnd || props.theme.colors.secondary;
@@ -51,17 +61,21 @@ const EstructuraHeader = styled.div.withConfig({
 `;
 
 const ContenedorHeader = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  width: 100%;
-  padding: 0 15px;
+  display: flex;
   align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 0 15px;
+  box-sizing: border-box;
+  gap: 10px;
 `;
 
 const ContenedorInformacion = styled.div`
   ${flexRowCenter};
   column-gap: 10px;
   justify-content: flex-end;
+  flex: 0 1 auto;
+  min-width: 0;
 `;
 
 const ContenedorLogo = styled.div`
@@ -69,11 +83,14 @@ const ContenedorLogo = styled.div`
   column-gap: 20px;
   color: ${(props) => props.theme.colors.white};
   justify-content: flex-start;
+  flex: 0 0 auto;
 `;
 const ContenedorCentro = styled.div`
   ${flexRowCenter};
   justify-content: center;
   gap: 20px;
+  flex: 1 1 auto;
+  min-width: 0;
 `;
 
 const NombreUsuario = styled.span`
@@ -82,6 +99,15 @@ const NombreUsuario = styled.span`
   gap: 8px;
   cursor: default;
   position: relative;
+  min-width: 0;
+  max-width: 100%;
+`;
+
+const NombreTexto = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 `;
 
 const marqueeAnimation = keyframes`
@@ -211,8 +237,8 @@ const Header = () => {
             onMouseLeave={() => setMostrarSubMenuUsuario(false)}
             style={{ position: "relative" }}
           >
-            <IconUI name="FaUser" size={14} color={theme.colors.white} />
-            {nombreUsuario}
+            <IconUI name="FaUser" size={14} color={theme.colors.white} style={{ flexShrink: 0 }} />
+            <NombreTexto title={nombreUsuario}>{nombreUsuario}</NombreTexto>
             {mostrarSubMenuUsuario && (
               <div
                 style={{
