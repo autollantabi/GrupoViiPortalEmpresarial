@@ -33,6 +33,15 @@ export const formatearFecha = (iso) => {
   return nombreMes ? `${Number(dia)} ${nombreMes} ${anio}` : "—";
 };
 
+/** '2026-08-20' → '20 ago', sin año: para resúmenes cortos como un rango de fechas. */
+export const formatearFechaCorta = (iso) => {
+  if (!iso) return "—";
+  const [, mes, dia] = String(iso).slice(0, 10).split("-");
+  if (!mes || !dia) return "—";
+  const nombreMes = MESES[Number(mes) - 1];
+  return nombreMes ? `${Number(dia)} ${nombreMes}` : "—";
+};
+
 /**
  * Comparación de fechas ISO. Funciona con < porque el formato 'AAAA-MM-DD'
  * ordena igual alfabéticamente que cronológicamente.
