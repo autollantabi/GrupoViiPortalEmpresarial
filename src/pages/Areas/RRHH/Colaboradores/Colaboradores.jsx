@@ -14,6 +14,7 @@ import { ColConfiguracion } from "./pantallas/ColConfiguracion";
 import { ColInduccion } from "./pantallas/ColInduccion";
 import { ColPazSalvo } from "./pantallas/ColPazSalvo";
 import { ColCertificados } from "./pantallas/ColCertificados";
+import { ColVacaciones } from "./pantallas/ColVacaciones";
 import { ReporteIngresosSalidas } from "./pantallas/ReporteIngresosSalidas";
 import { usePermisosColaboradores } from "./hooks/usePermisos";
 import { RUTA_BASE } from "./utils/constantes";
@@ -75,6 +76,7 @@ export const Colaboradores = ({
         element={soloGestion(<ColCargasFamiliares {...contexto} />)}
       />
       <Route path="empleados/:id/induccion" element={soloGestion(<ColInduccion {...contexto} />)} />
+      <Route path="empleados/:id/vacaciones" element={soloGestion(<ColVacaciones {...contexto} />)} />
       {/* Paz y salvo solo tiene sentido con la ficha de baja: la propia pantalla
           redirige si el empleado sigue activo. */}
       <Route path="empleados/:id/paz-salvo" element={soloGestion(<ColPazSalvo {...contexto} />)} />

@@ -2,20 +2,25 @@ import React, { useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { CheckboxUI } from "components/UI/Components/CheckboxUI";
 import IconUI from "components/UI/Components/IconsUI";
+import { InputUI } from "components/UI/Components/InputUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { useTheme } from "context/ThemeContext";
 import {
   ObtenerColaborador,
   ObtenerPazSalvoEmpleado,
+  ObtenerUrlResumenPazSalvo,
   ReenviarPazSalvo,
   ResolverPazSalvoItem,
 } from "services/colaboradoresService";
 import { CabeceraFicha } from "../componentes/CabeceraFicha";
 import { CampoLabel } from "../componentes/CampoLabel";
+import { ModalVerActa } from "../componentes/ModalVerActa";
 import { PestanasFicha } from "../componentes/PestanasFicha";
 import { TablaPazSalvo } from "../componentes/TablaPazSalvo";
+import { formatearMonto } from "../utils/constantesDotacion";
 import { useConsulta } from "../hooks/useConsulta";
 import {
   Acciones,
@@ -32,18 +37,39 @@ import {
 } from "../componentes/piezas";
 import { ESTADO, RUTA_BASE } from "../utils/constantes";
 
-/** Confirmación simple: solo pide una observación opcional. */
+/** Pide SI/NO tiene novedad y, si la tiene, el valor a descontar — igual al Excel de Talento Humano. */
 const ModalResolverPazSalvo = ({ abierto, item, onCerrar, onConfirmar }) => {
+  const [tieneNovedad, setTieneNovedad] = useState(false);
+  const [valorTexto, setValorTexto] = useState("");
   const [observacion, setObservacion] = useState("");
+  const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
+
+  const reiniciar = () => {
+    setTieneNovedad(false);
+    setValorTexto("");
+    setObservacion("");
+    setError(null);
+  };
 
   const enviar = async (evento) => {
     evento.preventDefault();
     if (enviando) return;
+
+    const valorNumero = Number(valorTexto);
+    if (tieneNovedad && (valorTexto === "" || !Number.isFinite(valorNumero) || valorNumero <= 0)) {
+      setError("Indique el valor de la novedad, mayor a cero.");
+      return;
+    }
+
     setEnviando(true);
     try {
-      await onConfirmar({ observacion: observacion.trim() || null });
-      setObservacion("");
+      await onConfirmar({
+        tieneNovedad,
+        valor: tieneNovedad ? valorNumero : null,
+        observacion: observacion.trim() || null,
+      });
+      reiniciar();
     } catch (e) {
       toast.error(e.message || "No se pudo marcar el área como resuelta");
     } finally {
@@ -67,6 +93,31 @@ const ModalResolverPazSalvo = ({ abierto, item, onCerrar, onConfirmar }) => {
             Se marcará <strong>{item.areaNombre}</strong> como Resuelto. Esta acción no se puede
             deshacer.
           </TextoTenue>
+          <CheckboxUI
+            name="tieneNovedad"
+            label="Tiene novedad (se descuenta un valor de la liquidación)"
+            checked={tieneNovedad}
+            onChange={(_nombre, marcado) => {
+              setTieneNovedad(marcado);
+              if (!marcado) setValorTexto("");
+              setError(null);
+            }}
+          />
+          {tieneNovedad && (
+            <CampoLabel etiqueta="Valor" requerido error={error}>
+              <InputUI
+                type="number"
+                value={valorTexto}
+                onChange={(valor) => {
+                  setValorTexto(valor);
+                  setError(null);
+                }}
+                min={0.01}
+                step="0.01"
+                placeholder="0.00"
+              />
+            </CampoLabel>
+          )}
           <CampoLabel etiqueta="Observación">
             <AreaTexto
               value={observacion}
@@ -82,7 +133,15 @@ const ModalResolverPazSalvo = ({ abierto, item, onCerrar, onConfirmar }) => {
               iconLeft="FaCheck"
               disabled={enviando}
             />
-            <ButtonUI text="Cancelar" variant="outlined" onClick={onCerrar} disabled={enviando} />
+            <ButtonUI
+              text="Cancelar"
+              variant="outlined"
+              onClick={() => {
+                reiniciar();
+                onCerrar();
+              }}
+              disabled={enviando}
+            />
           </Acciones>
         </div>
       </form>
@@ -105,6 +164,8 @@ export const ColPazSalvo = () => {
   const [ocupado, setOcupado] = useState(false);
   const [seleccionados, setSeleccionados] = useState(new Set());
   const [reenviando, setReenviando] = useState(false);
+  const [urlResumen, setUrlResumen] = useState(null);
+  const [abriendoResumen, setAbriendoResumen] = useState(false);
 
   const { datos: ficha } = useConsulta(({ signal }) => ObtenerColaborador(id, { signal }), [id]);
 
@@ -132,6 +193,23 @@ export const ColPazSalvo = () => {
       else copia.add(item.id);
       return copia;
     });
+
+  const abrirResumen = async () => {
+    if (abriendoResumen) return;
+    setAbriendoResumen(true);
+    try {
+      setUrlResumen(await ObtenerUrlResumenPazSalvo(id));
+    } catch (e) {
+      toast.error(e.message || "No se pudo abrir el resumen de paz y salvo");
+    } finally {
+      setAbriendoResumen(false);
+    }
+  };
+
+  const cerrarResumen = () => {
+    if (urlResumen) window.URL.revokeObjectURL(urlResumen);
+    setUrlResumen(null);
+  };
 
   const reenviar = async () => {
     if (seleccionados.size === 0) return;
@@ -191,6 +269,10 @@ export const ColPazSalvo = () => {
 
   const resueltos = items.filter((item) => item.estado === "Resuelto").length;
   const pendientes = items.length - resueltos;
+  const totalValor = items.reduce(
+    (suma, item) => suma + (item.tieneNovedad ? item.valor ?? 0 : 0),
+    0,
+  );
 
   return (
     <Contenedor translate="no" className="notranslate">
@@ -207,26 +289,41 @@ export const ColPazSalvo = () => {
           <KpiTitulo>Pendientes</KpiTitulo>
           <KpiValor $tono="aviso">{pendientes}</KpiValor>
         </Kpi>
+        <Kpi>
+          <KpiTitulo>Total a descontar</KpiTitulo>
+          <KpiValor>{formatearMonto(totalValor)}</KpiValor>
+        </Kpi>
       </Rejilla>
 
-      {pendientes > 0 && (
-        <Acciones>
+      <Acciones>
+        {pendientes > 0 && (
+          <>
+            <ButtonUI
+              text={
+                reenviando
+                  ? "Reenviando…"
+                  : seleccionados.size > 1
+                    ? `Reenviar recordatorio (${seleccionados.size})`
+                    : "Reenviar recordatorio"
+              }
+              iconLeft="FaPaperPlane"
+              variant="outlined"
+              disabled={seleccionados.size === 0 || reenviando}
+              onClick={reenviar}
+            />
+            <TextoTenue>Marque una o varias áreas pendientes para avisarles de nuevo.</TextoTenue>
+          </>
+        )}
+        {items.length > 0 && (
           <ButtonUI
-            text={
-              reenviando
-                ? "Reenviando…"
-                : seleccionados.size > 1
-                  ? `Reenviar recordatorio (${seleccionados.size})`
-                  : "Reenviar recordatorio"
-            }
-            iconLeft="FaPaperPlane"
+            text={abriendoResumen ? "Abriendo…" : "Descargar resumen"}
+            iconLeft="FaFilePdf"
             variant="outlined"
-            disabled={seleccionados.size === 0 || reenviando}
-            onClick={reenviar}
+            disabled={abriendoResumen}
+            onClick={abrirResumen}
           />
-          <TextoTenue>Marque una o varias áreas pendientes para avisarles de nuevo.</TextoTenue>
-        </Acciones>
-      )}
+        )}
+      </Acciones>
 
       <Tarjeta $sinRelleno>
         {items.length === 0 ? (
@@ -267,6 +364,13 @@ export const ColPazSalvo = () => {
         item={aResolver}
         onCerrar={() => setAResolver(null)}
         onConfirmar={confirmarResolver}
+      />
+
+      <ModalVerActa
+        abierto={urlResumen !== null}
+        url={urlResumen}
+        titulo="Paz y salvo — resumen de novedades"
+        onCerrar={cerrarResumen}
       />
     </Contenedor>
   );

@@ -29,7 +29,7 @@ export default defineConfig({
   server: {
     host: true, // Cambia la IP si es necesario
     strictPort: true, // Activa el modo estricto para el puerto  
-    port: 5000, // Mantén el mismo puerto si quieres,
+    port: 5001, // Mantén el mismo puerto si quieres,
     headers: securityHeaders,
     proxy: {
       "/apid1": {
@@ -39,7 +39,7 @@ export default defineConfig({
         configure: logProxiedRequests("apid1"),
       },
       "/apid2": {
-        target: "http://localhost:3004",
+        target: "http://192.168.0.68:3003",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/apid2/, ""),
         configure: logProxiedRequests("apid2"),
