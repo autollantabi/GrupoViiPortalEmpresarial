@@ -10,6 +10,14 @@ const REPORTES = [
     linea: "LLANTAS",
     empresa: "STOX"
   },
+  {
+    id: 0,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiNWVlYTM0ZWYtNzFhYy00MDRiLWExZGItN2RkZDEyMmE4NTYwIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    titulo: "Reporte Pareto Maxximundo",
+    rol: "jefatura",
+    linea: "LLANTAS",
+    empresa: "MAXXIMUNDO"
+  },
 ];
 
 export const ReportePareto = ({
