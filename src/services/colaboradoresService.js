@@ -492,6 +492,8 @@ export const ListarEstados = async ({ signal } = {}) => {
  * @property {string|null} fechaResolucion
  * @property {string|null} resueltoPor
  * @property {string|null} fechaLimite  Snapshot: hasta cuándo puede entregar esta área
+ * @property {boolean|null} tieneNovedad  Null mientras Pendiente
+ * @property {number|null} valor  Solo lleno cuando tieneNovedad = true
  */
 
 // ── 3.1 — Reporte de ingresos y salidas ─────────────────────────────────────
@@ -826,6 +828,7 @@ export const ObtenerPazSalvoEmpleado = async (empleadoId, { signal } = {}) => {
         areaConfigId: numero(fila.areaConfigId),
         fechaResolucion: soloFecha(fila.fechaResolucion),
         fechaLimite: soloFecha(fila.fechaLimite),
+        valor: numero(fila.valor),
       })),
       activaEnOtraEmpresa: datos.activaEnOtraEmpresa === true,
     };
@@ -846,6 +849,28 @@ export const ResolverPazSalvoItem = async (empleadoId, areaConfigId, datos) => {
     );
   } catch (error) {
     propagar(error, "No se pudo marcar el área como resuelta");
+  }
+};
+
+/**
+ * El PDF interno (resumen de novedades por área, con su valor), para mostrar
+ * en ModalVerActa.jsx — mismo patrón que ObtenerUrlActaAsignacion en
+ * dotacionService.js: object URL de blob, nunca un enlace directo (la ruta
+ * exige la cabecera de sesión que solo pone axiosInstanceNew). Quien llama es
+ * responsable de revocar la URL al cerrar el modal.
+ * @returns {Promise<string>}
+ */
+export const ObtenerUrlResumenPazSalvo = async (empleadoId) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(
+      `${BASE}/empleados/${empleadoId}/paz-salvo/resumen-pdf`,
+      { responseType: "blob" },
+    );
+    const blob = new Blob([respuesta.data], { type: "application/pdf" });
+    return window.URL.createObjectURL(blob);
+  } catch (error) {
+    const mensaje = await leerErrorBlob(error);
+    throw new Error(mensaje || "No se pudo abrir el resumen de paz y salvo");
   }
 };
 

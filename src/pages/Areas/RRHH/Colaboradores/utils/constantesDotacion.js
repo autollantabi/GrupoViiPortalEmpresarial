@@ -199,6 +199,7 @@ export const RUTA_CONFIGURACION = `${RUTA_BASE}/configuracion`;
 export const RUTA_INDUCCION = (id) => `${RUTA_BASE}/empleados/${id}/induccion`;
 export const RUTA_PAZ_SALVO = (id) => `${RUTA_BASE}/empleados/${id}/paz-salvo`;
 export const RUTA_CERTIFICADOS = (id) => `${RUTA_BASE}/empleados/${id}/certificados`;
+export const RUTA_VACACIONES = (id) => `${RUTA_BASE}/empleados/${id}/vacaciones`;
 export const RUTA_REPORTE_INGRESOS_SALIDAS = `${RUTA_BASE}/reportes/ingresos-salidas`;
 export const RUTA_MOVIMIENTOS = `${RUTA_BASE}/movimientos`;
 

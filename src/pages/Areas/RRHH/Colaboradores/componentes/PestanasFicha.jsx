@@ -10,6 +10,7 @@ import {
   RUTA_FICHA,
   RUTA_INDUCCION,
   RUTA_PAZ_SALVO,
+  RUTA_VACACIONES,
 } from "../utils/constantesDotacion";
 
 /**
@@ -90,6 +91,7 @@ export const PestanasFicha = ({
   pendientesDotacion = 0,
   pendientesDocumentos = 0,
   pendientesInduccion = 0,
+  pendientesVacaciones = 0,
   mostrarPazSalvo = false,
 }) => (
   <Barra aria-label="Secciones de la ficha">
@@ -108,6 +110,10 @@ export const PestanasFicha = ({
     <Pestana to={RUTA_INDUCCION(id)}>
       Inducción
       {pendientesInduccion > 0 && <Contador title="Actividades pendientes">{pendientesInduccion}</Contador>}
+    </Pestana>
+    <Pestana to={RUTA_VACACIONES(id)}>
+      Vacaciones
+      {pendientesVacaciones > 0 && <Contador title="Solicitudes pendientes">{pendientesVacaciones}</Contador>}
     </Pestana>
     {mostrarPazSalvo && <Pestana to={RUTA_PAZ_SALVO(id)}>Paz y salvo</Pestana>}
     <Pestana to={RUTA_CERTIFICADOS(id)}>Certificados</Pestana>
