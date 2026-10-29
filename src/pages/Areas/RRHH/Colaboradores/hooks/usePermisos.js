@@ -1,18 +1,21 @@
 import { useMemo } from "react";
 import { useAuthContext } from "context/authContext";
-import { hasAccessToResource } from "utils/permissionsValidator";
+import { puedeEditarRecurso } from "utils/permisosRecurso";
 
 /**
- * Los dos niveles de acceso de Colaboradores.
+ * Un solo recurso para Colaboradores: `rrhh.colaboradores`. La acción efectiva
+ * sobre ese recurso -la del rol, o la de "Sobrescribir Permisos" si el contexto
+ * la trae, desde "Asignaciones importantes"- decide el nivel:
  *
- *   rrhh.colaboradores           -> gestión completa (Recursos Humanos)
- *   rrhh.colaboradores.consulta  -> solo lectura del listado de activos
+ *   "editar"      -> gestión completa (crear, editar, dar de baja, reingresar,
+ *                     eliminar y abrir la ficha)
+ *   sin "editar"  -> solo el listado de colaboradores activos
  *
- * Quien tenga el recurso raíz `rrhh` obtiene la gestión por herencia de prefijo.
- * Quien tenga SOLO `rrhh.colaboradores.consulta` no la obtiene, porque la
- * herencia va de padre a hijo y nunca al revés.
- *
- * Es el mismo patrón que usa XCoin con xcoin.admin / xcoin.viewer.
+ * Es el mismo patrón que ya usa `MDM_Crud/Clientes.jsx` con
+ * `puedeEditarRecurso(user, "mdm.clientes")`. Antes Colaboradores no miraba la
+ * acción: solo comprobaba si el usuario tenía el recurso, lo que obligaba a
+ * inventar un segundo recurso (`rrhh.colaboradores.consulta`) para el nivel de
+ * consulta en vez de usar "Sobrescribir Permisos" como el resto del sistema.
  *
  * ── ESTO ES UX, NO SEGURIDAD ────────────────────────────────────────────────
  * Esconder un botón no impide que alguien haga la petición a mano. Quien de
@@ -27,8 +30,7 @@ export function usePermisosColaboradores() {
   const { user } = useAuthContext();
 
   return useMemo(() => {
-    const contextos = user?.data ?? [];
-    const puedeGestionar = hasAccessToResource(contextos, RECURSO_GESTION);
+    const puedeGestionar = puedeEditarRecurso(user, RECURSO_GESTION);
 
     return {
       /** Crear, editar, dar de baja, reingresar, eliminar y abrir la ficha. */

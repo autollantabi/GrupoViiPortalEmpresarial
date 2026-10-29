@@ -409,13 +409,11 @@ export const RoutesConfig = [
     title: "Directorio personal",
     icon: "FaUsers",
     component: Colaboradores,
-    // Dos niveles de acceso, igual que xcoin.admin / xcoin.viewer:
-    //   rrhh.colaboradores           -> gestión completa (Recursos Humanos)
-    //   rrhh.colaboradores.consulta  -> solo lectura del listado de activos
-    // Quien tenga el recurso raíz `rrhh` obtiene la gestión por herencia. Quien
-    // tenga solo el de consulta no, porque la herencia va de padre a hijo.
+    // Un solo recurso: basta con tenerlo asignado (con cualquier acción) para
+    // entrar al módulo. Dentro, usePermisosColaboradores decide gestión
+    // completa vs. solo consulta según la acción "editar" sobre este mismo
+    // recurso (ver hooks/usePermisos.js), no según un recurso distinto.
     recurso: "rrhh.colaboradores",
-    recursosAlternativos: ["rrhh.colaboradores.consulta"],
     // Registra /rrhh/colaboradores/* para que la sección declare sus propias
     // sub-rutas: tablero, listado, ficha, alta y edición. El ítem del menú sigue
     // apuntando a /rrhh/colaboradores limpio.
