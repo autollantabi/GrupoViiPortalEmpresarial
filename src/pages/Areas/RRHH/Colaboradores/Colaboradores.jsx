@@ -15,6 +15,7 @@ import { ColInduccion } from "./pantallas/ColInduccion";
 import { ColPazSalvo } from "./pantallas/ColPazSalvo";
 import { ColCertificados } from "./pantallas/ColCertificados";
 import { ColVacaciones } from "./pantallas/ColVacaciones";
+import { ColVacacionesNueva } from "./pantallas/ColVacacionesNueva";
 import { ReporteIngresosSalidas } from "./pantallas/ReporteIngresosSalidas";
 import { usePermisosColaboradores } from "./hooks/usePermisos";
 import { RUTA_BASE } from "./utils/constantes";
@@ -77,6 +78,13 @@ export const Colaboradores = ({
       />
       <Route path="empleados/:id/induccion" element={soloGestion(<ColInduccion {...contexto} />)} />
       <Route path="empleados/:id/vacaciones" element={soloGestion(<ColVacaciones {...contexto} />)} />
+      {/* Página completa del formulario, no modal: con hasta 2 backups y la
+          tabla de actividades a entregarles, el formulario es demasiado largo
+          para un cuadro compacto. */}
+      <Route
+        path="empleados/:id/vacaciones/nueva"
+        element={soloGestion(<ColVacacionesNueva {...contexto} />)}
+      />
       {/* Paz y salvo solo tiene sentido con la ficha de baja: la propia pantalla
           redirige si el empleado sigue activo. */}
       <Route path="empleados/:id/paz-salvo" element={soloGestion(<ColPazSalvo {...contexto} />)} />
