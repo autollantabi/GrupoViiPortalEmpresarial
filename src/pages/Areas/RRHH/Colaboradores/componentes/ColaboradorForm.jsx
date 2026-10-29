@@ -569,6 +569,7 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
                 placeholder="Seleccione la empresa"
                 minWidth="100%"
                 maxWidth="100%"
+                menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
               />
             </CampoLabel>
             {modo === "crear" && (
