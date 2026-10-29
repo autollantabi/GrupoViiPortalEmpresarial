@@ -114,7 +114,7 @@ export const TablaColaboradores = ({ filas = [], onAbrir, puedeGestionar = true 
           {CELDAS.map((celda) => (
             <Th key={celda.clave}>{celda.etiqueta}</Th>
           ))}
-          <Th>Período de prueba</Th>
+          {puedeGestionar && <Th>Período de prueba</Th>}
           {puedeGestionar && <Th>Estado</Th>}
         </tr>
       </thead>
@@ -137,10 +137,12 @@ export const TablaColaboradores = ({ filas = [], onAbrir, puedeGestionar = true 
             </Td>
             <Td data-etiqueta="Ext.">{fila.extension || "—"}</Td>
             <Td data-etiqueta="Tel. empresarial">{fila.telefonoEmpresarial || "—"}</Td>
-            <Td data-etiqueta="Período de prueba">
-              <InsigniaPeriodoPrueba fechaFinPeriodoPrueba={fila.fechaFinPeriodoPrueba} />
-              {!fila.fechaFinPeriodoPrueba && "—"}
-            </Td>
+            {puedeGestionar && (
+              <Td data-etiqueta="Período de prueba">
+                <InsigniaPeriodoPrueba fechaFinPeriodoPrueba={fila.fechaFinPeriodoPrueba} />
+                {!fila.fechaFinPeriodoPrueba && "—"}
+              </Td>
+            )}
             {puedeGestionar && (
               <Td data-etiqueta="Estado">
                 <Badge $tono={TONO_ESTADO[fila.estado] ?? "neutro"}>
