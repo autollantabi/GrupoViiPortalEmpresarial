@@ -645,6 +645,24 @@ export const getRutasMDM = async (empresa) => {
 };
 
 /**
+ * Calificaciones por score de una empresa (core.dim_calificacion_score: A, AA, AAA, B, C, D, E).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{SERIAL: number, CODIGO: number, VALOR: string, DESCRIPCION: string}>>}
+ */
+export const getCalificacionesScoreMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/calificaciones-score/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCalificacionesScoreMDM:", error);
+        throw error;
+    }
+};
+
+/**
  * Condiciones de pago activas de una empresa (core.dim_codigo_condicion_pago).
  * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
  * @returns {Promise<Array<{SERIAL: number, CODIGO: number, NOMBRE: string}>>}
