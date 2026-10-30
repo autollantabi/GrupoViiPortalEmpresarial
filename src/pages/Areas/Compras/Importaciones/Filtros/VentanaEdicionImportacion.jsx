@@ -818,6 +818,9 @@ export const VentanaEdicionImportacion = ({
   const [seccionActual, setSeccionActual] = useState(0);
   const [seccionesConErrores, setSeccionesConErrores] = useState([]);
   const [actualizacionCounter, setActualizacionCounter] = useState(0);
+  // Excel de liquidación de precios pendientes de procesar: viven mientras la ventana
+  // está abierta (sobreviven al cambio de sección) y se pierden al cerrarla.
+  const [archivosLiquidacion, setArchivosLiquidacion] = useState([]);
 
   // Usar el rol que viene del routeConfig (ya calculado en el router)
   const rolesUsuario = useMemo(() => {
@@ -1045,6 +1048,8 @@ export const VentanaEdicionImportacion = ({
         actualizar={actualizarDatos}
         permisosProp={permisos}
         rolesUsuario={rolesUsuario}
+        archivosLiquidacion={archivosLiquidacion}
+        setArchivosLiquidacion={setArchivosLiquidacion}
       />
     );
   };
