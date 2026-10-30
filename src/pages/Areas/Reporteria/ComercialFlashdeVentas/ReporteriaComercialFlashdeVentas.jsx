@@ -47,14 +47,14 @@ const REPORTES = [
     linea: "LUBRICANTES",
     empresa: "MAXXIMUNDO"
   },
-  {
-    id: 6,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiNDJkNDI3ZTEtODU5Ni00ZmM1LWJhNDctN2E5MjM4NGUyNjBlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
-    titulo: "Flash de Ventas - Grupo VII (Coordinador)",
-    rol: "coordinadora",
-    linea: "HERRAMIENTAS",
-    empresa: "IKONIX"
-  },
+  // {
+  //   id: 6,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiNDJkNDI3ZTEtODU5Ni00ZmM1LWJhNDctN2E5MjM4NGUyNjBlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+  //   titulo: "Flash de Ventas - Grupo VII (Coordinador)",
+  //   rol: "coordinadora",
+  //   linea: "HERRAMIENTAS",
+  //   empresa: "IKONIX"
+  // },
   {
     id: 7,
     url: "https://app.powerbi.com/view?r=eyJrIjoiZjQ5NTZjZDQtMGU3NC00ZmViLTkwMDItYjQ1OWQxMWZmM2E4IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
@@ -112,22 +112,22 @@ const REPORTES = [
     linea: "HERRAMIENTAS",
     empresa: "IKONIX"
   },
-  {
-    id: 14,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiNDJkNDI3ZTEtODU5Ni00ZmM1LWJhNDctN2E5MjM4NGUyNjBlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
-    titulo: "Flash de Ventas - Grupo VII (Supervisor)",
-    rol: "supervisor",
-    linea: "HERRAMIENTAS",
-    empresa: "IKONIX"
-  },
-  {
-    id: 15,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiNzBlMjdjZDQtOTE0Yi00ZWNkLThmODQtM2ZkNzkyYzZmNTBmIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
-    titulo: "Flash de Ventas - Grupo VII (Supervisor)",
-    rol: "supervisor",
-    linea: "LUBRICANTES",
-    empresa: "MAXXIMUNDO"
-  },
+  // {
+  //   id: 14,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiNDJkNDI3ZTEtODU5Ni00ZmM1LWJhNDctN2E5MjM4NGUyNjBlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+  //   titulo: "Flash de Ventas - Grupo VII (Supervisor)",
+  //   rol: "supervisor",
+  //   linea: "HERRAMIENTAS",
+  //   empresa: "IKONIX"
+  // },
+  // {
+  //   id: 15,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiNzBlMjdjZDQtOTE0Yi00ZWNkLThmODQtM2ZkNzkyYzZmNTBmIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+  //   titulo: "Flash de Ventas - Grupo VII (Supervisor)",
+  //   rol: "supervisor",
+  //   linea: "LUBRICANTES",
+  //   empresa: "MAXXIMUNDO"
+  // },
   {
     id: 16,
     url: "https://app.powerbi.com/view?r=eyJrIjoiMTBjOTAzNWEtZDVjNy00OGYzLWIxMGEtNjZmYjg3MzMwNWNiIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
@@ -161,57 +161,57 @@ const REPORTES = [
     linea: "LLANTAS",
     empresa: "STOX",
   },
-  {
-    id: 20,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiZmNjNGZkMmItMjJhZi00MmU3LTllMmYtN2I0OTBkNzg1ZGVkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
-    titulo: "Flash de Ventas - Grupo VII (Coordinador)",
-    rol: "coordinadora",
-    linea: "LLANTAS",
-    empresa: "AUTOMAX",
-  },
-  {
-    id: 21,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiZmNjNGZkMmItMjJhZi00MmU3LTllMmYtN2I0OTBkNzg1ZGVkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
-    titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
-    rol: "jefatura",
-    linea: "LLANTAS",
-    empresa: "AUTOMAX",
-  },
-  {
-    id: 22,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiZmNjNGZkMmItMjJhZi00MmU3LTllMmYtN2I0OTBkNzg1ZGVkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
-    titulo: "Flash de Ventas - Grupo VII (Supervisor)",
-    rol: "supervisor",
-    linea: "LLANTAS",
-    empresa: "AUTOMAX",
-  },
-  {
-    id: 23,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
-    titulo: "Flash de Ventas - Grupo VII (Coordinador - B2B)",
-    rol: "coordinadora",
-    linea: "LLANTAS",
-    empresa: "AUTOLLANTA",
-    canal: "B2B",
-  },
-  {
-    id: 24,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
-    titulo: "Flash de Ventas - Grupo VII (JEFATURA - B2B)",
-    rol: "jefatura",
-    linea: "LLANTAS",
-    empresa: "AUTOLLANTA",
-    canal: "B2B",
-  },
-  {
-    id: 25,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
-    titulo: "Flash de Ventas - Grupo VII (Supervisor - B2B)",
-    rol: "supervisor",
-    linea: "LLANTAS",
-    empresa: "AUTOLLANTA",
-    canal: "B2B",
-  },
+  // {
+  //   id: 20,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiZmNjNGZkMmItMjJhZi00MmU3LTllMmYtN2I0OTBkNzg1ZGVkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
+  //   titulo: "Flash de Ventas - Grupo VII (Coordinador)",
+  //   rol: "coordinadora",
+  //   linea: "LLANTAS",
+  //   empresa: "AUTOMAX",
+  // },
+  // {
+  //   id: 21,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiZmNjNGZkMmItMjJhZi00MmU3LTllMmYtN2I0OTBkNzg1ZGVkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
+  //   titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
+  //   rol: "jefatura",
+  //   linea: "LLANTAS",
+  //   empresa: "AUTOMAX",
+  // },
+  // {
+  //   id: 22,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiZmNjNGZkMmItMjJhZi00MmU3LTllMmYtN2I0OTBkNzg1ZGVkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=34a5bb2683f353bf8077",
+  //   titulo: "Flash de Ventas - Grupo VII (Supervisor)",
+  //   rol: "supervisor",
+  //   linea: "LLANTAS",
+  //   empresa: "AUTOMAX",
+  // },
+  // {
+  //   id: 23,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+  //   titulo: "Flash de Ventas - Grupo VII (Coordinador - B2B)",
+  //   rol: "coordinadora",
+  //   linea: "LLANTAS",
+  //   empresa: "AUTOLLANTA",
+  //   canal: "B2B",
+  // },
+  // {
+  //   id: 24,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+  //   titulo: "Flash de Ventas - Grupo VII (JEFATURA - B2B)",
+  //   rol: "jefatura",
+  //   linea: "LLANTAS",
+  //   empresa: "AUTOLLANTA",
+  //   canal: "B2B",
+  // },
+  // {
+  //   id: 25,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiOTc0MTA1ZGEtNDQ4ZC00NGUzLTgyM2MtZTAzODJhZmMzYmI1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",
+  //   titulo: "Flash de Ventas - Grupo VII (Supervisor - B2B)",
+  //   rol: "supervisor",
+  //   linea: "LLANTAS",
+  //   empresa: "AUTOLLANTA",
+  //   canal: "B2B",
+  // },
 ];
 
 export const ReporteriaComercialFlashdeVentas = ({
