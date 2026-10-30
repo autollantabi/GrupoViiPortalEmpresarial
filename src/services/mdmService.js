@@ -645,6 +645,24 @@ export const getRutasMDM = async (empresa) => {
 };
 
 /**
+ * Calificaciones por score de una empresa (core.dim_calificacion_score: A, AA, AAA, B, C, D, E).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{SERIAL: number, CODIGO: number, VALOR: string, DESCRIPCION: string}>>}
+ */
+export const getCalificacionesScoreMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/calificaciones-score/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCalificacionesScoreMDM:", error);
+        throw error;
+    }
+};
+
+/**
  * Condiciones de pago activas de una empresa (core.dim_codigo_condicion_pago).
  * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
  * @returns {Promise<Array<{SERIAL: number, CODIGO: number, NOMBRE: string}>>}
@@ -678,4 +696,70 @@ export const getVendedoresMDM = async (empresa) => {
         console.error("Error en getVendedoresMDM:", error);
         throw error;
     }
+};
+
+/* ------------------------------------------------------------------ */
+/* Liquidación de precios (MDM de precios)                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Genera una liquidación de precios (queda PENDIENTE) con lo leído del Excel.
+ * Los fallos llegan como error de axios: 400 (dato inválido), 409 (ya existe una
+ * liquidación para esa importación; trae `existente`).
+ * @param {Object} liquidacion - { importacion_id, numero_importacion, numero_pi, fecha_liquidacion, dai, detalle }
+ */
+export const crearLiquidacionPrecios = async (liquidacion) => {
+    const response = await axiosInstanceNew.post("/mdm/liquidacion-precios", liquidacion);
+    return response.data;
+};
+
+/**
+ * Listado de liquidaciones de precios.
+ * @param {Object} [filtros] - { empresa, estado, busqueda }
+ * @returns {Promise<Array>}
+ */
+export const getLiquidacionesPrecios = async ({ empresa = null, estado = null, busqueda = null } = {}) => {
+    try {
+        const params = {};
+        if (empresa) params.empresa = empresa;
+        if (estado) params.estado = estado;
+        if (busqueda) params.busqueda = busqueda;
+
+        const response = await axiosInstanceNew.get("/mdm/liquidacion-precios", { params });
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getLiquidacionesPrecios:", error);
+        throw error;
+    }
+};
+
+/**
+ * Cabecera y artículos de una liquidación.
+ * @param {number|string} id
+ * @returns {Promise<Object|null>}
+ */
+export const getLiquidacionPrecios = async (id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/liquidacion-precios/${id}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error en getLiquidacionPrecios:", error);
+        throw error;
+    }
+};
+
+/**
+ * Guarda PVD y margen de los artículos tal como están en pantalla.
+ * @param {number|string} id
+ * @param {Array<{ID:number, PVD:number|null, MARGEN:number|null}>} detalle
+ */
+export const guardarDetalleLiquidacionPrecios = async (id, detalle) => {
+    const response = await axiosInstanceNew.put(`/mdm/liquidacion-precios/${id}/detalle`, { DETALLE: detalle });
+    return response.data;
 };
