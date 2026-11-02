@@ -11,7 +11,9 @@
  *   - "Marcar enviadas desde Excel" (solo supervisor): se sube el Excel descargado, se VALIDA, se pide confirmación y recién entonces
  *     se marcan las guías como enviadas.
  *
- * Roles: "usuario" solo consulta y descarga; "supervisor" además marca como enviadas (routeConfig.rolDelRecurso).
+ * El rol "usuario" ve el detalle de las guías ENVIADAS como una tarjeta de seguimiento (factura, cliente, destino, transporte,
+ * guía de Laar con enlace al tracking, fecha y logo de la empresa); ver TarjetaSeguimiento.
+ * Roles: "usuario" solo consulta (no ve "Descargar Excel"); "supervisor" además descarga el Excel y marca como enviadas (routeConfig.rolDelRecurso).
  * El estado de la pantalla se organiza así: `consulta` (filtros que viajan al servidor), `guias`/`paginacion` (resultado),
  * `excelForm` (modal de descarga) y `cargaExcel` (modal de marcado desde Excel).
  */
@@ -32,6 +34,14 @@ import { useTheme } from "context/ThemeContext";
 import { useAuthContext } from "context/authContext";
 import { puedeEditarRecurso } from "utils/permisosRecurso";
 import { useDebouncedValue } from "hooks/useDebouncedValue";
+import logoStox from "/src/assets/images/webp_png_jpeg/S Color1.png";
+import logoAutollanta from "/src/assets/images/webp_png_jpeg/AW Color1.png";
+import logoMaxximundo from "/src/assets/images/webp_png_jpeg/M Color2.png";
+import logoIkonix from "/src/assets/images/webp_png_jpeg/I Color1.png";
+import logoStoxClaro from "/src/assets/images/webp_png_jpeg/StoxLight.png";
+import logoAutollantaClaro from "/src/assets/images/webp_png_jpeg/AutollantaLight.png";
+import logoMaxximundoClaro from "/src/assets/images/webp_png_jpeg/MaxximundoLight.png";
+import logoIkonixClaro from "/src/assets/images/webp_png_jpeg/IkonixLight.png";
 import {
   DescargarExcelGuiasRemision,
   EMPRESAS_EXCEL,
@@ -84,6 +94,26 @@ const COLUMNAS = [
 
 // Transportista para el que se genera guía de entrega en el courier (hgr_guia_entrega)
 const ID_TRANSPORTISTA_LAAR = "1791705726001";
+
+// Logo por empresa (nombre en mayúsculas, como llega en guia.empresa). Con el tema claro se usan los archivos *Light.png;
+// con el tema oscuro, los logos "Color".
+const LOGOS_EMPRESA = {
+  STOX: { claro: logoStoxClaro, oscuro: logoStox },
+  AUTOLLANTA: { claro: logoAutollantaClaro, oscuro: logoAutollanta },
+  MAXXIMUNDO: { claro: logoMaxximundoClaro, oscuro: logoMaxximundo },
+  IKONIX: { claro: logoIkonixClaro, oscuro: logoIkonix },
+};
+
+// Seguimiento de la guía de entrega de Laar
+const urlTrackingLaar = (guiaEntrega) =>
+  `https://fenix.laarcourier.com/Tracking/?guia=${encodeURIComponent(guiaEntrega)}`;
+
+// "110063691" -> "63691": se quitan los dígitos de la serie y se conservan los últimos 5 (igual que el Excel). Lo no numérico queda igual.
+const sinSerie = (valor) => {
+  const s = String(valor ?? "").trim();
+  if (!s) return "—";
+  return /^\d+$/.test(s) ? String(Number(s.slice(-5))) : s;
+};
 
 // Solo el rol supervisor puede marcar como enviado; "usuario" únicamente consulta
 const ROL_SUPERVISOR = "supervisor";
@@ -227,7 +257,7 @@ const Th = styled.th`
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: ${({ theme }) => theme.colors.textInverse};
+  color: ${({ theme }) => theme.colors.white};
   background: ${({ theme }) => theme.colors.secondary};
 `;
 
@@ -241,7 +271,8 @@ const Td = styled.td`
 `;
 
 const Fila = styled.tr`
-  background: ${({ theme, $par }) => ($par ? theme.colors.backgroundLight : "transparent")};
+  background: ${({ theme, $par }) =>
+    !$par ? "transparent" : theme.name === "dark" ? `${theme.colors.white}0d` : theme.colors.backgroundLight};
 
   &:hover {
     background: ${({ theme }) => theme.colors.primary}12;
@@ -305,6 +336,27 @@ const CardModal = styled.div`
   border-radius: 10px;
   background: ${({ theme }) => theme.colors.backgroundCard || theme.colors.white};
   border: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+// Tarjeta de seguimiento (rol usuario, guía enviada)
+const TarjetaSeguimiento = styled(CardModal)`
+  border-top: 4px solid ${({ theme }) => theme.colors.error};
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+`;
+
+const FilaSeguimiento = styled.div`
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  gap: 8px;
+`;
+
+const LogoEmpresa = styled.img`
+  height: 34px;
+  max-width: 160px;
+  object-fit: contain;
 `;
 
 const CabeceraGrid = styled.div`
@@ -940,7 +992,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         <FiltrosContainer theme={theme}>
           {/* Botones de Excel (derecha). "Marcar enviadas" solo lo ve el supervisor */}
           <FilaAcciones>
-            {empresasExcel.length > 0 && (
+            {puedeMarcarEnviado && empresasExcel.length > 0 && (
               <ButtonUI
                 text="Descargar Excel"
                 iconLeft="FaFileExcel"
@@ -1091,6 +1143,76 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
               </div>
             )}
 
+            {/* Rol usuario + guía enviada: tarjeta de seguimiento */}
+            {!puedeMarcarEnviado && guiaSeleccionada.enviado && !guiaSeleccionada.cancelada ? (
+              <TarjetaSeguimiento theme={theme}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <TextUI size="12px" color={theme.colors.textSecondary}>
+                      Nº DE FACTURA
+                    </TextUI>
+                    <TextUI size="28px" weight="bold">
+                      {sinSerie(guiaSeleccionada.numeroFactura)}
+                    </TextUI>
+                  </div>
+                  {guiaSeleccionada.transportistaNombre && (
+                    <Badge $color={theme.colors.success}>{guiaSeleccionada.transportistaNombre.toUpperCase()}</Badge>
+                  )}
+                </div>
+
+                {[
+                  ["Nuestro Nº de Guía", sinSerie(guiaSeleccionada.numeroGuia)],
+                  ["Cliente", guiaSeleccionada.nombreSocio],
+                  ["Destino", guiaSeleccionada.ciudadDestino],
+                  ["Transporte", guiaSeleccionada.transportistaNombre],
+                ].map(([titulo, valor]) => (
+                  <FilaSeguimiento key={titulo}>
+                    <TextUI color={theme.colors.textSecondary}>{titulo}</TextUI>
+                    <TextUI weight="bold">{valor || "—"}</TextUI>
+                  </FilaSeguimiento>
+                ))}
+
+                {/* El enlace al tracking solo existe para las guías de Laar */}
+                {guiaSeleccionada.transportistaId === ID_TRANSPORTISTA_LAAR && (
+                  <FilaSeguimiento>
+                    <TextUI color={theme.colors.textSecondary}>Guía de Laar</TextUI>
+                    {guiaSeleccionada.guiaEntrega ? (
+                      <a
+                        href={urlTrackingLaar(guiaSeleccionada.guiaEntrega)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontWeight: 700, color: theme.colors.error }}
+                      >
+                        {guiaSeleccionada.guiaEntrega} ↗
+                      </a>
+                    ) : (
+                      <TextUI weight="bold">—</TextUI>
+                    )}
+                  </FilaSeguimiento>
+                )}
+
+                <FilaSeguimiento>
+                  <TextUI color={theme.colors.textSecondary}>Fecha</TextUI>
+                  <TextUI weight="bold">{guiaSeleccionada.fechaGuia || "—"}</TextUI>
+                </FilaSeguimiento>
+
+                <FilaSeguimiento>
+                  <TextUI color={theme.colors.textSecondary}>Empresa</TextUI>
+                  {LOGOS_EMPRESA[String(guiaSeleccionada.empresa).toUpperCase()] ? (
+                    <LogoEmpresa
+                      src={
+                        LOGOS_EMPRESA[String(guiaSeleccionada.empresa).toUpperCase()][
+                          theme.name === "dark" ? "oscuro" : "claro"
+                        ]
+                      }
+                      alt={guiaSeleccionada.empresa}
+                    />
+                  ) : (
+                    <TextUI weight="bold">{guiaSeleccionada.empresa || "—"}</TextUI>
+                  )}
+                </FilaSeguimiento>
+              </TarjetaSeguimiento>
+            ) : (
             <CardModal theme={theme}>
               <CabeceraGrid>
                 {[
@@ -1146,7 +1268,10 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
               </CabeceraGrid>
             </CardModal>
 
-            {guiaSeleccionada.transportistaId === ID_TRANSPORTISTA_LAAR && (
+            )}
+
+            {!(!puedeMarcarEnviado && guiaSeleccionada.enviado && !guiaSeleccionada.cancelada) &&
+              guiaSeleccionada.transportistaId === ID_TRANSPORTISTA_LAAR && (
               <CardModal theme={theme}>
                 <CabeceraItem>
                   <TextUI size="12px" color={theme.colors.textSecondary}>
