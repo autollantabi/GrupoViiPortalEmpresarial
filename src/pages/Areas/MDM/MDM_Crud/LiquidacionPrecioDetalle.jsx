@@ -11,6 +11,7 @@ import { IconUI } from "components/UI/Components/IconsUI";
 import {
   getLiquidacionPrecios,
   guardarDetalleLiquidacionPrecios,
+  sincronizarLiquidacionPreciosSap,
 } from "services/mdmService";
 import { puedeEditarRecurso } from "utils/permisosRecurso";
 
@@ -26,9 +27,11 @@ const ESTADO_CANCELADO = "CANCELADO";
 
 /* Columnas de solo lectura, en el orden del Excel. PVD y margen son editables y
    el PVP sin IVA se calcula; esos tres se pintan aparte. */
+const ANCHO_CODIGO = 120;
 const COLUMNAS_ANTES = [
-  { header: "Código", field: "CODIGO_ITEM" },
-  { header: "Descripción", field: "DESCRIPCION", wrap: true },
+  // Código y Descripción quedan fijas a la izquierda al desplazar la tabla horizontalmente
+  { header: "Código", field: "CODIGO_ITEM", left: 0, ancho: ANCHO_CODIGO },
+  { header: "Descripción", field: "DESCRIPCION", wrap: true, left: ANCHO_CODIGO },
   { header: "Und", field: "UNIDAD", align: "center" },
   { header: "Cant", field: "CANTIDAD", num: 0 },
   { header: "FOB", field: "FOB", num: 4 },
@@ -189,7 +192,8 @@ const TablaScroll = styled.div`
 const TdTotal = styled.td`
   position: sticky;
   bottom: 0;
-  z-index: 1;
+  ${({ $left }) => ($left !== undefined ? `left: ${$left}px;` : "")}
+  z-index: ${({ $left }) => ($left !== undefined ? 3 : 1)};
   padding: 10px;
   text-align: ${({ $align }) => $align || "left"};
   white-space: nowrap;
@@ -240,7 +244,10 @@ const Tabla = styled.table`
 const Th = styled.th`
   position: sticky;
   top: 0;
-  z-index: 1;
+  ${({ $left }) => ($left !== undefined ? `left: ${$left}px;` : "")}
+  ${({ $ancho }) => ($ancho ? `width: ${$ancho}px; min-width: ${$ancho}px; max-width: ${$ancho}px;` : "")}
+  /* Las columnas fijas a la izquierda quedan por encima del resto del encabezado */
+  z-index: ${({ $left }) => ($left !== undefined ? 3 : 1)};
   padding: 12px 10px;
   text-align: ${({ $align }) => $align || "left"};
   white-space: nowrap;
@@ -260,11 +267,21 @@ const Td = styled.td`
   min-width: ${({ $wrap }) => ($wrap ? "260px" : "auto")};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   color: ${({ theme }) => theme.colors.text};
+  ${({ $ancho }) => ($ancho ? `width: ${$ancho}px; min-width: ${$ancho}px; max-width: ${$ancho}px;` : "")}
+  /* Columna fija a la izquierda: fondo opaco (color de la fila sobre el fondo de la tarjeta)
+     para que no se transparente lo que pasa por debajo al desplazar */
+  ${({ $left, theme }) =>
+    $left !== undefined
+      ? `position: sticky; left: ${$left}px; z-index: 2;
+         background: linear-gradient(var(--fila-bg, transparent), var(--fila-bg, transparent)), ${
+           theme.colors.backgroundCard || theme.colors.white
+         };`
+      : ""}
 `;
 
 /* La fila completa se pinta si el artículo está repetido (amarillo) o no fue encontrado (rojo) */
 const Fila = styled.tr`
-  background: ${({ theme, $par, $repetido, $noEncontrado }) =>
+  --fila-bg: ${({ theme, $par, $repetido, $noEncontrado }) =>
     $noEncontrado
       ? `${theme.colors.error}26`
       : $repetido
@@ -272,6 +289,7 @@ const Fila = styled.tr`
       : $par
       ? theme.colors.backgroundLight
       : "transparent"};
+  background: var(--fila-bg);
 `;
 
 const CampoEditable = styled.input`
@@ -334,6 +352,9 @@ function LiquidacionPrecioDetalle() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
+  /* Mientras se guarda o se sincroniza no se puede escribir ni volver a accionar */
+  const ocupado = guardando || sincronizando;
   const [sinGuardar, setSinGuardar] = useState(false);
   /* Filas sin PVD detectadas al intentar sincronizar: se señalan en la tabla */
   const [sinPvd, setSinPvd] = useState(false);
@@ -460,7 +481,7 @@ function LiquidacionPrecioDetalle() {
 
   /* Guarda el estado actual del detalle. No exige PVD ni margen: eso solo se
      valida al sincronizar con SAP. */
-  const guardar = async () => {
+  const guardar = async ({ silencioso = false } = {}) => {
     if (hayValoresInvalidos()) {
       toast.error("Hay valores de PVD o margen que no son números");
       return false;
@@ -469,7 +490,8 @@ function LiquidacionPrecioDetalle() {
     try {
       const respuesta = await guardarDetalleLiquidacionPrecios(id, detalleParaGuardar());
       if (respuesta?.data) volcar(respuesta.data);
-      toast.success("Guardado correctamente");
+      // Al sincronizar, "Guardado correctamente" solo se muestra si también termina la fase de SAP
+      if (!silencioso) toast.success("Guardado correctamente");
       return true;
     } catch (err) {
       toast.error(err?.response?.data?.message || "No se pudo guardar la liquidación");
@@ -479,24 +501,50 @@ function LiquidacionPrecioDetalle() {
     }
   };
 
-  /* Sincronizar = guardar y luego enviar a SAP. Antes de nada todos los artículos
-     deben tener PVD distinto de vacío y de 0; el margen no se exige. */
+  /* Sincronizar = guardar y luego enviar a SAP el PVP sin IVA. Antes de nada todos los
+     artículos encontrados deben tener PVD distinto de vacío y de 0; el margen no se exige.
+     Los no encontrados están bloqueados y no se envían. */
   const sincronizarSap = async () => {
-    const faltan = filas.filter((f) => !(aNumero(f.PVD_TXT) > 0));
+    const faltan = filas.filter((f) => f.ENCONTRADO && !(aNumero(f.PVD_TXT) > 0));
     if (faltan.length > 0) {
       setSinPvd(true);
-      toast.error(
-        `Hay ${faltan.length} artículo(s) sin PVD. Complete el PVD de todos los artículos para sincronizar.`
-      );
+      toast.error("Faltan precios por completar");
       return;
     }
     setSinPvd(false);
 
-    const guardado = await guardar();
+    // Durante todo el proceso (guardar + SAP) los campos quedan bloqueados, también entre las dos fases
+    setSincronizando(true);
+    try {
+      await guardarYSincronizar();
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
+  const guardarYSincronizar = async () => {
+    // Fase 1: guardar. Si falla se muestra el error del guardado y no se sincroniza
+    const guardado = await guardar({ silencioso: true });
     if (!guardado) return;
 
-    // El registro del precio en SAP es la siguiente fase; por ahora solo se deja guardado
-    toast.info("Liquidación guardada. La sincronización con SAP se habilitará en la siguiente fase.");
+    // Fase 2: sincronizar con SAP. Si falla, lo guardado se conserva y se informa
+    setGuardando(true);
+    try {
+      const respuesta = await sincronizarLiquidacionPreciosSap(id);
+      if (respuesta?.data) volcar(respuesta.data);
+      const omitidos = respuesta?.data?.SAP?.OMITIDOS || [];
+      toast.success("Guardado correctamente");
+      if (omitidos.length > 0) {
+        toast.warning(`No se enviaron a SAP por no existir en el maestro: ${omitidos.join(", ")}`);
+      }
+    } catch (err) {
+      const motivo = err?.response?.data?.message;
+      toast.error(
+        `Guardado correctamente, no se pudo sincronizar con SAP${motivo ? `: ${motivo}` : ""}`
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const colorEstado = (estado) => {
@@ -545,7 +593,7 @@ function LiquidacionPrecioDetalle() {
     // Código que no existe en dim_item de la empresa: se avisa y la fila queda bloqueada
     if (columna.field === "DESCRIPCION" && !fila.ENCONTRADO) {
       return (
-        <Td key={columna.field} $wrap={columna.wrap}>
+        <Td key={columna.field} $wrap={columna.wrap} $left={columna.left} $ancho={columna.ancho}>
           <span
             style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: 600, color: theme.colors.error, }} 
             title="El código no pertenece a un artículo de la empresa"
@@ -557,7 +605,13 @@ function LiquidacionPrecioDetalle() {
       );
     }
     return (
-      <Td key={columna.field} $align={columna.align} $wrap={columna.wrap}>
+      <Td
+        key={columna.field}
+        $align={columna.align}
+        $wrap={columna.wrap}
+        $left={columna.left}
+        $ancho={columna.ancho}
+      >
         {valor === null || valor === undefined || valor === "" ? "—" : valor}
       </Td>
     );
@@ -587,17 +641,17 @@ function LiquidacionPrecioDetalle() {
           {editable && (
             <Acciones>
               <ButtonUI
-                text={guardando ? "Guardando..." : "Guardar"}
+                text={ocupado ? "Guardando..." : "Guardar"}
                 iconLeft="FaFloppyDisk"
                 onClick={guardar}
-                disabled={guardando || !sinGuardar}
+                disabled={ocupado || !sinGuardar}
               />
               <ButtonUI
                 text="Sincronizar a SAP"
                 iconLeft="FaCloudArrowUp"
                 variant="outlined"
                 onClick={sincronizarSap}
-                disabled={guardando}
+                disabled={ocupado}
               />
             </Acciones>
           )}
@@ -658,7 +712,12 @@ function LiquidacionPrecioDetalle() {
               <thead>
                 <tr>
                   {COLUMNAS_ANTES.map((c) => (
-                    <Th key={c.field} $align={c.align || (c.num !== undefined ? "right" : "left")}>
+                    <Th
+                      key={c.field}
+                      $align={c.align || (c.num !== undefined ? "right" : "left")}
+                      $left={c.left}
+                      $ancho={c.ancho}
+                    >
                       {c.header}
                     </Th>
                   ))}
@@ -684,7 +743,8 @@ function LiquidacionPrecioDetalle() {
                     fila.PVD_TXT.trim() !== "" && aNumero(fila.PVD_TXT) === null;
                   const margenInvalido =
                     fila.MARGEN_TXT.trim() !== "" && aNumero(fila.MARGEN_TXT) === null;
-                  const faltaPvd = sinPvd && !(aNumero(fila.PVD_TXT) > 0);
+                  // Los no encontrados están bloqueados y no exigen precio
+                  const faltaPvd = sinPvd && fila.ENCONTRADO && !(aNumero(fila.PVD_TXT) > 0);
 
                   return (
                     <Fila
@@ -700,7 +760,7 @@ function LiquidacionPrecioDetalle() {
                           theme={theme}
                           inputMode="decimal"
                           value={fila.PVD_TXT}
-                          disabled={!editable || !fila.ENCONTRADO}
+                          disabled={ocupado || !editable || !fila.ENCONTRADO}
                           $invalido={pvdInvalido || faltaPvd}
                           onChange={(e) => cambiarCampo(fila.CODIGO_ITEM, "PVD_TXT", e.target.value)}
                         />
@@ -711,7 +771,7 @@ function LiquidacionPrecioDetalle() {
                           theme={theme}
                           inputMode="decimal"
                           value={fila.MARGEN_TXT}
-                          disabled={!editable || !fila.ENCONTRADO}
+                          disabled={ocupado || !editable || !fila.ENCONTRADO}
                           $invalido={margenInvalido}
                           onChange={(e) =>
                             cambiarCampo(fila.CODIGO_ITEM, "MARGEN_TXT", e.target.value)
@@ -734,7 +794,7 @@ function LiquidacionPrecioDetalle() {
                     const etiqueta = filasTotales.find((t) => t.campoEtiqueta === c.field);
                     const total = filasTotales.find((t) => t.campoValor === c.field);
                     return (
-                      <TdTotal key={c.field} $align={etiqueta ? "center" : "right"}>
+                      <TdTotal key={c.field} $align={etiqueta ? "center" : "right"} $left={c.left}>
                         {etiqueta && etiqueta.etiqueta}
                         {total && formatNumero(total.valor, total.decimales)}
                         {total && total.pct !== undefined && total.pct !== null && (
