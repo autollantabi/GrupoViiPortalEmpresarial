@@ -510,11 +510,6 @@ export const RoutesConfig = [
     recurso: "reportes.camiones",
   },
   {
-    title: "Camion",
-    component: ReporteriaCamiones,
-    recurso: "reportes.camion",
-  },
-  {
     title: "Consolidado Cartera",
     component: ReporteriaConsolidado,
     recurso: "reportes.consolidado",
