@@ -51,6 +51,9 @@ import { ComercialMarketing } from "pages/Areas/Marketing/ComercialMarketing";
 import { Documentacion } from "pages/Areas/RRHH/Documentacion";
 import { Colaboradores } from "pages/Areas/RRHH/Colaboradores/Colaboradores";
 
+// Mapa de consulta
+import { MapaConsulta } from "pages/Areas/MapaConsulta/MapaConsulta";
+
 // DDMRP
 import { Ddmrp_Report } from "pages/Areas/Ddmrp/Ddmrp_Report";
 
@@ -305,6 +308,13 @@ export const RoutesConfig = [
     title: "Calculadora de precios",
     component: CalculadoraPrecios,
     recurso: "comercial.calculadoraprecios",
+  },
+  // ================================= MAPA DE CONSULTA =================================
+  {
+    title: "Mapa de consulta",
+    icon: "FaMapLocationDot",
+    component: MapaConsulta,
+    recurso: "mapaconsulta",
   },
   // ================================= LINEA DE NEGOCIO =================================
   {
