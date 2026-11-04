@@ -44,7 +44,7 @@ export const Colaboradores = ({
   availableLines = [],
   availableCanales = [],
 }) => {
-  const { puedeGestionar } = usePermisosColaboradores();
+  const { puedeGestionar, puedeDotacion } = usePermisosColaboradores();
   const contexto = { routeConfig, availableCompanies, availableLines, availableCanales };
 
   /**
@@ -54,6 +54,16 @@ export const Colaboradores = ({
    */
   const soloGestion = (elemento) =>
     puedeGestionar ? elemento : <Navigate to={`${RUTA_BASE}/empleados`} replace />;
+
+  /**
+   * Variante de `soloGestion` solo para la pestaña Dotación: además de
+   * "editar", acepta la acción "dotacion" (`puedeDotacion` ya contempla las
+   * dos, ver usePermisos.js), que da acceso a ÚNICAMENTE este módulo. El resto
+   * de rutas de la ficha (editar, documentos, cargas familiares...) siguen
+   * exigiendo gestión completa.
+   */
+  const soloDotacionOGestion = (elemento) =>
+    puedeDotacion ? elemento : <Navigate to={`${RUTA_BASE}/empleados`} replace />;
 
   return (
     <Routes>
@@ -70,7 +80,7 @@ export const Colaboradores = ({
       {/* Pestañas de la ficha. Tienen URL propia para que el enlace sea
           compartible y el botón atrás recorra las pestañas, igual que los filtros
           del listado viven en la query string. */}
-      <Route path="empleados/:id/dotacion" element={soloGestion(<ColDotacion {...contexto} />)} />
+      <Route path="empleados/:id/dotacion" element={soloDotacionOGestion(<ColDotacion {...contexto} />)} />
       <Route path="empleados/:id/documentos" element={soloGestion(<ColDocumentos {...contexto} />)} />
       <Route
         path="empleados/:id/cargas-familiares"

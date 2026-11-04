@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useAuthContext } from "context/authContext";
-import { puedeEditarRecurso } from "utils/permisosRecurso";
+import { puedeEditarRecurso, tienePermisoEnRecurso } from "utils/permisosRecurso";
 
 /**
  * Un solo recurso para Colaboradores: `rrhh.colaboradores`. La acción efectiva
@@ -9,7 +9,9 @@ import { puedeEditarRecurso } from "utils/permisosRecurso";
  *
  *   "editar"      -> gestión completa (crear, editar, dar de baja, reingresar,
  *                     eliminar y abrir la ficha)
- *   sin "editar"  -> solo el listado de colaboradores activos
+ *   "dotacion"    -> solo el módulo de Dotación de cada colaborador, sin el
+ *                     resto de la gestión (ver `soloDotacion` más abajo)
+ *   ninguna       -> solo el listado de colaboradores activos
  *
  * Es el mismo patrón que ya usa `MDM_Crud/Clientes.jsx` con
  * `puedeEditarRecurso(user, "mdm.clientes")`. Antes Colaboradores no miraba la
@@ -25,18 +27,24 @@ import { puedeEditarRecurso } from "utils/permisosRecurso";
  * `puedeGestionar` del servidor y ése es el que manda.
  */
 export const RECURSO_GESTION = "rrhh.colaboradores";
+export const ACCION_DOTACION = "dotacion";
 
 export function usePermisosColaboradores() {
   const { user } = useAuthContext();
 
   return useMemo(() => {
     const puedeGestionar = puedeEditarRecurso(user, RECURSO_GESTION);
+    const puedeDotacion = tienePermisoEnRecurso(user, RECURSO_GESTION, ACCION_DOTACION);
 
     return {
       /** Crear, editar, dar de baja, reingresar, eliminar y abrir la ficha. */
       puedeGestionar,
       /** Solo el listado de colaboradores activos. */
       soloConsulta: !puedeGestionar,
+      /** Puede entrar al módulo de Dotación (lo tenga por "editar" o por "dotacion"). */
+      puedeDotacion: puedeGestionar || puedeDotacion,
+      /** Solo Dotación: ni gestión completa ni el resto de pestañas/acciones. */
+      soloDotacion: puedeDotacion && !puedeGestionar,
     };
   }, [user]);
 }

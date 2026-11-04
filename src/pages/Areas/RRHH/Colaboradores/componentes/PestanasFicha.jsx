@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import styled from "styled-components";
 import { hexToRGBA } from "utils/colors";
+import { usePermisosColaboradores } from "../hooks/usePermisos";
 import {
   RUTA_CARGAS_FAMILIARES,
   RUTA_CERTIFICADOS,
@@ -93,31 +94,49 @@ export const PestanasFicha = ({
   pendientesInduccion = 0,
   pendientesVacaciones = 0,
   mostrarPazSalvo = false,
-}) => (
-  <Barra aria-label="Secciones de la ficha">
-    <Pestana to={RUTA_FICHA(id)} end>
-      Datos
-    </Pestana>
-    <Pestana to={RUTA_DOTACION(id)}>
-      Dotación
-      {pendientesDotacion > 0 && <Contador title="Artículos pendientes">{pendientesDotacion}</Contador>}
-    </Pestana>
-    <Pestana to={RUTA_DOCUMENTOS(id)}>
-      Documentos
-      {pendientesDocumentos > 0 && <Contador title="Documentos pendientes">{pendientesDocumentos}</Contador>}
-    </Pestana>
-    <Pestana to={RUTA_CARGAS_FAMILIARES(id)}>Cargas familiares</Pestana>
-    <Pestana to={RUTA_INDUCCION(id)}>
-      Inducción
-      {pendientesInduccion > 0 && <Contador title="Actividades pendientes">{pendientesInduccion}</Contador>}
-    </Pestana>
-    <Pestana to={RUTA_VACACIONES(id)}>
-      Vacaciones
-      {pendientesVacaciones > 0 && <Contador title="Solicitudes pendientes">{pendientesVacaciones}</Contador>}
-    </Pestana>
-    {mostrarPazSalvo && <Pestana to={RUTA_PAZ_SALVO(id)}>Paz y salvo</Pestana>}
-    <Pestana to={RUTA_CERTIFICADOS(id)}>Certificados</Pestana>
-  </Barra>
-);
+}) => {
+  const { soloDotacion } = usePermisosColaboradores();
+
+  // Con el permiso "dotacion" (sin "editar") no hay nada más que mostrar: ni
+  // el resto de pestañas tiene ruta accesible (Colaboradores.jsx las bloquea),
+  // ni tendría sentido ofrecerlas como si lo fueran.
+  if (soloDotacion) {
+    return (
+      <Barra aria-label="Secciones de la ficha">
+        <Pestana to={RUTA_DOTACION(id)}>
+          Dotación
+          {pendientesDotacion > 0 && <Contador title="Artículos pendientes">{pendientesDotacion}</Contador>}
+        </Pestana>
+      </Barra>
+    );
+  }
+
+  return (
+    <Barra aria-label="Secciones de la ficha">
+      <Pestana to={RUTA_FICHA(id)} end>
+        Datos
+      </Pestana>
+      <Pestana to={RUTA_DOTACION(id)}>
+        Dotación
+        {pendientesDotacion > 0 && <Contador title="Artículos pendientes">{pendientesDotacion}</Contador>}
+      </Pestana>
+      <Pestana to={RUTA_DOCUMENTOS(id)}>
+        Documentos
+        {pendientesDocumentos > 0 && <Contador title="Documentos pendientes">{pendientesDocumentos}</Contador>}
+      </Pestana>
+      <Pestana to={RUTA_CARGAS_FAMILIARES(id)}>Cargas familiares</Pestana>
+      <Pestana to={RUTA_INDUCCION(id)}>
+        Inducción
+        {pendientesInduccion > 0 && <Contador title="Actividades pendientes">{pendientesInduccion}</Contador>}
+      </Pestana>
+      <Pestana to={RUTA_VACACIONES(id)}>
+        Vacaciones
+        {pendientesVacaciones > 0 && <Contador title="Solicitudes pendientes">{pendientesVacaciones}</Contador>}
+      </Pestana>
+      {mostrarPazSalvo && <Pestana to={RUTA_PAZ_SALVO(id)}>Paz y salvo</Pestana>}
+      <Pestana to={RUTA_CERTIFICADOS(id)}>Certificados</Pestana>
+    </Barra>
+  );
+};
 
 export default PestanasFicha;
