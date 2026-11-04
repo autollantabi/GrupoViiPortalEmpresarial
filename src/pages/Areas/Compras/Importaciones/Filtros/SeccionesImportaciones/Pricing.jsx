@@ -23,10 +23,11 @@ import {
 } from "../../StylesImportaciones";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
+import { PricingLiquidacion, usaLiquidacionPrecios } from "./PricingLiquidacion";
 
 const correosDestinatarios = listCorreosEnvioPricing();
 
-export const Pricing = ({ datos, setDatos, actualizar, permisosProp, rolesUsuario = [] }) => {
+const PricingTradicional = ({ datos, setDatos, actualizar, permisosProp, rolesUsuario = [] }) => {
   // Usar el rol que viene como prop (ya calculado en el router)
   const roles = rolesUsuario.length > 0 ? rolesUsuario : [];
 
@@ -419,3 +420,19 @@ export const Pricing = ({ datos, setDatos, actualizar, permisosProp, rolesUsuari
     </SectionImportacionesContainer>
   );
 };
+
+/**
+ * AUTOLLANTA, MAXXIMUNDO y STOX generan la liquidación de precios desde el Excel
+ * (MDM de precios); AUTOMAX conserva el proceso anterior.
+ */
+export const Pricing = (props) =>
+  usaLiquidacionPrecios(props.datos?.EMPRESA) ? (
+    <PricingLiquidacion
+      datos={props.datos}
+      rolesUsuario={props.rolesUsuario}
+      archivos={props.archivosLiquidacion}
+      setArchivos={props.setArchivosLiquidacion}
+    />
+  ) : (
+    <PricingTradicional {...props} />
+  );
