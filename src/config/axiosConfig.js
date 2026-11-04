@@ -126,7 +126,45 @@ axiosInstanceNew.interceptors.response.use(
   }
 );
 
+/**
+ * Deduplicación de GET idénticos en vuelo.
+ *
+ * Si varios componentes (o el doble efecto de StrictMode en desarrollo) piden
+ * el mismo GET (misma URL + params) mientras el primero sigue pendiente, se
+ * comparte esa única petición en lugar de lanzar N al backend. Cuando termina
+ * (éxito o error) se libera, así que no es una caché: el siguiente GET va al
+ * servidor normalmente.
+ *
+ * Se omite si la petición trae `signal` (AbortController): cancelar un
+ * consumidor abortaría la petición compartida de los demás.
+ */
+const aplicarDedupeGet = (instance) => {
+  const adapterBase = axios.getAdapter(instance.defaults.adapter);
+  const enVuelo = new Map();
+
+  instance.defaults.adapter = (config) => {
+    const metodo = (config.method || "get").toLowerCase();
+    if (metodo !== "get" || config.signal || config.responseType === "blob") {
+      return adapterBase(config);
+    }
+
+    const clave = `${config.baseURL || ""}|${config.url}|${JSON.stringify(
+      config.params || {}
+    )}|${config.headers?.["id-session"] || ""}`;
+
+    const existente = enVuelo.get(clave);
+    if (existente) return existente;
+
+    const promesa = adapterBase(config).finally(() => enVuelo.delete(clave));
+    enVuelo.set(clave, promesa);
+    return promesa;
+  };
+};
+
 // Aplicar configuración a todas las instancias
+aplicarDedupeGet(axiosInstance);
+aplicarDedupeGet(axiosInstanceNew);
+aplicarDedupeGet(axiosInstanceDdmrpMv);
 configureInterceptors(axiosInstance);
 configureInterceptors(axiosInstanceNew);
 configureInterceptors(axiosInstanceDdmrpMv);

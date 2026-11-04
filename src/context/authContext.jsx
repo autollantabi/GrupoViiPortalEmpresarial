@@ -142,18 +142,13 @@ export function AuthContextProvider({ children }) {
         }
       }
 
-      // Ahora el login solo guarda idSession, los datos del usuario se obtienen con /auth/me
-      // Después de guardar idSession, consultar /auth/me para obtener todos los datos
-      try {
-        await fetchUserMe();
-      } catch (error) {
-        // Error silencioso
-      }
+      // No se consulta /auth/me aquí: el redirect siguiente recarga la página y
+      // el efecto de montaje ya lo consulta con el idSession guardado.
 
       // Usar window.location en lugar de navigate porque el provider está fuera del Router
       window.location.href = "/";
     },
-    [fetchUserMe]
+    []
   );
 
   const logout = useCallback(function (navigate) {
