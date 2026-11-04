@@ -763,3 +763,12 @@ export const guardarDetalleLiquidacionPrecios = async (id, detalle) => {
     const response = await axiosInstanceNew.put(`/mdm/liquidacion-precios/${id}/detalle`, { DETALLE: detalle });
     return response.data;
 };
+
+/**
+ * Registra en SAP el PVP sin IVA de los artículos guardados (LISTA A) y aprueba la liquidación.
+ * @param {number|string} id
+ */
+export const sincronizarLiquidacionPreciosSap = async (id) => {
+    const response = await axiosInstanceNew.post(`/mdm/liquidacion-precios/${id}/sincronizar-sap`);
+    return response.data;
+};
