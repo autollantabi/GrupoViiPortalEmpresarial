@@ -42,15 +42,15 @@ const REPORTES = [
     linea: "LUBRICANTES",
     empresa: "MAXXIMUNDO"
   },
-  // {
-  //   id: 41,
-  //   url: "https://app.powerbi.com/view?r=eyJrIjoiMTBkN2ZkOWUtYTllMi00OTYyLTk5ZGEtMDk1MGZlYmEwZGQ2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
-  //   titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA) TODOS",
-  //   rol: "jefatura",
-  //   linea: "LUBRICANTES",
-  //   empresa: "MAXXIMUNDO",
-  //   canal: "TODOS",
-  // },
+  {
+    id: 41,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMTBkN2ZkOWUtYTllMi00OTYyLTk5ZGEtMDk1MGZlYmEwZGQ2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
+    titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA) TODOS",
+    rol: "jefatura",
+    linea: "LUBRICANTES",
+    empresa: "MAXXIMUNDO",
+    canal: "TODOS",
+  },
   // {
   //   id: 42,
   //   url: "https://app.powerbi.com/view?r=eyJrIjoiMmYyMWExZDEtODk4Ny00NzRjLTk5N2ItMTdlMDdhM2Y2OTdjIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
@@ -60,15 +60,15 @@ const REPORTES = [
   //   empresa: "MAXXIMUNDO",
   //   canal: "B2C",
   // },
-  // {
-  //   id: 43,
-  //   url: "https://app.powerbi.com/view?r=eyJrIjoiYWM1ZGI2YTQtY2MxMC00NTg3LWFiNWYtNTAzYzA0Zjc2YzE4IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
-  //   titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA) B2B",
-  //   rol: "jefatura",
-  //   linea: "LUBRICANTES",
-  //   empresa: "MAXXIMUNDO",
-  //   canal: "B2B",
-  // },
+  {
+    id: 43,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiYWM1ZGI2YTQtY2MxMC00NTg3LWFiNWYtNTAzYzA0Zjc2YzE4IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA) B2B",
+    rol: "jefatura",
+    linea: "LUBRICANTES",
+    empresa: "MAXXIMUNDO",
+    canal: "B2B",
+  },
   // {
   //   id: 5,
   //   url: "https://app.powerbi.com/view?r=eyJrIjoiYTU4MzU3NjQtM2VmYS00NDNlLWFhNGYtYTVkYjFhMDk0MWE5IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
@@ -141,14 +141,14 @@ const REPORTES = [
   //   linea: "LLANTAS MOTO",
   //   empresa: "MAXXIMUNDO"
   // },
-  // {
-  //   id: 14,
-  //   url: "https://app.powerbi.com/view?r=eyJrIjoiMTBkN2ZkOWUtYTllMi00OTYyLTk5ZGEtMDk1MGZlYmEwZGQ2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
-  //   titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA)",
-  //   rol: "jefatura",
-  //   linea: "LUBRICANTES",
-  //   empresa: "MAXXIMUNDO"
-  // },
+  {
+    id: 14,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMTBkN2ZkOWUtYTllMi00OTYyLTk5ZGEtMDk1MGZlYmEwZGQ2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=4f3800fc970c0309e056",
+    titulo: "Comercial V2 Lubricantes - Maxximundo (JEFATURA)",
+    rol: "jefatura",
+    linea: "LUBRICANTES",
+    empresa: "MAXXIMUNDO"
+  },
 ];
 
 export const ReporteriaComercial = ({
