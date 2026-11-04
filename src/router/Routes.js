@@ -77,6 +77,8 @@ import Lubricantes from "pages/Areas/MDM/MDM_Crud/Lubricantes";
 import Herramientas from "pages/Areas/MDM/MDM_Crud/Herramientas";
 import Clientes from "pages/Areas/MDM/MDM_Crud/Clientes";
 import ClienteDetalle from "pages/Areas/MDM/MDM_Crud/ClienteDetalle";
+import LiquidacionesPrecios from "pages/Areas/MDM/MDM_Crud/LiquidacionesPrecios";
+import LiquidacionPrecioDetalle from "pages/Areas/MDM/MDM_Crud/LiquidacionPrecioDetalle";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
@@ -389,6 +391,19 @@ export const RoutesConfig = [
     component: ClienteDetalle,
     recurso: "mdm.clientes",
     path: "/mdm/clientes/:id",
+    hideInSidebar: true,
+  },
+  {
+    title: "Liquidación de precios",
+    component: LiquidacionesPrecios,
+    recurso: "mdm.liquidacionprecios",
+  },
+  {
+    // Se abre al hacer clic en una fila del listado, no desde el menú.
+    title: "Detalle de Liquidación de precios",
+    component: LiquidacionPrecioDetalle,
+    recurso: "mdm.liquidacionprecios",
+    path: "/mdm/liquidacionprecios/:id",
     hideInSidebar: true,
   },
   // ================================= RRHH =================================

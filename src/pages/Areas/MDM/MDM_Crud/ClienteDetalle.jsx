@@ -17,6 +17,7 @@ import {
   getClienteMDM,
   getCotizacionMDM,
   getCodigosImpuestoMDM,
+  getCalificacionesScoreMDM,
   getCondicionesPagoMDM,
   getCotizacionesCliente,
   getRutasMDM,
@@ -168,6 +169,7 @@ const UBICACION_CAMPO = {
   GRUPO: { tab: "general" },
   CODIGO: { tab: "general" },
   VENDEDOR: { tab: "general" },
+  CALIFICACION_SCORE_SERIAL: { tab: "general" },
   CONDICION_PAGO_SERIAL: { tab: "condiciones" },
   DESCUENTO: { tab: "condiciones" },
   RUTA: { tab: "general" },
@@ -895,6 +897,9 @@ function ClienteDetalle() {
      [] = llegaron y la empresa no tiene ninguno. */
   const [vendedores, setVendedores] = useState(null);
 
+  /* Calificaciones por score de la empresa del cliente, con la misma convención. */
+  const [calificacionesScore, setCalificacionesScore] = useState(null);
+
   /* Condiciones de pago de la empresa del cliente, con la misma convención. */
   const [condicionesPago, setCondicionesPago] = useState(null);
 
@@ -945,6 +950,7 @@ function ClienteDetalle() {
       // Condiciones de pago. Límite de crédito y comprometido son el mismo valor
       // (ic_cupo); el descuento en 0 se ve vacío porque por defecto no tiene valor.
       CONDICION_PAGO_SERIAL: data.CONDICION_PAGO_SERIAL ?? null,
+      CALIFICACION_SCORE_SERIAL: data.CALIFICACION_SCORE_SERIAL ?? null,
       CUPO: String(data.CUPO ?? 0),
       DESCUENTO: Number(data.DESCUENTO) > 0 ? String(data.DESCUENTO) : "",
       // Localización Ecuador / ATS
@@ -1082,6 +1088,8 @@ function ClienteDetalle() {
       COMENTARIOS: recortar(form.COMENTARIOS),
       ACTIVO: form.ACTIVO === true,
       ...(form.CONDICION_PAGO_SERIAL ? { CONDICION_PAGO_SERIAL: form.CONDICION_PAGO_SERIAL } : {}),
+      // null = sin calificación (el backend la quita)
+      CALIFICACION_SCORE_SERIAL: form.CALIFICACION_SCORE_SERIAL ?? null,
       DESCUENTO: recortar(form.DESCUENTO),
       TIPO_SOCIO_NEGOCIO: form.TIPO_SOCIO_NEGOCIO,
       TIPO_CONTRIBUYENTE: form.TIPO_CONTRIBUYENTE,
@@ -1181,6 +1189,29 @@ function ClienteDetalle() {
 
   /* Con código SAP el cliente ya existe en SAP: sincronizar lo ACTUALIZA; sin código lo CREA */
   const esActualizacion = !!cliente?.CODIGO_SAP;
+
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setCalificacionesScore(null);
+
+    (async () => {
+      try {
+        const data = await getCalificacionesScoreMDM(empresaCliente);
+        if (!cancelado) setCalificacionesScore(data);
+      } catch (err) {
+        if (!cancelado) {
+          setCalificacionesScore([]);
+          toast.error("No se pudo cargar el listado de calificaciones por score");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
 
   useEffect(() => {
     if (!empresaCliente) return;
@@ -2234,6 +2265,26 @@ function ClienteDetalle() {
     );
   };
 
+  /* Calificación por score: se elige del maestro de la empresa y se muestra su descripción;
+     lo que se guarda es su serial (el valor es el que va a SAP). */
+  const opcionesCalificacion = (calificacionesScore || []).map((c) => ({
+    value: c.SERIAL,
+    label: c.DESCRIPCION || c.VALOR,
+  }));
+
+  /* Si la calificación del cliente ya no está en el maestro, se conserva visible */
+  if (
+    calificacionesScore !== null &&
+    form?.CALIFICACION_SCORE_SERIAL &&
+    !opcionesCalificacion.some((o) => o.value === form.CALIFICACION_SCORE_SERIAL) &&
+    cliente?.CALIFICACION_SCORE
+  ) {
+    opcionesCalificacion.push({
+      value: form.CALIFICACION_SCORE_SERIAL,
+      label: `${cliente.CALIFICACION_SCORE.DESCRIPCION || cliente.CALIFICACION_SCORE.VALOR} (no está en el listado)`,
+    });
+  }
+
   /* Pestaña Condiciones de pago. La condición se elige del maestro de la empresa;
      la lista de precios y los límites son solo informativos. Límite de crédito y
      Límite comprometido muestran el mismo valor (ic_cupo), que llega por la
@@ -2512,6 +2563,24 @@ function ClienteDetalle() {
               {/* El código del socio se arma como "C" + RUT, así que cambiarlo
                   aquí dejaría los dos campos en desacuerdo. */}
               <CampoFijo fila theme={theme} label="RUT" valor={cliente.IDENTIFICACION} />
+              {/* Los valores salen de core.dim_calificacion_score de la empresa del
+                  cliente. La integración envía el texto; si no existía para la empresa
+                  el cliente queda sin calificación y se elige aquí. */}
+              <CampoCatalogo
+                fila
+                theme={theme}
+                label="Calificación por Score"
+                valor={form.CALIFICACION_SCORE_SERIAL}
+                catalogo={opcionesCalificacion}
+                onChange={(valor) => actualizarCampo("CALIFICACION_SCORE_SERIAL", valor)}
+                placeholder={
+                  calificacionesScore === null
+                    ? "Cargando calificaciones..."
+                    : calificacionesScore.length === 0
+                      ? "Sin calificaciones para esta empresa"
+                      : "Seleccione una calificación"
+                }
+              />
             </Filas>
           </CabeceraColumnas>
         </Tarjeta>

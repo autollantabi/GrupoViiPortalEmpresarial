@@ -159,6 +159,7 @@ export const ConfirmationDialog = ({
   onSuccess,
   successMessage = "Operación exitosa",
   errorMessage = "Ha ocurrido un error",
+  aceptarPrimero = false, // true: Aceptar antes que Cancelar
 }) => {
   if (!isOpen) return null;
   const { theme } = useTheme();
@@ -184,12 +185,25 @@ export const ConfirmationDialog = ({
             <h4>{title}</h4>
             {children}
             <ContenedorBotones>
-              <ButtonUI text={"Cancelar"} onClick={onClose} />
-              <ButtonUI
-                text={"Aceptar"}
-                pcolor={({ theme }) => theme.colors.secondary}
-                onClick={onConfirm}
-              />
+              {aceptarPrimero ? (
+                <>
+                  <ButtonUI
+                    text={"Aceptar"}
+                    pcolor={({ theme }) => theme.colors.secondary}
+                    onClick={onConfirm}
+                  />
+                  <ButtonUI text={"Cancelar"} onClick={onClose} />
+                </>
+              ) : (
+                <>
+                  <ButtonUI text={"Cancelar"} onClick={onClose} />
+                  <ButtonUI
+                    text={"Aceptar"}
+                    pcolor={({ theme }) => theme.colors.secondary}
+                    onClick={onConfirm}
+                  />
+                </>
+              )}
             </ContenedorBotones>
           </ConfirmationContent>
         )}

@@ -2,14 +2,14 @@ import React from "react";
 import { TemplateReporteria } from "../TemplateReporteria";
 
 const REPORTES = [
-  {
-    id: 0,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiYzc0YzI1YTgtMTg5Zi00NDg2LWI0YTAtZWViMjIwMTFlNWNmIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
-    titulo: "Camion",
-    rol: "usuario",
-    linea: null,
-    empresa: "GRUPOVII",
-  },
+  // {
+  //   id: 0,
+  //   url: "https://app.powerbi.com/view?r=eyJrIjoiYzc0YzI1YTgtMTg5Zi00NDg2LWI0YTAtZWViMjIwMTFlNWNmIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+  //   titulo: "Camion",
+  //   rol: "usuario",
+  //   linea: null,
+  //   empresa: "GRUPOVII",
+  // },
 ];
 
 export const ReporteriaCamiones = ({

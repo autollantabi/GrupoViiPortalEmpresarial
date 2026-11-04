@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useRef } from "react";
 import styled from "styled-components";
 import { useTheme } from "context/ThemeContext";
+import { IconUI } from "components/UI/Components/IconsUI";
 
 const DateContainer = styled.div`
   display: flex;
@@ -131,13 +132,27 @@ export const DateSelectorUI = ({
     onChange?.(date);
   };
 
+  // Firefox no tiene ::-webkit-calendar-picker-indicator: al hacer clic sobre el input transparente solo se enfocaba un segmento
+  // de la fecha y el calendario no se abría. showPicker() lo abre desde cualquier punto (Firefox 101+, Chrome 99+, Safari 16+).
+  const inputRef = useRef(null);
+  const abrirCalendario = () => {
+    if (disabled) return;
+    try {
+      inputRef.current?.showPicker?.();
+    } catch {
+      // ya abierto o navegador sin soporte: el input sigue funcionando de forma nativa
+    }
+  };
+
   const { theme } = useTheme();
 
   return (
     <DateContainer>
       {label && <Label theme={theme}>{label}:</Label>}
-      <InputWrapper>
+      {/* El clic en cualquier parte del campo (texto, icono o input) abre el calendario */}
+      <InputWrapper onClick={abrirCalendario}>
         <HiddenDateInput
+          ref={inputRef}
           type="date"
           value={formatDateToInput(fecha)}
           onChange={handleChange}
@@ -147,6 +162,7 @@ export const DateSelectorUI = ({
         />
         <DateButton type="button" disabled={disabled} $hasValue={!!fecha} theme={theme}>
           <span>{formatDateToDisplay(fecha)}</span>
+          <IconUI name="FaCalendarDays" size={14} color={theme?.colors?.textSecondary} />
         </DateButton>
       </InputWrapper>
     </DateContainer>
