@@ -23,6 +23,8 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {string} apellidos
  * @property {string} nombres
  * @property {string} nombresCompletos
+ * @property {'Hijo'|'Conyuge'|'UnionLibre'|'Otro'} parentesco
+ * @property {string|null} parentescoDetalle  Solo cuando parentesco es 'Otro'
  * @property {string} fechaNacimiento
  * @property {boolean} tieneDiscapacidad
  * @property {number|null} porcentajeDiscapacidad

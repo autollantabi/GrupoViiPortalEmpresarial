@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import styled from "styled-components";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import IconUI from "components/UI/Components/IconsUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
 import { ModalUI } from "components/UI/Components/ModalUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
 import { useTheme } from "context/ThemeContext";
+import { hexToRGBA } from "utils/colors";
 import { ObtenerColaborador } from "services/colaboradoresService";
 import {
   ActualizarCargaFamiliar,
@@ -26,11 +28,53 @@ import {
   Acciones,
   AreaTexto,
   CirculoIcono,
+  colorDeTono,
   Contenedor,
+  CuerpoAtencion,
+  DetalleAtencion,
+  Kpi,
+  KpiTitulo,
+  KpiValor,
+  PistaProgreso,
+  Rejilla,
+  RellenoProgreso,
   Tarjeta,
   TextoTenue,
+  TituloAtencion,
   Vacio,
 } from "../componentes/piezas";
+
+/**
+ * Tarjeta-invitación para registrar cónyuge/unión libre, visible de entrada en
+ * la pantalla en vez de depender de que alguien abra el selector genérico del
+ * modal y repare en esa opción. Mismo lenguaje visual que Kpi/EnlaceAtencion
+ * (borde y fondo tintados al tono), pero clicable como un botón porque abre
+ * el modal en vez de navegar.
+ */
+const TarjetaInvitacion = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  color: ${({ theme }) => theme?.colors?.text};
+  background: ${({ theme, $tono = "info" }) =>
+    hexToRGBA({ hex: colorDeTono(theme, $tono), alpha: 0.08 })};
+  border: 1px dashed ${({ theme, $tono = "info" }) =>
+    hexToRGBA({ hex: colorDeTono(theme, $tono), alpha: 0.5 })};
+
+  &:hover:not(:disabled) {
+    border-style: solid;
+    border-color: ${({ theme, $tono = "info" }) => colorDeTono(theme, $tono)};
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+`;
 
 /**
  * Pestaña Cargas familiares de una ficha.
@@ -147,6 +191,10 @@ export const ColCargasFamiliares = () => {
   const [ocupado, setOcupado] = useState(false);
   const [enEdicion, setEnEdicion] = useState(undefined); // undefined=cerrado, null=nueva, objeto=editar
   const [aEliminar, setAEliminar] = useState(null);
+  // Qué tipo de carga precargar al abrir el modal en blanco: null = el genérico
+  // "Agregar carga familiar" (queda en "Hijo/a" por omisión dentro del modal);
+  // "Conyuge"/"UnionLibre" cuando se abre desde su tarjeta-invitación.
+  const [parentescoSugerido, setParentescoSugerido] = useState(null);
 
   const { datos: ficha } = useConsulta(({ signal }) => ObtenerColaborador(id, { signal }), [id]);
 
@@ -161,6 +209,29 @@ export const ColCargasFamiliares = () => {
     () => OPCIONES_ANIO.find((opcion) => opcion.value === anio) ?? OPCIONES_ANIO[1],
     [anio],
   );
+
+  const hijosRegistrados = useMemo(
+    () => (cargas ?? []).filter((c) => c.parentesco === "Hijo").length,
+    [cargas],
+  );
+  const conyugeRegistrado = useMemo(
+    () => (cargas ?? []).some((c) => c.parentesco === "Conyuge"),
+    [cargas],
+  );
+  const unionLibreRegistrada = useMemo(
+    () => (cargas ?? []).some((c) => c.parentesco === "UnionLibre"),
+    [cargas],
+  );
+
+  // "neutro" sin número declarado todavía, "exito" cuando ya están todos los
+  // hijos declarados en Datos registrados acá, "aviso" mientras falten.
+  const tonoHijos =
+    !ficha?.numeroHijos ? "neutro" : hijosRegistrados >= ficha.numeroHijos ? "exito" : "aviso";
+
+  const abrirNueva = (parentesco = null) => {
+    setParentescoSugerido(parentesco);
+    setEnEdicion(null);
+  };
 
   const ejecutar = async (accion, exito) => {
     setOcupado(true);
@@ -255,13 +326,87 @@ export const ColCargasFamiliares = () => {
             </CampoLabel>
           </div>
           <ButtonUI
-            text="Agregar hijo/a"
+            text="Agregar carga familiar"
             iconLeft="FaPlus"
-            onClick={() => setEnEdicion(null)}
+            onClick={() => abrirNueva(null)}
             disabled={ocupado}
           />
         </Acciones>
       </Tarjeta>
+
+      <Rejilla $min={220}>
+        <Kpi $tono={tonoHijos}>
+          <KpiTitulo>Hijos registrados</KpiTitulo>
+          <KpiValor $tono={tonoHijos}>
+            {hijosRegistrados} / {ficha?.numeroHijos ?? "—"}
+          </KpiValor>
+          <PistaProgreso>
+            <RellenoProgreso
+              $tono={tonoHijos}
+              $porcentaje={ficha?.numeroHijos ? (hijosRegistrados / ficha.numeroHijos) * 100 : 0}
+            />
+          </PistaProgreso>
+          <TextoTenue>
+            {!ficha?.numeroHijos
+              ? "Declare cuántos hijos tiene en la pestaña Datos para habilitar el registro."
+              : hijosRegistrados >= ficha.numeroHijos
+                ? "Completo: ya están registrados todos los hijos declarados."
+                : `Faltan ${ficha.numeroHijos - hijosRegistrados} por registrar.`}
+          </TextoTenue>
+        </Kpi>
+
+        {ficha?.estadoCivil === "Casado" &&
+          (conyugeRegistrado ? (
+            <Kpi $tono="exito">
+              <KpiTitulo>Cónyuge</KpiTitulo>
+              <KpiValor $tono="exito">Registrado</KpiValor>
+              <TextoTenue>Ya consta como carga familiar.</TextoTenue>
+            </Kpi>
+          ) : (
+            <TarjetaInvitacion
+              type="button"
+              $tono="info"
+              onClick={() => abrirNueva("Conyuge")}
+              disabled={ocupado}
+            >
+              <CirculoIcono $tono="info" $tamano={40}>
+                <IconUI name="FaUserPlus" size={16} color={theme?.colors?.info} />
+              </CirculoIcono>
+              <CuerpoAtencion>
+                <TituloAtencion>Agregar cónyuge</TituloAtencion>
+                <DetalleAtencion $tono="info">
+                  Datos registra su estado civil como Casado/a.
+                </DetalleAtencion>
+              </CuerpoAtencion>
+            </TarjetaInvitacion>
+          ))}
+
+        {ficha?.estadoCivil === "UnionLibre" &&
+          (unionLibreRegistrada ? (
+            <Kpi $tono="exito">
+              <KpiTitulo>Unión libre</KpiTitulo>
+              <KpiValor $tono="exito">Registrado</KpiValor>
+              <TextoTenue>Ya consta como carga familiar.</TextoTenue>
+            </Kpi>
+          ) : (
+            <TarjetaInvitacion
+              type="button"
+              $tono="info"
+              onClick={() => abrirNueva("UnionLibre")}
+              disabled={ocupado}
+            >
+              <CirculoIcono $tono="info" $tamano={40}>
+                <IconUI name="FaUserPlus" size={16} color={theme?.colors?.info} />
+              </CirculoIcono>
+              <CuerpoAtencion>
+                <TituloAtencion>Agregar unión libre</TituloAtencion>
+                <DetalleAtencion $tono="info">
+                  Datos registra su estado civil como Unión libre.
+                </DetalleAtencion>
+              </CuerpoAtencion>
+            </TarjetaInvitacion>
+          ))}
+      </Rejilla>
 
       <Tarjeta $sinRelleno>
         {cargas.length === 0 ? (
@@ -270,7 +415,7 @@ export const ColCargasFamiliares = () => {
               <IconUI name="FaChildren" size={26} color={theme?.colors?.info} />
             </CirculoIcono>
             <strong>Sin cargas familiares registradas para {anio}</strong>
-            <TextoTenue>Use &quot;Agregar hijo/a&quot; para registrar la primera.</TextoTenue>
+            <TextoTenue>Use &quot;Agregar carga familiar&quot; para registrar la primera.</TextoTenue>
           </Vacio>
         ) : (
           <TablaCargasFamiliares
@@ -286,6 +431,10 @@ export const ColCargasFamiliares = () => {
       <ModalCargaFamiliar
         abierto={enEdicion !== undefined}
         carga={enEdicion}
+        parentescoInicial={parentescoSugerido}
+        estadoCivil={ficha?.estadoCivil}
+        numeroHijos={ficha?.numeroHijos}
+        cargasExistentes={cargas}
         onCerrar={() => setEnEdicion(undefined)}
         onConfirmar={guardar}
       />

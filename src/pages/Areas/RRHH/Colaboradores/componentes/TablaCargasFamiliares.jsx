@@ -2,7 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { useTheme } from "context/ThemeContext";
-import { ETIQUETA_TIPO_DISCAPACIDAD } from "../utils/constantesDotacion";
+import { ETIQUETA_PARENTESCO_CARGA, ETIQUETA_TIPO_DISCAPACIDAD } from "../utils/constantesDotacion";
 import { formatearFecha } from "../utils/fechas";
 import { Acciones, Badge, Fila, Tabla, TablaScroll, Td, TextoTenue, Th } from "./piezas";
 
@@ -74,6 +74,7 @@ export const TablaCargasFamiliares = ({
         <thead>
           <tr>
             <Th>Nombre completo</Th>
+            <Th>Parentesco</Th>
             <Th>Cédula</Th>
             <Th>Nacimiento</Th>
             <Th>Edad al 31/dic</Th>
@@ -97,6 +98,16 @@ export const TablaCargasFamiliares = ({
                     <span>{carga.nombresCompletos}</span>
                     {carga.observacion && <TextoTenue>{carga.observacion}</TextoTenue>}
                   </Nombre>
+                </Td>
+
+                <Td data-etiqueta="Parentesco">
+                  {ETIQUETA_PARENTESCO_CARGA[carga.parentesco] ?? carga.parentesco ?? "—"}
+                  {carga.parentesco === "Otro" && carga.parentescoDetalle && (
+                    <>
+                      <br />
+                      <TextoTenue>{carga.parentescoDetalle}</TextoTenue>
+                    </>
+                  )}
                 </Td>
 
                 <Td data-etiqueta="Cédula">{carga.cedula || "—"}</Td>
@@ -147,7 +158,9 @@ export const TablaCargasFamiliares = ({
                   {carga.archivo?.nombreOriginal ? (
                     <span>{carga.archivo.nombreOriginal}</span>
                   ) : (
-                    <Badge $tono="peligro">Falta partida de nacimiento</Badge>
+                    <Badge $tono="peligro">
+                      {carga.parentesco === "Hijo" ? "Falta partida de nacimiento" : "Falta documento de respaldo"}
+                    </Badge>
                   )}
                 </Td>
 
@@ -158,7 +171,7 @@ export const TablaCargasFamiliares = ({
                         text=""
                         iconLeft="FaDownload"
                         variant="ghost"
-                        title="Descargar partida de nacimiento"
+                        title="Descargar documento"
                         disabled={ocupado}
                         onClick={() => onDescargar?.(carga)}
                       />

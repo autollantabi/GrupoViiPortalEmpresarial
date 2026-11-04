@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { CheckboxUI } from "components/UI/Components/CheckboxUI";
@@ -9,8 +9,11 @@ import { CampoLabel } from "./CampoLabel";
 import { Acciones, AreaTexto, Aviso, FilaFormulario, TextoTenue } from "./piezas";
 import {
   ACCEPT_ARCHIVOS,
+  ETIQUETA_DOCUMENTO_POR_PARENTESCO,
+  ETIQUETA_PARENTESCO_CARGA,
   ETIQUETA_TIPO_DISCAPACIDAD,
   MIME_PERMITIDOS,
+  PARENTESCO_CARGA,
   TAMANIO_MAXIMO_BYTES,
   TIPO_DISCAPACIDAD,
   formatearTamanio,
@@ -18,7 +21,8 @@ import {
 import { hoyIso } from "../utils/fechas";
 
 /**
- * Alta y edición de una carga familiar (hijo/a), con su partida de nacimiento.
+ * Alta y edición de una carga familiar (hijo/a, cónyuge, unión libre u otro
+ * dependiente), con su documento de respaldo.
  *
  * Mismo criterio que ColaboradorForm.jsx para discapacidad (checkbox + % +
  * tipo) y que ModalSubirDocumento.jsx para el archivo: <input type="file">
@@ -38,7 +42,32 @@ const OPCIONES_TIPO_DISCAPACIDAD = TIPO_DISCAPACIDAD.map((valor) => ({
   label: ETIQUETA_TIPO_DISCAPACIDAD[valor] ?? valor,
 }));
 
+/**
+ * Qué tipos de carga puede elegir este colaborador: Otro siempre, Cónyuge/
+ * Unión libre solo si el estado civil de Datos ya lo declara Y todavía no
+ * hay una carga de ese tipo, Hijo/a solo mientras no se haya llegado al
+ * "Número de hijos" declarado en Datos (salvo que la carga en edición ya sea
+ * de ese mismo tipo: esa no consume un cupo nuevo).
+ */
+const opcionesParentesco = (estadoCivil, numeroHijos, cargasExistentes, cargaEnEdicion) => {
+  const cargasDeEseTipo = (tipo) =>
+    cargasExistentes.filter((c) => c.parentesco === tipo && c.id !== cargaEnEdicion?.id);
+
+  return PARENTESCO_CARGA.filter((tipo) => {
+    if (tipo === "Conyuge") return estadoCivil === "Casado" && cargasDeEseTipo(tipo).length === 0;
+    if (tipo === "UnionLibre") return estadoCivil === "UnionLibre" && cargasDeEseTipo(tipo).length === 0;
+    if (tipo === "Hijo") {
+      return cargaEnEdicion?.parentesco === "Hijo" || cargasDeEseTipo(tipo).length < (numeroHijos ?? 0);
+    }
+    return true; // Otro siempre disponible.
+  }).map((tipo) => ({ value: tipo, label: ETIQUETA_PARENTESCO_CARGA[tipo] }));
+};
+
 const VACIO = {
+  // "Hijo" como valor por omisión: está siempre disponible sin importar el
+  // estado civil, así que es el caso más común al abrir el formulario vacío.
+  parentesco: "Hijo",
+  parentescoDetalle: "",
   cedula: "",
   apellidos: "",
   nombres: "",
@@ -50,10 +79,12 @@ const VACIO = {
   observacion: "",
 };
 
-const desdeCarga = (carga) =>
+const desdeCarga = (carga, parentescoInicial) =>
   !carga
-    ? VACIO
+    ? { ...VACIO, parentesco: parentescoInicial ?? VACIO.parentesco }
     : {
+        parentesco: carga.parentesco ?? "Hijo",
+        parentescoDetalle: carga.parentescoDetalle ?? "",
         cedula: carga.cedula ?? "",
         apellidos: carga.apellidos ?? "",
         nombres: carga.nombres ?? "",
@@ -78,7 +109,16 @@ const Selector = ({ onElegir, referencia }) => (
   />
 );
 
-export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) => {
+export const ModalCargaFamiliar = ({
+  abierto,
+  carga,
+  parentescoInicial,
+  estadoCivil,
+  numeroHijos,
+  cargasExistentes = [],
+  onCerrar,
+  onConfirmar,
+}) => {
   const [valores, setValores] = useState(VACIO);
   const [archivo, setArchivo] = useState(null);
   const [errorArchivo, setErrorArchivo] = useState(null);
@@ -86,9 +126,17 @@ export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) =>
   const [enviando, setEnviando] = useState(false);
   const entrada = useRef(null);
 
+  const opciones = useMemo(
+    () => opcionesParentesco(estadoCivil, numeroHijos, cargasExistentes, carga),
+    [estadoCivil, numeroHijos, cargasExistentes, carga],
+  );
+
+  const cupoHijosLleno =
+    carga?.parentesco !== "Hijo" && !opciones.some((opcion) => opcion.value === "Hijo");
+
   useEffect(() => {
     if (!abierto) return;
-    setValores(desdeCarga(carga));
+    setValores(desdeCarga(carga, parentescoInicial));
     setArchivo(null);
     setErrorArchivo(null);
     setErrores({});
@@ -96,7 +144,7 @@ export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) =>
     // El input de archivo conserva su value entre aperturas y el navegador no
     // deja limpiarlo por estado: hay que tocarlo por referencia.
     if (entrada.current) entrada.current.value = "";
-  }, [abierto, carga]);
+  }, [abierto, carga, parentescoInicial]);
 
   useEffect(() => {
     if (!abierto) return undefined;
@@ -142,6 +190,10 @@ export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) =>
 
   const validar = () => {
     const nuevos = {};
+    if (!valores.parentesco) nuevos.parentesco = "Elija el tipo de carga familiar.";
+    if (valores.parentesco === "Otro" && valores.parentescoDetalle.trim().length < 2) {
+      nuevos.parentescoDetalle = "Indique el parentesco (ej. Padre, Hermana).";
+    }
     if (valores.apellidos.trim().length < 2) nuevos.apellidos = "Escriba los apellidos.";
     if (valores.nombres.trim().length < 2) nuevos.nombres = "Escriba los nombres.";
     if (!valores.fechaNacimiento) nuevos.fechaNacimiento = "Indique la fecha de nacimiento.";
@@ -174,6 +226,8 @@ export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) =>
     };
 
     const datos = {
+      parentesco: valores.parentesco,
+      parentescoDetalle: valores.parentesco === "Otro" ? aTexto(valores.parentescoDetalle) : null,
       cedula: aTexto(valores.cedula),
       apellidos: valores.apellidos.trim(),
       nombres: valores.nombres.trim(),
@@ -204,13 +258,47 @@ export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) =>
     <ModalUI
       isOpen={abierto}
       onClose={onCerrar}
-      title={carga ? "Editar carga familiar" : "Agregar hijo/a"}
+      title={carga ? "Editar carga familiar" : "Agregar carga familiar"}
       width="640px"
       maxWidth="96vw"
       noFooter
     >
       <form onSubmit={enviar} noValidate>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <FilaFormulario $min={200}>
+            <CampoLabel etiqueta="Tipo de carga familiar" requerido error={errores.parentesco}>
+              <SelectUI
+                options={opciones}
+                value={opciones.find((opcion) => opcion.value === valores.parentesco) ?? null}
+                onChange={(opcion) => campo("parentesco")(opcion?.value ?? null)}
+                isSearchable={false}
+                menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
+              />
+            </CampoLabel>
+            {valores.parentesco === "Otro" && (
+              <CampoLabel
+                etiqueta="¿Qué parentesco?"
+                requerido
+                error={errores.parentescoDetalle}
+                ayuda="Ej. Padre, Hermana con discapacidad."
+              >
+                <InputUI
+                  value={valores.parentescoDetalle}
+                  onChange={campo("parentescoDetalle")}
+                  maxLength={60}
+                />
+              </CampoLabel>
+            )}
+          </FilaFormulario>
+
+          {cupoHijosLleno && (
+            <TextoTenue>
+              {numeroHijos
+                ? `Hijo/a no disponible: ya se registraron los ${numeroHijos} hijo(s) declarados en Datos. Suba ese número para agregar otro.`
+                : "Hijo/a no disponible: declare cuántos hijos tiene el colaborador en la pestaña Datos para poder registrarlos aquí."}
+            </TextoTenue>
+          )}
+
           <FilaFormulario>
             <CampoLabel etiqueta="Apellidos" requerido error={errores.apellidos}>
               <InputUI
@@ -311,19 +399,19 @@ export const ModalCargaFamiliar = ({ abierto, carga, onCerrar, onConfirmar }) =>
 
           {carga?.archivo?.nombreOriginal && (
             <Aviso $tono="info">
-              Ya tiene la partida de nacimiento subida: {carga.archivo?.nombreOriginal}. Elija un
-              archivo nuevo solo si quiere reemplazarla.
+              Ya tiene el documento subido: {carga.archivo?.nombreOriginal}. Elija un archivo
+              nuevo solo si quiere reemplazarlo.
             </Aviso>
           )}
 
           <CampoLabel
             etiqueta={
               carga?.archivo?.nombreOriginal
-                ? "Reemplazar partida de nacimiento"
-                : "Partida de nacimiento"
+                ? `Reemplazar ${(ETIQUETA_DOCUMENTO_POR_PARENTESCO[valores.parentesco] ?? "documento").toLowerCase()}`
+                : (ETIQUETA_DOCUMENTO_POR_PARENTESCO[valores.parentesco] ?? "Documento de respaldo")
             }
             error={errorArchivo}
-            ayuda="PDF o Word (.doc, .docx), hasta 10 MB. También puede subirla más tarde desde esta misma pantalla."
+            ayuda="PDF o Word (.doc, .docx), hasta 10 MB. También puede subirlo más tarde desde esta misma pantalla."
           >
             <Selector referencia={entrada} onElegir={elegirArchivo} />
           </CampoLabel>

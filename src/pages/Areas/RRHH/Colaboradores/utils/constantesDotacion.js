@@ -102,6 +102,33 @@ export const ETIQUETA_PARENTESCO_SUSTITUTO = Object.freeze({
   Otro: "Otro",
 });
 
+/**
+ * Tipo de una carga familiar (ver ck_rrhh_cargas_familiares_parentesco).
+ *
+ * Decide dos cosas: qué opciones ofrece el formulario según el estado civil ya
+ * registrado en Datos (Conyuge solo si es Casado, UnionLibre solo si es
+ * UnionLibre), y qué documento equivalente de la pestaña Documentos deja de
+ * pedirse al subir el archivo acá (PARTIDA_HIJO/CEDULA_CONYUGE/ACTA_UNION_HECHO).
+ * "Otro" no tiene documento equivalente: es cualquier dependiente que no
+ * encaje en las otras tres categorías.
+ */
+export const PARENTESCO_CARGA = Object.freeze(["Hijo", "Conyuge", "UnionLibre", "Otro"]);
+
+export const ETIQUETA_PARENTESCO_CARGA = Object.freeze({
+  Hijo: "Hijo/a",
+  Conyuge: "Cónyuge",
+  UnionLibre: "Unión libre",
+  Otro: "Otro",
+});
+
+/** Etiqueta del campo de archivo en el formulario, según el parentesco elegido. */
+export const ETIQUETA_DOCUMENTO_POR_PARENTESCO = Object.freeze({
+  Hijo: "Partida de nacimiento",
+  Conyuge: "Cédula y acta de matrimonio del cónyuge",
+  UnionLibre: "Acta de unión de hecho",
+  Otro: "Documento de respaldo",
+});
+
 export const MOTIVO_DOCUMENTO = Object.freeze({
   BASE: "Base",
   CARGO: "Cargo",

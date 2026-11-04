@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { InputUI } from "components/UI/Components/InputUI";
@@ -31,7 +30,6 @@ import {
   ETIQUETA_PARENTESCO_SUSTITUTO,
   ETIQUETA_TIPO_DISCAPACIDAD,
   PARENTESCO_SUSTITUTO,
-  RUTA_CARGAS_FAMILIARES,
   TIPO_DISCAPACIDAD,
 } from "../utils/constantesDotacion";
 
@@ -136,11 +134,6 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
   const [valores, setValores] = useState(() => desdeFicha(ficha));
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
-
-  // Una vez que la persona tiene cargas familiares registradas en su propia
-  // pestaña, "Número de hijos" deja de ser un campo libre: lo calcula el
-  // backend a partir de esa lista, y editarlo acá lo desincronizaría.
-  const cargasGestionadas = ficha?.cargasFamiliaresGestionadas === true;
 
   const [catalogos, setCatalogos] = useState(null);
   const [cargandoCatalogos, setCargandoCatalogos] = useState(true);
@@ -398,16 +391,7 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
 
             <CampoLabel
               etiqueta="Número de hijos"
-              ayuda={
-                cargasGestionadas ? (
-                  <>
-                    Se calcula desde la pestaña{" "}
-                    <Link to={RUTA_CARGAS_FAMILIARES(ficha.id)}>Cargas familiares</Link>.
-                  </>
-                ) : (
-                  "Déjelo vacío si no se sabe. Un 0 afirma que no tiene."
-                )
-              }
+              ayuda="Déjelo vacío si no se sabe. Un 0 afirma que no tiene. Habilita cuántos hijos se podrán registrar luego en la pestaña Cargas familiares."
             >
               <InputUI
                 type="number"
@@ -415,7 +399,6 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
                 onChange={(valor) => campo("numeroHijos")(soloDigitos(valor))}
                 min={0}
                 max={30}
-                disabled={cargasGestionadas}
               />
             </CampoLabel>
 
