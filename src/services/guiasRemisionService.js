@@ -9,7 +9,7 @@ import { axiosInstanceNew } from "config/axiosConfig";
  * La cabecera "id-session" la agrega automáticamente axiosInstanceNew.
  *
  * @param {Object} params
- * @param {string} params.empresa - Nombre de la empresa (STOX, AUTOLLANTA, ...)
+ * @param {string} params.empresa - Nombre de la empresa (STOX, AUTOLLANTA, ...) o varias separadas por coma
  * @param {number} [params.page=1]
  * @param {number} [params.size=25]
  * @param {string} [params.fechaDesde] - YYYY-MM-DD

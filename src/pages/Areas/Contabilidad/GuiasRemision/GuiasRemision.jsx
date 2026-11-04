@@ -92,6 +92,9 @@ const COLUMNAS = [
   { header: "Enviado", field: "enviado", isEnviado: true, align: "center" },
 ];
 
+// Opción "TODAS" del filtro de empresa: consulta todas las empresas a las que el usuario tiene acceso
+const EMPRESA_TODAS = "TODAS";
+
 // Transportista para el que se genera guía de entrega en el courier (hgr_guia_entrega)
 const ID_TRANSPORTISTA_LAAR = "1791705726001";
 
@@ -455,6 +458,17 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const [sincronizando, setSincronizando] = useState(false);
   const temporizadorSyncRef = useRef(null);
 
+  // Opciones del filtro de empresa: "TODAS" solo tiene sentido si el usuario tiene más de una
+  const opcionesFiltroEmpresa = useMemo(
+    () =>
+      opcionesEmpresas.length > 1
+        ? [{ value: EMPRESA_TODAS, label: "TODAS" }, ...opcionesEmpresas]
+        : opcionesEmpresas,
+    [opcionesEmpresas]
+  );
+  // Lista (separada por coma) de las empresas del usuario: es lo que se envía al servidor cuando se elige "TODAS"
+  const listaEmpresasUsuario = useMemo(() => opcionesEmpresas.map((o) => o.value).join(","), [opcionesEmpresas]);
+
   const actualizarFiltros = (cambios) =>
     setConsulta((prev) => ({ ...prev, ...cambios, page: 1 }));
 
@@ -492,7 +506,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       try {
         const data = await ListarGuiasRemision(
           {
-            empresa: consulta.empresa,
+            empresa: consulta.empresa === EMPRESA_TODAS ? listaEmpresasUsuario : consulta.empresa,
             page: consulta.page,
             size: consulta.size,
             fechaDesde: formatFechaISO(consulta.desde),
@@ -527,7 +541,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     })();
 
     return () => controller.abort();
-  }, [consulta, refrescos]);
+  }, [consulta, refrescos, listaEmpresasUsuario]);
 
   // ================= Sincronización de guías =================
   // Se consulta el estado hasta que el servidor indique que terminó; entonces se recarga el listado con los mismos filtros
@@ -620,7 +634,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     setEnviando(true);
     try {
       const cambiar = marcarEnviada ? MarcarGuiaRemisionEnviada : MarcarGuiaRemisionNoEnviada;
-      await cambiar({ id: guiaSeleccionada.id, empresa: consulta.empresa });
+      // La empresa es la de la propia guía (el filtro puede estar en "TODAS")
+      await cambiar({ id: guiaSeleccionada.id, empresa: guiaSeleccionada.empresa });
       // El modal refleja el nuevo estado y se vuelve a consultar el listado (la guía deja de aparecer
       // si el filtro de envío ya no la incluye)
       setGuiaSeleccionada((prev) => (prev ? { ...prev, enviado: marcarEnviada } : prev));
@@ -1043,11 +1058,11 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
             <SelectUI
               label="Empresa"
-              options={opcionesEmpresas}
-              value={opcionesEmpresas.find((o) => o.value === consulta.empresa) || null}
+              options={opcionesFiltroEmpresa}
+              value={opcionesFiltroEmpresa.find((o) => o.value === consulta.empresa) || null}
               onChange={handleEmpresa}
               placeholder="Empresa"
-              isDisabled={opcionesEmpresas.length <= 1}
+              isDisabled={opcionesFiltroEmpresa.length <= 1}
               isSearchable={false}
               minWidth="170px"
               maxWidth="200px"
