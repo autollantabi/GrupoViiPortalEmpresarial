@@ -1277,7 +1277,19 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                   <TextUI size="12px" color={theme.colors.textSecondary}>
                     GUÍA ENTREGA
                   </TextUI>
-                  <TextUI weight="bold">{guiaSeleccionada.guiaEntrega || "—"}</TextUI>
+                  {/* Enlace al tracking de Laar solo si la guía está enviada (no cancelada) y tiene guía de entrega */}
+                  {guiaSeleccionada.enviado && !guiaSeleccionada.cancelada && guiaSeleccionada.guiaEntrega ? (
+                    <a
+                      href={urlTrackingLaar(guiaSeleccionada.guiaEntrega)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontWeight: 700, color: theme.colors.error }}
+                    >
+                      {guiaSeleccionada.guiaEntrega} ↗
+                    </a>
+                  ) : (
+                    <TextUI weight="bold">{guiaSeleccionada.guiaEntrega || "—"}</TextUI>
+                  )}
                 </CabeceraItem>
               </CardModal>
             )}
