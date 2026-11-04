@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { useTheme } from "context/ThemeContext";
 import { MAP_TILES_URL } from "config/env";
 import { buscarDireccion, ubicarPunto } from "services/geocodingService";
+import { IconUI } from "components/UI/Components/IconsUI";
 import { desglosarDireccion, evaluarPrecision } from "./desglosarDireccion";
 
 // Centro inicial: Ecuador
@@ -15,7 +16,7 @@ const COLOR_PRECISION = { alta: "#198754", media: "#fd7e14", baja: "#dc3545" };
 // divIcon: evita los problemas de rutas de imagen de los iconos por defecto de Leaflet con Vite
 const iconoMarcador = L.divIcon({
   className: "",
-  html: '<div style="width:22px;height:22px;border-radius:50% 50% 50% 0;background:#dc3545;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);transform:rotate(-45deg)"></div>',
+  html: '<div style="width:22px;height:22px;border-radius:50% 50% 50% 0;background:#fd4703;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);transform:rotate(-45deg)"></div>',
   iconSize: [22, 22],
   iconAnchor: [11, 22],
 });
@@ -73,10 +74,12 @@ export const MapaConsulta = () => {
 
   // Inicializa el mapa una sola vez
   useEffect(() => {
-    const mapa = L.map(contenedorRef.current, { center: CENTRO_INICIAL, zoom: ZOOM_INICIAL });
+    const mapa = L.map(contenedorRef.current, { center: CENTRO_INICIAL, zoom: ZOOM_INICIAL, zoomControl: false, attributionControl: false });
+    L.control.attribution({ prefix: false }).addTo(mapa);
+    L.control.zoom({ position: "topleft" }).addTo(mapa);
     L.tileLayer(MAP_TILES_URL, {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      attribution: "© OpenStreetMap",
     }).addTo(mapa);
     mapa.on("click", (e) => refinarPunto(e.latlng.lat, e.latlng.lng));
     mapaRef.current = mapa;
@@ -121,55 +124,75 @@ export const MapaConsulta = () => {
     colocarMarcador(lat, lon, nivel === "alta" ? 19 : nivel === "media" ? 17 : 14);
   };
 
+  const limpiar = () => {
+    abortRef.current?.abort();
+    marcadorRef.current?.remove();
+    marcadorRef.current = null;
+    mapaRef.current?.setView(CENTRO_INICIAL, ZOOM_INICIAL);
+    setTexto("");
+    setCandidatos([]);
+    setSeleccion(null);
+    setError("");
+  };
+
   const filas = seleccion ? desglosarDireccion(seleccion.address) : [];
   const precision = evaluarPrecision(seleccion);
   const coords = seleccion ? `${Number(seleccion.lat).toFixed(6)}, ${Number(seleccion.lon).toFixed(6)}` : "";
 
-  const card = {
+  const primario = c.primary || "#fd4703";
+  const borde = c.border || "#dee2e6";
+  const tarjeta = {
     background: c.backgroundCard || "#fff",
     color: c.text || "#000",
-    border: `1px solid ${c.border || "#dee2e6"}`,
-    borderRadius: 6,
-    padding: 12,
+    border: `1px solid ${borde}`,
+    borderRadius: 16,
+    padding: 20,
   };
+  const boton = {
+    flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+    padding: "10px 8px", borderRadius: 12, border: `1px solid ${borde}`, cursor: "pointer",
+    background: "transparent", color: c.text || "#000", fontSize: 14, fontWeight: 600,
+  };
+  const sinTexto = texto.trim().length < 3;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%", height: "100%", minHeight: 0 }}>
-      <form onSubmit={buscar} style={{ display: "flex", gap: 8 }}>
-        <input
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder="Ingrese una dirección (calle, número, ciudad…) o haga clic en el mapa"
-          style={{ ...card, flex: 1, padding: "8px 10px", fontSize: 14, outline: "none" }}
-        />
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, width: "100%" }}>
+      <style>{`.leaflet-control-attribution{background:transparent!important;font-size:10px;opacity:.7}`}</style>
+      <form onSubmit={buscar} style={{ display: "flex", gap: 14 }}>
+        <div style={{ ...tarjeta, flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 14, borderColor: primario }}>
+          <IconUI name="FaMagnifyingGlass" size={16} color={c.textSecondary} />
+          <input
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder="Ingrese una dirección o haga clic en el mapa"
+            style={{ flex: 1, border: "none", outline: "none", background: "transparent", color: "inherit", fontSize: 16 }}
+          />
+        </div>
         <button
           type="submit"
-          disabled={cargando || texto.trim().length < 3}
-          style={{
-            padding: "8px 18px", border: "none", borderRadius: 6, cursor: "pointer",
-            background: c.primary || "#3c3c3b", color: "#fff", opacity: cargando || texto.trim().length < 3 ? 0.6 : 1,
-          }}
+          disabled={cargando || sinTexto}
+          style={{ padding: "0 32px", border: "none", borderRadius: 14, cursor: "pointer", background: primario, color: "#fff", fontWeight: 700, fontSize: 16, opacity: cargando || sinTexto ? 0.6 : 1 }}
         >
           {cargando ? "Buscando…" : "Buscar"}
         </button>
       </form>
       {error && <div style={{ color: "#dc3545", fontSize: 13 }}>{error}</div>}
 
-      <div style={{ display: "flex", gap: 12, flex: 1, minHeight: 480, flexWrap: "wrap" }}>
-        <div ref={contenedorRef} style={{ flex: "2 1 480px", minHeight: 480, borderRadius: 6, border: `1px solid ${c.border || "#dee2e6"}`, zIndex: 0 }} />
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div
+          ref={contenedorRef}
+          style={{ flex: "2 1 480px", height: 560, borderRadius: 16, border: `1px solid ${borde}`, zIndex: 0, overflow: "hidden" }}
+        />
 
-        <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", maxHeight: 640 }}>
+        <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: 16 }}>
           {candidatos.length > 1 && (
-            <div style={card}>
+            <div style={{ ...tarjeta, padding: 14 }}>
               <strong style={{ fontSize: 13 }}>Coincidencias</strong>
               {candidatos.map((r) => (
                 <div
                   key={r.place_id}
                   onClick={() => elegir(r)}
-                  style={{
-                    cursor: "pointer", fontSize: 13, padding: "6px 4px", borderTop: `1px solid ${c.border || "#eee"}`,
-                    fontWeight: seleccion?.place_id === r.place_id ? 700 : 400,
-                  }}
+                  style={{ cursor: "pointer", fontSize: 13, padding: "8px 4px", borderTop: `1px solid ${borde}`, fontWeight: seleccion?.place_id === r.place_id ? 700 : 400 }}
                 >
                   {r.display_name}
                 </div>
@@ -177,46 +200,50 @@ export const MapaConsulta = () => {
             </div>
           )}
 
-          {seleccion ? (
-            <div style={card}>
-              <div style={{ fontSize: 13, marginBottom: 8 }}>{seleccion.display_name}</div>
-              {precision && (
-                <div style={{ fontSize: 12, marginBottom: 8, color: COLOR_PRECISION[precision.nivel], fontWeight: 600 }}>
-                  Precisión {precision.nivel}: {precision.texto}
+          <div style={tarjeta}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 16, borderBottom: `1px solid ${borde}` }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: `${primario}22`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <IconUI name="FaLocationDot" size={20} color={primario} />
+              </div>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.15 }}>
+                  {seleccion ? "Ubicación encontrada" : "Consulte una ubicación"}
                 </div>
-              )}
-              <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
-                <tbody>
-                  {filas.map((f) => (
-                    <tr key={f.label} style={{ borderTop: `1px solid ${c.border || "#eee"}` }}>
-                      <td style={{ padding: "4px 6px 4px 0", opacity: 0.7, whiteSpace: "nowrap" }}>{f.label}</td>
-                      <td style={{ padding: "4px 0" }} title={`OSM: ${f.origen}`}>{f.valor}</td>
-                    </tr>
-                  ))}
-                  <tr style={{ borderTop: `1px solid ${c.border || "#eee"}` }}>
-                    <td style={{ padding: "4px 6px 4px 0", opacity: 0.7 }}>Coordenadas</td>
-                    <td style={{ padding: "4px 0" }}>
-                      {coords}{" "}
-                      <button
-                        type="button"
-                        onClick={() => navigator.clipboard?.writeText(coords)}
-                        style={{ border: "none", background: "transparent", color: c.primary || "#0d6efd", cursor: "pointer", fontSize: 12 }}
-                      >
-                        copiar
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <div style={{ fontSize: 11, opacity: 0.6, marginTop: 8 }}>
-                Arrastre el marcador o haga clic en el mapa para corregir la ubicación.
+                <div style={{ fontSize: 14, color: c.textSecondary, marginTop: 4 }}>
+                  {seleccion ? coords : "Busque o haga clic en el mapa"}
+                </div>
               </div>
             </div>
-          ) : (
-            <div style={{ ...card, fontSize: 13, opacity: 0.8 }}>
-              Busque una dirección o haga clic en el mapa para ver provincia, cantón, parroquia y comunidad.
-            </div>
-          )}
+
+            {seleccion && (
+              <>
+                {precision && (
+                  <div style={{ fontSize: 12, marginTop: 12, color: COLOR_PRECISION[precision.nivel], fontWeight: 600 }}>
+                    Precisión {precision.nivel}: {precision.texto}
+                  </div>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
+                  {filas.map((f) => (
+                    <div key={f.label} title={`OSM: ${f.origen}`}>
+                      <div style={{ fontSize: 14, color: c.textSecondary }}>{f.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 600 }}>{f.valor}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+                  <button type="button" style={boton} onClick={() => navigator.clipboard?.writeText(coords)}>
+                    <IconUI name="FaRegCopy" size={16} /> Copiar
+                  </button>
+                  <button type="button" style={boton} onClick={limpiar}>
+                    <IconUI name="FaXmark" size={16} /> Limpiar
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: c.textSecondary, marginTop: 12 }}>
+                  Arrastre el marcador o haga clic en el mapa para corregir la ubicación.
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
