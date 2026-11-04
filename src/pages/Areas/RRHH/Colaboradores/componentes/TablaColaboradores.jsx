@@ -104,9 +104,18 @@ const InsigniaPeriodoPrueba = ({ fechaFinPeriodoPrueba }) => {
 /**
  * @param {Object} props
  * @param {boolean} [props.puedeGestionar] Con false: sin columna Estado (todos son
- *   activos) y sin fila clicable, porque no hay ficha que abrir.
+ *   activos), porque esa info es de gestión completa.
+ * @param {boolean} [props.permiteAbrir] Si la fila es clicable. Por defecto sigue a
+ *   `puedeGestionar`, pero quien solo tiene el permiso "dotacion" también puede
+ *   abrir la fila (para ir directo a esa pestaña) aunque no vea las columnas de
+ *   gestión.
  */
-export const TablaColaboradores = ({ filas = [], onAbrir, puedeGestionar = true }) => (
+export const TablaColaboradores = ({
+  filas = [],
+  onAbrir,
+  puedeGestionar = true,
+  permiteAbrir = puedeGestionar,
+}) => (
   <TablaScroll>
     <TablaResponsiva>
       <thead>
@@ -122,8 +131,8 @@ export const TablaColaboradores = ({ filas = [], onAbrir, puedeGestionar = true 
         {filas.map((fila) => (
           <Fila
             key={fila.id}
-            $clickable={puedeGestionar}
-            onClick={puedeGestionar ? () => onAbrir?.(fila) : undefined}
+            $clickable={permiteAbrir}
+            onClick={permiteAbrir ? () => onAbrir?.(fila) : undefined}
           >
             <Td data-etiqueta="Apellidos y nombres">
               <Nombre>{fila.nombresCompletos}</Nombre>

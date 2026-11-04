@@ -57,7 +57,7 @@ export const ColListado = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const { puedeGestionar: puedeGestionarSegunContexto } = usePermisosColaboradores();
+  const { puedeGestionar: puedeGestionarSegunContexto, puedeDotacion } = usePermisosColaboradores();
   const [modalCargaMasivaAbierto, setModalCargaMasivaAbierto] = useState(false);
 
   const q = params.get("q") ?? "";
@@ -185,7 +185,14 @@ export const ColListado = () => {
         <TablaColaboradores
           filas={datos.items}
           puedeGestionar={puedeGestionar}
-          onAbrir={(fila) => navigate(`${RUTA_BASE}/empleados/${fila.id}`)}
+          permiteAbrir={puedeGestionar || puedeDotacion}
+          onAbrir={(fila) =>
+            navigate(
+              puedeGestionar
+                ? `${RUTA_BASE}/empleados/${fila.id}`
+                : `${RUTA_BASE}/empleados/${fila.id}/dotacion`,
+            )
+          }
         />
         <PiePaginacion>
           <span>
