@@ -131,6 +131,17 @@ export const DateSelectorUI = ({
     onChange?.(date);
   };
 
+  // Firefox no tiene ::-webkit-calendar-picker-indicator: al hacer clic sobre el input transparente solo se enfocaba un segmento
+  // de la fecha y el calendario no se abría. showPicker() lo abre desde cualquier punto (Firefox 101+, Chrome 99+, Safari 16+).
+  const abrirCalendario = (e) => {
+    if (disabled) return;
+    try {
+      e.currentTarget.showPicker?.();
+    } catch {
+      // ya abierto o navegador sin soporte: el input sigue funcionando de forma nativa
+    }
+  };
+
   const { theme } = useTheme();
 
   return (
@@ -141,6 +152,7 @@ export const DateSelectorUI = ({
           type="date"
           value={formatDateToInput(fecha)}
           onChange={handleChange}
+          onClick={abrirCalendario}
           disabled={disabled}
           min={min ? formatDateToInput(min) : undefined}
           max={max ? formatDateToInput(max) : undefined}
