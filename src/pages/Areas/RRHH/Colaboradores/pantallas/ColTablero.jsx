@@ -164,16 +164,19 @@ const CabeceraBanner = styled(Acciones)`
  * Banner colapsable: una línea con el total y, al desplegar, un renglón por
  * colaborador. Arranca cerrado para no empujar el resto del tablero cuando
  * hay muchos pendientes.
+ *
+ * `abierto`/`onCambiarAbierto` lo vuelven controlado: "Revisar ›" de la
+ * tarjeta de "Requiere atención" necesita poder abrirlo desde afuera además
+ * de desplazar la pantalla hasta acá.
  */
-const BannerExpandible = ({ id, titulo, icono, tono, cantidad, children }) => {
+const BannerExpandible = ({ id, titulo, icono, tono, cantidad, abierto, onCambiarAbierto, children }) => {
   const { theme } = useTheme();
-  const [abierto, setAbierto] = useState(false);
 
   if (!cantidad) return null;
 
   return (
     <Tarjeta id={id}>
-      <CabeceraBanner onClick={() => setAbierto((previo) => !previo)}>
+      <CabeceraBanner onClick={() => onCambiarAbierto((previo) => !previo)}>
         <Acciones>
           <IconUI name={icono} size={18} color={theme?.colors?.[tono] ?? theme?.colors?.warning} />
           <TituloTarjeta style={{ margin: 0 }}>{titulo}</TituloTarjeta>
@@ -281,6 +284,8 @@ export const ColTablero = () => {
   const [busqueda, setBusqueda] = useState("");
   const [filtroMovimiento, setFiltroMovimiento] = useState("todos");
   const [movimientosAbiertos, setMovimientosAbiertos] = useState(false);
+  const [pazSalvoAbierto, setPazSalvoAbierto] = useState(false);
+  const [documentosAbierto, setDocumentosAbierto] = useState(false);
 
   const { datos, cargando, error, recargar } = useConsulta(
     ({ signal }) => ObtenerResumenColaboradores({ signal }),
@@ -310,6 +315,17 @@ export const ColTablero = () => {
     ({ signal }) => (puedeGestionar ? ObtenerDocumentosPendientesPorTipo({ signal }) : Promise.resolve([])),
     [puedeGestionar],
   );
+
+  /**
+   * "Revisar ›" de "Requiere atención" lleva hasta la sección de la columna
+   * lateral que ya lista a cada colaborador de esa categoría (con link a su
+   * ficha). Es scroll puro, sin pasar por el router: un <Link to="#..."> deja
+   * el hash pegado en la URL sin aportar nada navegable de verdad.
+   */
+  const revisar = (id, abrir) => {
+    abrir?.(true);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const movimientosFiltrados = useMemo(() => {
     const lista = datos?.movimientosRecientes ?? [];
@@ -417,7 +433,7 @@ export const ColTablero = () => {
             <TituloTarjeta>Requiere atención</TituloTarjeta>
             <RejillaAtencion>
               {prueba.length > 0 && (
-                <EnlaceAtencion to="#prueba" $tono="aviso">
+                <EnlaceAtencion as="button" type="button" onClick={() => revisar("prueba")} $tono="aviso">
                   <CirculoIcono $tono="aviso" $tamano={44}>
                     <IconUI name="FaClock" size={20} color={theme?.colors?.warningDark ?? theme?.colors?.warning} />
                   </CirculoIcono>
@@ -437,7 +453,12 @@ export const ColTablero = () => {
                 </EnlaceAtencion>
               )}
               {pazSalvo.length > 0 && (
-                <EnlaceAtencion to="#pazysalvo" $tono="aviso">
+                <EnlaceAtencion
+                  as="button"
+                  type="button"
+                  onClick={() => revisar("pazysalvo", setPazSalvoAbierto)}
+                  $tono="aviso"
+                >
                   <CirculoIcono $tono="aviso" $tamano={44}>
                     <IconUI
                       name="FaClipboardCheck"
@@ -455,7 +476,12 @@ export const ColTablero = () => {
                 </EnlaceAtencion>
               )}
               {documentos.length > 0 && (
-                <EnlaceAtencion to="#documentos" $tono="info">
+                <EnlaceAtencion
+                  as="button"
+                  type="button"
+                  onClick={() => revisar("documentos", setDocumentosAbierto)}
+                  $tono="info"
+                >
                   <CirculoIcono $tono="info" $tamano={44}>
                     <IconUI name="FaFileCircleExclamation" size={20} color={theme?.colors?.info} />
                   </CirculoIcono>
@@ -645,6 +671,8 @@ export const ColTablero = () => {
                 icono="FaClipboardCheck"
                 tono="aviso"
                 cantidad={pazSalvo.length}
+                abierto={pazSalvoAbierto}
+                onCambiarAbierto={setPazSalvoAbierto}
               >
                 {pazSalvo.map((fila) => (
                   <FilaPendiente
@@ -670,6 +698,8 @@ export const ColTablero = () => {
                 icono="FaFileCircleExclamation"
                 tono="info"
                 cantidad={documentos.length}
+                abierto={documentosAbierto}
+                onCambiarAbierto={setDocumentosAbierto}
               >
                 {documentos.map((fila) => (
                   <FilaPendiente

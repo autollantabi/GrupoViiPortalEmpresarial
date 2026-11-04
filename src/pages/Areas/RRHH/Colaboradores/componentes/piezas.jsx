@@ -228,16 +228,25 @@ export const AvatarIniciales = styled.div`
 `;
 
 /**
- * Tarjeta-enlace de "Requiere atención": icono, título, detalle y chevron sobre
- * un fondo tintado del tono. Mismo cálculo de contraste que Badge (14 %/35 %).
+ * Tarjeta de "Requiere atención": icono, título, detalle y chevron sobre un
+ * fondo tintado del tono. Mismo cálculo de contraste que Badge (14 %/35 %).
+ *
+ * Es `styled(Link)` para los casos en que de verdad navega a otra ruta, pero
+ * también se renderiza con `as="button"` cuando lo que hace es desplazar la
+ * pantalla a una sección propia (ColTablero.jsx): de ahí el reset de fuente,
+ * alineación y ancho, que a un <Link> no le hace falta pero a un <button> sí.
  */
 export const EnlaceAtencion = styled(Link)`
   display: flex;
   align-items: center;
+  width: 100%;
   gap: 14px;
   padding: 14px 16px;
   border-radius: 12px;
   text-decoration: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
   color: ${({ theme }) => theme?.colors?.text};
   background: ${({ theme, $tono }) => hexToRGBA({ hex: colorDeTono(theme, $tono), alpha: 0.1 })};
   border: 1px solid ${({ theme, $tono }) =>
