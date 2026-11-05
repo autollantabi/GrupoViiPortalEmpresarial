@@ -93,14 +93,17 @@ export const nombreArchivoExcel = (desde, hasta, extension = "xlsx") =>
  * Pide al servidor el archivo GUIAS DE REMISIÓN (.xlsx) del rango y las empresas: la plantilla con las hojas DATOS MAESTROS,
  * LAAR y CONSOLIDADO_FINAL llenas. Las tablas dinámicas las actualiza Excel en la máquina del usuario.
  *
- * @param {{desde: string, hasta: string, empresas: string[]}} params - fechas YYYY-MM-DD inclusivas
+ * @param {{desde: string, hasta: string, empresas: string[], incluirEnviadas?: boolean}} params - fechas YYYY-MM-DD inclusivas;
+ *   con incluirEnviadas el archivo trae las guías enviadas y las no enviadas ("descargar todo"), si no solo las pendientes de envío
  * @returns {Promise<{blob: Blob, nombreArchivo: string}>}
  * @throws Error de axios; el mensaje del servidor queda en error.response.data.message
  */
-export const DescargarExcelGuiasRemision = async ({ desde, hasta, empresas }) => {
+export const DescargarExcelGuiasRemision = async ({ desde, hasta, empresas, incluirEnviadas = false }) => {
   try {
+    const params = { desde, hasta, empresas: empresas.join(",") };
+    if (incluirEnviadas) params.incluirEnviadas = "true";
     const res = await axiosInstanceNew.get("/guias-remision/exportar-excel", {
-      params: { desde, hasta, empresas: empresas.join(",") },
+      params,
       responseType: "blob",
       timeout: 15 * 60 * 1000,
       // El interceptor de axios reintenta ante timeout: aquí no, relanzaría la generación

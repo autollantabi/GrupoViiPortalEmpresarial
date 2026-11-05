@@ -4,7 +4,8 @@
  * Pantalla del recurso "contabilidad.guiasremision". Qué hace:
  *   - Lista paginada de guías (filtros y paginación se resuelven en el servidor; ver guiasRemisionService.js).
  *   - Detalle de una guía en un modal; el supervisor puede marcarla como enviada o devolverla a NO enviada.
- *   - Las guías canceladas (hgr_cancelada) se listan con Estado documento CANCELADO y sin estado de envío.
+ *   - Las guías canceladas (hgr_cancelada) se listan con Estado documento CANCELADO y sin estado de envío; el supervisor con permiso
+ *     "editar" sí ve y puede cambiar su estado de envío en el detalle (control total del estado enviado).
  *   - "Descargar Excel": genera el Excel de guías con estado documento Aprobado o Enviado, más las canceladas, pendientes de envío (hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL).
  *   - "Sincronizar" (supervisor con permiso "editar" en usuarios-rol-contexto): ejecuta en el servidor la misma sincronización
  *     de guías que corre cada hora y, al terminar, vuelve a consultar el listado.
@@ -439,7 +440,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
   // Descarga del Excel de guías de remisión: su propio rango y empresas (arranca con los filtros de la tabla)
   const [excelAbierto, setExcelAbierto] = useState(false);
-  const [excelForm, setExcelForm] = useState({ desde: null, hasta: null, empresas: [] });
+  const [excelForm, setExcelForm] = useState({ desde: null, hasta: null, empresas: [], incluirEnviadas: false });
   const [generandoExcel, setGenerandoExcel] = useState(false);
 
   // Marcar como enviadas las guías de un Excel: primero se valida el archivo y siempre se pide confirmación
@@ -629,7 +630,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
   // Marca la guía como enviada o como NO enviada según la acción confirmada (solo supervisor; el servidor lo vuelve a validar)
   const confirmarCambioEnvio = async () => {
-    if (!puedeMarcarEnviado || !guiaSeleccionada || guiaSeleccionada.cancelada || enviando) return;
+    if (!puedeMarcarEnviado || !guiaSeleccionada || (guiaSeleccionada.cancelada && !puedeSincronizar) || enviando) return;
     const marcarEnviada = accionEnvio === "enviar";
     setEnviando(true);
     try {
@@ -664,6 +665,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       desde: consulta.desde,
       hasta: consulta.hasta,
       empresas: actual ? [actual.value] : empresasExcel.map((o) => o.value),
+      incluirEnviadas: false,
     });
     setExcelAbierto(true);
   };
@@ -700,6 +702,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         desde: formatFechaISO(excelForm.desde),
         hasta: formatFechaISO(excelForm.hasta),
         empresas: excelForm.empresas,
+        incluirEnviadas: excelForm.incluirEnviadas,
       });
 
       const url = window.URL.createObjectURL(blob);
@@ -1136,8 +1139,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         {guiaSeleccionada && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
-            {/* Solo supervisor y guías no canceladas: marcar como enviada, o devolverla a NO enviada si ya lo estaba */}
-            {puedeMarcarEnviado && !guiaSeleccionada.cancelada && (
+            {/* Supervisor: marcar como enviada, o devolverla a NO enviada si ya lo estaba. Las canceladas solo con permiso de editar */}
+            {puedeMarcarEnviado && (!guiaSeleccionada.cancelada || puedeSincronizar) && (
               <div style={{ display: "flex", justifyContent: "end" }}>
                 {guiaSeleccionada.enviado ? (
                   <ButtonUI
@@ -1261,8 +1264,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                     )}
                   </div>
                 </CabeceraItem>
-                {/* Las guías canceladas no tienen estado de envío */}
-                {!guiaSeleccionada.cancelada && (
+                {/* Las guías canceladas no muestran estado de envío, salvo al supervisor con permiso de editar (que lo administra) */}
+                {(!guiaSeleccionada.cancelada || puedeSincronizar) && (
                   <CabeceraItem>
                     <TextUI size="12px" color={theme.colors.textSecondary}>
                       Estado de envío
@@ -1376,10 +1379,19 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             </div>
           </FiltroGrupo>
 
+          {/* Descargar todo: sin este check el Excel solo trae las guías pendientes de envío */}
+          <CheckboxUI
+            id="excel-incluir-enviadas"
+            label="Descargar enviadas y no enviadas"
+            checked={excelForm.incluirEnviadas}
+            onChange={(_, marcada) => setExcelForm((prev) => ({ ...prev, incluirEnviadas: marcada }))}
+            disabled={generandoExcel}
+          />
+
           <TextUI size="12px" color={theme.colors.textSecondary}>
             {generandoExcel
               ? "Generando el archivo, puede tardar unos segundos. No cierre esta ventana."
-              : "Incluye las guías con estado Aprobado o Enviado y pendientes de envío del rango, más las canceladas (estas últimas solo en DATOS MAESTROS, con \"SI\" en la columna Cancelada). Hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL. Las “ULT GUIA” son las máximas del rango descargado: con un rango corto o una sola empresa no representan la última guía real de cada serie. Al abrir el archivo, habilite el contenido y use Datos > Actualizar todo para actualizar las tablas dinámicas."}
+              : "Incluye las guías con estado Aprobado o Enviado del rango, más las canceladas (estas últimas solo en DATOS MAESTROS, con \"SI\" en la columna Cancelada). Por defecto solo las pendientes de envío; con \"Descargar enviadas y no enviadas\" también las ya enviadas. Hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL. Las “ULT GUIA” son las máximas del rango descargado: con un rango corto o una sola empresa no representan la última guía real de cada serie. Al abrir el archivo, habilite el contenido y use Datos > Actualizar todo para actualizar las tablas dinámicas."}
           </TextUI>
         </div>
       </ModalUI>
