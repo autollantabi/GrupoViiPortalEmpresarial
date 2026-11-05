@@ -1,25 +1,46 @@
-import axios from "axios";
-import { GEOCODER_URL, GEOCODER_COUNTRY } from "config/env";
+import { axiosInstanceNew } from "config/axiosConfig";
 
-// Cliente propio: el geocodificador es externo al portal, no lleva el token de sesión.
-const geocoder = axios.create({ baseURL: GEOCODER_URL, timeout: 15000 });
+// Las consultas de mapa pasan por el backend del portal (/geocodificacion), que habla con el
+// Nominatim propio: misma sesión, mismo dominio (sin CORS) y caché compartida entre usuarios.
 
-const COMMON = { format: "jsonv2", addressdetails: 1, namedetails: 0, "accept-language": "es" };
+// Caché en memoria de la sesión: repetir una consulta (o volver a una anterior) es instantáneo.
+const cache = new Map();
+const conCache = async (clave, pedir) => {
+  if (cache.has(clave)) return cache.get(clave);
+  const datos = await pedir();
+  if (cache.size > 200) cache.delete(cache.keys().next().value);
+  cache.set(clave, datos);
+  return datos;
+};
 
 /** Busca direcciones por texto libre. Devuelve hasta `limit` candidatos ordenados por relevancia. */
-export const buscarDireccion = async (texto, { limit = 6, signal } = {}) => {
-  const res = await geocoder.get("/search", {
-    params: { ...COMMON, q: texto, limit, countrycodes: GEOCODER_COUNTRY },
-    signal,
+export const buscarDireccion = async (texto, { limit = 6, signal } = {}) =>
+  conCache(`s|${limit}|${texto.toLowerCase()}`, async () => {
+    const res = await axiosInstanceNew.get("/geocodificacion/search", { params: { q: texto, limit }, signal });
+    return res.data.data;
   });
-  return res.data;
-};
 
 /** Geocodificación inversa de un punto. zoom 18 = nivel edificio/casa. */
-export const ubicarPunto = async (lat, lon, { zoom = 18, signal } = {}) => {
-  const res = await geocoder.get("/reverse", {
-    params: { ...COMMON, lat, lon, zoom },
-    signal,
+export const ubicarPunto = async (lat, lon, { zoom = 18, signal } = {}) =>
+  conCache(`r|${zoom}|${Number(lat).toFixed(6)}|${Number(lon).toFixed(6)}`, async () => {
+    const res = await axiosInstanceNew.get("/geocodificacion/reverse", { params: { lat, lon, zoom }, signal });
+    return res.data.data;
   });
-  return res.data;
-};
+
+/**
+ * Cruces de dos calles. El backend los calcula sobre la geometría completa de OSM, en todo el país
+ * (la búsqueda de texto solo devuelve fragmentos de cada calle). `centro` = [lat, lon] del mapa:
+ * los cruces más cercanos salen primero.
+ */
+export const buscarCruces = async (calleA, calleB, { ciudad, centro, signal } = {}) =>
+  conCache(`x|${calleA.toLowerCase()}|${calleB.toLowerCase()}|${(ciudad || "").toLowerCase()}`, async () => {
+    const res = await axiosInstanceNew.get("/geocodificacion/cruces", {
+      params: {
+        calleA, calleB,
+        ...(ciudad ? { ciudad } : {}),
+        ...(centro ? { lat: centro[0], lon: centro[1] } : {}),
+      },
+      signal,
+    });
+    return res.data.data;
+  });

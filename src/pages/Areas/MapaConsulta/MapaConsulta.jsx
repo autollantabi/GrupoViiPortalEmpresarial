@@ -3,8 +3,9 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useTheme } from "context/ThemeContext";
 import { MAP_TILES_URL } from "config/env";
-import { buscarDireccion, ubicarPunto } from "services/geocodingService";
+import { ubicarPunto } from "services/geocodingService";
 import { IconUI } from "components/UI/Components/IconsUI";
+import { consultarLugares } from "./consultarLugares";
 import { desglosarDireccion, evaluarPrecision } from "./desglosarDireccion";
 
 // Centro inicial: Ecuador
@@ -33,6 +34,9 @@ export const MapaConsulta = () => {
   const [candidatos, setCandidatos] = useState([]);
   const [seleccion, setSeleccion] = useState(null);
   const [cargando, setCargando] = useState(false);
+  const [sugerir, setSugerir] = useState(false); // true solo mientras el usuario escribe
+  const [mostrarLista, setMostrarLista] = useState(false);
+  const sugerenciasRef = useRef(null);
   const [error, setError] = useState("");
 
   const colocarMarcador = useCallback((lat, lon, zoom) => {
@@ -91,25 +95,67 @@ export const MapaConsulta = () => {
     };
   }, [refinarPunto]);
 
+  // Centro del mapa, solo si está acercado (a nivel país no orienta nada)
+  const centroActual = () => {
+    const m = mapaRef.current;
+    if (!m || m.getZoom() < 11) return undefined;
+    const c = m.getCenter();
+    return [c.lat, c.lng];
+  };
+
+  const sinResultados = (esCruce) => {
+    // No dejar la tarjeta/marcador anterior como si fueran la respuesta
+    marcadorRef.current?.remove();
+    marcadorRef.current = null;
+    setSeleccion(null);
+    setError(
+      esCruce
+        ? "No se encontró ese cruce en OSM. Revise los nombres de las calles (pueden estar escritos distinto, ej. \"Río Amazonas\") o agregue la ciudad."
+        : "Sin resultados. Pruebe con calle y ciudad, o haga clic en el mapa."
+    );
+  };
+
+  // Sugerencias mientras se escribe: muestran los lugares posibles (con ciudad y provincia)
+  // para que el usuario elija el correcto, en vez de asumir el primero.
+  useEffect(() => {
+    const q = texto.trim();
+    if (!sugerir || q.length < 4) return undefined;
+    const espera = setTimeout(async () => {
+      sugerenciasRef.current?.abort();
+      sugerenciasRef.current = new AbortController();
+      try {
+        const { candidatos: res } = await consultarLugares(q, { signal: sugerenciasRef.current.signal, centro: centroActual() });
+        setCandidatos(res);
+        setMostrarLista(true);
+      } catch { /* una sugerencia fallida no muestra error */ }
+    }, 700);
+    return () => clearTimeout(espera);
+  }, [texto, sugerir]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const buscar = async (e) => {
     e?.preventDefault();
     const q = texto.trim();
     if (q.length < 3) return;
+    sugerenciasRef.current?.abort();
     abortRef.current?.abort();
     abortRef.current = new AbortController();
+    setSugerir(false);
+    setMostrarLista(false);
     setCargando(true);
     setError("");
-    setCandidatos([]);
     try {
-      const res = await buscarDireccion(q, { signal: abortRef.current.signal });
+      const { candidatos: res, esCruce } = await consultarLugares(q, { signal: abortRef.current.signal, centro: centroActual() });
       setCandidatos(res);
-      if (res.length === 0) {
-        setError("Sin resultados. Pruebe con calle y ciudad, o haga clic en el mapa.");
-      } else {
-        elegir(res[0]);
-      }
+      if (res.length === 0) sinResultados(esCruce);
+      else elegir(res[0]);
     } catch (err) {
-      if (err?.code !== "ERR_CANCELED") setError("No se pudo consultar el servicio de geocodificación.");
+      if (err?.code !== "ERR_CANCELED") {
+        setError(
+          err?.response?.status === 429
+            ? "El servicio de mapas está limitando las consultas. Espere un minuto e intente de nuevo."
+            : "No se pudo consultar el servicio de geocodificación."
+        );
+      }
     } finally {
       setCargando(false);
     }
@@ -119,7 +165,7 @@ export const MapaConsulta = () => {
     const lat = parseFloat(r.lat);
     const lon = parseFloat(r.lon);
     setSeleccion({ ...r, lat, lon });
-    // Zoom acorde a la precisión: casa/calle muy cerca, zonas más lejos
+    // El marcador se mueve de inmediato; no espera a ninguna consulta
     const nivel = evaluarPrecision(r)?.nivel;
     colocarMarcador(lat, lon, nivel === "alta" ? 19 : nivel === "media" ? 17 : 14);
   };
@@ -159,14 +205,33 @@ export const MapaConsulta = () => {
     <div style={{ display: "flex", flexDirection: "column", gap: 20, width: "100%" }}>
       <style>{`.leaflet-control-attribution{background:transparent!important;font-size:10px;opacity:.7}`}</style>
       <form onSubmit={buscar} style={{ display: "flex", gap: 14 }}>
-        <div style={{ ...tarjeta, flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 14, borderColor: primario }}>
+        <div style={{ ...tarjeta, flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 14, borderColor: primario, position: "relative", zIndex: 5 }}>
           <IconUI name="FaMagnifyingGlass" size={16} color={c.textSecondary} />
           <input
             value={texto}
-            onChange={(e) => setTexto(e.target.value)}
+            onChange={(e) => { setTexto(e.target.value); setSugerir(true); }}
+            onFocus={() => candidatos.length > 0 && sugerir && setMostrarLista(true)}
+            onBlur={() => setMostrarLista(false)}
             placeholder="Ingrese una dirección o haga clic en el mapa"
             style={{ flex: 1, border: "none", outline: "none", background: "transparent", color: "inherit", fontSize: 16 }}
           />
+          {mostrarLista && candidatos.length > 0 && (
+            <div style={{ ...tarjeta, position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, padding: 6, borderRadius: 14, maxHeight: 320, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,.25)" }}>
+              {candidatos.map((r) => (
+                <div
+                  key={r.place_id}
+                  // onMouseDown: se ejecuta antes del blur del input, que cerraría la lista
+                  onMouseDown={() => { setTexto(r.display_name); setSugerir(false); setMostrarLista(false); elegir(r); }}
+                  style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontSize: 14 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = `${primario}1f`)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <IconUI name={r.category === "interseccion" ? "FaRoadBarrier" : "FaLocationDot"} size={14} color={primario} />
+                  <span>{r.display_name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <button
           type="submit"
@@ -185,7 +250,7 @@ export const MapaConsulta = () => {
         />
 
         <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: 16 }}>
-          {candidatos.length > 1 && (
+          {candidatos.length > 1 && !mostrarLista && (
             <div style={{ ...tarjeta, padding: 14 }}>
               <strong style={{ fontSize: 13 }}>Coincidencias</strong>
               {candidatos.map((r) => (
