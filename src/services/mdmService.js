@@ -822,3 +822,39 @@ export const getArchivoDocumentoClienteMDM = async (id, clave, tipoMime) => {
         throw new Error(mensaje || "No se pudo abrir el documento");
     }
 };
+
+/**
+ * Divisiones de una empresa (core.dim_division: H Herramientas, L Lubricantes, M Motos, N Neumáticos).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
+ */
+export const getDivisionesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/divisiones/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getDivisionesMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Canales de una empresa (core.dim_opciones_canal: B2B, B2C, KKA, MAY).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
+ */
+export const getCanalesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/canales/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCanalesMDM:", error);
+        throw error;
+    }
+};
