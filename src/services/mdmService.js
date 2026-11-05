@@ -822,3 +822,58 @@ export const getArchivoDocumentoClienteMDM = async (id, clave, tipoMime) => {
         throw new Error(mensaje || "No se pudo abrir el documento");
     }
 };
+
+/**
+ * Divisiones de una empresa (core.dim_division: H Herramientas, L Lubricantes, M Motos, N Neumáticos).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
+ */
+export const getDivisionesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/divisiones/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getDivisionesMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Segmentaciones de cliente de una empresa (core.dim_segmentacion_cliente). Cada una depende de un
+ * canal y una división: la pantalla filtra por las que tenga elegidas el cliente.
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string, CANAL: string, DIVISION: string}>>}
+ */
+export const getSegmentacionesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/segmentaciones/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getSegmentacionesMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Canales de una empresa (core.dim_opciones_canal: B2B, B2C, KKA, MAY).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
+ */
+export const getCanalesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/canales/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCanalesMDM:", error);
+        throw error;
+    }
+};
