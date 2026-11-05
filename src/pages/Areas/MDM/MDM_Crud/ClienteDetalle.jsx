@@ -160,7 +160,7 @@ const TABS = [
   },
   { id: "comentarios", label: "Comentarios" },
   { id: "cotizaciones", label: "Cotizaciones" },
-  { id: "documentos", label: "Documentos" },
+  { id: "anexos", label: "Anexos" },
 ];
 
 /* Dónde vive cada campo, para poder llevar al usuario a la pestaña correcta
@@ -2440,7 +2440,7 @@ function ClienteDetalle() {
     if (tabActual.id === "condiciones") return renderCondiciones();
     if (tabActual.id === "comentarios") return renderComentarios();
     if (tabActual.id === "cotizaciones") return renderCotizaciones();
-    if (tabActual.id === "documentos") return <DocumentosCliente clienteId={id} />;
+    if (tabActual.id === "anexos") return <DocumentosCliente clienteId={id} />;
 
     if (tabActual.subTabs?.length) {
       const sub = tabActual.subTabs.find((s) => s.id === subTabActual);
@@ -2590,7 +2590,7 @@ function ClienteDetalle() {
 
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
           <BarraTabs theme={theme}>
-            {TABS.filter((tab) => !esNuevo || (tab.id !== "cotizaciones" && tab.id !== "documentos")).map((tab) => (
+            {TABS.filter((tab) => !esNuevo || (tab.id !== "cotizaciones" && tab.id !== "anexos")).map((tab) => (
               <Tab
                 key={tab.id}
                 theme={theme}
