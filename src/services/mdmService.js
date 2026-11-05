@@ -842,6 +842,25 @@ export const getDivisionesMDM = async (empresa) => {
 };
 
 /**
+ * Segmentaciones de cliente de una empresa (core.dim_segmentacion_cliente). Cada una depende de un
+ * canal y una división: la pantalla filtra por las que tenga elegidas el cliente.
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string, CANAL: string, DIVISION: string}>>}
+ */
+export const getSegmentacionesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/segmentaciones/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getSegmentacionesMDM:", error);
+        throw error;
+    }
+};
+
+/**
  * Canales de una empresa (core.dim_opciones_canal: B2B, B2C, KKA, MAY).
  * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
  * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}

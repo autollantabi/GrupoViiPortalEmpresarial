@@ -21,6 +21,7 @@ import {
   getCondicionesPagoMDM,
   getCanalesMDM,
   getDivisionesMDM,
+  getSegmentacionesMDM,
   getCotizacionesCliente,
   getRutasMDM,
   getVendedoresMDM,
@@ -177,6 +178,7 @@ const UBICACION_CAMPO = {
   CONDICION_PAGO_SERIAL: { tab: "condiciones" },
   DIVISION: { tab: "condiciones" },
   CANAL: { tab: "condiciones" },
+  SEGMENTACION_CLIENTE: { tab: "condiciones" },
   DESCUENTO: { tab: "condiciones" },
   RUTA: { tab: "general" },
   TELEFONO1: { tab: "general" },
@@ -926,6 +928,10 @@ function ClienteDetalle() {
   /* Canales de la empresa del cliente (B2B, B2C, KKA, MAY), con la misma convención. */
   const [canales, setCanales] = useState(null);
 
+  /* Segmentaciones de la empresa (H-B2C-04...), todas; el selector muestra solo las del canal y
+     la división elegidos. Misma convención: null = cargando. */
+  const [segmentaciones, setSegmentaciones] = useState(null);
+
   /* Rutas activas de la empresa del cliente, con la misma convención. */
   const [rutas, setRutas] = useState(null);
 
@@ -976,6 +982,7 @@ function ClienteDetalle() {
       CALIFICACION_SCORE_SERIAL: data.CALIFICACION_SCORE_SERIAL ?? null,
       DIVISION: data.DIVISION ?? null,
       CANAL: data.CANAL ?? null,
+      SEGMENTACION_CLIENTE: data.SEGMENTACION_CLIENTE ?? null,
       CUPO: String(data.CUPO ?? 0),
       DESCUENTO: Number(data.DESCUENTO) > 0 ? String(data.DESCUENTO) : "",
       // Localización Ecuador / ATS
@@ -1083,6 +1090,22 @@ function ClienteDetalle() {
     setForm((actual) => ({ ...actual, [campo]: valor }));
   };
 
+  /* Cambiar el canal o la división: la segmentación elegida se limpia si deja de
+     corresponder a la nueva combinación (las opciones dependen de los dos). */
+  const cambiarCanalODivision = (campo, valor) => {
+    setForm((actual) => {
+      const siguiente = { ...actual, [campo]: valor };
+      const division = DIVISION_FIJA[cliente?.EMPRESA] ?? siguiente.DIVISION ?? null;
+      const vigente = (segmentaciones || []).some(
+        (s) =>
+          s.CODIGO === siguiente.SEGMENTACION_CLIENTE &&
+          s.CANAL === siguiente.CANAL &&
+          s.DIVISION === division
+      );
+      return vigente ? siguiente : { ...siguiente, SEGMENTACION_CLIENTE: null };
+    });
+  };
+
   /**
    * Arma lo que se va a guardar: todo el texto recortado y las direcciones con
    * su identificador, que es lo que el backend usa para saber cuál actualizar.
@@ -1119,6 +1142,8 @@ function ClienteDetalle() {
       DIVISION: DIVISION_FIJA[cliente?.EMPRESA] ?? form.DIVISION ?? null,
       // null = sin canal: se puede guardar así, pero SAP lo exige para sincronizar
       CANAL: form.CANAL ?? null,
+      // null = sin segmentación; solo es válida la que corresponda al canal y la división
+      SEGMENTACION_CLIENTE: form.SEGMENTACION_CLIENTE ?? null,
       DESCUENTO: recortar(form.DESCUENTO),
       TIPO_SOCIO_NEGOCIO: form.TIPO_SOCIO_NEGOCIO,
       TIPO_CONTRIBUYENTE: form.TIPO_CONTRIBUYENTE,
@@ -1256,6 +1281,29 @@ function ClienteDetalle() {
         if (!cancelado) {
           setCanales([]);
           toast.error("No se pudo cargar el listado de canales");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
+
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setSegmentaciones(null);
+
+    (async () => {
+      try {
+        const data = await getSegmentacionesMDM(empresaCliente);
+        if (!cancelado) setSegmentaciones(data);
+      } catch (err) {
+        if (!cancelado) {
+          setSegmentaciones([]);
+          toast.error("No se pudo cargar el listado de segmentaciones");
         }
       }
     })();
@@ -2425,6 +2473,38 @@ function ClienteDetalle() {
     });
   }
 
+  /* Segmentación: depende del canal y la división elegidos; sin ambos no hay nada que
+     mostrar. Lo que se guarda es el code; la descripción se toma del maestro. */
+  const opcionesSegmentacion =
+    divisionActual && form?.CANAL
+      ? (segmentaciones || [])
+          .filter((s) => s.CANAL === form.CANAL && s.DIVISION === divisionActual)
+          .map((s) => ({ value: s.CODIGO, label: `${s.CODIGO} · ${s.NOMBRE}` }))
+      : [];
+
+  const segmentacionElegida = form?.SEGMENTACION_CLIENTE ?? null;
+
+  /* Si la segmentación guardada ya no está en el listado, se conserva visible */
+  if (
+    segmentaciones !== null &&
+    segmentacionElegida &&
+    opcionesSegmentacion.length > 0 &&
+    !opcionesSegmentacion.some((o) => o.value === segmentacionElegida)
+  ) {
+    opcionesSegmentacion.push({
+      value: segmentacionElegida,
+      label: `${segmentacionElegida} (no está en el listado)`,
+    });
+  }
+
+  const descripcionSegmentacion = segmentacionElegida
+    ? (segmentaciones || []).find((s) => s.CODIGO === segmentacionElegida)?.NOMBRE ??
+      (segmentacionElegida === cliente?.SEGMENTACION_CLIENTE
+        ? cliente?.SEGMENTACION_CLIENTE_DESCRIPCION
+        : null) ??
+      null
+    : null;
+
   const renderCondiciones = () => (
     <Seccion theme={theme}>
       <TituloSeccion theme={theme}>Condiciones de pago</TituloSeccion>
@@ -2479,7 +2559,7 @@ function ClienteDetalle() {
           valor={divisionActual}
           catalogo={opcionesDivision}
           soloLectura={divisionFija !== null}
-          onChange={(valor) => actualizarCampo("DIVISION", valor)}
+          onChange={(valor) => cambiarCanalODivision("DIVISION", valor)}
           placeholder={
             divisiones === null
               ? "Cargando divisiones..."
@@ -2493,7 +2573,7 @@ function ClienteDetalle() {
           label="Canal"
           valor={form.CANAL}
           catalogo={opcionesCanal}
-          onChange={(valor) => actualizarCampo("CANAL", valor)}
+          onChange={(valor) => cambiarCanalODivision("CANAL", valor)}
           placeholder={
             canales === null
               ? "Cargando canales..."
@@ -2501,6 +2581,27 @@ function ClienteDetalle() {
                 ? "Sin canales para esta empresa"
                 : "Seleccione un canal"
           }
+        />
+        <CampoCatalogo
+          theme={theme}
+          label="Segmentación cliente"
+          valor={segmentacionElegida}
+          catalogo={opcionesSegmentacion}
+          onChange={(valor) => actualizarCampo("SEGMENTACION_CLIENTE", valor)}
+          placeholder={
+            !divisionActual || !form.CANAL
+              ? "Seleccione primero división y canal"
+              : segmentaciones === null
+                ? "Cargando segmentaciones..."
+                : opcionesSegmentacion.length === 0
+                  ? "Sin segmentaciones para esta división y canal"
+                  : "Seleccione una segmentación"
+          }
+        />
+        <CampoFijo
+          theme={theme}
+          label="Segmentación cliente descripción"
+          valor={descripcionSegmentacion}
         />
       </Rejilla>
     </Seccion>
