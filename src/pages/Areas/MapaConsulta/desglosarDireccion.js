@@ -28,17 +28,18 @@ export const desglosarDireccion = (address = {}) => {
   return filas;
 };
 
-// Tipos de resultado que implican un punto exacto (no el centro de una zona)
-const TIPOS_EXACTOS = new Set(["house", "building", "residential", "yes", "apartments", "commercial", "industrial", "retail", "office"]);
-
 /** Estima qué tan preciso es el resultado para avisar al usuario. */
 export const evaluarPrecision = (r) => {
   if (!r) return null;
   const a = r.address || {};
-  if (a.house_number || (r.category === "building") || TIPOS_EXACTOS.has(r.type)) {
+  if (r.category === "interseccion") {
+    return { nivel: "alta", texto: "Cruce de dos calles calculado con su trazado" };
+  }
+  // Solo un edificio o un número de casa es un punto exacto; una calle (category "highway") no
+  if (a.house_number || r.category === "building") {
     return { nivel: "alta", texto: "Punto exacto (edificio / número de casa)" };
   }
-  if (a.road || r.addresstype === "road") {
+  if (a.road || r.category === "highway" || r.addresstype === "road") {
     return { nivel: "media", texto: "Calle: la posición es sobre la vía, no el predio" };
   }
   return { nivel: "baja", texto: "Aproximada: centro de la zona. Ajuste el punto en el mapa" };
