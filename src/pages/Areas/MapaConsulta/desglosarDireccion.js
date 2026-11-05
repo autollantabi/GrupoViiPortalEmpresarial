@@ -1,6 +1,5 @@
-// Convierte el `address` de Nominatim en la jerarquía territorial usada en Ecuador.
-// OSM no tiene un campo fijo por nivel: según el mapeo local, parroquia/cantón caen en
-// claves distintas, por eso se toma la primera disponible de cada lista.
+// Convierte el `address` que entrega el backend (claves estilo Nominatim, armadas desde Google) en la
+// jerarquía territorial de Ecuador. Se toma la primera clave disponible de cada nivel.
 const NIVELES = [
   { label: "Provincia", keys: ["state", "region"] },
   { label: "Cantón", keys: ["county", "municipality", "city"] },
@@ -33,7 +32,7 @@ export const evaluarPrecision = (r) => {
   if (!r) return null;
   const a = r.address || {};
   if (r.category === "interseccion") {
-    return { nivel: "alta", texto: "Cruce de dos calles calculado con su trazado" };
+    return { nivel: "alta", texto: "Cruce de dos calles" };
   }
   // Solo un edificio o un número de casa es un punto exacto; una calle (category "highway") no
   if (a.house_number || r.category === "building") {

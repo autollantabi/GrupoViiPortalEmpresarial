@@ -1,7 +1,7 @@
 import { axiosInstanceNew } from "config/axiosConfig";
 
 // Las consultas de mapa pasan por el backend del portal (/geocodificacion), que habla con el
-// Nominatim propio: misma sesión, mismo dominio (sin CORS) y caché compartida entre usuarios.
+// Google Maps: la clave queda en el backend, misma sesión, sin CORS y caché compartida entre usuarios.
 
 // Caché en memoria de la sesión: repetir una consulta (o volver a una anterior) es instantáneo.
 const cache = new Map();
@@ -28,8 +28,7 @@ export const ubicarPunto = async (lat, lon, { zoom = 18, signal } = {}) =>
   });
 
 /**
- * Cruces de dos calles. El backend los calcula sobre la geometría completa de OSM, en todo el país
- * (la búsqueda de texto solo devuelve fragmentos de cada calle). `centro` = [lat, lon] del mapa:
+ * Cruces de dos calles. El backend los resuelve con Google Maps. `centro` = [lat, lon] del mapa:
  * los cruces más cercanos salen primero.
  */
 export const buscarCruces = async (calleA, calleB, { ciudad, centro, signal } = {}) =>

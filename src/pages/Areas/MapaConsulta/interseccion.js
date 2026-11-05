@@ -1,5 +1,5 @@
 // Búsqueda por intersección ("Ayacucho y Bernardo Darquea, Riobamba"): aquí solo se interpreta el
-// texto; el cruce lo calcula el backend sobre la geometría completa de OSM.
+// texto; el cruce lo resuelve el backend con Google Maps.
 
 const SEPARADOR = /\s+(?:y|e|&|con|esquina(?:\s+con)?)\s+|\s*\/\s*/i;
 
