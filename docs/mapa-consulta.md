@@ -17,7 +17,7 @@ El navegador **no habla con OSM**: todo pasa por el backend (`/api/v1/geocodific
 Los cruces se consultan en la base porque la búsqueda de texto de Nominatim devuelve solo fragmentos de cada calle, no su geometría completa: calcular el cruce con eso falla según qué tramo devuelva. Con `lat&lon` (centro del mapa) los más cercanos salen primero. El backend cachea 10 min las respuestas, compartidas entre usuarios.
 
 ## Nominatim local (Ecuador)
-`docker compose -f docker/nominatim/docker-compose.yml up -d` — la primera vez descarga e importa (~10 min). Listo cuando `curl http://localhost:8080/status` responde `OK`. Importar con `IMPORT_STYLE: full` (con `address` muchas calles dejan de poder buscarse). `REPLICATION_URL` lo mantiene al día con las ediciones de OSM.
+En el **repo del backend**: `docker compose -f docker/nominatim/docker-compose.yml up -d` — la primera vez descarga e importa (~10 min). Listo cuando `curl http://localhost:8080/status` responde `OK`. Importar con `IMPORT_STYLE: full` (con `address` muchas calles dejan de poder buscarse). `REPLICATION_URL` lo mantiene al día con las ediciones de OSM.
 
 ## Variables
 Backend (`.env`, ver `.env.example`):
