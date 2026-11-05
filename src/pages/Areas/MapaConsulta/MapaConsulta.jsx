@@ -1,26 +1,27 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { useTheme } from "context/ThemeContext";
-import { MAP_TILES_URL } from "config/env";
 import { ubicarPunto } from "services/geocodingService";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { consultarLugares } from "./consultarLugares";
 import { desglosarDireccion, evaluarPrecision } from "./desglosarDireccion";
+import { cargarGoogleMaps } from "./cargarGoogleMaps";
 
 // Centro inicial: Ecuador
-const CENTRO_INICIAL = [-1.45, -78.4];
+const CENTRO_INICIAL = { lat: -1.45, lng: -78.4 };
 const ZOOM_INICIAL = 7;
 
 const COLOR_PRECISION = { alta: "#198754", media: "#fd7e14", baja: "#dc3545" };
 
-// divIcon: evita los problemas de rutas de imagen de los iconos por defecto de Leaflet con Vite
-const iconoMarcador = L.divIcon({
-  className: "",
-  html: '<div style="width:22px;height:22px;border-radius:50% 50% 50% 0;background:#fd4703;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);transform:rotate(-45deg)"></div>',
-  iconSize: [22, 22],
-  iconAnchor: [11, 22],
-});
+// Pin SVG propio: no depende de imágenes ni de un Map ID de Google
+const ICONO_PIN = {
+  path: "M12 0C5.9 0 1 4.9 1 11c0 8 11 21 11 21s11-13 11-21C23 4.9 18.1 0 12 0z",
+  fillColor: "#fd4703",
+  fillOpacity: 1,
+  strokeColor: "#fff",
+  strokeWeight: 2,
+  scale: 1,
+  anchor: { x: 12, y: 32 },
+};
 
 export const MapaConsulta = () => {
   const { theme } = useTheme();
@@ -42,16 +43,18 @@ export const MapaConsulta = () => {
   const colocarMarcador = useCallback((lat, lon, zoom) => {
     const mapa = mapaRef.current;
     if (!mapa) return;
+    const pos = { lat, lng: lon };
     if (!marcadorRef.current) {
-      marcadorRef.current = L.marker([lat, lon], { icon: iconoMarcador, draggable: true }).addTo(mapa);
-      marcadorRef.current.on("dragend", (e) => {
-        const p = e.target.getLatLng();
-        refinarPunto(p.lat, p.lng);
-      });
+      marcadorRef.current = new window.google.maps.Marker({ position: pos, map: mapa, draggable: true, icon: { ...ICONO_PIN, anchor: new window.google.maps.Point(12, 32) } });
+      marcadorRef.current.addListener("dragend", (e) => refinarPunto(e.latLng.lat(), e.latLng.lng()));
     } else {
-      marcadorRef.current.setLatLng([lat, lon]);
+      marcadorRef.current.setPosition(pos);
+      marcadorRef.current.setMap(mapa);
     }
-    if (zoom) mapa.setView([lat, lon], zoom);
+    if (zoom) {
+      mapa.setCenter(pos);
+      mapa.setZoom(zoom);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Consulta inversa de un punto (clic o arrastre): muestra lo que hay exactamente ahí
@@ -65,7 +68,7 @@ export const MapaConsulta = () => {
       if (r?.error) {
         setSeleccion({ lat, lon, display_name: "Sin dato de dirección en este punto", address: {}, esPuntoManual: true });
       } else {
-        // Se conserva la coordenada elegida por el usuario, no la del centro del objeto OSM
+        // Se conserva la coordenada elegida por el usuario, no la del centro del objeto encontrado
         setSeleccion({ ...r, lat, lon, esPuntoManual: true });
       }
       colocarMarcador(lat, lon);
@@ -78,18 +81,25 @@ export const MapaConsulta = () => {
 
   // Inicializa el mapa una sola vez
   useEffect(() => {
-    const mapa = L.map(contenedorRef.current, { center: CENTRO_INICIAL, zoom: ZOOM_INICIAL, zoomControl: false, attributionControl: false });
-    L.control.attribution({ prefix: false }).addTo(mapa);
-    L.control.zoom({ position: "topleft" }).addTo(mapa);
-    L.tileLayer(MAP_TILES_URL, {
-      maxZoom: 19,
-      attribution: "© OpenStreetMap",
-    }).addTo(mapa);
-    mapa.on("click", (e) => refinarPunto(e.latlng.lat, e.latlng.lng));
-    mapaRef.current = mapa;
+    let vivo = true;
+    cargarGoogleMaps()
+      .then((maps) => {
+        if (!vivo || !contenedorRef.current) return;
+        const mapa = new maps.Map(contenedorRef.current, {
+          center: CENTRO_INICIAL,
+          zoom: ZOOM_INICIAL,
+          streetViewControl: false,
+          fullscreenControl: false,
+          clickableIcons: false, // un clic sobre un comercio también consulta ese punto
+        });
+        mapa.addListener("click", (e) => refinarPunto(e.latLng.lat(), e.latLng.lng()));
+        mapaRef.current = mapa;
+      })
+      .catch((e) => vivo && setError(`No se pudo cargar el mapa: ${e.message}`));
     return () => {
+      vivo = false;
       abortRef.current?.abort();
-      mapa.remove();
+      marcadorRef.current?.setMap(null);
       mapaRef.current = null;
       marcadorRef.current = null;
     };
@@ -100,17 +110,17 @@ export const MapaConsulta = () => {
     const m = mapaRef.current;
     if (!m || m.getZoom() < 11) return undefined;
     const c = m.getCenter();
-    return [c.lat, c.lng];
+    return [c.lat(), c.lng()];
   };
 
   const sinResultados = (esCruce) => {
     // No dejar la tarjeta/marcador anterior como si fueran la respuesta
-    marcadorRef.current?.remove();
+    marcadorRef.current?.setMap(null);
     marcadorRef.current = null;
     setSeleccion(null);
     setError(
       esCruce
-        ? "No se encontró ese cruce en OSM. Revise los nombres de las calles (pueden estar escritos distinto, ej. \"Río Amazonas\") o agregue la ciudad."
+        ? "No se encontró ese cruce. Revise los nombres de las calles o agregue la ciudad (ej. \"Junín y 5 de Junio, Riobamba\")."
         : "Sin resultados. Pruebe con calle y ciudad, o haga clic en el mapa."
     );
   };
@@ -172,9 +182,10 @@ export const MapaConsulta = () => {
 
   const limpiar = () => {
     abortRef.current?.abort();
-    marcadorRef.current?.remove();
+    marcadorRef.current?.setMap(null);
     marcadorRef.current = null;
-    mapaRef.current?.setView(CENTRO_INICIAL, ZOOM_INICIAL);
+    mapaRef.current?.setCenter(CENTRO_INICIAL);
+    mapaRef.current?.setZoom(ZOOM_INICIAL);
     setTexto("");
     setCandidatos([]);
     setSeleccion(null);
@@ -203,7 +214,6 @@ export const MapaConsulta = () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, width: "100%" }}>
-      <style>{`.leaflet-control-attribution{background:transparent!important;font-size:10px;opacity:.7}`}</style>
       <form onSubmit={buscar} style={{ display: "flex", gap: 14 }}>
         <div style={{ ...tarjeta, flex: 1, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 14, borderColor: primario, position: "relative", zIndex: 5 }}>
           <IconUI name="FaMagnifyingGlass" size={16} color={c.textSecondary} />
@@ -289,7 +299,7 @@ export const MapaConsulta = () => {
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
                   {filas.map((f) => (
-                    <div key={f.label} title={`OSM: ${f.origen}`}>
+                    <div key={f.label} title={`Origen: ${f.origen}`}>
                       <div style={{ fontSize: 14, color: c.textSecondary }}>{f.label}</div>
                       <div style={{ fontSize: 18, fontWeight: 600 }}>{f.valor}</div>
                     </div>

@@ -15,8 +15,8 @@ export const API_URL_NEW = ENV.VITE_API_URL_NEW ?? "";
 /** Base URL del backend Python "maestro_articulos" (DDMRP), en la VM del portal (192.168.0.68:8502) */
 export const API_URL_DDMRP_MV = ENV.VITE_API_URL_DDMRP_MV ?? "";
 
-/** Plantilla de teselas del mapa base ({z}/{x}/{y}); apuntar a un tile server propio en producción */
-export const MAP_TILES_URL = ENV.VITE_MAP_TILES_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+/** Clave de Google Maps para el navegador (Maps JavaScript API); restringir por dominio (HTTP referrer) */
+export const GOOGLE_MAPS_API_KEY = ENV.VITE_GOOGLE_MAPS_API_KEY ?? "";
 
 /** Clave para encriptar/desencriptar id-session en localStorage */
 export const ENCRYPTION_KEY = ENV.VITE_ENCRYPTION_KEY ?? "default-encryption-key-change-in-env";
@@ -34,7 +34,7 @@ export default {
   API_URL,
   API_URL_NEW,
   API_URL_DDMRP_MV,
-  MAP_TILES_URL,
+  GOOGLE_MAPS_API_KEY,
   ENCRYPTION_KEY,
   MODE,
   FRONT_DEV,
