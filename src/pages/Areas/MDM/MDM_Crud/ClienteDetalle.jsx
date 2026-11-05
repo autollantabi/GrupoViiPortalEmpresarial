@@ -19,12 +19,16 @@ import {
   getCodigosImpuestoMDM,
   getCalificacionesScoreMDM,
   getCondicionesPagoMDM,
+  getCanalesMDM,
+  getDivisionesMDM,
+  getSegmentacionesMDM,
   getCotizacionesCliente,
   getRutasMDM,
   getVendedoresMDM,
   sincronizarClienteSapMDM,
 } from "services/mdmService";
 import { validarIdentificacionEcuador } from "utils/identificacionEcuador";
+import DocumentosCliente from "./DocumentosCliente";
 
 /* ------------------------------------------------------------------ */
 /* Constantes                                                          */
@@ -159,6 +163,7 @@ const TABS = [
   },
   { id: "comentarios", label: "Comentarios" },
   { id: "cotizaciones", label: "Cotizaciones" },
+  { id: "anexos", label: "Anexos" },
 ];
 
 /* Dónde vive cada campo, para poder llevar al usuario a la pestaña correcta
@@ -171,6 +176,9 @@ const UBICACION_CAMPO = {
   VENDEDOR: { tab: "general" },
   CALIFICACION_SCORE_SERIAL: { tab: "general" },
   CONDICION_PAGO_SERIAL: { tab: "condiciones" },
+  DIVISION: { tab: "condiciones" },
+  CANAL: { tab: "condiciones" },
+  SEGMENTACION_CLIENTE: { tab: "condiciones" },
   DESCUENTO: { tab: "condiciones" },
   RUTA: { tab: "general" },
   TELEFONO1: { tab: "general" },
@@ -479,6 +487,17 @@ const PanelTab = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-top: none;
   border-radius: 0 0 10px 10px;
+`;
+
+/* Empresas cuya división es fija: IKONIX trabaja solo con Herramientas (H) y el campo
+   va bloqueado; el backend también la fuerza. */
+const DIVISION_FIJA = { IKONIX: "H" };
+
+/* Línea que separa los campos de condiciones de pago de los que vienen después */
+const Divisor = styled.hr`
+  border: 0;
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  margin: 22px 0;
 `;
 
 const Seccion = styled.div`
@@ -903,6 +922,16 @@ function ClienteDetalle() {
   /* Condiciones de pago de la empresa del cliente, con la misma convención. */
   const [condicionesPago, setCondicionesPago] = useState(null);
 
+  /* Divisiones de la empresa del cliente (H, L, M, N), con la misma convención. */
+  const [divisiones, setDivisiones] = useState(null);
+
+  /* Canales de la empresa del cliente (B2B, B2C, KKA, MAY), con la misma convención. */
+  const [canales, setCanales] = useState(null);
+
+  /* Segmentaciones de la empresa (H-B2C-04...), todas; el selector muestra solo las del canal y
+     la división elegidos. Misma convención: null = cargando. */
+  const [segmentaciones, setSegmentaciones] = useState(null);
+
   /* Rutas activas de la empresa del cliente, con la misma convención. */
   const [rutas, setRutas] = useState(null);
 
@@ -951,6 +980,9 @@ function ClienteDetalle() {
       // (ic_cupo); el descuento en 0 se ve vacío porque por defecto no tiene valor.
       CONDICION_PAGO_SERIAL: data.CONDICION_PAGO_SERIAL ?? null,
       CALIFICACION_SCORE_SERIAL: data.CALIFICACION_SCORE_SERIAL ?? null,
+      DIVISION: data.DIVISION ?? null,
+      CANAL: data.CANAL ?? null,
+      SEGMENTACION_CLIENTE: data.SEGMENTACION_CLIENTE ?? null,
       CUPO: String(data.CUPO ?? 0),
       DESCUENTO: Number(data.DESCUENTO) > 0 ? String(data.DESCUENTO) : "",
       // Localización Ecuador / ATS
@@ -1058,6 +1090,22 @@ function ClienteDetalle() {
     setForm((actual) => ({ ...actual, [campo]: valor }));
   };
 
+  /* Cambiar el canal o la división: la segmentación elegida se limpia si deja de
+     corresponder a la nueva combinación (las opciones dependen de los dos). */
+  const cambiarCanalODivision = (campo, valor) => {
+    setForm((actual) => {
+      const siguiente = { ...actual, [campo]: valor };
+      const division = DIVISION_FIJA[cliente?.EMPRESA] ?? siguiente.DIVISION ?? null;
+      const vigente = (segmentaciones || []).some(
+        (s) =>
+          s.CODIGO === siguiente.SEGMENTACION_CLIENTE &&
+          s.CANAL === siguiente.CANAL &&
+          s.DIVISION === division
+      );
+      return vigente ? siguiente : { ...siguiente, SEGMENTACION_CLIENTE: null };
+    });
+  };
+
   /**
    * Arma lo que se va a guardar: todo el texto recortado y las direcciones con
    * su identificador, que es lo que el backend usa para saber cuál actualizar.
@@ -1090,6 +1138,12 @@ function ClienteDetalle() {
       ...(form.CONDICION_PAGO_SERIAL ? { CONDICION_PAGO_SERIAL: form.CONDICION_PAGO_SERIAL } : {}),
       // null = sin calificación (el backend la quita)
       CALIFICACION_SCORE_SERIAL: form.CALIFICACION_SCORE_SERIAL ?? null,
+      // null = sin división (el backend la quita y no se envía a SAP)
+      DIVISION: DIVISION_FIJA[cliente?.EMPRESA] ?? form.DIVISION ?? null,
+      // null = sin canal: se puede guardar así, pero SAP lo exige para sincronizar
+      CANAL: form.CANAL ?? null,
+      // null = sin segmentación; solo es válida la que corresponda al canal y la división
+      SEGMENTACION_CLIENTE: form.SEGMENTACION_CLIENTE ?? null,
       DESCUENTO: recortar(form.DESCUENTO),
       TIPO_SOCIO_NEGOCIO: form.TIPO_SOCIO_NEGOCIO,
       TIPO_CONTRIBUYENTE: form.TIPO_CONTRIBUYENTE,
@@ -1204,6 +1258,75 @@ function ClienteDetalle() {
         if (!cancelado) {
           setCalificacionesScore([]);
           toast.error("No se pudo cargar el listado de calificaciones por score");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
+
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setCanales(null);
+
+    (async () => {
+      try {
+        const data = await getCanalesMDM(empresaCliente);
+        if (!cancelado) setCanales(data);
+      } catch (err) {
+        if (!cancelado) {
+          setCanales([]);
+          toast.error("No se pudo cargar el listado de canales");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
+
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setSegmentaciones(null);
+
+    (async () => {
+      try {
+        const data = await getSegmentacionesMDM(empresaCliente);
+        if (!cancelado) setSegmentaciones(data);
+      } catch (err) {
+        if (!cancelado) {
+          setSegmentaciones([]);
+          toast.error("No se pudo cargar el listado de segmentaciones");
+        }
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaCliente]);
+
+  useEffect(() => {
+    if (!empresaCliente) return;
+
+    let cancelado = false;
+    setDivisiones(null);
+
+    (async () => {
+      try {
+        const data = await getDivisionesMDM(empresaCliente);
+        if (!cancelado) setDivisiones(data);
+      } catch (err) {
+        if (!cancelado) {
+          setDivisiones([]);
+          toast.error("No se pudo cargar el listado de divisiones");
         }
       }
     })();
@@ -1580,7 +1703,13 @@ function ClienteDetalle() {
    * negocio y, con la respuesta de SAP, guarda el código SAP y la aprueba.
    */
   const pedirConfirmacionSap = () => {
-    const error = validar(construirPayload());
+    const payload = construirPayload();
+    // El canal no es obligatorio para guardar, pero SAP lo exige para sincronizar
+    const error =
+      validar(payload) ||
+      (!recortar(payload.CANAL)
+        ? { campo: "CANAL", mensaje: 'Para sincronizar con SAP seleccione el "Canal"' }
+        : null);
 
     if (error) {
       irAlCampo(error.campo);
@@ -2307,6 +2436,75 @@ function ClienteDetalle() {
     });
   }
 
+  /* División: se elige del maestro de la empresa (H, L, M, N); lo que se guarda es el
+     código. Es opcional: sin división no se envía a SAP. */
+  const divisionFija = DIVISION_FIJA[empresaCliente] ?? null;
+  const divisionActual = divisionFija ?? form?.DIVISION ?? null;
+
+  const opcionesDivision = (divisiones || []).map((d) => ({
+    value: d.CODIGO,
+    label: d.NOMBRE,
+  }));
+
+  /* Si la división del cliente ya no está en el maestro, se conserva visible */
+  if (
+    divisiones !== null &&
+    divisionActual &&
+    !opcionesDivision.some((o) => o.value === divisionActual)
+  ) {
+    opcionesDivision.push({
+      value: divisionActual,
+      label: `${divisionActual} (no está en el listado)`,
+    });
+  }
+
+  /* Canal: se elige del maestro de la empresa (B2B, B2C, KKA, MAY); lo que se guarda es el
+     código. Se puede guardar sin canal, pero es obligatorio para sincronizar con SAP. */
+  const opcionesCanal = (canales || []).map((c) => ({
+    value: c.CODIGO,
+    label: c.NOMBRE,
+  }));
+
+  /* Si el canal del cliente ya no está en el maestro, se conserva visible */
+  if (canales !== null && form?.CANAL && !opcionesCanal.some((o) => o.value === form.CANAL)) {
+    opcionesCanal.push({
+      value: form.CANAL,
+      label: `${form.CANAL} (no está en el listado)`,
+    });
+  }
+
+  /* Segmentación: depende del canal y la división elegidos; sin ambos no hay nada que
+     mostrar. Lo que se guarda es el code; la descripción se toma del maestro. */
+  const opcionesSegmentacion =
+    divisionActual && form?.CANAL
+      ? (segmentaciones || [])
+          .filter((s) => s.CANAL === form.CANAL && s.DIVISION === divisionActual)
+          .map((s) => ({ value: s.CODIGO, label: `${s.CODIGO} · ${s.NOMBRE}` }))
+      : [];
+
+  const segmentacionElegida = form?.SEGMENTACION_CLIENTE ?? null;
+
+  /* Si la segmentación guardada ya no está en el listado, se conserva visible */
+  if (
+    segmentaciones !== null &&
+    segmentacionElegida &&
+    opcionesSegmentacion.length > 0 &&
+    !opcionesSegmentacion.some((o) => o.value === segmentacionElegida)
+  ) {
+    opcionesSegmentacion.push({
+      value: segmentacionElegida,
+      label: `${segmentacionElegida} (no está en el listado)`,
+    });
+  }
+
+  const descripcionSegmentacion = segmentacionElegida
+    ? (segmentaciones || []).find((s) => s.CODIGO === segmentacionElegida)?.NOMBRE ??
+      (segmentacionElegida === cliente?.SEGMENTACION_CLIENTE
+        ? cliente?.SEGMENTACION_CLIENTE_DESCRIPCION
+        : null) ??
+      null
+    : null;
+
   const renderCondiciones = () => (
     <Seccion theme={theme}>
       <TituloSeccion theme={theme}>Condiciones de pago</TituloSeccion>
@@ -2349,6 +2547,61 @@ function ClienteDetalle() {
           theme={theme}
           label="Límite comprometido"
           valor={form.CUPO}
+        />
+      </Rejilla>
+
+      <Divisor theme={theme} />
+
+      <Rejilla>
+        <CampoCatalogo
+          theme={theme}
+          label="División"
+          valor={divisionActual}
+          catalogo={opcionesDivision}
+          soloLectura={divisionFija !== null}
+          onChange={(valor) => cambiarCanalODivision("DIVISION", valor)}
+          placeholder={
+            divisiones === null
+              ? "Cargando divisiones..."
+              : divisiones.length === 0
+                ? "Sin divisiones para esta empresa"
+                : "Seleccione una división"
+          }
+        />
+        <CampoCatalogo
+          theme={theme}
+          label="Canal"
+          valor={form.CANAL}
+          catalogo={opcionesCanal}
+          onChange={(valor) => cambiarCanalODivision("CANAL", valor)}
+          placeholder={
+            canales === null
+              ? "Cargando canales..."
+              : canales.length === 0
+                ? "Sin canales para esta empresa"
+                : "Seleccione un canal"
+          }
+        />
+        <CampoCatalogo
+          theme={theme}
+          label="Segmentación cliente"
+          valor={segmentacionElegida}
+          catalogo={opcionesSegmentacion}
+          onChange={(valor) => actualizarCampo("SEGMENTACION_CLIENTE", valor)}
+          placeholder={
+            !divisionActual || !form.CANAL
+              ? "Seleccione primero división y canal"
+              : segmentaciones === null
+                ? "Cargando segmentaciones..."
+                : opcionesSegmentacion.length === 0
+                  ? "Sin segmentaciones para esta división y canal"
+                  : "Seleccione una segmentación"
+          }
+        />
+        <CampoFijo
+          theme={theme}
+          label="Segmentación cliente descripción"
+          valor={descripcionSegmentacion}
         />
       </Rejilla>
     </Seccion>
@@ -2438,6 +2691,7 @@ function ClienteDetalle() {
     if (tabActual.id === "condiciones") return renderCondiciones();
     if (tabActual.id === "comentarios") return renderComentarios();
     if (tabActual.id === "cotizaciones") return renderCotizaciones();
+    if (tabActual.id === "anexos") return <DocumentosCliente clienteId={id} />;
 
     if (tabActual.subTabs?.length) {
       const sub = tabActual.subTabs.find((s) => s.id === subTabActual);
@@ -2587,7 +2841,7 @@ function ClienteDetalle() {
 
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
           <BarraTabs theme={theme}>
-            {TABS.filter((tab) => !esNuevo || tab.id !== "cotizaciones").map((tab) => (
+            {TABS.filter((tab) => !esNuevo || (tab.id !== "cotizaciones" && tab.id !== "anexos")).map((tab) => (
               <Tab
                 key={tab.id}
                 theme={theme}

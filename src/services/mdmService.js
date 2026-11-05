@@ -772,3 +772,108 @@ export const sincronizarLiquidacionPreciosSap = async (id) => {
     const response = await axiosInstanceNew.post(`/mdm/liquidacion-precios/${id}/sincronizar-sap`);
     return response.data;
 };
+
+/**
+ * Documentos del expediente de un cliente (Cloudflare R2, bucket maxximundo-tws, carpeta PREAPROBADO).
+ * @param {number|string} id - ic_serial del cliente
+ * @returns {Promise<Array<{NOMBRE: string, CLAVE: string, TIPO_MIME: string, CATEGORIA: "imagen"|"pdf"|"otro", TAMANIO_BYTES: number, MODIFICADO: string|null}>>}
+ */
+export const getDocumentosClienteMDM = async (id) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/clientes/${id}/documentos`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getDocumentosClienteMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Contenido de un documento del cliente como Blob, para mostrarlo en el visor.
+ * Va por el API y no por un enlace directo: el bucket es privado y la sesión viaja
+ * en la cabecera id-session, que un <img src> o un <iframe src> no llevarían.
+ * @param {number|string} id - ic_serial del cliente
+ * @param {string} clave - CLAVE del documento
+ * @param {string} tipoMime - TIPO_MIME del documento (decide cómo lo muestra el navegador)
+ * @returns {Promise<Blob>}
+ */
+export const getArchivoDocumentoClienteMDM = async (id, clave, tipoMime) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/clientes/${id}/documentos/archivo`, {
+            params: { clave },
+            responseType: "blob",
+        });
+        return new Blob([response.data], { type: tipoMime || response.data.type });
+    } catch (error) {
+        // Con responseType blob el JSON de error también llega como blob: se lee para dar el mensaje real
+        let mensaje = null;
+        const datos = error?.response?.data;
+        if (datos instanceof Blob) {
+            try {
+                mensaje = JSON.parse(await datos.text())?.message ?? null;
+            } catch {
+                mensaje = null;
+            }
+        }
+        console.error("Error en getArchivoDocumentoClienteMDM:", error);
+        throw new Error(mensaje || "No se pudo abrir el documento");
+    }
+};
+
+/**
+ * Divisiones de una empresa (core.dim_division: H Herramientas, L Lubricantes, M Motos, N Neumáticos).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
+ */
+export const getDivisionesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/divisiones/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getDivisionesMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Segmentaciones de cliente de una empresa (core.dim_segmentacion_cliente). Cada una depende de un
+ * canal y una división: la pantalla filtra por las que tenga elegidas el cliente.
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string, CANAL: string, DIVISION: string}>>}
+ */
+export const getSegmentacionesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/segmentaciones/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getSegmentacionesMDM:", error);
+        throw error;
+    }
+};
+
+/**
+ * Canales de una empresa (core.dim_opciones_canal: B2B, B2C, KKA, MAY).
+ * @param {string} empresa - AUTOLLANTA | MAXXIMUNDO | STOX | IKONIX | AUTOMAX
+ * @returns {Promise<Array<{CODIGO: string, NOMBRE: string}>>}
+ */
+export const getCanalesMDM = async (empresa) => {
+    try {
+        const response = await axiosInstanceNew.get(`/mdm/canales/${empresa}`);
+        if (response.data && response.data.status === "Ok!") {
+            return response.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error en getCanalesMDM:", error);
+        throw error;
+    }
+};
