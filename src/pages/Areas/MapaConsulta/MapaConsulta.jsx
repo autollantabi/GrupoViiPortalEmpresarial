@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTheme } from "context/ThemeContext";
-import { ubicarPunto } from "services/geocodingService";
+import { ubicarPunto, sugerirLugares } from "services/geocodingService";
 import { IconUI } from "components/UI/Components/IconsUI";
 import { consultarLugares } from "./consultarLugares";
 import { desglosarDireccion, evaluarPrecision } from "./desglosarDireccion";
@@ -129,16 +129,16 @@ export const MapaConsulta = () => {
   // para que el usuario elija el correcto, en vez de asumir el primero.
   useEffect(() => {
     const q = texto.trim();
-    if (!sugerir || q.length < 4) return undefined;
+    if (!sugerir || q.length < 3) return undefined;
     const espera = setTimeout(async () => {
       sugerenciasRef.current?.abort();
       sugerenciasRef.current = new AbortController();
       try {
-        const { candidatos: res } = await consultarLugares(q, { signal: sugerenciasRef.current.signal, centro: centroActual() });
+        const res = await sugerirLugares(q, { signal: sugerenciasRef.current.signal, centro: centroActual() });
         setCandidatos(res);
-        setMostrarLista(true);
+        setMostrarLista(res.length > 0);
       } catch { /* una sugerencia fallida no muestra error */ }
-    }, 700);
+    }, 400);
     return () => clearTimeout(espera);
   }, [texto, sugerir]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -156,8 +156,20 @@ export const MapaConsulta = () => {
     try {
       const { candidatos: res, esCruce } = await consultarLugares(q, { signal: abortRef.current.signal, centro: centroActual() });
       setCandidatos(res);
-      if (res.length === 0) sinResultados(esCruce);
-      else elegir(res[0]);
+      if (res.length > 0) {
+        elegir(res[0]);
+      } else {
+        // Sin coincidencia exacta: se ofrecen las sugerencias parecidas en vez de dejar al usuario sin nada
+        const parecidas = await sugerirLugares(q, { signal: abortRef.current.signal, centro: centroActual() }).catch(() => []);
+        if (parecidas.length > 0) {
+          sinResultados(esCruce);
+          setCandidatos(parecidas);
+          setMostrarLista(true);
+          setError("No se encontró esa dirección exacta. ¿Quiso decir alguna de estas?");
+        } else {
+          sinResultados(esCruce);
+        }
+      }
     } catch (err) {
       if (err?.code !== "ERR_CANCELED") {
         setError(
@@ -192,7 +204,7 @@ export const MapaConsulta = () => {
     setError("");
   };
 
-  const filas = seleccion ? desglosarDireccion(seleccion.address) : [];
+  const filas = seleccion ? desglosarDireccion(seleccion.address, { parroquia: seleccion.parroquia_fuente }) : [];
   const precision = evaluarPrecision(seleccion);
   const coords = seleccion ? `${Number(seleccion.lat).toFixed(6)}, ${Number(seleccion.lon).toFixed(6)}` : "";
 
@@ -236,8 +248,15 @@ export const MapaConsulta = () => {
                   onMouseEnter={(e) => (e.currentTarget.style.background = `${primario}1f`)}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <IconUI name={r.category === "interseccion" ? "FaRoadBarrier" : "FaLocationDot"} size={14} color={primario} />
-                  <span>{r.display_name}</span>
+                  <IconUI name={r.category === "interseccion" ? "FaRoadBarrier" : "FaLocationDot"} size={14} color={c.textSecondary || primario} />
+                  {r.principal ? (
+                    <span>
+                      <strong style={{ fontWeight: 700 }}>{r.principal}</strong>
+                      {r.secundario && <span style={{ color: c.textSecondary }}> {r.secundario}</span>}
+                    </span>
+                  ) : (
+                    <span>{r.display_name}</span>
+                  )}
                 </div>
               ))}
             </div>
