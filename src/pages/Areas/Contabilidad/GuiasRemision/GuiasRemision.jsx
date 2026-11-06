@@ -89,6 +89,8 @@ const COLUMNAS = [
   { header: "Nombre del Cliente", field: "nombreSocio", isCliente: true, wrap: true },
   { header: "Destino", field: "ciudadDestino", wrap: true },
   { header: "Transporte", field: "transportistaNombre", wrap: true },
+  // Una sola columna con dos líneas: vendedor y, debajo, facturador
+  { header: "Vendedor / Facturador", field: "vendedor", isVendedorFacturador: true, wrap: true },
   { header: "Estado documento", field: "detalleEstadoElectronico", isEstadoElectronico: true, align: "center" },
   { header: "Enviado", field: "enviado", isEnviado: true, align: "center" },
 ];
@@ -865,6 +867,17 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         </div>
       );
     }
+    // Vendedor y, debajo, facturador
+    if (columna.isVendedorFacturador) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <span>{item.vendedor || "—"}</span>
+          <TextUI size="12px" color={theme.colors.textSecondary}>
+            {item.facturador || "—"}
+          </TextUI>
+        </div>
+      );
+    }
     if (valor === null || valor === undefined || valor === "") return "—";
     if (columna.isDate) return formatFecha(valor);
     return valor;
@@ -1250,6 +1263,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                   ["Fecha", formatFecha(guiaSeleccionada.fechaGuia)],
                   ["Transportista", guiaSeleccionada.transportistaNombre],
                   ["Ciudad destino", guiaSeleccionada.ciudadDestino],
+                  ["Vendedor", guiaSeleccionada.vendedor],
+                  ["Facturador", guiaSeleccionada.facturador],
                 ].map(([titulo, valor]) => (
                   <CabeceraItem key={titulo}>
                     <TextUI size="12px" color={theme.colors.textSecondary}>

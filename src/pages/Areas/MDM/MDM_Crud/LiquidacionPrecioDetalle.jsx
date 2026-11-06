@@ -8,12 +8,32 @@ import { ContainerUI } from "components/UI/Components/ContainerUI";
 import { TextUI } from "components/UI/Components/TextUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
 import { IconUI } from "components/UI/Components/IconsUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 import {
   getLiquidacionPrecios,
   guardarDetalleLiquidacionPrecios,
   sincronizarLiquidacionPreciosSap,
 } from "services/mdmService";
 import { puedeEditarRecurso } from "utils/permisosRecurso";
+
+/* Capa que cubre la pantalla mientras se guarda o se sincroniza con SAP */
+const CapaProceso = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  cursor: progress;
+`;
+
+const TarjetaProceso = styled.div`
+  padding: 24px 36px;
+  border-radius: 10px;
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+`;
 
 /* ------------------------------------------------------------------ */
 /* Constantes                                                          */
@@ -82,6 +102,14 @@ const formatFecha = (valor) => {
   if (!valor) return "—";
   const m = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : valor;
+};
+
+/* PVD y margen solo admiten dígitos y un separador decimal: se descartan letras, signos y
+   espacios al escribir o pegar, y la coma se toma como punto. */
+const soloNumero = (valor) => {
+  const limpio = String(valor ?? "").replace(/,/g, ".").replace(/[^0-9.]/g, "");
+  const i = limpio.indexOf(".");
+  return i === -1 ? limpio : limpio.slice(0, i + 1) + limpio.slice(i + 1).replace(/\./g, "");
 };
 
 const aTexto = (valor) => (valor === null || valor === undefined ? "" : String(valor));
@@ -292,6 +320,19 @@ const Fila = styled.tr`
   background: var(--fila-bg);
 `;
 
+/* Campo con el símbolo % pegado a la derecha, sin saltar de línea */
+const CampoConSufijo = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+
+  & > span {
+    font-size: 13px;
+    opacity: 0.7;
+  }
+`;
+
 const CampoEditable = styled.input`
   width: 96px;
   padding: 6px 8px;
@@ -464,7 +505,8 @@ function LiquidacionPrecioDetalle() {
     puedeEditarRecurso(user, RECURSO_LIQUIDACION, cabecera?.EMPRESA);
 
   const cambiarCampo = (codigo, campo, valor) => {
-    setFilas((prev) => prev.map((f) => (f.CODIGO_ITEM === codigo ? { ...f, [campo]: valor } : f)));
+    const limpio = soloNumero(valor);
+    setFilas((prev) => prev.map((f) => (f.CODIGO_ITEM === codigo ? { ...f, [campo]: limpio } : f)));
     setSinGuardar(true);
   };
 
@@ -536,6 +578,20 @@ function LiquidacionPrecioDetalle() {
       toast.success("Guardado correctamente");
       if (omitidos.length > 0) {
         toast.warning(`No se enviaron a SAP por no existir en el maestro: ${omitidos.join(", ")}`);
+      }
+      // Mismo artículo en otras empresas (por código de barras): solo se avisa si algo falló
+      (respuesta?.data?.SAP?.EMPRESAS_RELACIONADAS || [])
+        .filter((e) => e.ERROR)
+        .forEach((e) => {
+          toast.warning(
+            `No se actualizó el precio en ${e.EMPRESA}. Enviados: ${e.TOTAL}, actualizados: ${e.ACTUALIZADOS}, fallidos: ${e.FALLIDOS}. ${e.ERROR.MENSAJE}${e.ERROR.ITEM_CODE ? ` (artículo ${e.ERROR.ITEM_CODE})` : ""}`
+          );
+        });
+      const sinComentario =respuesta?.data?.SAP?.COMENTARIOS_FALLIDOS || [];
+      if (sinComentario.length > 0) {
+        toast.warning(
+          `Precios registrados, pero no se pudo agregar el comentario de cambio de precio en SAP a: ${sinComentario.join(", ")}`
+        );
       }
     } catch (err) {
       const motivo = err?.response?.data?.message;
@@ -626,6 +682,13 @@ function LiquidacionPrecioDetalle() {
       style={{ padding: 0, overflow: "hidden" }}
     >
       <Contenedor theme={theme}>
+        {ocupado && (
+          <CapaProceso role="status" aria-live="polite">
+            <TarjetaProceso theme={theme}>
+              <LoaderUI text={sincronizando ? "Guardando y sincronizando con SAP..." : "Guardando..."} />
+            </TarjetaProceso>
+          </CapaProceso>
+        )}
         <Encabezado>
           <ButtonUI
             iconLeft="FaArrowLeft"
@@ -681,6 +744,10 @@ function LiquidacionPrecioDetalle() {
           <Dato theme={theme}>
             <span>PI #</span>
             <span>{cabecera.NUMERO_PI}</span>
+          </Dato>
+          <Dato theme={theme}>
+            <span>Almacén</span>
+            <span>{cabecera.ALMACEN || "—"}</span>
           </Dato>
           <Dato theme={theme}>
             <span>DAI</span>
@@ -767,16 +834,19 @@ function LiquidacionPrecioDetalle() {
                       </Td>
                       {COLUMNAS_DESPUES.map((c) => celdaNumero(fila, c))}
                       <Td $align="right">
-                        <CampoEditable
-                          theme={theme}
-                          inputMode="decimal"
-                          value={fila.MARGEN_TXT}
-                          disabled={ocupado || !editable || !fila.ENCONTRADO}
-                          $invalido={margenInvalido}
-                          onChange={(e) =>
-                            cambiarCampo(fila.CODIGO_ITEM, "MARGEN_TXT", e.target.value)
-                          }
-                        />
+                        <CampoConSufijo>
+                          <CampoEditable
+                            theme={theme}
+                            inputMode="decimal"
+                            value={fila.MARGEN_TXT}
+                            disabled={ocupado || !editable || !fila.ENCONTRADO}
+                            $invalido={margenInvalido}
+                            onChange={(e) =>
+                              cambiarCampo(fila.CODIGO_ITEM, "MARGEN_TXT", e.target.value)
+                            }
+                          />
+                          <span>%</span>
+                        </CampoConSufijo>
                       </Td>
                       <Td $align="right" style={{ fontWeight: 700 }}>
                         {formatNumero(pvp, 2)}
