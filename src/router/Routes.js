@@ -107,6 +107,7 @@ import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnid
 import { ReporteCobus } from "pages/Areas/Reporteria/ReporteCobus/Cobus";
 import { ReporteTop200ClientesIkonix } from "pages/Areas/Reporteria/NuevoReporte/NuevoReporte";
 import { ReporteInventarioBodegaHerramientas } from "pages/Areas/Reporteria/InventarioBodegaHerramientas/ReporteInventarioBodegaHerramientas";
+import { rutasDocumentacionTecnica } from "pages/Areas/DocumentacionTecnica";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -646,6 +647,8 @@ export const RoutesConfig = [
     component: VisitasAsignadas,
     recurso: "visitas.asignadas",
   },
+  // ================================= DOCUMENTACIÓN TÉCNICA =================================
+  ...rutasDocumentacionTecnica,
   // ================================= 404 (debe ir al final) =================================
   {
     path: "*",
