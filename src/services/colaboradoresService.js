@@ -21,6 +21,8 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {string|null} linea
  * @property {string|null} ciudad
  * @property {string|null} correoCorporativo
+ * @property {string[]} correosAdicionales
+ * @property {boolean} permiteMultiplesCorreos
  * @property {string|null} extension
  * @property {string|null} telefonoEmpresarial
  * @property {"Activo"|"Inactivo"} estado
@@ -68,6 +70,8 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {boolean} conduce
  * @property {string|null} correoCorporativo
  * @property {string|null} correoEstandar
+ * @property {boolean} permiteMultiplesCorreos
+ * @property {string[]} correosAdicionales
  * @property {string|null} extension
  * @property {string|null} telefonoEmpresarial
  * @property {string|null} fechaIngreso
@@ -128,6 +132,8 @@ const numero = (valor) => (valor === null || valor === undefined ? null : Number
 const mapearListItem = (fila) => ({
   ...fila,
   id: numero(fila.id),
+  correosAdicionales: Array.isArray(fila.correosAdicionales) ? fila.correosAdicionales : [],
+  permiteMultiplesCorreos: fila.permiteMultiplesCorreos === true,
   fechaIngreso: soloFecha(fila.fechaIngreso),
   fechaSalida: soloFecha(fila.fechaSalida),
   // Fase 3: fecha de ingreso + 70 días, null si no aplica (p. ej. inactivo). Los
@@ -150,6 +156,8 @@ const mapearDetalle = (ficha) => ({
   // que pasa por numero() y no por Number() a secas.
   numeroHijos: numero(ficha.numeroHijos),
   conduce: ficha.conduce === true,
+  permiteMultiplesCorreos: ficha.permiteMultiplesCorreos === true,
+  correosAdicionales: Array.isArray(ficha.correosAdicionales) ? ficha.correosAdicionales : [],
   fechaIngreso: soloFecha(ficha.fechaIngreso),
   fechaSalida: soloFecha(ficha.fechaSalida),
   fechaFinPeriodoPrueba: soloFecha(ficha.fechaFinPeriodoPrueba),

@@ -14,6 +14,7 @@ import {
 } from "services/colaboradoresService";
 import { CampoLabel } from "./CampoLabel";
 import { ComboLibreUI } from "./ComboLibreUI";
+import { EditorCorreosAdicionales, validarCorreosAdicionales } from "./EditorCorreosAdicionales";
 import {
   Acciones,
   AreaTexto,
@@ -86,6 +87,9 @@ const VACIO = {
   sustitutoNombre: "",
   sustitutoParentesco: null,
   correoCorporativo: "",
+  // Bloqueados detrás de permiteMultiplesCorreos: ver EditorCorreosAdicionales.
+  permiteMultiplesCorreos: false,
+  correosAdicionales: [],
   extension: "",
   telefonoEmpresarial: "",
   fechaIngreso: "",
@@ -124,6 +128,10 @@ const desdeFicha = (ficha) =>
         sustitutoNombre: ficha.sustitutoNombre ?? "",
         sustitutoParentesco: ficha.sustitutoParentesco ?? null,
         correoCorporativo: ficha.correoCorporativo ?? "",
+        permiteMultiplesCorreos: ficha.permiteMultiplesCorreos === true,
+        correosAdicionales: Array.isArray(ficha.correosAdicionales)
+          ? ficha.correosAdicionales
+          : [],
         extension: ficha.extension ?? "",
         telefonoEmpresarial: ficha.telefonoEmpresarial ?? "",
         fechaIngreso: ficha.fechaIngreso ?? "",
@@ -207,6 +215,17 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
     }));
   };
 
+  /** Al apagar el permiso, se vacía la lista: coherente con la regla del backend
+   * (sin el check, correosAdicionales debe quedar vacío). */
+  const marcarPermiteMultiplesCorreos = (marcado) => {
+    setValores((previos) => ({
+      ...previos,
+      permiteMultiplesCorreos: marcado,
+      correosAdicionales: marcado ? previos.correosAdicionales : [],
+    }));
+    setErrores((previos) => ({ ...previos, correosAdicionales: undefined }));
+  };
+
   const opcionesEmpresa = useMemo(
     () => (catalogos?.empresas ?? []).map((e) => ({ value: e.id, label: e.nombre })),
     [catalogos],
@@ -259,6 +278,14 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
         "No puede ser sustituto y tener discapacidad propia a la vez.";
     }
 
+    if (valores.permiteMultiplesCorreos) {
+      const erroresCorreos = validarCorreosAdicionales(
+        valores.correosAdicionales,
+        valores.correoCorporativo,
+      );
+      if (Object.keys(erroresCorreos).length > 0) nuevos.correosAdicionales = erroresCorreos;
+    }
+
     setErrores(nuevos);
     return Object.keys(nuevos).length === 0;
   };
@@ -305,6 +332,10 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
         ? (valores.sustitutoParentesco ?? null)
         : null,
       correoCorporativo: aTexto(valores.correoCorporativo),
+      permiteMultiplesCorreos: valores.permiteMultiplesCorreos === true,
+      correosAdicionales: valores.permiteMultiplesCorreos
+        ? valores.correosAdicionales.map((correo) => correo.trim().toLowerCase()).filter(Boolean)
+        : [],
       extension: aTexto(valores.extension),
       telefonoEmpresarial: aTexto(valores.telefonoEmpresarial),
       fechaIngreso: aTexto(valores.fechaIngreso),
@@ -623,6 +654,24 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
               />
             </CampoLabel>
           </FilaFormulario>
+
+          <CheckboxUI
+            name="permiteMultiplesCorreos"
+            checked={valores.permiteMultiplesCorreos}
+            onChange={(_nombre, marcado) => marcarPermiteMultiplesCorreos(marcado)}
+            label="Permite correos adicionales"
+          />
+
+          {valores.permiteMultiplesCorreos && (
+            <>
+              <Separador />
+              <EditorCorreosAdicionales
+                correos={valores.correosAdicionales}
+                onCambiar={campo("correosAdicionales")}
+                errores={errores.correosAdicionales ?? {}}
+              />
+            </>
+          )}
         </Tarjeta>
 
         <Tarjeta>
