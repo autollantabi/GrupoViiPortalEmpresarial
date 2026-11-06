@@ -1203,6 +1203,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                   ["Cliente", guiaSeleccionada.nombreSocio],
                   ["Destino", guiaSeleccionada.ciudadDestino],
                   ["Transporte", guiaSeleccionada.transportistaNombre],
+                  ["Vendedor", guiaSeleccionada.vendedor],
+                  ["Facturador", guiaSeleccionada.facturador],
                 ].map(([titulo, valor]) => (
                   <FilaSeguimiento key={titulo}>
                     <TextUI color={theme.colors.textSecondary}>{titulo}</TextUI>
