@@ -112,6 +112,13 @@ const LOGOS_EMPRESA = {
 const urlTrackingLaar = (guiaEntrega) =>
   `https://fenix.laarcourier.com/Tracking/?guia=${encodeURIComponent(guiaEntrega)}`;
 
+// Guías de entrega a mostrar: solo las NO anuladas. `guiasEntregaActivas` viene del servidor (lista vacía = todas anuladas);
+// si es null la guía no tiene registros de entrega y se usa guiaEntrega (puede traer varias unidas con "/")
+const guiasEntregaVisibles = (guia) =>
+  Array.isArray(guia.guiasEntregaActivas)
+    ? guia.guiasEntregaActivas
+    : String(guia.guiaEntrega ?? "").split("/").map((g) => g.trim()).filter(Boolean);
+
 // "110063691" -> "63691": se quitan los dígitos de la serie y se conservan los últimos 5 (igual que el Excel). Lo no numérico queda igual.
 const sinSerie = (valor) => {
   const s = String(valor ?? "").trim();
@@ -1191,21 +1198,22 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                 ))}
 
                 {/* El enlace al tracking solo existe para las guías de Laar */}
-                {guiaSeleccionada.transportistaId === ID_TRANSPORTISTA_LAAR && (
+                {guiaSeleccionada.transportistaId === ID_TRANSPORTISTA_LAAR && guiasEntregaVisibles(guiaSeleccionada).length > 0 && (
                   <FilaSeguimiento>
                     <TextUI color={theme.colors.textSecondary}>Guía de Laar</TextUI>
-                    {guiaSeleccionada.guiaEntrega ? (
-                      <a
-                        href={urlTrackingLaar(guiaSeleccionada.guiaEntrega)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontWeight: 700, color: theme.colors.error }}
-                      >
-                        {guiaSeleccionada.guiaEntrega} ↗
-                      </a>
-                    ) : (
-                      <TextUI weight="bold">—</TextUI>
-                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      {guiasEntregaVisibles(guiaSeleccionada).map((guiaEntrega) => (
+                        <a
+                          key={guiaEntrega}
+                          href={urlTrackingLaar(guiaEntrega)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontWeight: 700, color: theme.colors.error }}
+                        >
+                          {guiaEntrega} ↗
+                        </a>
+                      ))}
+                    </div>
                   </FilaSeguimiento>
                 )}
 
@@ -1296,17 +1304,25 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                     GUÍA ENTREGA
                   </TextUI>
                   {/* Enlace al tracking de Laar solo si la guía está enviada (no cancelada) y tiene guía de entrega */}
-                  {guiaSeleccionada.enviado && !guiaSeleccionada.cancelada && guiaSeleccionada.guiaEntrega ? (
-                    <a
-                      href={urlTrackingLaar(guiaSeleccionada.guiaEntrega)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontWeight: 700, color: theme.colors.error }}
-                    >
-                      {guiaSeleccionada.guiaEntrega} ↗
-                    </a>
+                  {/* Solo las guías de entrega NO anuladas; si todas están anuladas no se muestra ninguna ("—") */}
+                  {guiasEntregaVisibles(guiaSeleccionada).length === 0 ? (
+                    <TextUI weight="bold">—</TextUI>
+                  ) : guiaSeleccionada.enviado && !guiaSeleccionada.cancelada ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      {guiasEntregaVisibles(guiaSeleccionada).map((guiaEntrega) => (
+                        <a
+                          key={guiaEntrega}
+                          href={urlTrackingLaar(guiaEntrega)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontWeight: 700, color: theme.colors.error }}
+                        >
+                          {guiaEntrega} ↗
+                        </a>
+                      ))}
+                    </div>
                   ) : (
-                    <TextUI weight="bold">{guiaSeleccionada.guiaEntrega || "—"}</TextUI>
+                    <TextUI weight="bold">{guiasEntregaVisibles(guiaSeleccionada).join(" / ")}</TextUI>
                   )}
                 </CabeceraItem>
               </CardModal>

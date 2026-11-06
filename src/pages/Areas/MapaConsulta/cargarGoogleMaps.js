@@ -9,9 +9,23 @@ export const cargarGoogleMaps = () => {
   if (!promesa) {
     promesa = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&v=weekly&language=es&region=EC`;
+      // loading=async: patrón recomendado; las clases se obtienen con importLibrary.
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&v=weekly&language=es&region=EC&loading=async`;
       script.async = true;
-      script.onload = () => (window.google?.maps?.Map ? resolve(window.google.maps) : reject(new Error("Google Maps no inicializó")));
+      script.onload = async () => {
+        try {
+          if (!window.google?.maps?.importLibrary) throw new Error("Google Maps no inicializó");
+          // Map y Point (core) y Marker (clásico) quedan disponibles en google.maps
+          await Promise.all([
+            window.google.maps.importLibrary("maps"),
+            window.google.maps.importLibrary("core"),
+            window.google.maps.importLibrary("marker"),
+          ]);
+          resolve(window.google.maps);
+        } catch (e) {
+          reject(e);
+        }
+      };
       script.onerror = () => reject(new Error("No se pudo cargar Google Maps"));
       document.head.appendChild(script);
     }).catch((e) => {
