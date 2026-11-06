@@ -4,7 +4,7 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 0,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiYTNiY2U1MzgtMTM1Mi00ZWViLWI0YzUtOTRkYjVlNTYzMWY2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiZTBlODcxMzItYmRmZS00MmExLTgxNzYtMDllM2I1YzA3ZjJlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Pricing neumáticos nuevo",
     rol: "jefatura",
     linea: null,
