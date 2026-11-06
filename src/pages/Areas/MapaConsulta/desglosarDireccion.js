@@ -7,9 +7,6 @@ const NIVELES = [
   { label: "Parroquia", keys: ["city_district", "suburb"] },
   { label: "Comunidad / Barrio", keys: ["hamlet", "neighbourhood", "quarter", "suburb", "locality"] },
   { label: "Calle", keys: ["road", "pedestrian", "footway"] },
-  { label: "Número", keys: ["house_number"] },
-  { label: "Referencia", keys: ["amenity", "building", "shop", "office", "tourism"] },
-  { label: "Código postal", keys: ["postcode"] },
   { label: "País", keys: ["country"] },
 ];
 
