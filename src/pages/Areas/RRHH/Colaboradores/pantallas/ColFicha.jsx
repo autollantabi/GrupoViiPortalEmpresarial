@@ -529,6 +529,9 @@ export const ColFicha = () => {
           {!ficha.correoCorporativo && ficha.correoEstandar && (
             <Dato etiqueta="Correo sugerido">{ficha.correoEstandar}</Dato>
           )}
+          {ficha.permiteMultiplesCorreos && (ficha.correosAdicionales ?? []).length > 0 && (
+            <Dato etiqueta="Correos adicionales">{ficha.correosAdicionales.join(", ")}</Dato>
+          )}
           <Dato etiqueta="Extensión">{ficha.extension}</Dato>
           <Dato etiqueta="Teléfono empresarial">{ficha.telefonoEmpresarial}</Dato>
           <Dato etiqueta="Ingreso">

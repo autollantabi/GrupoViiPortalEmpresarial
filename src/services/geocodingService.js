@@ -43,3 +43,16 @@ export const buscarCruces = async (calleA, calleB, { ciudad, centro, signal } = 
     });
     return res.data.data;
   });
+
+/**
+ * Sugerencias mientras se escribe: lugares completos (coordenadas y desglose), así que elegir uno no
+ * necesita otra consulta. `centro` = [lat, lon] del mapa para priorizar lo cercano.
+ */
+export const sugerirLugares = async (texto, { centro, signal } = {}) =>
+  conCache(`a|${texto.toLowerCase()}|${centro ? `${centro[0].toFixed(1)},${centro[1].toFixed(1)}` : ""}`, async () => {
+    const res = await axiosInstanceNew.get("/geocodificacion/autocomplete", {
+      params: { q: texto, ...(centro ? { lat: centro[0], lon: centro[1] } : {}) },
+      signal,
+    });
+    return res.data.data;
+  });

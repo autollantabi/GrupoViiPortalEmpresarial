@@ -81,6 +81,12 @@ const Correo = styled.span`
   word-break: break-all;
 `;
 
+const ListaCorreos = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
 /**
  * Insignia de período de prueba: solo se dibuja si `fechaFinPeriodoPrueba` no es
  * null y todavía no venció (hoy o futuro). Un valor ya vencido significa que el
@@ -142,7 +148,11 @@ export const TablaColaboradores = ({
             <Td data-etiqueta="Línea">{fila.linea || "—"}</Td>
             <Td data-etiqueta="Ciudad">{fila.ciudad || "—"}</Td>
             <Td data-etiqueta="Correo">
-              <Correo>{fila.correoCorporativo || "—"}</Correo>
+              <ListaCorreos>
+                <Correo>{fila.correoCorporativo || "—"}</Correo>
+                {fila.permiteMultiplesCorreos &&
+                  (fila.correosAdicionales ?? []).map((correo) => <Correo key={correo}>{correo}</Correo>)}
+              </ListaCorreos>
             </Td>
             <Td data-etiqueta="Ext.">{fila.extension || "—"}</Td>
             <Td data-etiqueta="Tel. empresarial">{fila.telefonoEmpresarial || "—"}</Td>

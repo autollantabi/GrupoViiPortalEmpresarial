@@ -13,6 +13,9 @@ Las **búsquedas** (geocodificación) pasan por el backend (`/api/v1/geocodifica
 | `GET /search?q=` | Búsqueda por texto | Geocoding API (`address`) |
 | `GET /reverse?lat&lon` | Qué hay en un punto | Geocoding API (`latlng`) |
 | `GET /cruces?calleA&calleB[&ciudad][&lat&lon]` | Cruce de dos calles | Geocoding API (`A & B, ciudad`); solo se aceptan resultados de tipo `intersection` |
+| `GET /autocomplete?q=[&lat&lon]` | Sugerencias mientras se escribe (desde 3 letras, con pausa de 400 ms) | Geocoding API; cada sugerencia ya trae coordenadas y desglose |
+
+No se usa Places API: el autocompletado sale de la misma Geocoding API, así que no hay que habilitar nada más en la clave. Devuelve varias coincidencias solo cuando el texto es ambiguo. Si Buscar no encuentra el cruce, la pantalla ofrece estas sugerencias ("¿Quiso decir…?").
 
 El backend traduce la respuesta de Google a la forma que usa el front (`address.state`, `county`, `city`, `city_district`, `road`…). Con `lat&lon` (centro del mapa) Google prioriza los cruces de esa zona. Se cachean 10 min las respuestas, compartidas entre usuarios: se paga por consulta.
 
@@ -32,6 +35,17 @@ Front (`.env.development` / `.env.production`):
 
 Se necesitan dos claves porque las restricciones son incompatibles: la del backend va por IP del servidor y la del navegador por dominio.
 
+## Parroquia
+Google casi nunca trae la parroquia en Ecuador, y las parroquias **urbanas** de una ciudad las define cada municipio por ordenanza (el INEC y la CONALI solo manejan la oficial, que en una ciudad es la cabecera cantonal). Por eso el backend ubica el punto en polígonos, sin PostGIS, y toma la parroquia en este orden:
+
+1. **Límite urbano del municipio** (`src/data/parroquias_urbanas.json` en el backend). Cada polígono lleva su `fuente`, que el front muestra al pasar el cursor sobre el campo.
+2. La que trae Google, si la trae.
+3. **Parroquia oficial** del Ministerio de Gobierno (`src/data/parroquias.json`, 1050 parroquias, febrero de 2026). Origen: Portal de Datos Abiertos, dataset "Organización Territorial Parroquial".
+
+Cantones con límite urbano municipal: Quito, Guayaquil, Cuenca, Portoviejo, Riobamba, Loja, Latacunga, Ibarra, Rumiñahui, Otavalo y Antonio Ante. Loja viene de una capa de la UTPL cuyo origen es la ordenanza del GAD. Ambato, Machala y Azogues se descartaron por dudas sobre su capa. En el resto del país sale la parroquia oficial; los campos que no se conocen se muestran con un guion.
+
+Para sumar un cantón: convertir la capa del municipio a WGS84, simplificarla (~3 m) y agregar sus polígonos a `parroquias_urbanas.json` con `cod_canton`, `canton`, `parroquia` y `fuente`. No hace falta tocar código. El `npm run build` copia `src/data` a `dist`.
+
 ## Errores
 Si la clave falta, es inválida o se agotó la cuota, el backend responde **502** y lo registra en el log con el estado de Google (`REQUEST_DENIED`, `OVER_QUERY_LIMIT`…).
 
@@ -39,4 +53,4 @@ Si la clave falta, es inválida o se agotó la cuota, el backend responde **502*
 Crear el recurso `mapaconsulta` en el backend (permisos/roles); sin eso no aparece en el menú.
 
 ## Sobre la precisión
-La pantalla indica la precisión (alta/media/baja) y permite corregir el punto a mano. Google marca como exacto (`ROOFTOP`) solo los predios que conoce; las calles sin numeración devuelven un punto sobre la vía.
+La pantalla indica la precisión (alta/media/baja) y permite corregir el punto a mano. Alta: un cruce, o un predio que Google marca como exacto (`ROOFTOP`). Media: un número estimado entre dos puntos de la calle (`RANGE_INTERPOLATED`), una calle sin numeración, o un punto marcado con clic (devuelve la dirección más cercana, no la del punto). Baja: el resto.
