@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "pm2Dev": "pm2 delete portalEmpresarial || true && pm2 start npm --name 'portalEmpresarial' -- run dev && pm2 log 'portalEmpresarial'",
-    "build": "export NODE_OPTIONS=--max-old-space-size=4096 && VITE_ENV=production vite build --mode production",
+    "build": "vite build --mode production",
     "postbuild": "rm -rf /var/www/html/portalEmpresarial/* && cp -r build/* /var/www/html/portalEmpresarial/ && sudo nginx -t && sudo systemctl reload nginx",
     "preview": "vite preview --port 7150 --host=192.168.0.2"
   },
