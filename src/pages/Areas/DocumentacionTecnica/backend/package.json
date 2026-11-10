@@ -1,0 +1,14 @@
+{
+  "name": "documentacion-calidad-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "API simulada de Documentación y Calidad, organizada por sección",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@sap/hana-client": "^2.30.27",
+    "pg": "^8.23.1"
+  }
+}

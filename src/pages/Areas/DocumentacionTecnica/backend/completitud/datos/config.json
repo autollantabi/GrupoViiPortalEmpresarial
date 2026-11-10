@@ -1,0 +1,238 @@
+{
+  "titulo": "Completitud del maestro de productos",
+  "fuente": {
+    "tabla": "core.dim_item",
+    "filtro": "dit_activo = 'SI' AND dit_compra = 'Y' AND dit_grupo IN ('LLANTAS', 'LLANTAS MOTO')"
+  },
+  "clave": {
+    "empresa": "dit_empresa",
+    "codigo": "dit_codigo"
+  },
+  "contexto": {
+    "grupo": "dit_grupo",
+    "nombre": "dit_nombre",
+    "fabricante": "dit_nombrefabricante"
+  },
+  "filtros": {
+    "Empresa": "dit_empresa",
+    "Grupo": "dit_grupo",
+    "Fabricante": "dit_nombrefabricante"
+  },
+  "valores_vacios": [
+    "",
+    "0",
+    "-",
+    ".",
+    "NA",
+    "N/A",
+    "SIN DATO",
+    "NULL",
+    "UF",
+    "NONE",
+    "NAN"
+  ],
+  "grupos_excluidos": [
+    "ACTIVO FIJO",
+    "PUBLICIDAD Y PROPAGANDA",
+    "BOUTIQUE MARKETING",
+    "ECOVALOR",
+    "SERVICIOS",
+    "INTERES POR REFINANCIAMIENTO DE DEUDA"
+  ],
+  "campos": [
+    {
+      "columna": "dit_codigoproveedor",
+      "etiqueta": "Cód. proveedor",
+      "obligatorio": true,
+      "sensible": true
+    },
+    {
+      "columna": "dit_nombre",
+      "etiqueta": "Nombre",
+      "obligatorio": true
+    },
+    {
+      "columna": "dit_grupo",
+      "etiqueta": "Grupo",
+      "obligatorio": true
+    },
+    {
+      "columna": "dit_propiedad",
+      "etiqueta": "Propiedad",
+      "obligatorio": true
+    },
+    {
+      "columna": "dit_rin",
+      "etiqueta": "Rin",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_serie",
+      "etiqueta": "Serie",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_ancho",
+      "etiqueta": "Ancho",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_nombrefabricante",
+      "etiqueta": "Fabricante",
+      "obligatorio": true
+    },
+    {
+      "columna": "dit_codigobarras",
+      "etiqueta": "Cód. barras",
+      "obligatorio": true
+    },
+    {
+      "columna": "dit_disenio",
+      "etiqueta": "Diseño",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_grupo_original",
+      "etiqueta": "Grupo original",
+      "obligatorio": true
+    },
+    {
+      "columna": "dit_lonas",
+      "etiqueta": "Lonas",
+      "obligatorio": false,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_velocidad",
+      "etiqueta": "Velocidad",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_carga",
+      "etiqueta": "Carga",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_nomenclatura",
+      "etiqueta": "Nomenclatura",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_categoria",
+      "etiqueta": "Categoría",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_segmento",
+      "etiqueta": "Segmento",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_aplicacion",
+      "etiqueta": "Aplicación",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_eje",
+      "etiqueta": "Eje",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_medida",
+      "etiqueta": "Medida",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_medidarin",
+      "etiqueta": "Medida rin",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_familiarin",
+      "etiqueta": "Familia rin",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    },
+    {
+      "columna": "dit_itemrelacionado",
+      "etiqueta": "Ítem relacionado",
+      "obligatorio": true,
+      "aplica_a_grupos": [
+        "LLANTAS",
+        "LLANTAS MOTO"
+      ]
+    }
+  ],
+  "valores_a_revisar": [
+    "NINGUNO"
+  ],
+  "unicidad": [
+    {
+      "columna": "dit_codigobarras",
+      "por_empresa": true
+    }
+  ],
+  "semaforo": {
+    "verde": 0.95,
+    "amarillo": 0.8
+  },
+  "fuente_tabla": "core.dim_item"
+}

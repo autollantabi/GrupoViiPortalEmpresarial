@@ -1,0 +1,99 @@
+{
+  "ayuda": "Línea de negocio -> qué atributos de Caracterización le aplican. `lineas` es la lista de botones del selector; `activa: false` deja el botón visible pero sin caracterización todavía (la pantalla avisa que se irá actualizando). Cada atributo lleva \"TODAS\" o una lista de líneas, por ejemplo [\"LLANTAS\", \"LLANTAS MOTO\"]. Para activar una línea: pon `activa: true` y, si algún atributo no le aplica o es exclusivo de ella, ajusta `atributos`. No hace falta tocar código.",
+  "fuente_lineas": "Valores de dit_grupo en core.dim_item: LLANTAS, LLANTAS MOTO, LUBRICANTES, HERRAMIENTAS",
+  "lineas": [
+    {
+      "clave": "LLANTAS",
+      "nombre": "Llantas",
+      "activa": true
+    },
+    {
+      "clave": "LLANTAS MOTO",
+      "nombre": "Llantas moto",
+      "activa": true
+    },
+    {
+      "clave": "LUBRICANTES",
+      "nombre": "Lubricantes",
+      "activa": true
+    },
+    {
+      "clave": "HERRAMIENTAS",
+      "nombre": "Herramientas",
+      "activa": true
+    }
+  ],
+  "pendiente_en": {
+    "UoM base": {
+      "lineas": ["LUBRICANTES", "HERRAMIENTAS"],
+      "nota": "En Llantas y Llantas moto la unidad base es la misma que la de venta (se vende por unidad). Para Lubricantes y Herramientas todavía no está definida."
+    },
+    "UoM de compra": {
+      "lineas": ["LUBRICANTES", "HERRAMIENTAS"],
+      "nota": "En Llantas y Llantas moto se compra por unidad. Para Lubricantes y Herramientas la unidad de compra todavía no está definida."
+    },
+    "UoM de venta": {
+      "lineas": ["LUBRICANTES", "HERRAMIENTAS"],
+      "nota": "En Llantas y Llantas moto se vende por unidad. Para Lubricantes y Herramientas la unidad de venta todavía no está definida."
+    }
+  },
+  "atributos": {
+    "Código SKU": "TODAS",
+    "Descripción corta": "TODAS",
+    "Descripción larga": "TODAS",
+    "Marca": "TODAS",
+    "Modelo": "TODAS",
+    "Código de barras": "TODAS",
+    "Código de proveedor": "TODAS",
+    "SKU padre": "TODAS",
+    "Estado": "TODAS",
+    "Tipo SKU": "TODAS",
+    "Familia": "TODAS",
+    "Categoría": "TODAS",
+    "Subcategoría": "TODAS",
+    "Línea de negocio": "TODAS",
+    "Clasificación ABC": [
+      "LUBRICANTES"
+    ],
+    "Nacional / importado": "TODAS",
+    "UoM base": "TODAS",
+    "UoM de compra": "TODAS",
+    "UoM de venta": "TODAS",
+    "Factores de conversión": ["LUBRICANTES", "HERRAMIENTAS"],
+    "Unidades por empaque / caja / pallet": ["LUBRICANTES", "HERRAMIENTAS"],
+    "Proveedor principal y alterno": "TODAS",
+    "Costo de compra": "TODAS",
+    "Moneda": "TODAS",
+    "Lead time": "TODAS",
+    "MOQ": "TODAS",
+    "Precio de venta": "TODAS",
+    "Canal": "TODAS",
+    "Incoterm": "TODAS",
+    "FOB": "TODAS",
+    "Cuenta de inventario": "TODAS",
+    "Costo": "TODAS",
+    "Gasto": "TODAS",
+    "Método de costeo": "TODAS",
+    "Grupo de impuesto": "TODAS",
+    "Partida arancelaria": "TODAS",
+    "Largo": "TODAS",
+    "Ancho": "TODAS",
+    "Alto": "TODAS",
+    "Peso neto y bruto": "TODAS",
+    "Volumen": "TODAS",
+    "Apilamiento máximo": "TODAS",
+    "Condición de almacén": "TODAS",
+    "Ubicación": "TODAS",
+    "Manejo especial": "TODAS",
+    "Ficha técnica": "TODAS",
+    "Composición o material": "TODAS",
+    "Norma aplicable y vida útil": "TODAS",
+    "Control por lote / serie / vencimiento": "TODAS",
+    "Criterios de aceptación": "TODAS",
+    "Garantía": "TODAS",
+    "Registro sanitario o certificado": "TODAS",
+    "Hoja de seguridad": "TODAS",
+    "Etiquetado": "TODAS",
+    "Imágenes y atributos para e-commerce": "TODAS"
+  }
+}

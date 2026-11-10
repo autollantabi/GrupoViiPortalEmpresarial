@@ -1,0 +1,602 @@
+{
+  "fuente": "Datos_base_item.xlsx",
+  "grupos": [
+    {
+      "n": 1,
+      "nombre": "Identificación",
+      "atributos": [
+        {
+          "nombre": "Código SKU",
+          "original": "codigo sku",
+          "tabla": "OITM",
+          "campo_sap": "ItemCode",
+          "campos_dwh": [
+            "dit_identificador"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Descripción corta",
+          "original": "Descripcion Corta",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Descripción larga",
+          "original": "Descripcion Larga",
+          "tabla": "OITM",
+          "campo_sap": "ItemName",
+          "campos_dwh": [
+            "dit_nombre"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Marca",
+          "original": "Marca",
+          "tabla": "OMRC",
+          "campo_sap": "FirmName",
+          "campos_dwh": [
+            "dit_nombrefabricante"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Modelo",
+          "original": "modelo",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_DISENO",
+          "campos_dwh": [
+            "dit_disenio"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Código de barras",
+          "original": "código de barras (EAN/UPC/GTIN)",
+          "tabla": "OITM",
+          "campo_sap": "CodeBars",
+          "campos_dwh": [
+            "dit_codigobarras"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Código de proveedor",
+          "original": "código de proveedor",
+          "tabla": "OITM",
+          "campo_sap": "SuppCatNum",
+          "campos_dwh": [
+            "dit_codigoproveedor"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "SKU padre",
+          "original": "SKU padre (si es variante)",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_COD_BAR",
+          "campos_dwh": [
+            "dit_itemrelacionado"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Estado",
+          "original": "estado",
+          "tabla": "OITM",
+          "campo_sap": "validFor",
+          "campos_dwh": [
+            "dit_activo"
+          ],
+          "nota": "",
+          "pista": ""
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "nombre": "Clasificación",
+      "atributos": [
+        {
+          "nombre": "Tipo SKU",
+          "original": "Tipo SKU (Propiedades)",
+          "tabla": "OITM",
+          "campo_sap": "QryGroupN",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": "OITG.ItmsTypCod"
+        },
+        {
+          "nombre": "Familia",
+          "original": "Familia (Segmento)",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_RIN",
+          "campos_sap": [
+            { "campo": "U_MA_RIN", "tabla": "OITM" },
+            { "campo": "U_MA_CATEGORIA", "tabla": "OITM" }
+          ],
+          "regla": "La familia no se escribe en SAP: se deduce del rin y de la categoría de la llanta.",
+          "campos_dwh": [
+            "dit_familiarin"
+          ],
+          "nota": "",
+          "pista": "MA_OITM_SEGM.Code"
+        },
+        {
+          "nombre": "Categoría",
+          "original": "Categoria (Wheel UTV,PCR,LT,CAMION,PESADO,CAMION LIVIANO,INDUSTRIAL,COMPLEMENTO)",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_CATEGORIA",
+          "campos_dwh": [
+            "dit_categoria"
+          ],
+          "nota": "",
+          "pista": "MA_OITM_CATE.Code"
+        },
+        {
+          "nombre": "Subcategoría",
+          "original": "Subcategoria (Aplicacion)",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_APL_TER",
+          "campos_dwh": [
+            "dit_aplicacion"
+          ],
+          "nota": "",
+          "pista": "MA_OITM_APTE.Code"
+        },
+        {
+          "nombre": "Línea de negocio",
+          "original": "Linea Negocio(Llantas, herramientas y lubricantes)",
+          "tabla": "OITM",
+          "campo_sap": "ItmsGrpCod",
+          "campos_dwh": [
+            "dit_grupo"
+          ],
+          "nota": "",
+          "pista": "OITB.ItmsGrpCod"
+        },
+        {
+          "nombre": "Clasificación ABC",
+          "original": "Clasificación ABC (Tier 1,2,3) Lubricantes (Estandar, Premium)",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "crear campo personalizado",
+          "pista": ""
+        },
+        {
+          "nombre": "Nacional / importado",
+          "original": "Nacional Importado",
+          "tabla": "OCRD",
+          "campo_sap": "GroupCode",
+          "campos_dwh": [],
+          "nota": "No existe la Columna especifica pero existe los paises dim_marca_proveedor_procedencia",
+          "pista": "OCRG.GroupCode"
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "nombre": "Unidades de medida",
+      "atributos": [
+        {
+          "nombre": "UoM base",
+          "original": "UoM base",
+          "tabla": "OITM",
+          "campo_sap": "SalUnitMsr",
+          "campos_dwh": [
+            "dit_unidad"
+          ],
+          "nota": "",
+          "pista": "Decidido: se toma SalUnitMsr (no UomEntry); se reutiliza en todas las líneas de negocio"
+        },
+        {
+          "nombre": "UoM de compra",
+          "original": "UoM de compra",
+          "tabla": "OITM",
+          "campo_sap": "SalUnitMsr",
+          "campos_dwh": [
+            "dit_unidad"
+          ],
+          "nota": "",
+          "pista": "Decidido: en Llantas y Llantas moto se usa SalUnitMsr (antes UgpEntry)"
+        },
+        {
+          "nombre": "UoM de venta",
+          "original": "UoM de venta",
+          "tabla": "OITM",
+          "campo_sap": "SalUnitMsr",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": "UGP1,OUOM"
+        },
+        {
+          "nombre": "Factores de conversión",
+          "original": "factores de conversión",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Unidades por empaque / caja / pallet",
+          "original": "unidades por empaque / caja / pallet",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": "nombres"
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "nombre": "Comercial y abastecimiento",
+      "atributos": [
+        {
+          "nombre": "Proveedor principal y alterno",
+          "original": "Proveedor principal y alterno",
+          "tabla": "OITM",
+          "campo_sap": "CardCode",
+          "campos_dwh": [
+            "dit_proveedorprincipal",
+            "dit_proveedorsecundario"
+          ],
+          "nota": "",
+          "pista": "El código de catálogo del fabricante (dit_codigoproveedor) es el atributo «Código de proveedor», no este"
+        },
+        {
+          "nombre": "Costo de compra",
+          "original": "costo de compra",
+          "tabla": "IPF1",
+          "campo_sap": "PriceAtWH",
+          "campos_dwh": [
+            "dit_ultimocosto"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Moneda",
+          "original": "moneda",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [
+            "ds_moneda"
+          ],
+          "tabla_dwh": "core.dim_socios",
+          "regla_dwh": "No está en dim_item: es la moneda del proveedor principal del artículo. Se une con dim_socios por el proveedor principal (dit_proveedorprincipal) y la empresa.",
+          "nota": "El origen en SAP de ds_moneda se documentará con la migración de dim_socios.",
+          "pista": ""
+        },
+        {
+          "nombre": "Lead time",
+          "original": "lead time",
+          "tabla": "OITM",
+          "campo_sap": "LeadTime",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": "Verificado en SAP: OITM.LeadTime (el campo LeadItem no existe)"
+        },
+        {
+          "nombre": "MOQ",
+          "original": "MOQ",
+          "tabla": "OITM",
+          "campo_sap": "MinOrdrQty",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": "Verificado en SAP: OITM.MinOrdrQty (hoy sin valor en las llantas activas)"
+        },
+        {
+          "nombre": "Precio de venta",
+          "original": "precio de venta",
+          "tabla": "ITM1",
+          "campo_sap": "Price",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Canal",
+          "original": "canal",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "Definir el canal para B2B y B2C",
+          "pista": ""
+        },
+        {
+          "nombre": "Incoterm",
+          "original": "Incoterm",
+          "tabla": "POR1",
+          "campo_sap": "Incoterms",
+          "regla": "No es un dato del artículo: se toma de la última orden de compra donde aparece. Por confirmar si se usa la línea (POR1.Incoterms) o el campo propio de la orden (OPOR.U_HBT_INCOTE).",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "FOB",
+          "original": "Fob",
+          "tabla": "IPF1",
+          "campo_sap": "PriceFOB",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "nombre": "Financiero y tributario",
+      "atributos": [
+        {
+          "nombre": "Cuenta de inventario",
+          "original": "Cuenta de inventario",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "Revisar en el SAP",
+          "pista": ""
+        },
+        {
+          "nombre": "Costo",
+          "original": "costo",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "Revisar en el SAP",
+          "pista": ""
+        },
+        {
+          "nombre": "Gasto",
+          "original": "gasto",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "Revisar en el SAP",
+          "pista": ""
+        },
+        {
+          "nombre": "Método de costeo",
+          "original": "método de costeo",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "Revisar en el SAP",
+          "pista": ""
+        },
+        {
+          "nombre": "Grupo de impuesto",
+          "original": "grupo de impuesto (IVA, ICE u otros)",
+          "tabla": "OITM",
+          "campo_sap": "TaxCodeAp",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Partida arancelaria",
+          "original": "partida arancelaria",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_PRT_ARA",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "nombre": "Físico y logístico",
+      "atributos": [
+        {
+          "nombre": "Largo",
+          "original": "Largo",
+          "tabla": "OITM",
+          "campo_sap": "BLength1",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Ancho",
+          "original": "ancho",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_ANCHO",
+          "campos_dwh": [
+            "dit_ancho"
+          ],
+          "nota": "",
+          "pista": "Decidido 2026-11-10: se toma U_MA_ANCHO / dit_ancho (antes BWidth1)"
+        },
+        {
+          "nombre": "Alto",
+          "original": "alto",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_SERIE",
+          "campos_dwh": [
+            "dit_serie"
+          ],
+          "regla": "La altura de la llanta se guarda como la serie: un porcentaje de su ancho (el 55 de una 205/55).",
+          "nota": "",
+          "pista": "Decidido 2026-11-10: se toma U_MA_SERIE / dit_serie (antes BHeight1)"
+        },
+        {
+          "nombre": "Peso neto y bruto",
+          "original": "peso neto y bruto",
+          "tabla": "OITM",
+          "campo_sap": "U_MA_PESO",
+          "campos_dwh": [
+            "dit_peso"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Volumen",
+          "original": "volumen",
+          "tabla": "OITM",
+          "campo_sap": "BVolume",
+          "campos_dwh": [],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Apilamiento máximo",
+          "original": "apilamiento máximo",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "crear campo personalizado",
+          "pista": ""
+        },
+        {
+          "nombre": "Condición de almacén",
+          "original": "condición de almacén (temperatura, humedad)",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "crear campo personalizado",
+          "pista": "Separado el 2026-11-10 del atributo único del Excel «condición de almacén, ubicación por defecto, manejo especial»"
+        },
+        {
+          "nombre": "Ubicación",
+          "original": "ubicación por defecto",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "crear campo personalizado",
+          "pista": "Separado el 2026-11-10 del atributo único del Excel"
+        },
+        {
+          "nombre": "Manejo especial",
+          "original": "manejo especial",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "crear campo personalizado",
+          "pista": "Separado el 2026-11-10 del atributo único del Excel"
+        }
+      ]
+    },
+    {
+      "n": 7,
+      "nombre": "Técnico y calidad",
+      "atributos": [
+        {
+          "nombre": "Ficha técnica",
+          "original": "Ficha técnica",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [
+            "dit_rutafichapdf"
+          ],
+          "nota": "",
+          "pista": ""
+        },
+        {
+          "nombre": "Composición o material",
+          "original": "composición o material",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "pendiente",
+          "pista": ""
+        },
+        {
+          "nombre": "Norma aplicable y vida útil",
+          "original": "norma aplicable, vida útil",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "pendiente",
+          "pista": ""
+        },
+        {
+          "nombre": "Control por lote / serie / vencimiento",
+          "original": "control por lote / serie / vencimiento",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "pendiente",
+          "pista": ""
+        },
+        {
+          "nombre": "Criterios de aceptación",
+          "original": "criterios de aceptación",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "pendiente",
+          "pista": ""
+        },
+        {
+          "nombre": "Garantía",
+          "original": "garantía",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "pendiente",
+          "pista": ""
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "nombre": "Regulatorio y contenido digital",
+      "atributos": [
+        {
+          "nombre": "Registro sanitario o certificado",
+          "original": "Registro sanitario o certificado",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "Revisar en el SAP (Prisci)",
+          "pista": ""
+        },
+        {
+          "nombre": "Hoja de seguridad",
+          "original": "hoja de seguridad (MSDS)",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "pendiente",
+          "pista": ""
+        },
+        {
+          "nombre": "Etiquetado",
+          "original": "etiquetado",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [],
+          "nota": "pendiente",
+          "pista": ""
+        },
+        {
+          "nombre": "Imágenes y atributos para e-commerce",
+          "original": "imágenes, atributos para e-commerce",
+          "tabla": "",
+          "campo_sap": "",
+          "campos_dwh": [
+            "dit_rutaimagenpng"
+          ],
+          "nota": "",
+          "pista": ""
+        }
+      ]
+    }
+  ]
+}

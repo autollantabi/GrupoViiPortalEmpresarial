@@ -1,0 +1,6680 @@
+{
+  "base": "SBO_AUTOLLANTA_PROD",
+  "modulos": [
+    "Artículos e inventario",
+    "Compras",
+    "Movimientos de inventario",
+    "Personalizadas Autollanta"
+  ],
+  "tablas": [
+    {
+      "codigo": "OITM",
+      "nombre": "Item Master Data",
+      "es": "Maestro de artículos",
+      "modulo": "Artículos e inventario",
+      "tipo": "Maestra",
+      "llave": "ItemCode",
+      "desc": "Maestro de artículos: tiene una fila por cada artículo del inventario (llantas, herramientas, lubricantes, servicios). Guarda sus datos básicos, como código, nombre, grupo, marca, unidades y stock. También incluye campos propios de la empresa para las llantas.",
+      "campos": [
+        [
+          "ItemCode",
+          "Código del artículo",
+          "Código único para identificar el artículo del inventario."
+        ],
+        [
+          "ItemName",
+          "Nombre del artículo",
+          "Nombre completo del artículo; en las llantas incluye marca, medida y diseño."
+        ],
+        [
+          "FrgnName",
+          "Nombre extranjero",
+          "Nombre alterno del artículo, por ejemplo en otro idioma."
+        ],
+        [
+          "ItmsGrpCod",
+          "Código del grupo",
+          "Grupo al que pertenece el artículo. Su nombre está en la tabla OITB."
+        ],
+        [
+          "FirmCode",
+          "Código de la marca",
+          "Marca o fabricante del artículo. Su nombre está en la tabla OMRC; el valor -1 significa sin fabricante."
+        ],
+        [
+          "CodeBars",
+          "Código de barras",
+          "Código de barras del artículo."
+        ],
+        [
+          "PrchseItem",
+          "Artículo de compra",
+          "Indica si el artículo se puede comprar: Y/N."
+        ],
+        [
+          "SellItem",
+          "Artículo de venta",
+          "Indica si el artículo se puede vender: Y/N."
+        ],
+        [
+          "InvntItem",
+          "Artículo de inventario",
+          "Indica si el artículo se controla en inventario (maneja stock): Y/N."
+        ],
+        [
+          "OnHand",
+          "Stock total",
+          "Cantidad disponible del artículo, sumando todas las bodegas."
+        ],
+        [
+          "IsCommited",
+          "Stock comprometido",
+          "Cantidad reservada por pedidos de clientes que aún no se despachan."
+        ],
+        [
+          "OnOrder",
+          "Stock en pedido",
+          "Cantidad pedida a proveedores que aún no se recibe."
+        ],
+        [
+          "DfltWH",
+          "Bodega por defecto",
+          "Bodega que se propone por defecto para el artículo. Su nombre está en la tabla OWHS."
+        ],
+        [
+          "CardCode",
+          "Proveedor preferente",
+          "Código del proveedor principal definido en la ficha del artículo. Su nombre está en la tabla OCRD."
+        ],
+        [
+          "BuyUnitMsr",
+          "Unidad de compra",
+          "Unidad de medida en la que se compra el artículo."
+        ],
+        [
+          "SalUnitMsr",
+          "Unidad de venta",
+          "Unidad de medida en la que se vende el artículo."
+        ],
+        [
+          "LastPurPrc",
+          "Último precio de compra",
+          "Precio al que se compró el artículo la última vez."
+        ],
+        [
+          "validFor",
+          "Artículo activo",
+          "Indica si el artículo está activo: Y = activo, N = inactivo."
+        ],
+        [
+          "frozenFor",
+          "Artículo congelado",
+          "Indica si el artículo está congelado (bloqueado para su uso): Y/N."
+        ],
+        [
+          "SWeight1",
+          "Peso de venta",
+          "Peso del artículo en su unidad de venta."
+        ],
+        [
+          "SuppCatNum",
+          "Código de catálogo del proveedor",
+          "Código con el que el proveedor identifica este artículo en su catálogo."
+        ],
+        [
+          "CreateDate",
+          "Fecha de creación",
+          "Fecha en que se creó el artículo en el sistema."
+        ],
+        [
+          "CreateTS",
+          "Hora de creación",
+          "Hora en que se creó el artículo, guardada como número (HHMMSS)."
+        ],
+        [
+          "UpdateDate",
+          "Fecha de actualización",
+          "Fecha de la última modificación de la ficha del artículo."
+        ],
+        [
+          "UpdateTS",
+          "Hora de actualización",
+          "Hora de la última modificación, guardada como número (HHMMSS)."
+        ],
+        [
+          "U_MA_COD_BAR",
+          "Código del artículo relacionado",
+          "Código alterno que relaciona el artículo con otro (SKU padre). Campo personalizado; su uso exacto está por validar."
+        ],
+        [
+          "U_MA_DISENO",
+          "Diseño de la llanta",
+          "Diseño o modelo de la banda de rodadura de la llanta. Campo personalizado (por validar)."
+        ],
+        [
+          "U_MA_RIN",
+          "Rin",
+          "Diámetro del aro de la llanta, en pulgadas. Campo personalizado (por validar)."
+        ],
+        [
+          "U_MA_SERIE",
+          "Serie",
+          "Perfil de la llanta, la relación entre su alto y su ancho. Campo personalizado (por validar)."
+        ],
+        [
+          "U_MA_LONAS",
+          "Lonas",
+          "Número de lonas (capas) de la llanta. Campo personalizado (por validar)."
+        ],
+        [
+          "U_MA_ANCHO",
+          "Ancho",
+          "Ancho de la llanta. Campo personalizado (por validar)."
+        ],
+        [
+          "U_MA_VELOCIDAD",
+          "Índice de velocidad",
+          "Letra que indica la velocidad máxima que soporta la llanta. Campo personalizado (por validar)."
+        ],
+        [
+          "U_MA_CARGA",
+          "Índice de carga",
+          "Número que indica la carga máxima que soporta la llanta. Campo personalizado (por validar)."
+        ],
+        [
+          "U_MA_NOMENCLATURA",
+          "Nomenclatura",
+          "Código de la nomenclatura del artículo. Su nombre está en la tabla @MA_OITM_NOME."
+        ],
+        [
+          "U_MA_CATEGORIA",
+          "Categoría",
+          "Código de la categoría del artículo. Su nombre está en la tabla @MA_OITM_CATE."
+        ],
+        [
+          "U_MA_SEGMENTO",
+          "Segmento",
+          "Código del segmento del artículo. Su nombre está en la tabla @MA_OITM_SEGM."
+        ],
+        [
+          "U_MA_APL_TER",
+          "Aplicación / terreno",
+          "Código de la aplicación o terreno de uso del artículo. Su nombre está en la tabla @MA_OITM_APTE."
+        ],
+        [
+          "U_MA_EJE",
+          "Eje",
+          "Código del eje del artículo. Su nombre está en la tabla @MA_OITM_EJE."
+        ],
+        [
+          "QryGroup1",
+          "MAXTREK",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup2",
+          "FARROAD",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup3",
+          "FORTUNE LIVIANO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup4",
+          "FORTUNE PESADO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup5",
+          "MAXXIS",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup6",
+          "CST",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup7",
+          "ROADCRUZA",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup8",
+          "APLUS",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup9",
+          "EXCLUIDO CONTROL",
+          "Asignación de los artículos excluidos del control mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup10",
+          "AROS",
+          "Asignación de los artículos de tipo aros mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup11",
+          "HAOHUA",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup12",
+          "OTRAS MARCAS",
+          "Asignación de los artículos de otras marcas mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup13",
+          "MAXXIS PESADO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup14",
+          "CST PESADO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup15",
+          "APLUS PESADO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup16",
+          "CST MOTO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup17",
+          "MAXXIS MOTO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup18",
+          "ANSU",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup19",
+          "ANTARES",
+          "Asignación de la marca en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup20",
+          "ROADWING LIVIANO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup21",
+          "TUBOS MOTO",
+          "Asignación de los tubos de moto mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup22",
+          "ROADWING PESADO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup23",
+          "PRINX LIVIANO",
+          "Asignación de la marca y la línea en los artículos mediante un booleano: Y/N."
+        ],
+        [
+          "QryGroup24",
+          "Propiedad 24 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup25",
+          "Propiedad 25 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup26",
+          "Propiedad 26 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup27",
+          "Propiedad 27 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup28",
+          "Propiedad 28 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup29",
+          "Propiedad 29 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup30",
+          "Propiedad 30 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup31",
+          "Propiedad 31 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup32",
+          "Propiedad 32 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup33",
+          "Propiedad 33 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup34",
+          "Propiedad 34 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup35",
+          "Propiedad 35 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup36",
+          "Propiedad 36 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup37",
+          "Propiedad 37 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup38",
+          "Propiedad 38 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup39",
+          "Propiedad 39 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup40",
+          "Propiedad 40 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup41",
+          "Propiedad 41 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup42",
+          "Propiedad 42 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup43",
+          "Propiedad 43 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup44",
+          "Propiedad 44 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup45",
+          "Propiedad 45 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup46",
+          "Propiedad 46 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup47",
+          "Propiedad 47 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup48",
+          "Propiedad 48 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup49",
+          "Propiedad 49 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup50",
+          "Propiedad 50 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup51",
+          "Propiedad 51 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup52",
+          "Propiedad 52 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup53",
+          "Propiedad 53 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup54",
+          "Propiedad 54 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup55",
+          "Propiedad 55 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup56",
+          "Propiedad 56 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup57",
+          "Propiedad 57 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup58",
+          "Propiedad 58 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup59",
+          "Propiedad 59 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup60",
+          "Propiedad 60 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup61",
+          "Propiedad 61 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup62",
+          "Propiedad 62 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup63",
+          "Propiedad 63 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ],
+        [
+          "QryGroup64",
+          "Propiedad 64 (sin uso)",
+          "Propiedad libre: ningún artículo la tiene asignada. Booleano: Y/N."
+        ]
+      ],
+      "relaciones": [
+        [
+          "ItmsGrpCod",
+          "OITB",
+          "ItmsGrpCod",
+          "N:1"
+        ],
+        [
+          "FirmCode",
+          "OMRC",
+          "FirmCode",
+          "N:1"
+        ],
+        [
+          "DfltWH",
+          "OWHS",
+          "WhsCode",
+          "N:1"
+        ],
+        [
+          "CardCode",
+          "OCRD",
+          "CardCode",
+          "N:1"
+        ],
+        [
+          "ItemCode",
+          "OITW",
+          "ItemCode",
+          "1:N"
+        ],
+        [
+          "ItemCode",
+          "ITM1",
+          "ItemCode",
+          "1:N"
+        ],
+        [
+          "ItemCode",
+          "INV1",
+          "ItemCode",
+          "1:N"
+        ],
+        [
+          "U_MA_NOMENCLATURA",
+          "@MA_OITM_NOME",
+          "Code",
+          "N:1"
+        ],
+        [
+          "U_MA_CATEGORIA",
+          "@MA_OITM_CATE",
+          "Code",
+          "N:1"
+        ],
+        [
+          "U_MA_SEGMENTO",
+          "@MA_OITM_SEGM",
+          "Code",
+          "N:1"
+        ],
+        [
+          "U_MA_APL_TER",
+          "@MA_OITM_APTE",
+          "Code",
+          "N:1"
+        ],
+        [
+          "U_MA_EJE",
+          "@MA_OITM_EJE",
+          "Code",
+          "N:1"
+        ],
+        [
+          "ItemCode",
+          "IPF1",
+          "ItemCode",
+          "1:N"
+        ],
+        [
+          "ItemCode",
+          "WTR1",
+          "ItemCode",
+          "1:N"
+        ],
+        [
+          "ItemCode",
+          "POR1",
+          "ItemCode",
+          "1:N"
+        ]
+      ],
+      "muestras": {
+        "ItemCode": {
+          "v": [
+            "1000001",
+            "1000002",
+            "1000003",
+            "1000004",
+            "1000005"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "ItemName": {
+          "v": [
+            "\"LLAVE DE IMPACTO 1/2\"\" NEUMATICA\"",
+            "\"PLUMA HELLA 11\"\" STANDARD POST\"",
+            "\"PLUMA HELLA 12\"\" 305MM  POST\"",
+            "\"PLUMA HELLA 13\"\" 330MM  POST\"",
+            "\"PLUMA HELLA 13\"\" RECTA\""
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "FrgnName": {
+          "v": [
+            "NULL",
+            ".",
+            "100W0110",
+            "100W0112",
+            "100W0114"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "ItmsGrpCod": {
+          "v": [
+            "100",
+            "101",
+            "102",
+            "103",
+            "104"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "FirmCode": {
+          "v": [
+            "-1",
+            "2",
+            "4",
+            "7",
+            "16"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "CodeBars": {
+          "v": [
+            "NULL",
+            "+TG3N200SHD--E3",
+            "00000001",
+            "0000002",
+            "00035475"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "PrchseItem": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "SellItem": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "InvntItem": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "OnHand": {
+          "v": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "IsCommited": {
+          "v": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "OnOrder": {
+          "v": [
+            "0",
+            "1",
+            "2",
+            "4",
+            "5"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "DfltWH": {
+          "v": [
+            "NULL",
+            "02"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "CardCode": {
+          "v": [
+            "NULL",
+            "P1111111111001",
+            "P5555555555001",
+            "P6666666666001",
+            "P7777777777001"
+          ],
+          "n": 13,
+          "f": "practica",
+          "o": "Base de práctica local"
+        },
+        "BuyUnitMsr": {
+          "v": [
+            "NULL",
+            "(vacío)",
+            "UND",
+            "UNIDAD",
+            "Unidad"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "SalUnitMsr": {
+          "v": [
+            "NULL",
+            "(vacío)",
+            "UN",
+            "UND",
+            "UNIDAD"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "LastPurPrc": {
+          "v": [
+            "0",
+            "0.0001",
+            "0.001",
+            "0.0075",
+            "0.009"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "validFor": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "frozenFor": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "SWeight1": {
+          "v": [
+            "NULL",
+            "0"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "SuppCatNum": {
+          "v": [
+            "NULL",
+            "002.004.0005",
+            "0092M68080",
+            "0092S67117",
+            "04N-2502030606"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "CreateDate": {
+          "v": [
+            "2023-01-02",
+            "2023-01-03",
+            "2023-01-10",
+            "2023-01-11",
+            "2023-01-12"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "CreateTS": {
+          "v": [
+            "81039",
+            "83746",
+            "83748",
+            "83752",
+            "83753"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "UpdateDate": {
+          "v": [
+            "2023-01-02",
+            "2024-02-21",
+            "2024-03-31",
+            "2024-04-05",
+            "2024-04-24"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "UpdateTS": {
+          "v": [
+            "81039",
+            "85126",
+            "91605",
+            "91918",
+            "92234"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_COD_BAR": {
+          "v": [
+            "NULL",
+            "A04967",
+            "A1143C4ET25",
+            "AAC-0000081",
+            "AAC-0000099"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_DISENO": {
+          "v": [
+            "NULL",
+            "14",
+            "207A",
+            "7AP2393H1",
+            "858AA"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_RIN": {
+          "v": [
+            "NULL",
+            "-16",
+            "-17",
+            "-18",
+            "-19"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_SERIE": {
+          "v": [
+            "NULL",
+            "10",
+            "10.00",
+            "10.50",
+            "100"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_LONAS": {
+          "v": [
+            "NULL",
+            "0",
+            "10",
+            "12",
+            "14"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_ANCHO": {
+          "v": [
+            "NULL",
+            "10",
+            "10.00",
+            "10.50",
+            "100"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_VELOCIDAD": {
+          "v": [
+            "NULL",
+            "F",
+            "G",
+            "H",
+            "J"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_CARGA": {
+          "v": [
+            "NULL",
+            "0",
+            "100",
+            "100/95",
+            "100/97"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_NOMENCLATURA": {
+          "v": [
+            "NULL",
+            "(vacío)",
+            "-1",
+            "1",
+            "2"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_CATEGORIA": {
+          "v": [
+            "NULL",
+            "(vacío)",
+            "-1",
+            "1",
+            "2"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_SEGMENTO": {
+          "v": [
+            "NULL",
+            "(vacío)",
+            "-1",
+            "1",
+            "10"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_APL_TER": {
+          "v": [
+            "NULL",
+            "(vacío)",
+            "-1",
+            "1",
+            "10"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "U_MA_EJE": {
+          "v": [
+            "NULL",
+            "(vacío)",
+            "-1",
+            "1",
+            "10"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup1": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup2": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup3": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup4": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup5": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup6": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup7": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup8": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup9": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup10": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup11": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup12": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup13": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup14": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup15": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup16": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup17": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup18": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup19": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup20": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup21": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup22": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup23": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup24": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup25": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup26": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup27": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup28": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup29": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup30": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup31": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup32": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup33": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup34": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup35": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup36": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup37": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup38": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup39": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup40": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup41": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup42": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup43": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup44": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup45": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup46": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup47": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup48": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup49": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup50": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup51": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup52": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup53": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup54": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup55": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup56": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup57": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup58": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup59": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup60": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup61": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup62": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup63": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "QryGroup64": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      },
+      "joins": {
+        "ItmsGrpCod": {
+          "sql": "SELECT DISTINCT i.\"ItmsGrpCod\" AS \"Cod_Grupo\", g.\"ItmsGrpNam\" AS \"Grupo\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITB\" g ON g.\"ItmsGrpCod\" = i.\"ItmsGrpCod\" ORDER BY i.\"ItmsGrpCod\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Grupo",
+            "Grupo"
+          ],
+          "filas": [
+            [
+              "100",
+              "ACCESORIOS"
+            ],
+            [
+              "101",
+              "DESCUENTOS"
+            ],
+            [
+              "102",
+              "ECOVALOR"
+            ],
+            [
+              "103",
+              "LLANTAS"
+            ],
+            [
+              "104",
+              "LUBRICANTES"
+            ]
+          ]
+        },
+        "FirmCode": {
+          "sql": "SELECT DISTINCT i.\"FirmCode\" AS \"Cod_Marca\", g.\"FirmName\" AS \"Marca\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OMRC\" g ON g.\"FirmCode\" = i.\"FirmCode\" ORDER BY i.\"FirmCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Marca",
+            "Marca"
+          ],
+          "filas": [
+            [
+              "-1",
+              "- Ningún fabricante -"
+            ],
+            [
+              "2",
+              "ANSU"
+            ],
+            [
+              "4",
+              "APLUS"
+            ],
+            [
+              "7",
+              "BAYI"
+            ],
+            [
+              "16",
+              "CST"
+            ]
+          ]
+        },
+        "DfltWH": {
+          "sql": "SELECT DISTINCT i.\"DfltWH\" AS \"Cod_BodegaPorDefecto\", g.\"WhsName\" AS \"BodegaPorDefecto\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OWHS\" g ON g.\"WhsCode\" = i.\"DfltWH\" ORDER BY i.\"DfltWH\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_BodegaPorDefecto",
+            "BodegaPorDefecto"
+          ],
+          "filas": [
+            [
+              "02",
+              "CEDI CUE"
+            ]
+          ]
+        },
+        "U_MA_NOMENCLATURA": {
+          "sql": "SELECT DISTINCT i.\"U_MA_NOMENCLATURA\" AS \"Cod_Nomenclatura\", g.\"Name\" AS \"Nomenclatura\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_NOME\" g ON g.\"Code\" = i.\"U_MA_NOMENCLATURA\" ORDER BY i.\"U_MA_NOMENCLATURA\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Nomenclatura",
+            "Nomenclatura"
+          ],
+          "filas": [
+            [
+              "-1",
+              "NINGUNO"
+            ],
+            [
+              "1",
+              "AMERICANA"
+            ],
+            [
+              "2",
+              "DECIMAL"
+            ],
+            [
+              "3",
+              "MILIMETRICA"
+            ]
+          ],
+          "todas_sql": "SELECT i.\"U_MA_NOMENCLATURA\" AS \"Cod_Nomenclatura\", g.\"Name\" AS \"Nomenclatura\", COUNT(*) AS \"Articulos\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_NOME\" g ON g.\"Code\" = i.\"U_MA_NOMENCLATURA\" GROUP BY i.\"U_MA_NOMENCLATURA\", g.\"Name\" ORDER BY i.\"U_MA_NOMENCLATURA\" ASC;",
+          "todas_cols": [
+            "Cod_Nomenclatura",
+            "Nomenclatura",
+            "Articulos"
+          ],
+          "todas": [
+            [
+              "-1",
+              "NINGUNO",
+              "6"
+            ],
+            [
+              "1",
+              "AMERICANA",
+              "184"
+            ],
+            [
+              "2",
+              "DECIMAL",
+              "141"
+            ],
+            [
+              "3",
+              "MILIMETRICA",
+              "2253"
+            ]
+          ],
+          "todas_fuera": {
+            "nulos": 1240,
+            "vacios": 480,
+            "sin_catalogo": 0
+          }
+        },
+        "U_MA_CATEGORIA": {
+          "sql": "SELECT DISTINCT i.\"U_MA_CATEGORIA\" AS \"Cod_Categoria\", g.\"Name\" AS \"Categoria\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_CATE\" g ON g.\"Code\" = i.\"U_MA_CATEGORIA\" ORDER BY i.\"U_MA_CATEGORIA\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Categoria",
+            "Categoria"
+          ],
+          "filas": [
+            [
+              "-1",
+              "NINGUNO"
+            ],
+            [
+              "1",
+              "2WHEEL & UTV"
+            ],
+            [
+              "2",
+              "CAMION LIVIANO"
+            ],
+            [
+              "3",
+              "CAMION PESADO"
+            ],
+            [
+              "5",
+              "INDUSTRIAL"
+            ]
+          ],
+          "todas_sql": "SELECT i.\"U_MA_CATEGORIA\" AS \"Cod_Categoria\", g.\"Name\" AS \"Categoria\", COUNT(*) AS \"Articulos\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_CATE\" g ON g.\"Code\" = i.\"U_MA_CATEGORIA\" GROUP BY i.\"U_MA_CATEGORIA\", g.\"Name\" ORDER BY i.\"U_MA_CATEGORIA\" ASC;",
+          "todas_cols": [
+            "Cod_Categoria",
+            "Categoria",
+            "Articulos"
+          ],
+          "todas": [
+            [
+              "-1",
+              "NINGUNO",
+              "37"
+            ],
+            [
+              "1",
+              "2WHEEL & UTV",
+              "237"
+            ],
+            [
+              "2",
+              "CAMION LIVIANO",
+              "134"
+            ],
+            [
+              "3",
+              "CAMION PESADO",
+              "142"
+            ],
+            [
+              "5",
+              "INDUSTRIAL",
+              "9"
+            ],
+            [
+              "6",
+              "LT 4X4 (LIGHT TRUCK)",
+              "1357"
+            ],
+            [
+              "7",
+              "PCR (PASSENGER CAR RADIAL)",
+              "668"
+            ]
+          ],
+          "todas_fuera": {
+            "nulos": 1240,
+            "vacios": 480,
+            "sin_catalogo": 0
+          }
+        },
+        "U_MA_SEGMENTO": {
+          "sql": "SELECT DISTINCT i.\"U_MA_SEGMENTO\" AS \"Cod_Segmento\", g.\"Name\" AS \"Segmento\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_SEGM\" g ON g.\"Code\" = i.\"U_MA_SEGMENTO\" ORDER BY i.\"U_MA_SEGMENTO\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Segmento",
+            "Segmento"
+          ],
+          "filas": [
+            [
+              "-1",
+              "NINGUNO"
+            ],
+            [
+              "1",
+              "ATV/CUADRON"
+            ],
+            [
+              "10",
+              "LT/4X4/SUV(LTR)"
+            ],
+            [
+              "11",
+              "LTSB (LIGHT TRUCK SERVICE BIAS)"
+            ],
+            [
+              "12",
+              "LTSR (LIGHT TRUCK SERVICE RADIAL)"
+            ]
+          ],
+          "todas_sql": "SELECT i.\"U_MA_SEGMENTO\" AS \"Cod_Segmento\", g.\"Name\" AS \"Segmento\", COUNT(*) AS \"Articulos\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_SEGM\" g ON g.\"Code\" = i.\"U_MA_SEGMENTO\" GROUP BY i.\"U_MA_SEGMENTO\", g.\"Name\" ORDER BY i.\"U_MA_SEGMENTO\" ASC;",
+          "todas_cols": [
+            "Cod_Segmento",
+            "Segmento",
+            "Articulos"
+          ],
+          "todas": [
+            [
+              "-1",
+              "NINGUNO",
+              "41"
+            ],
+            [
+              "1",
+              "ATV/CUADRON",
+              "21"
+            ],
+            [
+              "10",
+              "LT/4X4/SUV(LTR)",
+              "1262"
+            ],
+            [
+              "11",
+              "LTSB (LIGHT TRUCK SERVICE BIAS)",
+              "2"
+            ],
+            [
+              "12",
+              "LTSR (LIGHT TRUCK SERVICE RADIAL)",
+              "133"
+            ],
+            [
+              "13",
+              "MOTOS",
+              "181"
+            ],
+            [
+              "15",
+              "PASAJERO(PCR)",
+              "635"
+            ],
+            [
+              "16",
+              "RADIAL",
+              "1"
+            ],
+            [
+              "19",
+              "SCOOTER",
+              "9"
+            ],
+            [
+              "21",
+              "TBR (TRUCK & BUS RADIAL)",
+              "139"
+            ],
+            [
+              "22",
+              "TUBOS",
+              "16"
+            ],
+            [
+              "23",
+              "UTV/SSV(SIDE BY SIDE VEHICLE )",
+              "25"
+            ],
+            [
+              "4",
+              "COMERCIAL",
+              "79"
+            ],
+            [
+              "5",
+              "COMPETENCIA",
+              "25"
+            ],
+            [
+              "6",
+              "DEFENSAS",
+              "1"
+            ],
+            [
+              "8",
+              "KARTING",
+              "2"
+            ],
+            [
+              "9",
+              "LT BIAS (LIGHT TRUCK BIAS)",
+              "12"
+            ]
+          ],
+          "todas_fuera": {
+            "nulos": 1240,
+            "vacios": 480,
+            "sin_catalogo": 0
+          }
+        },
+        "U_MA_APL_TER": {
+          "sql": "SELECT DISTINCT i.\"U_MA_APL_TER\" AS \"Cod_Aplicacion\", g.\"Name\" AS \"Aplicacion\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_APTE\" g ON g.\"Code\" = i.\"U_MA_APL_TER\" ORDER BY i.\"U_MA_APL_TER\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Aplicacion",
+            "Aplicacion"
+          ],
+          "filas": [
+            [
+              "-1",
+              "NINGUNO"
+            ],
+            [
+              "1",
+              "COMERCIAL (CARGA) & VAN"
+            ],
+            [
+              "10",
+              "ON/OFF"
+            ],
+            [
+              "11",
+              "PASAJERO"
+            ],
+            [
+              "12",
+              "PISTA"
+            ]
+          ],
+          "todas_sql": "SELECT i.\"U_MA_APL_TER\" AS \"Cod_Aplicacion\", g.\"Name\" AS \"Aplicacion\", COUNT(*) AS \"Articulos\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_APTE\" g ON g.\"Code\" = i.\"U_MA_APL_TER\" GROUP BY i.\"U_MA_APL_TER\", g.\"Name\" ORDER BY i.\"U_MA_APL_TER\" ASC;",
+          "todas_cols": [
+            "Cod_Aplicacion",
+            "Aplicacion",
+            "Articulos"
+          ],
+          "todas": [
+            [
+              "-1",
+              "NINGUNO",
+              "65"
+            ],
+            [
+              "1",
+              "COMERCIAL (CARGA) & VAN",
+              "79"
+            ],
+            [
+              "10",
+              "ON/OFF",
+              "676"
+            ],
+            [
+              "11",
+              "PASAJERO",
+              "580"
+            ],
+            [
+              "12",
+              "PISTA",
+              "44"
+            ],
+            [
+              "13",
+              "RALLY",
+              "14"
+            ],
+            [
+              "14",
+              "REGIONAL",
+              "105"
+            ],
+            [
+              "15",
+              "RUN FLAT",
+              "5"
+            ],
+            [
+              "17",
+              "SPORT",
+              "49"
+            ],
+            [
+              "18",
+              "TAXI",
+              "48"
+            ],
+            [
+              "2",
+              "CROSS/ ENDURO",
+              "62"
+            ],
+            [
+              "20",
+              "URBANA",
+              "18"
+            ],
+            [
+              "21",
+              "UTILITARIAS",
+              "24"
+            ],
+            [
+              "22",
+              "EV",
+              "8"
+            ],
+            [
+              "3",
+              "DUAL SPORT",
+              "60"
+            ],
+            [
+              "5",
+              "KARTING",
+              "1"
+            ],
+            [
+              "6",
+              "LONG HAUL",
+              "85"
+            ],
+            [
+              "8",
+              "OFF",
+              "194"
+            ],
+            [
+              "9",
+              "ON",
+              "467"
+            ]
+          ],
+          "todas_fuera": {
+            "nulos": 1240,
+            "vacios": 480,
+            "sin_catalogo": 0
+          }
+        },
+        "U_MA_EJE": {
+          "sql": "SELECT DISTINCT i.\"U_MA_EJE\" AS \"Cod_Eje\", g.\"Name\" AS \"Eje\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_EJE\" g ON g.\"Code\" = i.\"U_MA_EJE\" ORDER BY i.\"U_MA_EJE\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Eje",
+            "Eje"
+          ],
+          "filas": [
+            [
+              "-1",
+              "NINGUNO"
+            ],
+            [
+              "1",
+              "A(TODA POSICION)"
+            ],
+            [
+              "10",
+              "MIXTA"
+            ],
+            [
+              "11",
+              "MT(MUD TERRAIN)"
+            ],
+            [
+              "12",
+              "P(PASSENGER)"
+            ]
+          ],
+          "todas_sql": "SELECT i.\"U_MA_EJE\" AS \"Cod_Eje\", g.\"Name\" AS \"Eje\", COUNT(*) AS \"Articulos\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"@MA_OITM_EJE\" g ON g.\"Code\" = i.\"U_MA_EJE\" GROUP BY i.\"U_MA_EJE\", g.\"Name\" ORDER BY i.\"U_MA_EJE\" ASC;",
+          "todas_cols": [
+            "Cod_Eje",
+            "Eje",
+            "Articulos"
+          ],
+          "todas": [
+            [
+              "-1",
+              "NINGUNO",
+              "59"
+            ],
+            [
+              "1",
+              "A(TODA POSICION)",
+              "37"
+            ],
+            [
+              "10",
+              "MIXTA",
+              "56"
+            ],
+            [
+              "11",
+              "MT(MUD TERRAIN)",
+              "187"
+            ],
+            [
+              "12",
+              "P(PASSENGER)",
+              "270"
+            ],
+            [
+              "13",
+              "R(POSTERIOR)",
+              "121"
+            ],
+            [
+              "14",
+              "RT( RUGGED TERRAIN)",
+              "63"
+            ],
+            [
+              "15",
+              "S(SOFT)",
+              "6"
+            ],
+            [
+              "16",
+              "SEMI SLICK",
+              "10"
+            ],
+            [
+              "17",
+              "SLICK",
+              "1"
+            ],
+            [
+              "18",
+              "TAXI",
+              "48"
+            ],
+            [
+              "19",
+              "TRACCION",
+              "87"
+            ],
+            [
+              "2",
+              "AT(ALL TERRAIN)",
+              "559"
+            ],
+            [
+              "21",
+              "UHP (ULTRA HIGH PERFORMANCE)",
+              "353"
+            ],
+            [
+              "3",
+              "DIRECCIONAL",
+              "4"
+            ],
+            [
+              "4",
+              "DIRECCIONAL (TODA POSICION)",
+              "130"
+            ],
+            [
+              "5",
+              "F(DELANTERA)",
+              "81"
+            ],
+            [
+              "6",
+              "H(HARD)",
+              "4"
+            ],
+            [
+              "7",
+              "HP (HIGH PERFORMANCE)",
+              "321"
+            ],
+            [
+              "8",
+              "HT (HIGHWAY TERRAIN)",
+              "183"
+            ],
+            [
+              "9",
+              "M(MEDIUM)",
+              "4"
+            ]
+          ],
+          "todas_fuera": {
+            "nulos": 1240,
+            "vacios": 480,
+            "sin_catalogo": 0
+          }
+        },
+        "QryGroup1": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 1 WHERE i.\"QryGroup1\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2001071",
+              "MAXTREK 155/70 R-12 GENO G3 73T",
+              "MAXTREK"
+            ],
+            [
+              "2001072",
+              "MAXTREK 165/60 R-14 DINO M200 75H",
+              "MAXTREK"
+            ],
+            [
+              "2001073",
+              "MAXTREK 165/60 R-14 INGENS A1 75H",
+              "MAXTREK"
+            ],
+            [
+              "2001074",
+              "MAXTREK 165/65 R-13 MAXIMUS M1 77T",
+              "MAXTREK"
+            ],
+            [
+              "2001075",
+              "MAXTREK 165/70 R-13 SU-810 79T",
+              "MAXTREK"
+            ]
+          ]
+        },
+        "QryGroup2": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 2 WHERE i.\"QryGroup2\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000489",
+              "FARROAD 155/70 R-12 ECOPLUS 73Q",
+              "FARROAD"
+            ],
+            [
+              "2000490",
+              "FARROAD 165/60 R-14 FRD16 75H",
+              "FARROAD"
+            ],
+            [
+              "2000491",
+              "FARROAD 165/65 R-13 FRD16 77T",
+              "FARROAD"
+            ],
+            [
+              "2000492",
+              "FARROAD 165/65 R-14 FRD16 79H",
+              "FARROAD"
+            ],
+            [
+              "2000493",
+              "FARROAD 165/70 R-14 FRD16 81T",
+              "FARROAD"
+            ]
+          ]
+        },
+        "QryGroup3": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 3 WHERE i.\"QryGroup3\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000760",
+              "FORTUNE 155 R-12C CSR80 8PR 88/86Q",
+              "FORTUNE LIVIANO"
+            ],
+            [
+              "2000761",
+              "FORTUNE 155 R-12C FSR-101 8PR 88/86Q",
+              "FORTUNE LIVIANO"
+            ],
+            [
+              "2000762",
+              "FORTUNE 155/70 R-12 FSR-801 73T",
+              "FORTUNE LIVIANO"
+            ],
+            [
+              "2000763",
+              "FORTUNE 165/60 R-14 FSR-401 79H XL",
+              "FORTUNE LIVIANO"
+            ],
+            [
+              "2000764",
+              "FORTUNE 165/65 R-13 FSR-801 77T",
+              "FORTUNE LIVIANO"
+            ]
+          ]
+        },
+        "QryGroup4": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 4 WHERE i.\"QryGroup4\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000752",
+              "FORTUNE 11 R-22.5 FT116A 16PR 148/145M",
+              "FORTUNE PESADO"
+            ],
+            [
+              "2000753",
+              "FORTUNE 11 R-22.5 FT127 16PR 148/145M",
+              "FORTUNE PESADO"
+            ],
+            [
+              "2000754",
+              "LIQUIDACION FORTUNE 12 R-22.5 FT116 18PR 152/149L",
+              "FORTUNE PESADO"
+            ],
+            [
+              "2000755",
+              "FORTUNE 12 R-22.5 FT126 18PR 152/149M",
+              "FORTUNE PESADO"
+            ],
+            [
+              "2000756",
+              "LIQUIDACION FORTUNE 12 R-22.5 FT127 18PR 152/149M",
+              "FORTUNE PESADO"
+            ]
+          ]
+        },
+        "QryGroup5": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 5 WHERE i.\"QryGroup5\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000167",
+              "AGENDAS 40 AÑOS  ART 110",
+              "MAXXIS"
+            ],
+            [
+              "2000169",
+              "BOLSO 40 AÑOS MEDIANO ART 132",
+              "MAXXIS"
+            ],
+            [
+              "2000178",
+              "LLAVEROS DRIVEX ART 134",
+              "MAXXIS"
+            ],
+            [
+              "2000488",
+              "AFICHES MAXTREK MAXIMUS M9",
+              "MAXXIS"
+            ],
+            [
+              "2001037",
+              "BOLSO REGALOS NAVIDAD 2024",
+              "MAXXIS"
+            ]
+          ]
+        },
+        "QryGroup6": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 6 WHERE i.\"QryGroup6\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "1000185",
+              "CST LT265/70 R-17 AT2 10PR 121/118Q OOL",
+              "CST"
+            ],
+            [
+              "2000214",
+              "CST 155/65 R-13 CS868 73H",
+              "CST"
+            ],
+            [
+              "2000215",
+              "CST 155/80 R-13 CS868 79T",
+              "CST"
+            ],
+            [
+              "2000217",
+              "CST 165/60 R-14 CS868 75H",
+              "CST"
+            ],
+            [
+              "2000218",
+              "CST 165/60 R-14 MR-C5 75H",
+              "CST"
+            ]
+          ]
+        },
+        "QryGroup7": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 7 WHERE i.\"QryGroup7\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2002260",
+              "ROADCRUZA 165/65 R-13 RA610 77T",
+              "ROADCRUZA"
+            ],
+            [
+              "2002261",
+              "ROADCRUZA 215/65 R-16 RA1100 102H WW XL",
+              "ROADCRUZA"
+            ],
+            [
+              "2002262",
+              "ROADCRUZA 215/75 R-15 RA1100 100S WW",
+              "ROADCRUZA"
+            ],
+            [
+              "2002263",
+              "ROADCRUZA 235/60 R-18 RA1100 103T WW",
+              "ROADCRUZA"
+            ],
+            [
+              "2002264",
+              "ROADCRUZA 245/50 R-20 RA1100 105H WW XL",
+              "ROADCRUZA"
+            ]
+          ]
+        },
+        "QryGroup8": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 8 WHERE i.\"QryGroup8\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000053",
+              "APLUS 235/55 R-18 A919 104H XL",
+              "APLUS"
+            ],
+            [
+              "2000054",
+              "APLUS 235/55 ZR-17 A607 103W XL",
+              "APLUS"
+            ],
+            [
+              "2000055",
+              "APLUS 245/45 ZR-19 A607 102W XL",
+              "APLUS"
+            ],
+            [
+              "2000056",
+              "APLUS 255/45 ZR-18 A607 103W XL",
+              "APLUS"
+            ],
+            [
+              "2000058",
+              "APLUS LT33X12.50 R-15 MUD TERRAIN A929 6PR 108Q",
+              "APLUS"
+            ]
+          ]
+        },
+        "QryGroup9": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 9 WHERE i.\"QryGroup9\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup10": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 10 WHERE i.\"QryGroup10\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "1000251",
+              "LBONL 17X17.5 6H 139.7 SMBLK L1521",
+              "AROS"
+            ],
+            [
+              "2000043",
+              "AE-140 17X8.0X6H 139.7 NEGRO FILO PULIDO",
+              "AROS"
+            ],
+            [
+              "2000045",
+              "AMERICAN F010 15X7.25X4H 100 ALL DARK GUN METAL ET25",
+              "AROS"
+            ],
+            [
+              "2000046",
+              "AMERICAN JHAI66 17X8.0X6H 139.7 MATT GUNMETAL ET25",
+              "AROS"
+            ],
+            [
+              "2000047",
+              "AMERICAN SL216 19X8.5 5X114.3 DARK GUNMETAL ET35",
+              "AROS"
+            ]
+          ]
+        },
+        "QryGroup11": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 11 WHERE i.\"QryGroup11\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2002865",
+              "HAOHUA 295/80 R-22.5 GT23 18PR 154/151M",
+              "HAOHUA"
+            ],
+            [
+              "2002866",
+              "HAOHUA 295/80 R-22.5 GS03V 18PR 154/151M",
+              "HAOHUA"
+            ],
+            [
+              "2003043",
+              "HAOHUA 315/80 R-22.5 GT23 20PR 157/154M",
+              "HAOHUA"
+            ],
+            [
+              "2003055",
+              "HAOHUA 295/80 R-22.5 GD18 18PR 154/151M",
+              "HAOHUA"
+            ],
+            [
+              "2003063",
+              "HAOHUA 315/80 R-22.5 GD16 20PR 156/150K",
+              "HAOHUA"
+            ]
+          ]
+        },
+        "QryGroup12": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 12 WHERE i.\"QryGroup12\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000001",
+              "CHENGSHAN LT7.00 -15 SPORTCAT CSC-112 10PR 109/105Q",
+              "OTRAS MARCAS"
+            ],
+            [
+              "2001051",
+              "KENDA 175/70 R-13 KR01 82H",
+              "OTRAS MARCAS"
+            ],
+            [
+              "2001053",
+              "KUMHO 275/65 R-18 KL78 114S KOREA",
+              "OTRAS MARCAS"
+            ],
+            [
+              "2002317",
+              "TOYO 205/50 R-15 DRB 86V",
+              "OTRAS MARCAS"
+            ],
+            [
+              "2002318",
+              "TRIANGLE 205/60 R-15 FRC16",
+              "OTRAS MARCAS"
+            ]
+          ]
+        },
+        "QryGroup13": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 13 WHERE i.\"QryGroup13\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000182",
+              "CHENG SHIN (MAXXIS) 7.00 R-15 UE102 12PR 114/112N TT",
+              "MAXXIS PESADO"
+            ],
+            [
+              "2000183",
+              "CHENG SHIN (MAXXIS) 7.00 R-15 UE102 12PR 114/112N TT SET",
+              "MAXXIS PESADO"
+            ],
+            [
+              "2000184",
+              "CHENG SHIN (MAXXIS) 7.00 R-16 UE102 12PR 117/116N TT",
+              "MAXXIS PESADO"
+            ],
+            [
+              "2000185",
+              "CHENG SHIN (MAXXIS) 7.00 R-16 UE102 12PR 117/116N TT SET",
+              "MAXXIS PESADO"
+            ],
+            [
+              "2001383",
+              "MAXXIS 10 -16.5 M9000 8PR TL",
+              "MAXXIS PESADO"
+            ]
+          ]
+        },
+        "QryGroup14": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 14 WHERE i.\"QryGroup14\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "1000153",
+              "CST 7.00 R-16 CS105 12PR 115/110N TT",
+              "CST PESADO"
+            ],
+            [
+              "2000296",
+              "CST 215/75 R-17.5 CR105 16PR 128/126M",
+              "CST PESADO"
+            ],
+            [
+              "2000297",
+              "CST 215/75 R-17.5 CR285 16PR 135/133J",
+              "CST PESADO"
+            ],
+            [
+              "2000388",
+              "CST 275/70 R-22.5 CR105 18PR 148/145J",
+              "CST PESADO"
+            ],
+            [
+              "2000389",
+              "CST 295/80 R-22.5 CR808 18PR 152/148L",
+              "CST PESADO"
+            ]
+          ]
+        },
+        "QryGroup15": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 15 WHERE i.\"QryGroup15\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000052",
+              "APLUS 12 R-22.5 S205 18PR 152/149M",
+              "APLUS PESADO"
+            ],
+            [
+              "2000057",
+              "APLUS 295/80 R-22.5 S202 18PR 152/149M",
+              "APLUS PESADO"
+            ],
+            [
+              "2002432",
+              "APLUS 315/80 R-22.5 S600 20PR 156/150M",
+              "APLUS PESADO"
+            ],
+            [
+              "2002435",
+              "APLUS 315/80 R-22.5 D802 20PR 156/150K",
+              "APLUS PESADO"
+            ],
+            [
+              "2002650",
+              "APLUS 245/70 R-19.5 S201 18PR 143/141J",
+              "APLUS PESADO"
+            ]
+          ]
+        },
+        "QryGroup16": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 16 WHERE i.\"QryGroup16\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000192",
+              "CST 100/90 -18 C6017 56S",
+              "CST MOTO"
+            ],
+            [
+              "2000193",
+              "CST 100/90 -18 C6130 56P",
+              "CST MOTO"
+            ],
+            [
+              "2000194",
+              "CST 100/90 -19 CM703 57M",
+              "CST MOTO"
+            ],
+            [
+              "2000195",
+              "CST 110/70 -17 C6017 54S",
+              "CST MOTO"
+            ],
+            [
+              "2000196",
+              "CST 110/70 -17 C6501 54H",
+              "CST MOTO"
+            ]
+          ]
+        },
+        "QryGroup17": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 17 WHERE i.\"QryGroup17\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2001378",
+              "MAXXIS 100/100 -18 M7305 59M MAXXCROSS IT POS",
+              "MAXXIS MOTO"
+            ],
+            [
+              "2001379",
+              "MAXXIS 100/90 -19 M7301 MAXXCROSS HT POS",
+              "MAXXIS MOTO"
+            ],
+            [
+              "2001380",
+              "MAXXIS 100/90 -19 M7305 57M MAXXCROSS IT POS",
+              "MAXXIS MOTO"
+            ],
+            [
+              "2001381",
+              "MAXXIS 100/90 -19 M7312 57M MAXXCROSS SI POS",
+              "MAXXIS MOTO"
+            ],
+            [
+              "2001382",
+              "MAXXIS 100/90 -19 M7318 57M MAXXCROSS MX-IT POS",
+              "MAXXIS MOTO"
+            ]
+          ]
+        },
+        "QryGroup18": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 18 WHERE i.\"QryGroup18\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2002418",
+              "ANSU 315/80 R-22.5 BY805 20PR 157/154K TL",
+              "ANSU"
+            ],
+            [
+              "2002776",
+              "ANSU LT7.50 R-16 BS28 14PR 122/118L TT SET",
+              "ANSU"
+            ],
+            [
+              "2003254",
+              "ANSU 315/80 R-22.5 BYA682+ 20PR 157/154K TL",
+              "ANSU"
+            ]
+          ]
+        },
+        "QryGroup19": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 19 WHERE i.\"QryGroup19\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2002812",
+              "ANTARES 235/70 R-16 SMT A7 LB",
+              "ANTARES"
+            ],
+            [
+              "2003194",
+              "ANTARES LT215/75 R-15 SMT A7 6PR 100/97S",
+              "ANTARES"
+            ],
+            [
+              "2003224",
+              "ANTARES 185/60 R-15 INGENS EV 84H",
+              "ANTARES"
+            ],
+            [
+              "2003257",
+              "ANTARES 205/50 R-17 INGENS EV 93V",
+              "ANTARES"
+            ],
+            [
+              "2003262",
+              "ANTARES 265/70 R-17 MUDBULLY 115S",
+              "ANTARES"
+            ]
+          ]
+        },
+        "QryGroup20": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 20 WHERE i.\"QryGroup20\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2000002",
+              "ACEITE CAJA CVT",
+              "ROADWING LIVIANO"
+            ],
+            [
+              "2000003",
+              "ACEITE CUARTO 15W40 GAS-DIESEL",
+              "ROADWING LIVIANO"
+            ],
+            [
+              "2000004",
+              "ACEITE CUARTO GULF 5W40  SINTETICO",
+              "ROADWING LIVIANO"
+            ],
+            [
+              "2000005",
+              "ACEITE CUARTO RALLYE 15W40",
+              "ROADWING LIVIANO"
+            ],
+            [
+              "2000006",
+              "ACEITE CUARTO REPSOL 4T 15W50",
+              "ROADWING LIVIANO"
+            ]
+          ]
+        },
+        "QryGroup21": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 21 WHERE i.\"QryGroup21\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup22": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 22 WHERE i.\"QryGroup22\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2003835",
+              "NEW ROADWING LT7.50 R-16 DW572 16PR 125/121L",
+              "ROADWING PESADO"
+            ],
+            [
+              "2003836",
+              "NEW ROADWING 215/75 R-17.5 DW660 16PR 135/133J",
+              "ROADWING PESADO"
+            ],
+            [
+              "2003837",
+              "NEW ROADWING 215/75 R-17.5 DW628 16PR 135/133J",
+              "ROADWING PESADO"
+            ],
+            [
+              "2003838",
+              "NEW ROADWING 235/75 R-17.5 DW111 16PR 143/141J",
+              "ROADWING PESADO"
+            ],
+            [
+              "2003839",
+              "NEW ROADWING 235/75 R-17.5 DW628 16PR 143/141J",
+              "ROADWING PESADO"
+            ]
+          ]
+        },
+        "QryGroup23": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 23 WHERE i.\"QryGroup23\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2003947",
+              "NEW PRINX 205/50 R-17 XLAB CF EV 93W LN",
+              "PRINX LIVIANO"
+            ],
+            [
+              "2003949",
+              "NEW PRINX 215/55 R-17 XLAB CF EV 98W LN",
+              "PRINX LIVIANO"
+            ],
+            [
+              "2003950",
+              "NEW PRINX 205/55 R-16 XLAB CF EV 94V LN",
+              "PRINX LIVIANO"
+            ],
+            [
+              "2003955",
+              "NEW PRINX 245/45 R-20 XNEX SP EV 103Y XL LN",
+              "PRINX LIVIANO"
+            ],
+            [
+              "2003958",
+              "NEW PRINX 205/60 R-16 XLAB CF EV 96V XL LN",
+              "PRINX LIVIANO"
+            ]
+          ]
+        },
+        "QryGroup24": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 24 WHERE i.\"QryGroup24\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": [
+            [
+              "2003234",
+              "KEYSTONE 110/90 -17 SY048 6PR TL",
+              "KEYSTONE"
+            ],
+            [
+              "2003235",
+              "KEYSTONE 130/80 -17 SY-105B 6PR TL",
+              "KEYSTONE"
+            ],
+            [
+              "2003275",
+              "KEYSTONE 90/90 -19 SY044 6PR TL",
+              "KEYSTONE"
+            ],
+            [
+              "2003276",
+              "KEYSTONE 120/90 -18 SY-109 6PR TL",
+              "KEYSTONE"
+            ],
+            [
+              "2003303",
+              "KEYSTONE 100/90 -17 SY-009B 6PR TL",
+              "KEYSTONE"
+            ]
+          ]
+        },
+        "QryGroup25": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 25 WHERE i.\"QryGroup25\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup26": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 26 WHERE i.\"QryGroup26\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup27": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 27 WHERE i.\"QryGroup27\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup28": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 28 WHERE i.\"QryGroup28\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup29": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 29 WHERE i.\"QryGroup29\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup30": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 30 WHERE i.\"QryGroup30\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup31": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 31 WHERE i.\"QryGroup31\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup32": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 32 WHERE i.\"QryGroup32\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup33": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 33 WHERE i.\"QryGroup33\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup34": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 34 WHERE i.\"QryGroup34\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup35": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 35 WHERE i.\"QryGroup35\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup36": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 36 WHERE i.\"QryGroup36\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup37": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 37 WHERE i.\"QryGroup37\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup38": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 38 WHERE i.\"QryGroup38\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup39": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 39 WHERE i.\"QryGroup39\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup40": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 40 WHERE i.\"QryGroup40\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup41": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 41 WHERE i.\"QryGroup41\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup42": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 42 WHERE i.\"QryGroup42\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup43": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 43 WHERE i.\"QryGroup43\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup44": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 44 WHERE i.\"QryGroup44\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup45": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 45 WHERE i.\"QryGroup45\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup46": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 46 WHERE i.\"QryGroup46\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup47": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 47 WHERE i.\"QryGroup47\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup48": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 48 WHERE i.\"QryGroup48\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup49": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 49 WHERE i.\"QryGroup49\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup50": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 50 WHERE i.\"QryGroup50\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup51": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 51 WHERE i.\"QryGroup51\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup52": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 52 WHERE i.\"QryGroup52\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup53": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 53 WHERE i.\"QryGroup53\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup54": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 54 WHERE i.\"QryGroup54\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup55": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 55 WHERE i.\"QryGroup55\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup56": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 56 WHERE i.\"QryGroup56\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup57": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 57 WHERE i.\"QryGroup57\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup58": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 58 WHERE i.\"QryGroup58\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup59": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 59 WHERE i.\"QryGroup59\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup60": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 60 WHERE i.\"QryGroup60\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup61": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 61 WHERE i.\"QryGroup61\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup62": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 62 WHERE i.\"QryGroup62\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup63": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 63 WHERE i.\"QryGroup63\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        },
+        "QryGroup64": {
+          "sql": "SELECT i.\"ItemCode\", i.\"ItemName\", g.\"ItmsGrpNam\" AS \"Propiedad\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITM\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITG\" g ON g.\"ItmsTypCod\" = 64 WHERE i.\"QryGroup64\" = 'Y' ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "ItemCode",
+            "ItemName",
+            "Propiedad"
+          ],
+          "filas": []
+        }
+      }
+    },
+    {
+      "codigo": "OITB",
+      "nombre": "Item Groups",
+      "es": "Grupos de artículos",
+      "modulo": "Artículos e inventario",
+      "tipo": "Configuración",
+      "llave": "ItmsGrpCod",
+      "desc": "Lista de los grupos en los que se clasifican los artículos. Cada artículo pertenece a un solo grupo. También define las cuentas contables y el método de valoración del grupo.",
+      "campos": [
+        [
+          "ItmsGrpCod",
+          "Código del grupo",
+          "Código único del grupo de artículos."
+        ],
+        [
+          "ItmsGrpNam",
+          "Nombre del grupo",
+          "Nombre con el que se conoce el grupo de artículos."
+        ],
+        [
+          "InvntSys",
+          "Método de valoración",
+          "Método con el que se calcula el costo del inventario del grupo: promedio, estándar o FIFO."
+        ],
+        [
+          "BalInvntAc",
+          "Cuenta de inventario",
+          "Cuenta contable del inventario del grupo."
+        ],
+        [
+          "SaleCostAc",
+          "Cuenta de costo de ventas",
+          "Cuenta contable del costo de ventas del grupo."
+        ],
+        [
+          "RevenuesAc",
+          "Cuenta de ingresos",
+          "Cuenta contable de los ingresos por venta del grupo."
+        ]
+      ],
+      "relaciones": [
+        [
+          "ItmsGrpCod",
+          "OITM",
+          "ItmsGrpCod",
+          "1:N"
+        ],
+        [
+          "BalInvntAc",
+          "OACT",
+          "AcctCode",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "ItmsGrpCod": {
+          "v": [
+            "100",
+            "101",
+            "102",
+            "103",
+            "104"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "ItmsGrpNam": {
+          "v": [
+            "ACCESORIOS",
+            "ACTIVO FIJO SM",
+            "ACTIVOS FIJOS",
+            "ADECUACIÓN DE LOCAL",
+            "AGUA POTABLE"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "InvntSys": {
+          "v": [
+            "A"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "BalInvntAc": {
+          "v": [
+            "NULL",
+            "(vacío)"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "RevenuesAc": {
+          "v": [
+            "NULL",
+            "(vacío)"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "SaleCostAc": {
+          "v": [
+            "NULL",
+            "(vacío)"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "OMRC",
+      "nombre": "Manufacturers",
+      "es": "Fabricantes / marcas",
+      "modulo": "Artículos e inventario",
+      "tipo": "Configuración",
+      "llave": "FirmCode",
+      "desc": "Lista de marcas (fabricantes) de los artículos. Cada artículo tiene una marca.",
+      "campos": [
+        [
+          "FirmCode",
+          "Código de la marca",
+          "Código único de la marca o fabricante; el valor -1 significa sin fabricante."
+        ],
+        [
+          "FirmName",
+          "Nombre de la marca",
+          "Nombre de la marca o fabricante."
+        ]
+      ],
+      "relaciones": [
+        [
+          "FirmCode",
+          "OITM",
+          "FirmCode",
+          "1:N"
+        ]
+      ],
+      "valores": {
+        "titulo": "Marcas (lista parcial vista en pantalla)",
+        "cols": [
+          "FirmCode",
+          "FirmName"
+        ],
+        "filas": [
+          [
+            "-1",
+            "- Ningún fabricante -"
+          ],
+          [
+            "1",
+            "AMBACAR"
+          ],
+          [
+            "2",
+            "ANSU"
+          ],
+          [
+            "3",
+            "AOQUISHI"
+          ],
+          [
+            "4",
+            "APLUS"
+          ],
+          [
+            "7",
+            "BAYI"
+          ],
+          [
+            "16",
+            "CST"
+          ],
+          [
+            "42",
+            "DONG CHENG"
+          ],
+          [
+            "18",
+            "FARROAD BRAND"
+          ],
+          [
+            "20",
+            "FORTUNE"
+          ],
+          [
+            "40",
+            "HAOHUA"
+          ],
+          [
+            "24",
+            "MAXTREK"
+          ],
+          [
+            "25",
+            "MAXXIS"
+          ],
+          [
+            "43",
+            "PRINX"
+          ],
+          [
+            "29",
+            "RACKS"
+          ],
+          [
+            "30",
+            "ROADCRUZA"
+          ],
+          [
+            "41",
+            "ROADWING"
+          ],
+          [
+            "39",
+            "SHELL"
+          ],
+          [
+            "38",
+            "VARIOS"
+          ]
+        ]
+      },
+      "muestras": {
+        "FirmCode": {
+          "v": [
+            "-1",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "FirmName": {
+          "v": [
+            "- Ningún fabricante -",
+            "AMBACAR",
+            "ANSU",
+            "ANTARES",
+            "AOQUISHI"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "OITG",
+      "nombre": "Item Properties",
+      "es": "Propiedades de artículos",
+      "modulo": "Artículos e inventario",
+      "tipo": "Configuración",
+      "llave": "ItmsTypCod",
+      "desc": "Lista de las 64 propiedades que se pueden asignar a los artículos. Aquí solo está el nombre de cada propiedad; si un artículo la tiene o no (Y/N) se guarda en OITM, en los campos QryGroup1 a QryGroup64.",
+      "campos": [
+        [
+          "ItmsTypCod",
+          "Número de propiedad",
+          "Número de la propiedad (de 1 a 64). Corresponde a la columna QryGroup del mismo número en OITM."
+        ],
+        [
+          "ItmsGrpNam",
+          "Nombre de la propiedad",
+          "Nombre de la propiedad; en Autollanta suele ser la marca y la línea del artículo."
+        ]
+      ],
+      "relaciones": [
+        [
+          "ItmsTypCod",
+          "OITM",
+          "QryGroup{N}",
+          "1:N (por posición)"
+        ]
+      ],
+      "valores": {
+        "titulo": "Propiedades con nombre real (1 a 23); de la 24 a la 64 son nombres por defecto sin uso",
+        "cols": [
+          "ItmsTypCod",
+          "ItmsGrpNam"
+        ],
+        "filas": [
+          [
+            "1",
+            "MAXTREK"
+          ],
+          [
+            "2",
+            "FARROAD"
+          ],
+          [
+            "3",
+            "FORTUNE LIVIANO"
+          ],
+          [
+            "4",
+            "FORTUNE PESADO"
+          ],
+          [
+            "5",
+            "MAXXIS"
+          ],
+          [
+            "6",
+            "CST"
+          ],
+          [
+            "7",
+            "ROADCRUZA"
+          ],
+          [
+            "8",
+            "APLUS"
+          ],
+          [
+            "9",
+            "EXCLUIDO CONTROL"
+          ],
+          [
+            "10",
+            "AROS"
+          ],
+          [
+            "11",
+            "HAOHUA"
+          ],
+          [
+            "12",
+            "OTRAS MARCAS"
+          ],
+          [
+            "13",
+            "MAXXIS PESADO"
+          ],
+          [
+            "14",
+            "CST PESADO"
+          ],
+          [
+            "15",
+            "APLUS PESADO"
+          ],
+          [
+            "16",
+            "CST MOTO"
+          ],
+          [
+            "17",
+            "MAXXIS MOTO"
+          ],
+          [
+            "18",
+            "ANSU"
+          ],
+          [
+            "19",
+            "ANTARES"
+          ],
+          [
+            "20",
+            "ROADWING LIVIANO"
+          ],
+          [
+            "21",
+            "TUBOS MOTO"
+          ],
+          [
+            "22",
+            "ROADWING PESADO"
+          ],
+          [
+            "23",
+            "PRINX LIVIANO"
+          ]
+        ]
+      },
+      "muestras": {
+        "ItmsTypCod": {
+          "v": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "ItmsGrpNam": {
+          "v": [
+            "ANSU",
+            "ANTARES",
+            "APLUS",
+            "APLUS PESADO",
+            "AROS"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "OITW",
+      "nombre": "Item Warehouse Info",
+      "es": "Stock por artículo y bodega",
+      "modulo": "Artículos e inventario",
+      "tipo": "Maestra",
+      "llave": "ItemCode + WhsCode",
+      "desc": "Stock de cada artículo en cada bodega: cantidad disponible, comprometida y en pedido, además de los mínimos, los máximos y el costo promedio.",
+      "campos": [
+        [
+          "ItemCode",
+          "Código del artículo",
+          "Artículo al que pertenece el stock (tabla OITM)."
+        ],
+        [
+          "WhsCode",
+          "Código de bodega",
+          "Bodega donde está el stock (tabla OWHS)."
+        ],
+        [
+          "OnHand",
+          "Stock en la bodega",
+          "Cantidad disponible del artículo en esa bodega."
+        ],
+        [
+          "IsCommited",
+          "Stock comprometido",
+          "Cantidad reservada por pedidos de clientes en esa bodega."
+        ],
+        [
+          "OnOrder",
+          "Stock en pedido",
+          "Cantidad pedida a proveedores para esa bodega."
+        ],
+        [
+          "MinStock",
+          "Stock mínimo",
+          "Cantidad mínima que se desea mantener en la bodega."
+        ],
+        [
+          "MaxStock",
+          "Stock máximo",
+          "Cantidad máxima que se desea mantener en la bodega."
+        ],
+        [
+          "AvgPrice",
+          "Costo promedio",
+          "Costo promedio del artículo en esa bodega."
+        ]
+      ],
+      "relaciones": [
+        [
+          "ItemCode",
+          "OITM",
+          "ItemCode",
+          "N:1"
+        ],
+        [
+          "WhsCode",
+          "OWHS",
+          "WhsCode",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "ItemCode": {
+          "v": [
+            "1000001",
+            "1000002",
+            "1000003",
+            "1000004",
+            "1000005"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "WhsCode": {
+          "v": [
+            "01",
+            "02",
+            "03",
+            "04",
+            "05"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "OnHand": {
+          "v": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "IsCommited": {
+          "v": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "OnOrder": {
+          "v": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "MinStock": {
+          "v": [
+            "0"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "MaxStock": {
+          "v": [
+            "0"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "AvgPrice": {
+          "v": [
+            "0",
+            "0.0001",
+            "0.0002",
+            "0.0005",
+            "0.0007"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      },
+      "joins": {
+        "ItemCode": {
+          "sql": "SELECT DISTINCT i.\"ItemCode\" AS \"Cod_Articulo\", g.\"ItemName\" AS \"Articulo\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITW\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITM\" g ON g.\"ItemCode\" = i.\"ItemCode\" ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Articulo",
+            "Articulo"
+          ],
+          "filas": [
+            [
+              "1000001",
+              "1 ECOVALOR (SERVICIO DE RECICLAJE NFU)"
+            ],
+            [
+              "1000002",
+              "2 ECOVALOR MOTO (SERVICIO DE RECICLAJE NFU)"
+            ],
+            [
+              "1000003",
+              "ABC DE FRENOS"
+            ],
+            [
+              "1000004",
+              "ABC DE FRENOS POSTERIORES"
+            ],
+            [
+              "1000005",
+              "ABC DE FRENOS PROMOCION"
+            ]
+          ]
+        },
+        "WhsCode": {
+          "sql": "SELECT DISTINCT i.\"WhsCode\" AS \"Cod_Bodega\", g.\"WhsName\" AS \"Bodega\" FROM \"SBO_AUTOLLANTA_PROD\".\"OITW\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OWHS\" g ON g.\"WhsCode\" = i.\"WhsCode\" ORDER BY i.\"WhsCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Bodega",
+            "Bodega"
+          ],
+          "filas": [
+            [
+              "01",
+              "RETAIL"
+            ],
+            [
+              "02",
+              "CEDI CUE"
+            ],
+            [
+              "03",
+              "PULMON"
+            ],
+            [
+              "04",
+              "GARANTIAS"
+            ],
+            [
+              "05",
+              "REFURBISHED"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "codigo": "OWHS",
+      "nombre": "Warehouses",
+      "es": "Bodegas",
+      "modulo": "Artículos e inventario",
+      "tipo": "Maestra",
+      "llave": "WhsCode",
+      "desc": "Lista de las bodegas (almacenes) de la empresa. Cada bodega tiene un código y un nombre; el stock de los artículos se guarda por bodega.",
+      "campos": [
+        [
+          "WhsCode",
+          "Código de la bodega",
+          "Código único de la bodega. Es un texto, por ejemplo 01 o 99."
+        ],
+        [
+          "WhsName",
+          "Nombre de la bodega",
+          "Nombre con el que se conoce la bodega."
+        ],
+        [
+          "BPLid",
+          "Sucursal",
+          "Sucursal a la que pertenece la bodega."
+        ]
+      ],
+      "relaciones": [
+        [
+          "WhsCode",
+          "OITW",
+          "WhsCode",
+          "1:N"
+        ],
+        [
+          "WhsCode",
+          "OITM",
+          "DfltWH",
+          "1:N"
+        ],
+        [
+          "WhsCode",
+          "POR1",
+          "WhsCode",
+          "1:N"
+        ],
+        [
+          "WhsCode",
+          "PQT1",
+          "WhsCode",
+          "1:N"
+        ],
+        [
+          "WhsCode",
+          "WTR1",
+          "WhsCode",
+          "1:N"
+        ],
+        [
+          "WhsCode",
+          "WTR1",
+          "FromWhsCod",
+          "1:N"
+        ]
+      ],
+      "muestras": {
+        "WhsCode": {
+          "v": [
+            "01",
+            "02",
+            "03",
+            "04",
+            "05"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "WhsName": {
+          "v": [
+            "Bodega B2B",
+            "CEDI CUE",
+            "CEDI GYQ",
+            "CEDI UIO",
+            "CONTROL DE INVENTARIO"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "BPLid": {
+          "v": [
+            "NULL"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "ITM1",
+      "nombre": "Item Prices",
+      "es": "Precios de artículos",
+      "modulo": "Artículos e inventario",
+      "tipo": "Detalle",
+      "llave": "ItemCode + PriceList",
+      "desc": "Precio de cada artículo en cada lista de precios.",
+      "campos": [
+        [
+          "ItemCode",
+          "Código del artículo",
+          "Artículo al que pertenece el precio (tabla OITM)."
+        ],
+        [
+          "PriceList",
+          "Lista de precios",
+          "Número de la lista de precios (tabla OPLN)."
+        ],
+        [
+          "Price",
+          "Precio",
+          "Precio del artículo en esa lista."
+        ],
+        [
+          "Currency",
+          "Moneda",
+          "Moneda en la que está expresado el precio."
+        ]
+      ],
+      "relaciones": [
+        [
+          "ItemCode",
+          "OITM",
+          "ItemCode",
+          "N:1"
+        ],
+        [
+          "PriceList",
+          "OPLN",
+          "ListNum",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "ItemCode": {
+          "v": [
+            "1000001",
+            "1000002",
+            "1000003",
+            "1000004",
+            "1000005"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "PriceList": {
+          "v": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Price": {
+          "v": [
+            "NULL",
+            "0",
+            "0.01",
+            "0.02",
+            "0.03"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Currency": {
+          "v": [
+            "NULL",
+            "(vacío)",
+            "USD"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      },
+      "joins": {
+        "ItemCode": {
+          "sql": "SELECT DISTINCT i.\"ItemCode\" AS \"Cod_Articulo\", g.\"ItemName\" AS \"Articulo\" FROM \"SBO_AUTOLLANTA_PROD\".\"ITM1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITM\" g ON g.\"ItemCode\" = i.\"ItemCode\" ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Articulo",
+            "Articulo"
+          ],
+          "filas": [
+            [
+              "1000001",
+              "1 ECOVALOR (SERVICIO DE RECICLAJE NFU)"
+            ],
+            [
+              "1000002",
+              "2 ECOVALOR MOTO (SERVICIO DE RECICLAJE NFU)"
+            ],
+            [
+              "1000003",
+              "ABC DE FRENOS"
+            ],
+            [
+              "1000004",
+              "ABC DE FRENOS POSTERIORES"
+            ],
+            [
+              "1000005",
+              "ABC DE FRENOS PROMOCION"
+            ]
+          ]
+        },
+        "PriceList": {
+          "sql": "SELECT DISTINCT i.\"PriceList\" AS \"Cod_Lista\", g.\"ListName\" AS \"Lista\" FROM \"SBO_AUTOLLANTA_PROD\".\"ITM1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OPLN\" g ON g.\"ListNum\" = i.\"PriceList\" ORDER BY i.\"PriceList\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Lista",
+            "Lista"
+          ],
+          "filas": [
+            [
+              "1",
+              "LISTA A"
+            ],
+            [
+              "2",
+              "LISTA B2B"
+            ],
+            [
+              "3",
+              "LISTA AAA"
+            ],
+            [
+              "4",
+              "LISTA RETAIL"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "codigo": "OIPF",
+      "nombre": "Landed Costs",
+      "es": "Costos en destino (importación) — cabecera",
+      "modulo": "Compras",
+      "tipo": "Documento cabecera",
+      "llave": "DocEntry",
+      "desc": "Cabecera de los documentos de costos en destino: reparten los gastos de importación (flete, aranceles, seguro) sobre la mercadería recibida para conocer su costo real en bodega. El detalle por artículo está en IPF1.",
+      "campos": [
+        [
+          "DocEntry",
+          "Número interno del documento",
+          "Identificador único del documento de costos en destino. Se une con IPF1."
+        ],
+        [
+          "DocDate",
+          "Fecha del documento",
+          "Fecha del documento de costos en destino."
+        ],
+        [
+          "TtlCostSC",
+          "Costo total",
+          "Costo total del documento, en la moneda del sistema."
+        ],
+        [
+          "OpenForLaC",
+          "Abierto para costos en destino",
+          "Indicador Y/N del documento. Su significado exacto está por validar."
+        ]
+      ],
+      "relaciones": [
+        [
+          "DocEntry",
+          "IPF1",
+          "DocEntry",
+          "1:N"
+        ]
+      ],
+      "muestras": {
+        "DocEntry": {
+          "v": [
+            "39",
+            "47",
+            "53",
+            "62",
+            "73"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "DocDate": {
+          "v": [
+            "2023-01-17",
+            "2023-01-19",
+            "2023-01-27",
+            "2023-01-31",
+            "2023-02-15"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "TtlCostSC": {
+          "v": [
+            "0",
+            "12319.87",
+            "12696.75",
+            "12872.17",
+            "13068.29"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "OpenForLaC": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "IPF1",
+      "nombre": "Landed Costs - Items",
+      "es": "Costos en destino — líneas por artículo",
+      "modulo": "Compras",
+      "tipo": "Documento líneas",
+      "llave": "DocEntry + LineNum",
+      "desc": "Detalle por artículo de cada documento de costos en destino, con el precio en origen (FOB) y el precio puesto en bodega.",
+      "campos": [
+        [
+          "DocEntry",
+          "Número interno del documento",
+          "Documento de costos en destino al que pertenece la línea (tabla OIPF)."
+        ],
+        [
+          "ItemCode",
+          "Código del artículo",
+          "Artículo de la línea (tabla OITM)."
+        ],
+        [
+          "PriceFOB",
+          "Precio FOB",
+          "Precio del artículo en origen, sin gastos de importación."
+        ],
+        [
+          "PriceAtWH",
+          "Precio en bodega",
+          "Precio del artículo puesto en bodega, incluidos los gastos de importación."
+        ]
+      ],
+      "relaciones": [
+        [
+          "DocEntry",
+          "OIPF",
+          "DocEntry",
+          "N:1"
+        ],
+        [
+          "ItemCode",
+          "OITM",
+          "ItemCode",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "DocEntry": {
+          "v": [
+            "39",
+            "47",
+            "53",
+            "62",
+            "73"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "ItemCode": {
+          "v": [
+            "2000489",
+            "2000491",
+            "2000492",
+            "2000494",
+            "2000495"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "PriceFOB": {
+          "v": [
+            "0",
+            "0.1",
+            "0.5",
+            "10.1",
+            "11.15"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "PriceAtWH": {
+          "v": [
+            "0.0135",
+            "0.019",
+            "0.1117",
+            "0.1118",
+            "0.2185"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      },
+      "joins": {
+        "ItemCode": {
+          "sql": "SELECT DISTINCT i.\"ItemCode\" AS \"Cod_Articulo\", g.\"ItemName\" AS \"Articulo\" FROM \"SBO_AUTOLLANTA_PROD\".\"IPF1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITM\" g ON g.\"ItemCode\" = i.\"ItemCode\" ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Articulo",
+            "Articulo"
+          ],
+          "filas": [
+            [
+              "2000489",
+              "FARROAD 155/70 R-12 ECOPLUS 73Q"
+            ],
+            [
+              "2000491",
+              "FARROAD 165/65 R-13 FRD16 77T"
+            ],
+            [
+              "2000492",
+              "FARROAD 165/65 R-14 FRD16 79H"
+            ],
+            [
+              "2000494",
+              "FARROAD 175/60 R-13 FRD16 77H"
+            ],
+            [
+              "2000495",
+              "FARROAD 175/70 R-13 FRD16 82H"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "codigo": "WTR1",
+      "nombre": "Inventory Transfers - Rows",
+      "es": "Transferencias de stock — líneas",
+      "modulo": "Movimientos de inventario",
+      "tipo": "Documento líneas",
+      "llave": "DocEntry + LineNum",
+      "desc": "Detalle de cada transferencia de stock entre bodegas: qué artículos se mueven, desde dónde, hacia dónde y en qué cantidad.",
+      "campos": [
+        [
+          "DocEntry",
+          "Número interno del documento",
+          "Transferencia a la que pertenece la línea. Su cabecera (OWTR) está fuera del alcance actual."
+        ],
+        [
+          "ItemCode",
+          "Código del artículo",
+          "Artículo transferido (tabla OITM)."
+        ],
+        [
+          "DocDate",
+          "Fecha del documento",
+          "Fecha de la transferencia."
+        ],
+        [
+          "WhsCode",
+          "Bodega destino",
+          "Bodega a la que llega el artículo."
+        ],
+        [
+          "FromWhsCod",
+          "Bodega origen",
+          "Bodega de la que sale el artículo."
+        ],
+        [
+          "Quantity",
+          "Cantidad",
+          "Cantidad transferida del artículo."
+        ]
+      ],
+      "relaciones": [
+        [
+          "DocEntry",
+          "OWTR",
+          "DocEntry",
+          "N:1"
+        ],
+        [
+          "ItemCode",
+          "OITM",
+          "ItemCode",
+          "N:1"
+        ],
+        [
+          "WhsCode",
+          "OWHS",
+          "WhsCode",
+          "N:1"
+        ],
+        [
+          "FromWhsCod",
+          "OWHS",
+          "WhsCode",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "DocEntry": {
+          "v": [
+            "22",
+            "23",
+            "25",
+            "31",
+            "33"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "ItemCode": {
+          "v": [
+            "1000220",
+            "1000222",
+            "2000169",
+            "2000178",
+            "2000179"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "DocDate": {
+          "v": [
+            "2023-01-05",
+            "2023-01-06",
+            "2023-01-08",
+            "2023-01-09",
+            "2023-01-10"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "WhsCode": {
+          "v": [
+            "01",
+            "02",
+            "03",
+            "04",
+            "09"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "FromWhsCod": {
+          "v": [
+            "01",
+            "02",
+            "03",
+            "04",
+            "06"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Quantity": {
+          "v": [
+            "-542",
+            "-500",
+            "-326",
+            "-300",
+            "-216"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      },
+      "joins": {
+        "ItemCode": {
+          "sql": "SELECT DISTINCT i.\"ItemCode\" AS \"Cod_Articulo\", g.\"ItemName\" AS \"Articulo\" FROM \"SBO_AUTOLLANTA_PROD\".\"WTR1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITM\" g ON g.\"ItemCode\" = i.\"ItemCode\" ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Articulo",
+            "Articulo"
+          ],
+          "filas": [
+            [
+              "1000220",
+              "PESAS GANCHO GRUESO"
+            ],
+            [
+              "1000222",
+              "PESAS ADHESIVAS"
+            ],
+            [
+              "2000169",
+              "BOLSO 40 AÑOS MEDIANO ART 132"
+            ],
+            [
+              "2000178",
+              "LLAVEROS DRIVEX ART 134"
+            ],
+            [
+              "2000179",
+              "FRANELA MAXTREK AZUL"
+            ]
+          ]
+        },
+        "WhsCode": {
+          "sql": "SELECT DISTINCT i.\"WhsCode\" AS \"Cod_BodegaDestino\", g.\"WhsName\" AS \"BodegaDestino\" FROM \"SBO_AUTOLLANTA_PROD\".\"WTR1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OWHS\" g ON g.\"WhsCode\" = i.\"WhsCode\" ORDER BY i.\"WhsCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_BodegaDestino",
+            "BodegaDestino"
+          ],
+          "filas": [
+            [
+              "01",
+              "RETAIL"
+            ],
+            [
+              "02",
+              "CEDI CUE"
+            ],
+            [
+              "03",
+              "PULMON"
+            ],
+            [
+              "04",
+              "GARANTIAS"
+            ],
+            [
+              "09",
+              "CURTIEMBRE"
+            ]
+          ]
+        },
+        "FromWhsCod": {
+          "sql": "SELECT DISTINCT i.\"FromWhsCod\" AS \"Cod_BodegaOrigen\", g.\"WhsName\" AS \"BodegaOrigen\" FROM \"SBO_AUTOLLANTA_PROD\".\"WTR1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OWHS\" g ON g.\"WhsCode\" = i.\"FromWhsCod\" ORDER BY i.\"FromWhsCod\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_BodegaOrigen",
+            "BodegaOrigen"
+          ],
+          "filas": [
+            [
+              "01",
+              "RETAIL"
+            ],
+            [
+              "02",
+              "CEDI CUE"
+            ],
+            [
+              "03",
+              "PULMON"
+            ],
+            [
+              "04",
+              "GARANTIAS"
+            ],
+            [
+              "06",
+              "OPEN BOX"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "codigo": "OPOR",
+      "nombre": "Purchase Orders",
+      "es": "Pedidos de compra — cabecera",
+      "modulo": "Compras",
+      "tipo": "Documento cabecera",
+      "llave": "DocEntry",
+      "desc": "Cabecera de los pedidos de compra a proveedores. El detalle por artículo está en POR1.",
+      "campos": [
+        [
+          "DocEntry",
+          "Número interno del documento",
+          "Identificador único del pedido de compra. Se une con POR1."
+        ],
+        [
+          "DocNum",
+          "Número del pedido",
+          "Número visible del pedido de compra."
+        ],
+        [
+          "CardCode",
+          "Código del proveedor",
+          "Proveedor al que se hace el pedido (tabla OCRD)."
+        ],
+        [
+          "DocDate",
+          "Fecha de contabilización",
+          "Fecha en que se contabiliza el pedido."
+        ],
+        [
+          "DocTotal",
+          "Total del pedido",
+          "Valor total del pedido de compra."
+        ],
+        [
+          "TaxDate",
+          "Fecha del documento",
+          "Fecha de emisión del pedido."
+        ],
+        [
+          "DocStatus",
+          "Estado del pedido",
+          "Indica si el pedido está abierto (O) o cerrado (C)."
+        ],
+        [
+          "CANCELED",
+          "Pedido anulado",
+          "Indica si el pedido está anulado: Y/N."
+        ]
+      ],
+      "relaciones": [
+        [
+          "DocEntry",
+          "POR1",
+          "DocEntry",
+          "1:N"
+        ],
+        [
+          "CardCode",
+          "OCRD",
+          "CardCode",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "DocEntry": {
+          "v": [
+            "42",
+            "46",
+            "50",
+            "51",
+            "54"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "DocNum": {
+          "v": [
+            "110000001",
+            "110000002",
+            "110000003",
+            "110000004",
+            "110000005"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "CardCode": {
+          "v": [
+            "P6666666666001",
+            "P1111111111001",
+            "P5555555555001",
+            "P7777777777001",
+            "P2222222222001"
+          ],
+          "n": 12,
+          "f": "practica",
+          "o": "Base de práctica local"
+        },
+        "DocDate": {
+          "v": [
+            "2022-12-26",
+            "2022-12-31",
+            "2023-01-06",
+            "2023-01-16",
+            "2023-01-17"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "DocTotal": {
+          "v": [
+            "0.01",
+            "52.85",
+            "71.04",
+            "78.4",
+            "79.99"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "TaxDate": {
+          "v": [
+            "2022-12-26",
+            "2022-12-31",
+            "2023-01-06",
+            "2023-01-16",
+            "2023-01-17"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "DocStatus": {
+          "v": [
+            "C",
+            "O"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "CANCELED": {
+          "v": [
+            "N",
+            "Y"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "POR1",
+      "nombre": "Purchase Orders - Rows",
+      "es": "Pedidos de compra — líneas",
+      "modulo": "Compras",
+      "tipo": "Documento líneas",
+      "llave": "DocEntry + LineNum",
+      "desc": "Detalle por artículo de cada pedido de compra: qué se pidió, cuánto y para qué bodega.",
+      "campos": [
+        [
+          "DocEntry",
+          "Número interno del documento",
+          "Pedido de compra al que pertenece la línea (tabla OPOR)."
+        ],
+        [
+          "ItemCode",
+          "Código del artículo",
+          "Artículo pedido (tabla OITM)."
+        ],
+        [
+          "Quantity",
+          "Cantidad pedida",
+          "Cantidad total pedida del artículo."
+        ],
+        [
+          "OpenQty",
+          "Cantidad pendiente",
+          "Parte de lo pedido que todavía no se ha recibido."
+        ],
+        [
+          "WhsCode",
+          "Código de bodega",
+          "Bodega a la que se destina el artículo (tabla OWHS)."
+        ]
+      ],
+      "relaciones": [
+        [
+          "DocEntry",
+          "OPOR",
+          "DocEntry",
+          "N:1"
+        ],
+        [
+          "ItemCode",
+          "OITM",
+          "ItemCode",
+          "N:1"
+        ],
+        [
+          "WhsCode",
+          "OWHS",
+          "WhsCode",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "DocEntry": {
+          "v": [
+            "42",
+            "46",
+            "50",
+            "51",
+            "54"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "ItemCode": {
+          "v": [
+            "NULL",
+            "1000001",
+            "1000002",
+            "1000096",
+            "1000123"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Quantity": {
+          "v": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "OpenQty": {
+          "v": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "WhsCode": {
+          "v": [
+            "NULL",
+            "01",
+            "02",
+            "05",
+            "14"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      },
+      "joins": {
+        "ItemCode": {
+          "sql": "SELECT DISTINCT i.\"ItemCode\" AS \"Cod_Articulo\", g.\"ItemName\" AS \"Articulo\" FROM \"SBO_AUTOLLANTA_PROD\".\"POR1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITM\" g ON g.\"ItemCode\" = i.\"ItemCode\" ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Articulo",
+            "Articulo"
+          ],
+          "filas": [
+            [
+              "1000001",
+              "1 ECOVALOR (SERVICIO DE RECICLAJE NFU)"
+            ],
+            [
+              "1000002",
+              "2 ECOVALOR MOTO (SERVICIO DE RECICLAJE NFU)"
+            ],
+            [
+              "1000096",
+              "OTROS TRABAJOS"
+            ],
+            [
+              "1000123",
+              "ATENCION AL PERSONAL"
+            ],
+            [
+              "1000124",
+              "MANTENIMIENTO DE VEHICULOS"
+            ]
+          ]
+        },
+        "WhsCode": {
+          "sql": "SELECT DISTINCT i.\"WhsCode\" AS \"Cod_Bodega\", g.\"WhsName\" AS \"Bodega\" FROM \"SBO_AUTOLLANTA_PROD\".\"POR1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OWHS\" g ON g.\"WhsCode\" = i.\"WhsCode\" ORDER BY i.\"WhsCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Bodega",
+            "Bodega"
+          ],
+          "filas": [
+            [
+              "01",
+              "RETAIL"
+            ],
+            [
+              "02",
+              "CEDI CUE"
+            ],
+            [
+              "05",
+              "REFURBISHED"
+            ],
+            [
+              "14",
+              "Bodega B2B"
+            ],
+            [
+              "99",
+              "IMPORTACIONES"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "codigo": "OPQT",
+      "nombre": "Purchase Quotations",
+      "es": "Ofertas de compra — cabecera",
+      "modulo": "Compras",
+      "tipo": "Documento cabecera",
+      "llave": "DocEntry",
+      "desc": "Cabecera de las ofertas de compra que se piden a los proveedores antes de hacer el pedido. El detalle por artículo está en PQT1.",
+      "campos": [
+        [
+          "DocEntry",
+          "Número interno del documento",
+          "Identificador único de la oferta de compra. Se une con PQT1."
+        ],
+        [
+          "CardCode",
+          "Código del proveedor",
+          "Proveedor al que se solicita la oferta (tabla OCRD)."
+        ],
+        [
+          "TaxDate",
+          "Fecha del documento",
+          "Fecha de emisión de la oferta."
+        ],
+        [
+          "CANCELED",
+          "Oferta anulada",
+          "Indica si la oferta está anulada: Y/N."
+        ]
+      ],
+      "relaciones": [
+        [
+          "DocEntry",
+          "PQT1",
+          "DocEntry",
+          "1:N"
+        ],
+        [
+          "CardCode",
+          "OCRD",
+          "CardCode",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "DocEntry": {
+          "v": [
+            "39",
+            "40",
+            "41",
+            "42",
+            "43"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "CardCode": {
+          "v": [
+            "P6666666666001",
+            "P5555555555001",
+            "P1111111111001",
+            "P7777777777001",
+            "P2222222222001"
+          ],
+          "n": 12,
+          "f": "practica",
+          "o": "Base de práctica local"
+        },
+        "TaxDate": {
+          "v": [
+            "2023-01-03",
+            "2023-01-10",
+            "2023-01-16",
+            "2023-01-18",
+            "2023-01-19"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "CANCELED": {
+          "v": [
+            "N"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "PQT1",
+      "nombre": "Purchase Quotations - Rows",
+      "es": "Ofertas de compra — líneas",
+      "modulo": "Compras",
+      "tipo": "Documento líneas",
+      "llave": "DocEntry + LineNum",
+      "desc": "Detalle por artículo de cada oferta de compra.",
+      "campos": [
+        [
+          "DocEntry",
+          "Número interno del documento",
+          "Oferta de compra a la que pertenece la línea (tabla OPQT)."
+        ],
+        [
+          "ItemCode",
+          "Código del artículo",
+          "Artículo ofertado (tabla OITM)."
+        ],
+        [
+          "WhsCode",
+          "Código de bodega",
+          "Bodega a la que se destina el artículo (tabla OWHS)."
+        ]
+      ],
+      "relaciones": [
+        [
+          "DocEntry",
+          "OPQT",
+          "DocEntry",
+          "N:1"
+        ],
+        [
+          "ItemCode",
+          "OITM",
+          "ItemCode",
+          "N:1"
+        ],
+        [
+          "WhsCode",
+          "OWHS",
+          "WhsCode",
+          "N:1"
+        ]
+      ],
+      "muestras": {
+        "DocEntry": {
+          "v": [
+            "39",
+            "40",
+            "41",
+            "42",
+            "43"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "ItemCode": {
+          "v": [
+            "1000001",
+            "2000490",
+            "2000491",
+            "2000492",
+            "2000494"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "WhsCode": {
+          "v": [
+            "01",
+            "14",
+            "99"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      },
+      "joins": {
+        "ItemCode": {
+          "sql": "SELECT DISTINCT i.\"ItemCode\" AS \"Cod_Articulo\", g.\"ItemName\" AS \"Articulo\" FROM \"SBO_AUTOLLANTA_PROD\".\"PQT1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OITM\" g ON g.\"ItemCode\" = i.\"ItemCode\" ORDER BY i.\"ItemCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Articulo",
+            "Articulo"
+          ],
+          "filas": [
+            [
+              "1000001",
+              "1 ECOVALOR (SERVICIO DE RECICLAJE NFU)"
+            ],
+            [
+              "2000490",
+              "FARROAD 165/60 R-14 FRD16 75H"
+            ],
+            [
+              "2000491",
+              "FARROAD 165/65 R-13 FRD16 77T"
+            ],
+            [
+              "2000492",
+              "FARROAD 165/65 R-14 FRD16 79H"
+            ],
+            [
+              "2000494",
+              "FARROAD 175/60 R-13 FRD16 77H"
+            ]
+          ]
+        },
+        "WhsCode": {
+          "sql": "SELECT DISTINCT i.\"WhsCode\" AS \"Cod_Bodega\", g.\"WhsName\" AS \"Bodega\" FROM \"SBO_AUTOLLANTA_PROD\".\"PQT1\" i INNER JOIN \"SBO_AUTOLLANTA_PROD\".\"OWHS\" g ON g.\"WhsCode\" = i.\"WhsCode\" ORDER BY i.\"WhsCode\" ASC LIMIT 5;",
+          "cols": [
+            "Cod_Bodega",
+            "Bodega"
+          ],
+          "filas": [
+            [
+              "01",
+              "RETAIL"
+            ],
+            [
+              "14",
+              "Bodega B2B"
+            ],
+            [
+              "99",
+              "IMPORTACIONES"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "codigo": "@MA_OITM_NOME",
+      "nombre": "Item nomenclature",
+      "es": "Nomenclatura de artículo (deducido)",
+      "modulo": "Personalizadas Autollanta",
+      "tipo": "UDT",
+      "llave": "Code",
+      "desc": "Lista de nomenclaturas que se asignan a los artículos. Tabla propia de la empresa (por validar).",
+      "campos": [
+        [
+          "Code",
+          "Código",
+          "Código único del registro. Es el valor que guarda el campo U_MA_NOMENCLATURA de OITM."
+        ],
+        [
+          "Name",
+          "Nombre",
+          "Nombre que corresponde al código."
+        ]
+      ],
+      "relaciones": [
+        [
+          "Code",
+          "OITM",
+          "U_MA_NOMENCLATURA",
+          "1:N"
+        ]
+      ],
+      "muestras": {
+        "Code": {
+          "v": [
+            "-1",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Name": {
+          "v": [
+            "AMERICANA",
+            "DECIMAL",
+            "MILIMETRICA",
+            "MONTACARGA",
+            "NINGUNO"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "@MA_OITM_CATE",
+      "nombre": "Item category",
+      "es": "Categorías de artículo",
+      "modulo": "Personalizadas Autollanta",
+      "tipo": "UDT",
+      "llave": "Code",
+      "desc": "Lista de categorías que se asignan a los artículos. Tabla propia de la empresa.",
+      "campos": [
+        [
+          "Code",
+          "Código",
+          "Código único del registro. Es el valor que guarda el campo U_MA_CATEGORIA de OITM."
+        ],
+        [
+          "Name",
+          "Nombre",
+          "Nombre que corresponde al código."
+        ]
+      ],
+      "relaciones": [
+        [
+          "Code",
+          "OITM",
+          "U_MA_CATEGORIA",
+          "1:N"
+        ]
+      ],
+      "muestras": {
+        "Code": {
+          "v": [
+            "-1",
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Name": {
+          "v": [
+            "2WHEEL & UTV",
+            "CAMION LIVIANO",
+            "CAMION PESADO",
+            "COMPLEMENTO DE NEUMATICOS",
+            "INDUSTRIAL"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "@MA_OITM_SEGM",
+      "nombre": "Item segment",
+      "es": "Segmentos de artículo",
+      "modulo": "Personalizadas Autollanta",
+      "tipo": "UDT",
+      "llave": "Code",
+      "desc": "Lista de segmentos que se asignan a los artículos. Tabla propia de la empresa (por validar su significado).",
+      "campos": [
+        [
+          "Code",
+          "Código",
+          "Código único del registro. Es el valor que guarda el campo U_MA_SEGMENTO de OITM."
+        ],
+        [
+          "Name",
+          "Nombre",
+          "Nombre que corresponde al código."
+        ]
+      ],
+      "relaciones": [
+        [
+          "Code",
+          "OITM",
+          "U_MA_SEGMENTO",
+          "1:N"
+        ]
+      ],
+      "muestras": {
+        "Code": {
+          "v": [
+            "-1",
+            "1",
+            "10",
+            "11",
+            "12"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Name": {
+          "v": [
+            "ATV/CUADRON",
+            "BIAS",
+            "BICICLETAS",
+            "COMERCIAL",
+            "COMPETENCIA"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "@MA_OITM_APTE",
+      "nombre": "Item application",
+      "es": "Aplicación / terreno del artículo",
+      "modulo": "Personalizadas Autollanta",
+      "tipo": "UDT",
+      "llave": "Code",
+      "desc": "Lista de aplicaciones o terrenos de uso que se asignan a los artículos. Tabla propia de la empresa.",
+      "campos": [
+        [
+          "Code",
+          "Código",
+          "Código único del registro. Es el valor que guarda el campo U_MA_APL_TER de OITM."
+        ],
+        [
+          "Name",
+          "Nombre",
+          "Nombre que corresponde al código."
+        ]
+      ],
+      "relaciones": [
+        [
+          "Code",
+          "OITM",
+          "U_MA_APL_TER",
+          "1:N"
+        ]
+      ],
+      "muestras": {
+        "Code": {
+          "v": [
+            "-1",
+            "1",
+            "10",
+            "11",
+            "12"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Name": {
+          "v": [
+            "COMERCIAL (CARGA) & VAN",
+            "CROSS/ ENDURO",
+            "DUAL SPORT",
+            "EV",
+            "HP"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    },
+    {
+      "codigo": "@MA_OITM_EJE",
+      "nombre": "Item axle",
+      "es": "Eje del artículo (deducido)",
+      "modulo": "Personalizadas Autollanta",
+      "tipo": "UDT",
+      "llave": "Code",
+      "desc": "Lista de ejes que se asignan a los artículos. Tabla propia de la empresa (por validar).",
+      "campos": [
+        [
+          "Code",
+          "Código",
+          "Código único del registro. Es el valor que guarda el campo U_MA_EJE de OITM."
+        ],
+        [
+          "Name",
+          "Nombre",
+          "Nombre que corresponde al código."
+        ]
+      ],
+      "relaciones": [
+        [
+          "Code",
+          "OITM",
+          "U_MA_EJE",
+          "1:N"
+        ]
+      ],
+      "muestras": {
+        "Code": {
+          "v": [
+            "-1",
+            "1",
+            "10",
+            "11",
+            "12"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        },
+        "Name": {
+          "v": [
+            "A(TODA POSICION)",
+            "AT(ALL TERRAIN)",
+            "DIRECCIONAL",
+            "DIRECCIONAL (TODA POSICION)",
+            "F(DELANTERA)"
+          ],
+          "n": null,
+          "f": "real",
+          "o": "SAP HANA: consulta directa"
+        }
+      }
+    }
+  ],
+  "nombres": {
+    "OITB": "ItmsGrpNam",
+    "OMRC": "FirmName",
+    "OITG": "ItmsGrpNam",
+    "OWHS": "WhsName",
+    "OPLN": "ListName",
+    "@MA_OITM_NOME": "Name",
+    "@MA_OITM_CATE": "Name",
+    "@MA_OITM_SEGM": "Name",
+    "@MA_OITM_APTE": "Name",
+    "@MA_OITM_EJE": "Name",
+    "OITM": "ItemName"
+  },
+  "externas": {
+    "OPLN": "Listas de precios",
+    "OCRD": "Socios de negocio",
+    "OWTR": "Transferencias de stock (cabecera)"
+  },
+  "catalogos": {
+    "OWHS": {
+      "clave": "WhsCode",
+      "nombre": "WhsName",
+      "parcial": false,
+      "filas": [
+        [
+          "01",
+          "RETAIL"
+        ],
+        [
+          "02",
+          "CEDI CUE"
+        ],
+        [
+          "03",
+          "PULMON"
+        ],
+        [
+          "04",
+          "GARANTIAS"
+        ],
+        [
+          "05",
+          "REFURBISHED"
+        ],
+        [
+          "06",
+          "OPEN BOX"
+        ],
+        [
+          "07",
+          "CEDI GYQ"
+        ],
+        [
+          "08",
+          "CEDI UIO"
+        ],
+        [
+          "09",
+          "CURTIEMBRE"
+        ],
+        [
+          "10",
+          "PATAMARCA"
+        ],
+        [
+          "11",
+          "TRADE MARKETING"
+        ],
+        [
+          "12",
+          "SINIESTROS"
+        ],
+        [
+          "13",
+          "CONTROL DE INVENTARIO"
+        ],
+        [
+          "14",
+          "Bodega B2B"
+        ],
+        [
+          "15",
+          "VAZ SEGUROS"
+        ],
+        [
+          "16",
+          "PRODUCTO B2B"
+        ],
+        [
+          "17",
+          "MUESTRAS"
+        ],
+        [
+          "18",
+          "SERVICIO TECNICO"
+        ],
+        [
+          "19",
+          "REPUESTOS"
+        ],
+        [
+          "50",
+          "TRANSITO"
+        ],
+        [
+          "99",
+          "IMPORTACIONES"
+        ]
+      ]
+    },
+    "OPLN": {
+      "clave": "ListNum",
+      "nombre": "ListName",
+      "parcial": false,
+      "filas": [
+        [
+          "1",
+          "LISTA A"
+        ],
+        [
+          "2",
+          "LISTA B2B"
+        ],
+        [
+          "3",
+          "LISTA AAA"
+        ],
+        [
+          "4",
+          "LISTA RETAIL"
+        ]
+      ]
+    },
+    "OITG": {
+      "clave": "ItmsTypCod",
+      "nombre": "ItmsGrpNam",
+      "parcial": false,
+      "filas": [
+        [
+          "1",
+          "MAXTREK"
+        ],
+        [
+          "2",
+          "FARROAD"
+        ],
+        [
+          "3",
+          "FORTUNE LIVIANO"
+        ],
+        [
+          "4",
+          "FORTUNE PESADO"
+        ],
+        [
+          "5",
+          "MAXXIS"
+        ],
+        [
+          "6",
+          "CST"
+        ],
+        [
+          "7",
+          "ROADCRUZA"
+        ],
+        [
+          "8",
+          "APLUS"
+        ],
+        [
+          "9",
+          "EXCLUIDO CONTROL"
+        ],
+        [
+          "10",
+          "AROS"
+        ],
+        [
+          "11",
+          "HAOHUA"
+        ],
+        [
+          "12",
+          "OTRAS MARCAS"
+        ],
+        [
+          "13",
+          "MAXXIS PESADO"
+        ],
+        [
+          "14",
+          "CST PESADO"
+        ],
+        [
+          "15",
+          "APLUS PESADO"
+        ],
+        [
+          "16",
+          "CST MOTO"
+        ],
+        [
+          "17",
+          "MAXXIS MOTO"
+        ],
+        [
+          "18",
+          "ANSU"
+        ],
+        [
+          "19",
+          "ANTARES"
+        ],
+        [
+          "20",
+          "ROADWING LIVIANO"
+        ],
+        [
+          "21",
+          "TUBOS MOTO"
+        ],
+        [
+          "22",
+          "ROADWING PESADO"
+        ],
+        [
+          "23",
+          "PRINX LIVIANO"
+        ],
+        [
+          "24",
+          "KEYSTONE"
+        ],
+        [
+          "25",
+          "Artículos propiedad 25"
+        ],
+        [
+          "26",
+          "Artículos propiedad 26"
+        ],
+        [
+          "27",
+          "Artículos propiedad 27"
+        ],
+        [
+          "28",
+          "Artículos propiedad 28"
+        ],
+        [
+          "29",
+          "Artículos propiedad 29"
+        ],
+        [
+          "30",
+          "Artículos propiedad 30"
+        ],
+        [
+          "31",
+          "Artículos propiedad 31"
+        ],
+        [
+          "32",
+          "Artículos propiedad 32"
+        ],
+        [
+          "33",
+          "Artículos propiedad 33"
+        ],
+        [
+          "34",
+          "Artículos propiedad 34"
+        ],
+        [
+          "35",
+          "Artículos propiedad 35"
+        ],
+        [
+          "36",
+          "Artículos propiedad 36"
+        ],
+        [
+          "37",
+          "Artículos propiedad 37"
+        ],
+        [
+          "38",
+          "Artículos propiedad 38"
+        ],
+        [
+          "39",
+          "Artículos propiedad 39"
+        ],
+        [
+          "40",
+          "Artículos propiedad 40"
+        ],
+        [
+          "41",
+          "Artículos propiedad 41"
+        ],
+        [
+          "42",
+          "Artículos propiedad 42"
+        ],
+        [
+          "43",
+          "Artículos propiedad 43"
+        ],
+        [
+          "44",
+          "Artículos propiedad 44"
+        ],
+        [
+          "45",
+          "Artículos propiedad 45"
+        ],
+        [
+          "46",
+          "Artículos propiedad 46"
+        ],
+        [
+          "47",
+          "Artículos propiedad 47"
+        ],
+        [
+          "48",
+          "Artículos propiedad 48"
+        ],
+        [
+          "49",
+          "Artículos propiedad 49"
+        ],
+        [
+          "50",
+          "Artículos propiedad 50"
+        ],
+        [
+          "51",
+          "Artículos propiedad 51"
+        ],
+        [
+          "52",
+          "Artículos propiedad 52"
+        ],
+        [
+          "53",
+          "Artículos propiedad 53"
+        ],
+        [
+          "54",
+          "Artículos propiedad 54"
+        ],
+        [
+          "55",
+          "Artículos propiedad 55"
+        ],
+        [
+          "56",
+          "Artículos propiedad 56"
+        ],
+        [
+          "57",
+          "Artículos propiedad 57"
+        ],
+        [
+          "58",
+          "Artículos propiedad 58"
+        ],
+        [
+          "59",
+          "Artículos propiedad 59"
+        ],
+        [
+          "60",
+          "Artículos propiedad 60"
+        ],
+        [
+          "61",
+          "Artículos propiedad 61"
+        ],
+        [
+          "62",
+          "Artículos propiedad 62"
+        ],
+        [
+          "63",
+          "Artículos propiedad 63"
+        ],
+        [
+          "64",
+          "Artículos propiedad 64"
+        ]
+      ]
+    },
+    "OMRC": {
+      "clave": "FirmCode",
+      "nombre": "FirmName",
+      "parcial": false,
+      "filas": [
+        [
+          "-1",
+          "- Ningún fabricante -"
+        ],
+        [
+          "1",
+          "AMBACAR"
+        ],
+        [
+          "2",
+          "ANSU"
+        ],
+        [
+          "3",
+          "AOQUISHI"
+        ],
+        [
+          "4",
+          "APLUS"
+        ],
+        [
+          "7",
+          "BAYI"
+        ],
+        [
+          "16",
+          "CST"
+        ],
+        [
+          "18",
+          "FARROAD BRAND"
+        ],
+        [
+          "20",
+          "FORTUNE"
+        ],
+        [
+          "24",
+          "MAXTREK"
+        ],
+        [
+          "25",
+          "MAXXIS"
+        ],
+        [
+          "29",
+          "RACKS"
+        ],
+        [
+          "30",
+          "ROADCRUZA"
+        ],
+        [
+          "38",
+          "VARIOS"
+        ],
+        [
+          "39",
+          "SHELL"
+        ],
+        [
+          "40",
+          "HAOHUA"
+        ],
+        [
+          "41",
+          "ROADWING"
+        ],
+        [
+          "42",
+          "DONG CHENG"
+        ],
+        [
+          "43",
+          "PRINX"
+        ],
+        [
+          "44",
+          "ANTARES"
+        ],
+        [
+          "45",
+          "WONDERLAND"
+        ],
+        [
+          "46",
+          "KEYSTONE"
+        ],
+        [
+          "47",
+          "UYUSTOOLS"
+        ],
+        [
+          "48",
+          "SATA"
+        ],
+        [
+          "49",
+          "PENNZOIL"
+        ]
+      ]
+    },
+    "OITB": {
+      "clave": "ItmsGrpCod",
+      "nombre": "ItmsGrpNam",
+      "parcial": false,
+      "filas": [
+        [
+          "100",
+          "ACCESORIOS"
+        ],
+        [
+          "101",
+          "DESCUENTOS"
+        ],
+        [
+          "102",
+          "ECOVALOR"
+        ],
+        [
+          "103",
+          "LLANTAS"
+        ],
+        [
+          "104",
+          "LUBRICANTES"
+        ],
+        [
+          "105",
+          "REPUESTOS"
+        ],
+        [
+          "106",
+          "SERVICIOS"
+        ],
+        [
+          "107",
+          "SERVICIOS PRESTADOS VARIOS VENTAS"
+        ],
+        [
+          "108",
+          "ADECUACIÓN DE LOCAL"
+        ],
+        [
+          "109",
+          "AGUA POTABLE"
+        ],
+        [
+          "110",
+          "ARRIENDO DE VEHÍCULOS"
+        ],
+        [
+          "111",
+          "ARRIENDOS"
+        ],
+        [
+          "112",
+          "ATENCIÓN A CLIENTES"
+        ],
+        [
+          "113",
+          "ATENCIÓN AL PERSONAL VENTAS"
+        ],
+        [
+          "114",
+          "AUDITORÍA EXTERNA"
+        ],
+        [
+          "115",
+          "COMBUSTIBLES"
+        ],
+        [
+          "116",
+          "CORREO Y CORRESPONDENCIA"
+        ],
+        [
+          "117",
+          "COSTO PROCESO DE RECICLAJE"
+        ],
+        [
+          "118",
+          "ENERGÍA ELÉCTRICA"
+        ],
+        [
+          "119",
+          "GASTOS BANCARIOS"
+        ],
+        [
+          "120",
+          "GASTOS LEGALES Y JUDICIALES"
+        ],
+        [
+          "121",
+          "GASTOS VARIOS"
+        ],
+        [
+          "122",
+          "GUARDIANIA Y SEGURIDAD"
+        ],
+        [
+          "123",
+          "HONORARIOS PROFESIONALES VENTAS"
+        ],
+        [
+          "124",
+          "HOSPEDAJE Y ALIMENTACIÓN"
+        ],
+        [
+          "125",
+          "IMPUESTOS, CONTRIBUCIONES Y CUOTAS"
+        ],
+        [
+          "126",
+          "INTERNET"
+        ],
+        [
+          "127",
+          "MANTENIMIENTO DE BODEGAS"
+        ],
+        [
+          "128",
+          "MANTENIMIENTO EQUIPO DE COMPUTACIÓN Y OFICINA"
+        ],
+        [
+          "129",
+          "MANTENIMIENTO MUEBLES Y ENSERES"
+        ],
+        [
+          "130",
+          "MANTENIMIENTO OFICINAS"
+        ],
+        [
+          "131",
+          "MANTENIMIENTO VEHÍCULOS"
+        ],
+        [
+          "132",
+          "MANTENIMIENTO Y ADECUACIONES DE SISTEMA DE COMPUTACIÓN"
+        ],
+        [
+          "133",
+          "MATERIAL DE ASEO Y LIMPIEZA"
+        ],
+        [
+          "134",
+          "MOVILIZACIONES Y TRANSPORTE"
+        ],
+        [
+          "135",
+          "NOTARIOS Y REGISTRADORES DE LA PROPIEDAD O MERCANTILES"
+        ],
+        [
+          "136",
+          "PUBLICIDAD Y PROPAGANDA"
+        ],
+        [
+          "137",
+          "SEGUROS"
+        ],
+        [
+          "138",
+          "SUMINISTROS DE OFICINA"
+        ],
+        [
+          "139",
+          "TELEFONÍA CELULAR"
+        ],
+        [
+          "140",
+          "TELÉFONOS"
+        ],
+        [
+          "141",
+          "TRANSPORTE EN COMPRAS"
+        ],
+        [
+          "142",
+          "TRANSPORTE EN VENTAS"
+        ],
+        [
+          "143",
+          "VARIOS GASTOS DE IMPORTACIÓN."
+        ],
+        [
+          "144",
+          "COSTOS DE IMPORTACION"
+        ],
+        [
+          "145",
+          "CTAS VARIAS POR COBRAR"
+        ],
+        [
+          "146",
+          "ALQUILER VEHICULOS"
+        ],
+        [
+          "147",
+          "ACTIVO FIJO SM"
+        ],
+        [
+          "148",
+          "SUMINISTROS PARA VENTA"
+        ],
+        [
+          "151",
+          "MANTENIMIENTO HERRAMIENTAS"
+        ],
+        [
+          "152",
+          "GASTO DE GARANTIAS"
+        ],
+        [
+          "153",
+          "ACTIVOS FIJOS"
+        ],
+        [
+          "154",
+          "SEGUROS ANTICIPADOS"
+        ],
+        [
+          "155",
+          "PROVICIONES LOCALES"
+        ],
+        [
+          "156",
+          "PRESTAMOS EMPLEADOS"
+        ],
+        [
+          "157",
+          "SUMINISTROS OFICINA"
+        ],
+        [
+          "158",
+          "SERVICIOS PRESTADOS VARIOS ADMIN"
+        ],
+        [
+          "159",
+          "HONORARIOS PROFESIONALES ADMIN"
+        ],
+        [
+          "160",
+          "MANTENIMIENTO OFICINA ADMIN"
+        ],
+        [
+          "161",
+          "SEGURO MEDICO ADICIONAL ADM"
+        ],
+        [
+          "162",
+          "ATENCION AL PERSONAL ADM"
+        ],
+        [
+          "163",
+          "PASAJES AEREOS VNT"
+        ],
+        [
+          "164",
+          "Bodegaje Importaciones"
+        ],
+        [
+          "165",
+          "GASTOS FINANCIEROS"
+        ],
+        [
+          "166",
+          "REVERSO DE DESCUENTOS"
+        ],
+        [
+          "167",
+          "HERRAMIENTAS"
+        ],
+        [
+          "168",
+          "CONTROL SRV"
+        ],
+        [
+          "169",
+          "Intereses a Terceros"
+        ],
+        [
+          "170",
+          "BOUTIQUE MARKETING"
+        ],
+        [
+          "171",
+          "NDB OTROS INGRESOS"
+        ],
+        [
+          "172",
+          "AROS"
+        ],
+        [
+          "173",
+          "SERVICIOS BOUTIQUE MARKETING"
+        ],
+        [
+          "174",
+          "AUTOCONSUMOS DE INVENTARIO"
+        ],
+        [
+          "175",
+          "MANTENIMIENTO BODEGAS VENTAS"
+        ],
+        [
+          "176",
+          "DESCUENTO EN COMPRAS"
+        ],
+        [
+          "177",
+          "FALTANTE DE IMPORTACION"
+        ]
+      ]
+    },
+    "@MA_OITM_APTE": {
+      "clave": "Code",
+      "nombre": "Name",
+      "parcial": false,
+      "filas": [
+        [
+          "-1",
+          "NINGUNO"
+        ],
+        [
+          "1",
+          "COMERCIAL (CARGA) & VAN"
+        ],
+        [
+          "10",
+          "ON/OFF"
+        ],
+        [
+          "11",
+          "PASAJERO"
+        ],
+        [
+          "12",
+          "PISTA"
+        ],
+        [
+          "13",
+          "RALLY"
+        ],
+        [
+          "14",
+          "REGIONAL"
+        ],
+        [
+          "15",
+          "RUN FLAT"
+        ],
+        [
+          "16",
+          "RUTA"
+        ],
+        [
+          "17",
+          "SPORT"
+        ],
+        [
+          "18",
+          "TAXI"
+        ],
+        [
+          "19",
+          "UHP"
+        ],
+        [
+          "2",
+          "CROSS/ ENDURO"
+        ],
+        [
+          "20",
+          "URBANA"
+        ],
+        [
+          "21",
+          "UTILITARIAS"
+        ],
+        [
+          "22",
+          "EV"
+        ],
+        [
+          "3",
+          "DUAL SPORT"
+        ],
+        [
+          "4",
+          "HP"
+        ],
+        [
+          "5",
+          "KARTING"
+        ],
+        [
+          "6",
+          "LONG HAUL"
+        ],
+        [
+          "7",
+          "MTB (MOUNTAIN BIKE)"
+        ],
+        [
+          "8",
+          "OFF"
+        ],
+        [
+          "9",
+          "ON"
+        ]
+      ]
+    },
+    "@MA_OITM_CATE": {
+      "clave": "Code",
+      "nombre": "Name",
+      "parcial": false,
+      "filas": [
+        [
+          "-1",
+          "NINGUNO"
+        ],
+        [
+          "1",
+          "2WHEEL & UTV"
+        ],
+        [
+          "2",
+          "CAMION LIVIANO"
+        ],
+        [
+          "3",
+          "CAMION PESADO"
+        ],
+        [
+          "4",
+          "COMPLEMENTO DE NEUMATICOS"
+        ],
+        [
+          "5",
+          "INDUSTRIAL"
+        ],
+        [
+          "6",
+          "LT 4X4 (LIGHT TRUCK)"
+        ],
+        [
+          "7",
+          "PCR (PASSENGER CAR RADIAL)"
+        ]
+      ]
+    },
+    "@MA_OITM_EJE": {
+      "clave": "Code",
+      "nombre": "Name",
+      "parcial": false,
+      "filas": [
+        [
+          "-1",
+          "NINGUNO"
+        ],
+        [
+          "1",
+          "A(TODA POSICION)"
+        ],
+        [
+          "10",
+          "MIXTA"
+        ],
+        [
+          "11",
+          "MT(MUD TERRAIN)"
+        ],
+        [
+          "12",
+          "P(PASSENGER)"
+        ],
+        [
+          "13",
+          "R(POSTERIOR)"
+        ],
+        [
+          "14",
+          "RT( RUGGED TERRAIN)"
+        ],
+        [
+          "15",
+          "S(SOFT)"
+        ],
+        [
+          "16",
+          "SEMI SLICK"
+        ],
+        [
+          "17",
+          "SLICK"
+        ],
+        [
+          "18",
+          "TAXI"
+        ],
+        [
+          "19",
+          "TRACCION"
+        ],
+        [
+          "2",
+          "AT(ALL TERRAIN)"
+        ],
+        [
+          "20",
+          "TRAILER (ARRASTRE)"
+        ],
+        [
+          "21",
+          "UHP (ULTRA HIGH PERFORMANCE)"
+        ],
+        [
+          "3",
+          "DIRECCIONAL"
+        ],
+        [
+          "4",
+          "DIRECCIONAL (TODA POSICION)"
+        ],
+        [
+          "5",
+          "F(DELANTERA)"
+        ],
+        [
+          "6",
+          "H(HARD)"
+        ],
+        [
+          "7",
+          "HP (HIGH PERFORMANCE)"
+        ],
+        [
+          "8",
+          "HT (HIGHWAY TERRAIN)"
+        ],
+        [
+          "9",
+          "M(MEDIUM)"
+        ]
+      ]
+    },
+    "@MA_OITM_NOME": {
+      "clave": "Code",
+      "nombre": "Name",
+      "parcial": false,
+      "filas": [
+        [
+          "-1",
+          "NINGUNO"
+        ],
+        [
+          "1",
+          "AMERICANA"
+        ],
+        [
+          "2",
+          "DECIMAL"
+        ],
+        [
+          "3",
+          "MILIMETRICA"
+        ],
+        [
+          "4",
+          "MONTACARGA"
+        ]
+      ]
+    },
+    "@MA_OITM_SEGM": {
+      "clave": "Code",
+      "nombre": "Name",
+      "parcial": false,
+      "filas": [
+        [
+          "-1",
+          "NINGUNO"
+        ],
+        [
+          "1",
+          "ATV/CUADRON"
+        ],
+        [
+          "10",
+          "LT/4X4/SUV(LTR)"
+        ],
+        [
+          "11",
+          "LTSB (LIGHT TRUCK SERVICE BIAS)"
+        ],
+        [
+          "12",
+          "LTSR (LIGHT TRUCK SERVICE RADIAL)"
+        ],
+        [
+          "13",
+          "MOTOS"
+        ],
+        [
+          "14",
+          "NEUMATICAS"
+        ],
+        [
+          "15",
+          "PASAJERO(PCR)"
+        ],
+        [
+          "16",
+          "RADIAL"
+        ],
+        [
+          "17",
+          "RUNFLAT"
+        ],
+        [
+          "18",
+          "SOLIDAS"
+        ],
+        [
+          "19",
+          "SCOOTER"
+        ],
+        [
+          "2",
+          "BIAS"
+        ],
+        [
+          "20",
+          "TBB (TRUCK & BUS BIAS)"
+        ],
+        [
+          "21",
+          "TBR (TRUCK & BUS RADIAL)"
+        ],
+        [
+          "22",
+          "TUBOS"
+        ],
+        [
+          "23",
+          "UTV/SSV(SIDE BY SIDE VEHICLE )"
+        ],
+        [
+          "3",
+          "BICICLETAS"
+        ],
+        [
+          "4",
+          "COMERCIAL"
+        ],
+        [
+          "5",
+          "COMPETENCIA"
+        ],
+        [
+          "6",
+          "DEFENSAS"
+        ],
+        [
+          "7",
+          "ELASTICAS"
+        ],
+        [
+          "8",
+          "KARTING"
+        ],
+        [
+          "9",
+          "LT BIAS (LIGHT TRUCK BIAS)"
+        ]
+      ]
+    }
+  }
+}

@@ -703,7 +703,7 @@ export const DocTecCompletitud = () => {
     let vivo = true;
     DocTec_ObtenerCompletitudResumen(aplicados)
       .then((d) => vivo && (setResumen(d), setError(null)))
-      .catch(() => vivo && setError("No se pudo cargar la completitud. Revisa que la API esté disponible."));
+      .catch((e) => vivo && setError(e.response?.data?.error ?? "No se pudo cargar la completitud. Revisa que la API esté disponible."));
     return () => {
       vivo = false;
     };

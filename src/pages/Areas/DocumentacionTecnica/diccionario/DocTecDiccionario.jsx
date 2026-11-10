@@ -1344,7 +1344,7 @@ export const DocTecDiccionario = () => {
     let vivo = true;
     DocTec_ObtenerDiccionario()
       .then((d) => vivo && setDatos(d))
-      .catch(() => vivo && setError("No se pudo cargar el diccionario. Revisa que la API esté disponible."));
+      .catch((e) => vivo && setError(e.response?.data?.error ?? "No se pudo cargar el diccionario. Revisa que la API esté disponible."));
     return () => {
       vivo = false;
     };

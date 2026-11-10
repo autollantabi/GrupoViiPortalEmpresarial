@@ -497,6 +497,44 @@ const Estilos = styled.div`
   .dwh-regla-texto code {
     font-family: var(--fuente-mono);
   }
+  .dwh-pasos {
+    display: grid;
+    gap: 12px;
+  }
+  .dwh-pasos-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    background: var(--panel);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+  }
+  .dwh-pasos-tabla caption {
+    caption-side: top;
+    text-align: left;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--texto-suave, var(--texto));
+    padding: 0 2px 6px;
+  }
+  .dwh-pasos-tabla th,
+  .dwh-pasos-tabla td {
+    text-align: left;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--borde);
+    vertical-align: top;
+  }
+  .dwh-pasos-tabla thead th {
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .dwh-pasos-tabla tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .dwh-pasos-n {
+    width: 52px;
+    font-weight: 700;
+  }
   .dwh-enlaces {
     display: flex;
     flex-wrap: wrap;
@@ -633,6 +671,70 @@ const Estilos = styled.div`
   .dwh-guia-prueba select:focus-visible {
     outline: 2px solid var(--acento);
     outline-offset: 1px;
+  }
+  .dwh-guia-prueba input[type="number"],
+  .dwh-guia-prueba input[type="text"],
+  .dwh-guia-prueba input[type="date"],
+  .dwh-docs select {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--texto);
+    background: var(--panel);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    padding: 7px 10px;
+  }
+  .dwh-guia-prueba input:focus-visible,
+  .dwh-docs select:focus-visible,
+  .dwh-guia-atajos button:focus-visible {
+    outline: 2px solid var(--acento);
+    outline-offset: 1px;
+  }
+  .dwh-guia-atajos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-self: flex-end;
+  }
+  .dwh-guia-atajos button {
+    font: inherit;
+    font-size: 12px;
+    font-family: var(--fuente-mono);
+    color: var(--texto);
+    background: var(--panel);
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .dwh-guia-atajos button:hover {
+    border-color: var(--acento);
+  }
+  .dwh-guia-atajos button.activo {
+    border-color: var(--acento);
+    background: color-mix(in srgb, var(--acento) 14%, var(--panel));
+    font-weight: 700;
+  }
+  .dwh-pasos-tabla tr.marcada td {
+    background: color-mix(in srgb, var(--acento) 14%, var(--panel));
+    font-weight: 600;
+  }
+  .dwh-pasos-tabla tr.marcada-2 td {
+    background: color-mix(in srgb, var(--acento) 7%, var(--panel));
+  }
+  .dwh-pasos-tabla tr.tachada td {
+    color: var(--suave);
+    text-decoration: line-through;
+  }
+  .dwh-pasos-tabla tr.tachada td:last-child,
+  .dwh-pasos-tabla tr.tachada td:nth-child(4) {
+    text-decoration: none;
+  }
+  .dwh-guia-nota {
+    margin: 0;
+    font-size: 12px;
+    color: var(--suave);
   }
   .dwh-guia-resultado {
     display: flex;
@@ -967,6 +1069,295 @@ function GuiaLookup({ guia }) {
   );
 }
 
+/* ----------------------------- simuladores interactivos ----------------------------- */
+
+// Los espacios al inicio o al final se muestran como puntos medios (·), uno por espacio, para que se vean
+const verEspacios = (t) => String(t).replace(/^ +| +$/g, (m) => "·".repeat(m.length));
+
+/** Tres tarjetas numeradas («1 → 2 → 3») con el mismo estilo de la guía de dit_grupo. */
+function PasosTarjetas({ pasos }) {
+  return (
+    <div className="dwh-guia-pasos">
+      {pasos.map((p, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <span className="dwh-guia-sig">→</span>}
+          <div className="dwh-guia-paso">
+            <span className="dwh-guia-num">{i + 1}</span>
+            <strong>{p.titulo}</strong>
+            <p>{p.texto}</p>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** dit_antiguedad: días desde la creación → rango de meses. */
+function SimuladorRangos({ item, sim }) {
+  const [dias, setDias] = useState(String(sim.ejemplo ?? 120));
+  const valido = /^\d+$/.test(dias.trim());
+  const n = valido ? Number(dias) : null;
+  const idx = valido ? sim.rangos.findIndex((r) => r.hasta === null || n < r.hasta) : -1;
+  const rango = idx >= 0 ? sim.rangos[idx] : null;
+  const desde = (i) => (i === 0 ? 0 : sim.rangos[i - 1].hasta);
+  const texto = (i) => {
+    const r = sim.rangos[i];
+    return r.hasta === null ? `${desde(i)} días o más` : `de ${desde(i)} a ${r.hasta - 1} días`;
+  };
+
+  return (
+    <div className="dwh-guia">
+      <div className="dwh-detalle-seccion-titulo">CÓMO SE CALCULA, PASO A PASO</div>
+      <PasosTarjetas
+        pasos={[
+          { titulo: "Se cuentan los días", texto: "Desde la fecha de creación del artículo en SAP hasta hoy." },
+          { titulo: "Se ubica el rango", texto: "Cada rango abarca 90 días; el límite de arriba no se incluye (90 días ya cae en el siguiente)." },
+          { titulo: "Se guarda el rango", texto: "El texto del rango (meses) es lo que queda en la columna." },
+        ]}
+      />
+
+      <div className="dwh-detalle-seccion-titulo">PRUÉBALO</div>
+      <div className="dwh-guia-prueba">
+        <label>
+          Días desde que se creó el artículo
+          <input type="number" inputMode="numeric" min="0" step="1" value={dias} onChange={(e) => setDias(e.target.value)} />
+        </label>
+        <div className="dwh-guia-atajos" role="group" aria-label="Ejemplos rápidos">
+          {sim.atajos.map((a) => (
+            <button key={a} type="button" className={String(a) === dias.trim() ? "activo" : ""} onClick={() => setDias(String(a))}>
+              {a} días
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={`dwh-guia-resultado ${rango ? "ok" : "sin"}`} aria-live="polite">
+        {rango ? (
+          <>
+            <div>
+              <span className="dwh-guia-etq">1 · Días</span> <b>{n}</b> días desde la creación
+            </div>
+            <div>
+              <span className="dwh-guia-etq">2 · Rango</span> {n} está {texto(idx)}
+            </div>
+            <div className="dwh-guia-final">
+              <span className="dwh-guia-etq">3 · Resultado</span> <code>{item.col}</code> = <code>{verEspacios(rango.valor)}</code>
+            </div>
+          </>
+        ) : (
+          <div>Escribe un número entero de días (0 o más).</div>
+        )}
+      </div>
+
+      <table className="dwh-pasos-tabla">
+        <caption>Todos los rangos</caption>
+        <thead>
+          <tr>
+            <th scope="col">Si el artículo tiene…</th>
+            <th scope="col">Se guarda</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sim.rangos.map((r, i) => (
+            <tr key={i} className={i === idx ? "marcada" : ""}>
+              <td>{texto(i)}</td>
+              <td><code className="mono">{verEspacios(r.valor)}</code></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {sim.nota && <p className="dwh-guia-nota">{sim.nota}</p>}
+    </div>
+  );
+}
+
+/** dit_creacion_sap / dit_actualizacion_sap: la hora de SAP (número sin ceros a la izquierda) + la fecha. */
+function interpretarHora(texto) {
+  const d = texto.trim();
+  if (!/^\d{1,6}$/.test(d)) return null;
+  if (d.length === 6) return { caso: 0, hora: `${d.slice(0, 2)}:${d.slice(2, 4)}:${d.slice(4)}`, completa: d };
+  if (d.length === 5) {
+    const c = `0${d}`;
+    return { caso: 1, hora: `${c.slice(0, 2)}:${c.slice(2, 4)}:${c.slice(4)}`, completa: c };
+  }
+  return { caso: 2, hora: "00:00:00", completa: d };
+}
+
+function SimuladorHora({ item, sim }) {
+  const [hora, setHora] = useState(sim.hora_ejemplo);
+  const [fecha, setFecha] = useState(sim.fecha_ejemplo);
+  const r = interpretarHora(hora);
+  const casos = [
+    { si: "6 dígitos", ej: "223205", que: "Ya está completa: se lee HH:MM:SS.", res: "22:32:05" },
+    { si: "5 dígitos", ej: "93015", que: "Falta el cero de las horas de un solo dígito: se le antepone un 0.", res: "09:30:15" },
+    { si: "Menos de 5 dígitos", ej: "800", que: "No se interpreta: la hora queda en medianoche.", res: "00:00:00" },
+  ];
+
+  return (
+    <div className="dwh-guia">
+      <div className="dwh-detalle-seccion-titulo">CÓMO SE ARMA, PASO A PASO</div>
+      <PasosTarjetas
+        pasos={[
+          { titulo: "Se lee la hora", texto: `${sim.campo_hora} llega como número: HHMMSS pero sin ceros a la izquierda.` },
+          { titulo: "Se completa", texto: "Según cuántos dígitos tenga (ver la tabla de abajo)." },
+          { titulo: "Se une a la fecha", texto: `Con ${sim.campo_fecha} se forma la fecha y hora completas.` },
+        ]}
+      />
+
+      <div className="dwh-detalle-seccion-titulo">PRUÉBALO</div>
+      <div className="dwh-guia-prueba">
+        <label>
+          {sim.campo_fecha} (fecha)
+          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        </label>
+        <label>
+          {sim.campo_hora} (hora que entrega SAP)
+          <input type="text" inputMode="numeric" maxLength={6} value={hora} onChange={(e) => setHora(e.target.value.replace(/\D/g, ""))} />
+        </label>
+        <div className="dwh-guia-atajos" role="group" aria-label="Ejemplos rápidos">
+          {sim.atajos.map((a) => (
+            <button key={a} type="button" className={a === hora ? "activo" : ""} onClick={() => setHora(a)}>
+              {a}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={`dwh-guia-resultado ${r ? "ok" : "sin"}`} aria-live="polite">
+        {r ? (
+          <>
+            <div>
+              <span className="dwh-guia-etq">1 · Llega</span> <code>{sim.campo_hora}</code> = <b>{hora.trim()}</b> ({hora.trim().length} {hora.trim().length === 1 ? "dígito" : "dígitos"})
+            </div>
+            <div>
+              <span className="dwh-guia-etq">2 · Hora</span>{" "}
+              {r.caso === 0 && <>tiene 6 dígitos: se lee tal cual → <b>{r.hora}</b></>}
+              {r.caso === 1 && <>tiene 5 dígitos: se le antepone un 0 (<b>{r.completa}</b>) → <b>{r.hora}</b></>}
+              {r.caso === 2 && <>tiene menos de 5 dígitos: no se interpreta → <b>{r.hora}</b></>}
+            </div>
+            <div className="dwh-guia-final">
+              <span className="dwh-guia-etq">3 · Resultado</span> <code>{item.col}</code> = <b>{fecha ? `${fecha} ${r.hora}` : `(elige una fecha) ${r.hora}`}</b>
+            </div>
+          </>
+        ) : (
+          <div>Escribe la hora como número de 1 a 6 dígitos (por ejemplo 93015).</div>
+        )}
+      </div>
+
+      <table className="dwh-pasos-tabla">
+        <caption>Los tres casos</caption>
+        <thead>
+          <tr>
+            <th scope="col">Si la hora tiene…</th>
+            <th scope="col">Qué se hace</th>
+            <th scope="col">Ejemplo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {casos.map((c, i) => (
+            <tr key={i} className={r && r.caso === i ? "marcada" : ""}>
+              <td>{c.si}</td>
+              <td>{c.que}</td>
+              <td><code className="mono">{c.ej}</code> → <code className="mono">{c.res}</code></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** dit_proveedorsecundario: segundo documento de compra más reciente (sin cancelados). */
+function SimuladorDocumentos({ item, sim }) {
+  const [docs, setDocs] = useState(sim.documentos);
+  const cambia = (i, campo, valor) => setDocs((ds) => ds.map((d, k) => (k === i ? { ...d, [campo]: valor } : d)));
+  const validos = docs.filter((d) => !d.cancelado); // ya vienen del más reciente al más antiguo
+  const primero = validos[0];
+  const segundo = validos[1];
+  const resultado = !segundo ? null : segundo.proveedor === primero.proveedor ? "UF" : segundo.proveedor;
+
+  return (
+    <div className="dwh-guia">
+      <div className="dwh-detalle-seccion-titulo">CÓMO SE ELIGE, PASO A PASO</div>
+      <PasosTarjetas
+        pasos={[
+          { titulo: "Se juntan los documentos", texto: "Ofertas (OPQT) y pedidos (OPOR) de la bodega 99 que no estén cancelados." },
+          { titulo: "Se ordenan por fecha", texto: "Por TaxDate, del más reciente al más antiguo." },
+          { titulo: "Se toma el segundo", texto: "Su proveedor es el resultado, salvo que sea el mismo del primero: entonces queda UF." },
+        ]}
+      />
+
+      <div className="dwh-detalle-seccion-titulo">PRUÉBALO: cambia el proveedor o cancela un documento</div>
+      <table className="dwh-pasos-tabla dwh-docs">
+        <caption>Documentos del artículo (ejemplo), del más reciente al más antiguo</caption>
+        <thead>
+          <tr>
+            <th scope="col">Orden</th>
+            <th scope="col">Documento</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Proveedor</th>
+            <th scope="col">Cancelado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {docs.map((d, i) => {
+            const pos = d.cancelado ? -1 : validos.indexOf(d);
+            return (
+              <tr key={i} className={`${pos === 0 ? "marcada" : ""} ${pos === 1 ? "marcada-2" : ""} ${d.cancelado ? "tachada" : ""}`}>
+                <td className="dwh-pasos-n">{pos === 0 ? "1.º" : pos === 1 ? "2.º" : "—"}</td>
+                <td>{d.tipo}</td>
+                <td>{d.fecha}</td>
+                <td>
+                  <select aria-label={`Proveedor del documento ${i + 1}`} value={d.proveedor} onChange={(e) => cambia(i, "proveedor", e.target.value)}>
+                    {sim.proveedores.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <input type="checkbox" aria-label={`Documento ${i + 1} cancelado`} checked={d.cancelado} onChange={(e) => cambia(i, "cancelado", e.target.checked)} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div className={`dwh-guia-resultado ${resultado ? "ok" : "sin"}`} aria-live="polite">
+        {!segundo ? (
+          <div>
+            Con menos de dos documentos no cancelados no hay un «segundo documento». Qué se guarda en ese caso no está descrito en la regla (por confirmar).
+          </div>
+        ) : (
+          <>
+            <div>
+              <span className="dwh-guia-etq">1.º más reciente</span> <b>{primero.proveedor}</b> <small>({primero.fecha})</small>
+            </div>
+            <div>
+              <span className="dwh-guia-etq">2.º más reciente</span> <b>{segundo.proveedor}</b> <small>({segundo.fecha})</small>
+            </div>
+            <div className="dwh-guia-final">
+              <span className="dwh-guia-etq">Resultado</span> <code>{item.col}</code> = <b>{resultado}</b>{" "}
+              <small>
+                {resultado === "UF" ? "· el segundo documento es del mismo proveedor que el primero" : "· el segundo documento es de otro proveedor"}
+              </small>
+            </div>
+          </>
+        )}
+      </div>
+      {sim.nota && <p className="dwh-guia-nota">{sim.nota}</p>}
+    </div>
+  );
+}
+
+function Simulador({ item }) {
+  const sim = item.simulador;
+  if (sim.tipo === "rangos") return <SimuladorRangos item={item} sim={sim} />;
+  if (sim.tipo === "hora") return <SimuladorHora key={item.col} item={item} sim={sim} />;
+  if (sim.tipo === "documentos") return <SimuladorDocumentos item={item} sim={sim} />;
+  return null;
+}
+
 function DetalleColumna({ item, nombreTabla, codigos }) {
   const muestras = item.muestras || [];
   return (
@@ -979,6 +1370,53 @@ function DetalleColumna({ item, nombreTabla, codigos }) {
           <p className="dwh-regla-texto">
             <strong>Regla de cálculo / Transformación:</strong> <TextoRico texto={item.regla_texto} />
           </p>
+
+          {Array.isArray(item.pasos) && item.pasos.length > 0 && (
+            <div className="dwh-pasos">
+              <table className="dwh-pasos-tabla">
+                <caption>Se revisa de arriba hacia abajo; gana la primera que se cumple</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Orden</th>
+                    <th scope="col">Si…</th>
+                    <th scope="col">El valor en {item.col} es</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {item.pasos.map((p, i) => (
+                    <tr key={i}>
+                      <td className="dwh-pasos-n">{i + 1}</td>
+                      <td>{p.si}</td>
+                      <td><code className="mono">{p.entonces}</code></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {Array.isArray(item.ejemplos) && item.ejemplos.length > 0 && (
+                <table className="dwh-pasos-tabla dwh-pasos-ejemplos">
+                  <caption>Ejemplos</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Rin</th>
+                      <th scope="col">Categoría</th>
+                      <th scope="col">Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {item.ejemplos.map((e, i) => (
+                      <tr key={i}>
+                        <td>{e.rin}</td>
+                        <td>{e.categoria}</td>
+                        <td><code className="mono">{e.resultado}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {item.simulador && <Simulador key={item.col} item={item} />}
 
           {item.guia && item.guia.tipo === "lookup" && <GuiaLookup guia={item.guia} />}
 
@@ -1030,7 +1468,7 @@ export const DocTecDwhMapping = () => {
         setIdTabla(d.tablas?.[0]?.id ?? null);
         setFilaAbierta(d.tablas?.[0]?.columnas?.[0]?.col ?? null);
       })
-      .catch(() => vivo && setError("No se pudo cargar el mapeo del DWH. Revisa que la API esté disponible."));
+      .catch((e) => vivo && setError(e.response?.data?.error ?? "No se pudo cargar el mapeo del DWH. Revisa que la API esté disponible."));
     return () => {
       vivo = false;
     };

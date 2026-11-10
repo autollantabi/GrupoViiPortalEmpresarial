@@ -1060,7 +1060,7 @@ export const DocTecCalidad = () => {
     setCargando(true);
     DocTec_ObtenerCalidadResumen(aplicados, atributo)
       .then((d) => vivo && (setResumen(d), setError(null)))
-      .catch(() => vivo && setError("No se pudo cargar la calidad. Revisa que la API esté disponible."))
+      .catch((e) => vivo && setError(e.response?.data?.error ?? "No se pudo cargar la calidad. Revisa que la API esté disponible."))
       .finally(() => vivo && setCargando(false));
     return () => {
       vivo = false;
@@ -1170,11 +1170,27 @@ export const DocTecCalidad = () => {
   if (!resumen.hay_datos)
     return (
       <RaizDoc>
-        <div style={{ padding: 28 }}>
-          <p className="aviso" style={{ background: "var(--aviso-fondo)", color: "var(--aviso)", padding: "10px 14px", borderRadius: 8 }}>
-            Todavía no hay datos de calidad cargados. Ejecuta <code>python manage.py cargar_calidad</code> para calcularlos.
+        <Estilos>
+          <div className="titulo-fila">
+            <h1>Calidad de datos</h1>
+            {resumen.puede_actualizar && (
+              <button type="button" className="boton secundario" onClick={actualizar} disabled={actualizando} aria-busy={actualizando}>
+                {actualizando ? "Actualizando… (puede tardar unos segundos)" : "Actualizar datos"}
+              </button>
+            )}
+          </div>
+          <p className="aviso">
+            Todavía no hay datos de calidad.{" "}
+            {resumen.puede_actualizar
+              ? "Pulsa «Actualizar datos» para calcularlos desde la base."
+              : "Configura las credenciales de PostgreSQL (DB_*) en el backend para poder calcularlos."}
           </p>
-        </div>
+          {avisoActualizar && (
+            <p className="aviso" role={avisoActualizar.ok ? "status" : "alert"}>
+              {avisoActualizar.texto}
+            </p>
+          )}
+        </Estilos>
       </RaizDoc>
     );
 
