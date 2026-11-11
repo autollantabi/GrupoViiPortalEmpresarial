@@ -179,6 +179,7 @@ function ImportarProductos() {
       setResultado({
         productos: enAlcance,
         noEncontrados: data.NoEncontrados || [],
+        fueraDeLinea: data.FueraDeLinea || [],
         fueraDeAlcance,
       });
     } catch (err) {
@@ -316,6 +317,13 @@ function ImportarProductos() {
               <TextUI size="13px" color={theme.colors.error}>
                 {resultado.fueraDeAlcance.length} fuera de sus líneas de negocio permitidas (se
                 omiten): {resultado.fueraDeAlcance.map((p) => p.IDENTIFICADOR).join(", ")}
+              </TextUI>
+            )}
+            {resultado.fueraDeLinea?.length > 0 && (
+              <TextUI size="13px" color={theme.colors.error}>
+                {resultado.fueraDeLinea.length} con línea de negocio no copiable (solo LLANTAS, LLANTAS
+                MOTO, LUBRICANTES y HERRAMIENTAS; se omiten):{" "}
+                {resultado.fueraDeLinea.map((p) => p.IDENTIFICADOR).join(", ")}
               </TextUI>
             )}
             {resultado.noEncontrados.length > 0 && (

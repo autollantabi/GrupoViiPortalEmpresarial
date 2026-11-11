@@ -206,6 +206,13 @@ function CopiarDesdeFactura() {
                 omiten): {resultado.fueraDeAlcance.map((p) => p.IDENTIFICADOR).join(", ")}
               </TextUI>
             )}
+            {resultado.FueraDeLinea?.length > 0 && (
+              <TextUI size="13px" color={theme.colors.error}>
+                {resultado.FueraDeLinea.length} con línea de negocio no copiable (solo LLANTAS, LLANTAS
+                MOTO, LUBRICANTES y HERRAMIENTAS; se omiten):{" "}
+                {resultado.FueraDeLinea.map((p) => p.IDENTIFICADOR).join(", ")}
+              </TextUI>
+            )}
             {resultado.SinCatalogo?.length > 0 && (
               <TextUI size="13px" color={theme.colors.error}>
                 {resultado.SinCatalogo.length} artículo{resultado.SinCatalogo.length === 1 ? "" : "s"}{" "}

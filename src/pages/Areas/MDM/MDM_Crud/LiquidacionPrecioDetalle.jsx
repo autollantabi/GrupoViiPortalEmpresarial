@@ -45,7 +45,7 @@ const ESTADO_PENDIENTE = "PENDIENTE";
 const ESTADO_APROBADO = "APROBADO";
 const ESTADO_CANCELADO = "CANCELADO";
 
-/* Columnas de solo lectura, en el orden del Excel. PVD y margen son editables y
+/* Columnas de solo lectura, en el orden del Excel. PVD e incremento son editables y
    el PVP sin IVA se calcula; esos tres se pintan aparte. */
 const ANCHO_CODIGO = 120;
 const COLUMNAS_ANTES = [
@@ -406,14 +406,26 @@ function LiquidacionPrecioDetalle() {
 
   const volcar = useCallback((data) => {
     setCabecera(data);
-    setFilas(
-      (data.DETALLE || []).map((d) => ({
+    /* Sin incremento guardado se propone el de la tabla por empresa + línea + marca del
+       artículo (si no hay, queda vacío = 0). Solo en liquidaciones editables. */
+    let hayPropuestos = false;
+    const filasNuevas = (data.DETALLE || []).map((d) => {
+      const proponer =
+        data.ESTADO === ESTADO_PENDIENTE &&
+        d.ENCONTRADO &&
+        (d.MARGEN === null || d.MARGEN === undefined) &&
+        d.INCREMENTO_TABLA !== null &&
+        d.INCREMENTO_TABLA !== undefined;
+      if (proponer) hayPropuestos = true;
+      return {
         ...d,
         PVD_TXT: aTexto(d.PVD),
-        MARGEN_TXT: aTexto(d.MARGEN),
-      }))
-    );
-    setSinGuardar(false);
+        MARGEN_TXT: aTexto(proponer ? d.INCREMENTO_TABLA : d.MARGEN),
+      };
+    });
+    setFilas(filasNuevas);
+    // El incremento propuesto aún no está guardado: se guarda al Guardar o al Sincronizar
+    setSinGuardar(hayPropuestos);
     setSinPvd(false);
   }, []);
 
@@ -525,7 +537,7 @@ function LiquidacionPrecioDetalle() {
      valida al sincronizar con SAP. */
   const guardar = async ({ silencioso = false } = {}) => {
     if (hayValoresInvalidos()) {
-      toast.error("Hay valores de PVD o margen que no son números");
+      toast.error("Hay valores de PVD o incremento que no son números");
       return false;
     }
     setGuardando(true);
@@ -544,7 +556,7 @@ function LiquidacionPrecioDetalle() {
   };
 
   /* Sincronizar = guardar y luego enviar a SAP el PVP sin IVA. Antes de nada todos los
-     artículos encontrados deben tener PVD distinto de vacío y de 0; el margen no se exige.
+     artículos encontrados deben tener PVD distinto de vacío y de 0; el incremento no se exige.
      Los no encontrados están bloqueados y no se envían. */
   const sincronizarSap = async () => {
     const faltan = filas.filter((f) => f.ENCONTRADO && !(aNumero(f.PVD_TXT) > 0));
@@ -797,7 +809,7 @@ function LiquidacionPrecioDetalle() {
                     </Th>
                   ))}
                   <Th $align="right" $editable>
-                    Margen %
+                    Incremento %
                   </Th>
                   <Th $align="right">PVP sin IVA</Th>
                 </tr>
