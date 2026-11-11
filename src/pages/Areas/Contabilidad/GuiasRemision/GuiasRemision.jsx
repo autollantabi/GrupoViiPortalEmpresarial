@@ -1,7 +1,8 @@
 /**
  * GUIAS DE REMISIÓN (Contabilidad)
  *
- * Pantalla del recurso "contabilidad.guiasremision". Qué hace:
+ * Pantalla del menú principal "Guías de Remisión" (ruta /guiasremision; ver router/Routes.js). Los permisos y roles siguen
+ * asignados al recurso "contabilidad.guiasremision" (usuarios-rol-contexto). Qué hace:
  *   - Lista paginada de guías (filtros y paginación se resuelven en el servidor; ver guiasRemisionService.js).
  *   - Detalle de una guía en un modal; el supervisor puede marcarla como enviada o devolverla a NO enviada.
  *   - Las guías canceladas (hgr_cancelada) se listan con Estado documento CANCELADO y sin estado de envío; el supervisor con permiso

@@ -283,10 +283,16 @@ export const RoutesConfig = [
     component: ComisionesLubricantes,
     recurso: "contabilidad.comisiones.lubricantes",
   },
+
+  // ================================= GUÍAS DE REMISIÓN =================================
+  // Menú principal (ya no cuelga de Contabilidad). Los permisos siguen asignados al recurso "contabilidad.guiasremision" en
+  // usuarios-rol-contexto, por eso va como recurso alternativo: da acceso, rol y empresas igual que antes, sin migrar datos.
   {
-    title: "Guías Remisión",
+    title: "Guías de Remisión",
+    icon: "FaFileLines",
     component: GuiasRemision,
-    recurso: "contabilidad.guiasremision",
+    recurso: "guiasremision",
+    recursosAlternativos: ["contabilidad.guiasremision"],
   },
 
   // ================================= XCOIN =================================
