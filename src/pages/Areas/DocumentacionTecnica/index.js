@@ -3,6 +3,7 @@ import { DocTecDwhMapping } from "./dwh_mapping/DocTecDwhMapping";
 import { DocTecCaracterizacion } from "./caracterizacion/DocTecCaracterizacion";
 import { DocTecCalidad } from "./calidad/DocTecCalidad";
 import { DocTecCompletitud } from "./completitud/DocTecCompletitud";
+import { DocTecHorarios } from "./horarios/DocTecHorarios";
 
 /**
  * Módulo «Documentación Técnica» (acceso exclusivo de TI).
@@ -20,4 +21,5 @@ export const rutasDocumentacionTecnica = [
   { title: "Caracterización", component: DocTecCaracterizacion, recurso: "documentaciontecnica.caracterizacion" },
   { title: "Calidad", component: DocTecCalidad, recurso: "documentaciontecnica.calidad" },
   { title: "Completitud", component: DocTecCompletitud, recurso: "documentaciontecnica.completitud" },
+  { title: "Horario Automatizaciones", component: DocTecHorarios, recurso: "documentaciontecnica.horarios" },
 ];
