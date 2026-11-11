@@ -11,6 +11,10 @@ import {
 import { RaizDoc } from "../estilos/RaizDoc";
 import { estilosDatos } from "../comunes/estilosDatos";
 import { FiltroMultiple } from "../comunes/FiltroMultiple";
+import { SelectSimple } from "../comunes/SelectSimple";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
+import { toast } from "react-toastify";
 
 /* =====================================================================================
    Calidad de datos: compara cada atributo de la base con lo que dice el nombre del producto.
@@ -563,15 +567,6 @@ const Estilos = styled.div`
     font-weight: 600;
     color: var(--suave);
   }
-  .filtros select {
-    font: inherit;
-    color: var(--texto);
-    background: var(--panel);
-    border: 1px solid var(--borde);
-    border-radius: 8px;
-    padding: 7px 10px;
-    min-width: 9rem;
-  }
   .evo-resumen {
     display: flex;
     flex-wrap: wrap;
@@ -910,7 +905,7 @@ function TablaPivote({ filas, semanas, titulo, claseNombre }) {
 }
 
 function Evolucion({ evo, ant, act, setAnt, setAct }) {
-  if (!evo) return <p className="cuenta">Cargando evolución…</p>;
+  if (!evo) return <LoaderUI text="Cargando evolución…" height="120px" />;
   if (!evo.hay_datos)
     return (
       <p className="aviso">
@@ -957,23 +952,11 @@ function Evolucion({ evo, ant, act, setAnt, setAct }) {
           <div className="filtros">
             <label>
               Semana anterior
-              <select value={ant ?? evo.ant} onChange={(e) => setAnt(e.target.value)}>
-                {evo.opciones.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              <SelectSimple value={ant ?? evo.ant} onChange={setAnt} opciones={evo.opciones} ariaLabel="Semana anterior" />
             </label>
             <label>
               Semana actual
-              <select value={act ?? evo.act} onChange={(e) => setAct(e.target.value)}>
-                {evo.opciones.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              <SelectSimple value={act ?? evo.act} onChange={setAct} opciones={evo.opciones} ariaLabel="Semana actual" />
             </label>
           </div>
           {evo.cambios ? (
@@ -1039,7 +1022,6 @@ export const DocTecCalidad = () => {
   const [act, setAct] = useState(null);
   const [descargando, setDescargando] = useState(false);
   const [actualizando, setActualizando] = useState(false);
-  const [avisoActualizar, setAvisoActualizar] = useState(null); // { ok, texto }
   const [version, setVersion] = useState(0); // sube al recalcular: vuelve a pedir los datos
 
   const cajaRef = useRef(null);
@@ -1060,7 +1042,7 @@ export const DocTecCalidad = () => {
     setCargando(true);
     DocTec_ObtenerCalidadResumen(aplicados, atributo)
       .then((d) => vivo && (setResumen(d), setError(null)))
-      .catch(() => vivo && setError("No se pudo cargar la calidad. Revisa que la API esté disponible."))
+      .catch((e) => vivo && setError(e.response?.data?.message ?? "No se pudo cargar la calidad. Revisa que la API esté disponible."))
       .finally(() => vivo && setCargando(false));
     return () => {
       vivo = false;
@@ -1143,13 +1125,12 @@ export const DocTecCalidad = () => {
 
   const actualizar = async () => {
     setActualizando(true);
-    setAvisoActualizar(null);
     try {
       const r = await DocTec_ActualizarCalidad();
-      setAvisoActualizar({ ok: true, texto: `Calidad actualizada: ${miles(r.corrida.registros)} llantas, índice ${coma(r.corrida.indice_general, 2)}.` });
+      toast.success(`Calidad actualizada: ${miles(r.corrida.registros)} llantas, índice ${coma(r.corrida.indice_general, 2)}.`);
       setVersion((v) => v + 1);
     } catch (e) {
-      setAvisoActualizar({ ok: false, texto: e.response?.data?.error ?? "No se pudo actualizar la calidad. Revisa que la API y la base estén disponibles." });
+      toast.error(e.response?.data?.message ?? "No se pudo actualizar la calidad. Revisa que la API y la base estén disponibles.");
     } finally {
       setActualizando(false);
     }
@@ -1164,17 +1145,26 @@ export const DocTecCalidad = () => {
   if (!resumen)
     return (
       <RaizDoc>
-        <div style={{ padding: 28, color: "var(--suave)" }}>Cargando calidad…</div>
+        <LoaderUI text="Cargando calidad…" height="100%" />
       </RaizDoc>
     );
   if (!resumen.hay_datos)
     return (
       <RaizDoc>
-        <div style={{ padding: 28 }}>
-          <p className="aviso" style={{ background: "var(--aviso-fondo)", color: "var(--aviso)", padding: "10px 14px", borderRadius: 8 }}>
-            Todavía no hay datos de calidad cargados. Ejecuta <code>python manage.py cargar_calidad</code> para calcularlos.
+        <Estilos>
+          <div className="titulo-fila">
+            <h1>Calidad de datos</h1>
+            {resumen.puede_actualizar && (
+              <ButtonUI text={actualizando ? "Actualizando…" : "Actualizar datos"} variant="outlined" onClick={actualizar} disabled={actualizando} />
+            )}
+          </div>
+          <p className="aviso">
+            Todavía no hay datos de calidad.{" "}
+            {resumen.puede_actualizar
+              ? "Pulsa «Actualizar datos» para calcularlos desde la base."
+              : "El servidor no tiene configurada la conexión al DWH para poder calcularlos."}
           </p>
-        </div>
+        </Estilos>
       </RaizDoc>
     );
 
@@ -1190,16 +1180,9 @@ export const DocTecCalidad = () => {
         <div className="titulo-fila">
           <h1>Calidad de datos</h1>
           {r.puede_actualizar && (
-            <button type="button" className="boton secundario" onClick={actualizar} disabled={actualizando} aria-busy={actualizando}>
-              {actualizando ? "Actualizando… (puede tardar unos segundos)" : "Actualizar datos"}
-            </button>
+            <ButtonUI text={actualizando ? "Actualizando…" : "Actualizar datos"} variant="outlined" onClick={actualizar} disabled={actualizando} />
           )}
         </div>
-        {avisoActualizar && (
-          <p className="aviso" role={avisoActualizar.ok ? "status" : "alert"}>
-            {avisoActualizar.texto}
-          </p>
-        )}
 
         <form className="filtros-generales" onSubmit={(e) => { e.preventDefault(); aplicarQ(entradaQ); }} aria-labelledby="t-filtros">
           <h2 id="t-filtros">Filtros generales</h2>
@@ -1230,9 +1213,7 @@ export const DocTecCalidad = () => {
               {miles(r.cuenta.filtrados)} de {miles(r.cuenta.total)} registros
             </p>
             {hayFiltros && (
-              <button type="button" className="boton secundario" onClick={quitarFiltros}>
-                Quitar filtros
-              </button>
+              <ButtonUI text="Quitar filtros" variant="outlined" onClick={quitarFiltros} />
             )}
           </div>
         </form>
@@ -1403,9 +1384,7 @@ export const DocTecCalidad = () => {
                     {miles(tabla.total)} producto{tabla.total === 1 ? "" : "s"}
                     {hayFiltros && " con los filtros actuales"}
                   </p>
-                  <button type="button" className="boton secundario" onClick={descargar} disabled={descargando}>
-                    {descargando ? "Descargando…" : "Descargar esta vista (CSV)"}
-                  </button>
+                  <ButtonUI text={descargando ? "Descargando…" : "Descargar esta vista (CSV)"} variant="outlined" onClick={descargar} disabled={descargando} />
                 </div>
 
                 <div className="tabla-caja continua" ref={cajaRef} onScroll={alDesplazar}>

@@ -32,8 +32,8 @@ export const estilosDatos = css`
   .boton {
     font: 600 0.92rem var(--fuente);
     cursor: pointer;
-    padding: 8px 16px;
-    border-radius: 8px;
+    padding: 5px 10px;
+    border-radius: 5px;
     border: 1px solid var(--acento);
     background: var(--acento-boton);
     color: var(--sobre-acento);
@@ -220,7 +220,7 @@ export const estilosDatos = css`
     color: var(--texto);
     background: var(--bg);
     border: 1px solid var(--borde);
-    border-radius: 6px;
+    border-radius: 5px;
     padding: 6px 9px;
   }
   .multi-cuenta {

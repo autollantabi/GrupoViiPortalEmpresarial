@@ -1,4 +1,11 @@
-import { apiDocTec } from "../api";
+import { axiosInstanceNew } from "config/axiosConfig";
+
+/**
+ * Completitud del maestro de productos. Los datos los sirve el backend del portal
+ * (API 2, v1-portal-empresarial-back-new) en /documentacion-tecnica/completitud/*,
+ * con la sesión del portal (cabecera id-session) y el recurso documentaciontecnica.completitud.
+ */
+const BASE = "/documentacion-tecnica/completitud";
 
 /** Arma los parámetros de la URL: los filtros múltiples se repiten (?empresa=A&empresa=B). */
 function parametros(filtros, extra = {}) {
@@ -12,19 +19,19 @@ function parametros(filtros, extra = {}) {
 
 /** Resumen con indicadores, ranking, campos, matriz y opciones de los filtros (errores propagados). */
 export async function DocTec_ObtenerCompletitudResumen(filtros) {
-  const res = await apiDocTec.get("/completitud/resumen/", { params: parametros(filtros) });
-  return res.data;
+  const res = await axiosInstanceNew.get(`${BASE}/resumen`, { params: parametros(filtros) });
+  return res.data.data;
 }
 
 /** Productos a corregir o a revisar, de 100 en 100: { total, siguiente, filas[] }. */
 export async function DocTec_ObtenerCompletitudProductos(filtros, { vista, q, n, campo, pagina }) {
-  const res = await apiDocTec.get("/completitud/productos/", { params: parametros(filtros, { vista, q, n, campo, pagina }) });
-  return res.data;
+  const res = await axiosInstanceNew.get(`${BASE}/productos`, { params: parametros(filtros, { vista, q, n, campo, pagina }) });
+  return res.data.data;
 }
 
 export async function DocTec_ObtenerCompletitudDuplicados(filtros) {
-  const res = await apiDocTec.get("/completitud/duplicados/", { params: parametros(filtros) });
-  return res.data.duplicados;
+  const res = await axiosInstanceNew.get(`${BASE}/duplicados`, { params: parametros(filtros) });
+  return res.data.data;
 }
 
 /**
@@ -32,8 +39,8 @@ export async function DocTec_ObtenerCompletitudDuplicados(filtros) {
  * viaje la cabecera de sesión del portal.
  */
 export async function DocTec_DescargarCompletitudCsv(filtros) {
-  const res = await apiDocTec.get("/completitud/exportar/", {
-    params: parametros(filtros, { formato: "csv" }),
+  const res = await axiosInstanceNew.get(`${BASE}/exportar`, {
+    params: parametros(filtros),
     responseType: "blob",
   });
   const url = URL.createObjectURL(res.data);

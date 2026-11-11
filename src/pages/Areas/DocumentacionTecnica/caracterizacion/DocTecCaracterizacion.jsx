@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { DocTec_ObtenerCaracterizacion } from "./servicios";
 import { RaizDoc } from "../estilos/RaizDoc";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
 /* =====================================================================================
    Caracterización: de dónde viene cada dato mínimo del producto
@@ -328,7 +329,8 @@ function Atributo({ a }) {
                       {c}
                     </div>
                   ))}
-                  <div className="car-detalle">Tabla: core.dim_item</div>
+                  <div className="car-detalle">Tabla: {a.tabla_dwh || "core.dim_item"}</div>
+                  {a.regla_dwh && <div className="car-detalle">{a.regla_dwh}</div>}
                 </>
               ) : (
                 <div className="car-valor car-sin">Aún sin campo en el DWH</div>
@@ -341,8 +343,24 @@ function Atributo({ a }) {
               <div className="car-etiqueta">Campo SAP</div>
               {a.sap ? (
                 <>
-                  <div className="car-valor">{a.sap.campo}</div>
-                  <div className="car-detalle">Tabla: {a.sap.tabla}</div>
+                  {a.sap.campos.map((c) => (
+                    <div key={c.campo}>
+                      <div className="car-valor">{c.campo}</div>
+                      <div className="car-detalle">Tabla: {c.tabla}</div>
+                    </div>
+                  ))}
+                  {a.sap.regla.length > 0 && (
+                    <div className="car-detalle">
+                      <p style={{ margin: "8px 0 4px" }}>{a.sap.regla[0]}</p>
+                      {a.sap.regla.length > 1 && (
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {a.sap.regla.slice(1).map((r) => (
+                            <li key={r}>{r}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -377,7 +395,7 @@ export const DocTecCaracterizacion = () => {
           return d.grupos.some((g) => g.n === candidato) ? candidato : d.grupos[0]?.n ?? null;
         });
       })
-      .catch(() => vivo && setError("No se pudo cargar la caracterización. Revisa que la API esté disponible."));
+      .catch((e) => vivo && setError(e.response?.data?.message ?? "No se pudo cargar la caracterización. Revisa que la API esté disponible."));
     return () => {
       vivo = false;
     };
@@ -404,7 +422,7 @@ export const DocTecCaracterizacion = () => {
   if (!datos)
     return (
       <RaizDoc>
-        <div style={{ padding: 28, color: "var(--suave)" }}>Cargando caracterización…</div>
+        <LoaderUI text="Cargando caracterización…" height="100%" />
       </RaizDoc>
     );
 

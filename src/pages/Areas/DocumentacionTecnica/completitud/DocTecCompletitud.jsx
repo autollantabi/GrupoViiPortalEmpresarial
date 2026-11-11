@@ -9,6 +9,10 @@ import {
 import { RaizDoc } from "../estilos/RaizDoc";
 import { estilosDatos } from "../comunes/estilosDatos";
 import { FiltroMultiple } from "../comunes/FiltroMultiple";
+import { SelectSimple } from "../comunes/SelectSimple";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { InputUI } from "components/UI/Components/InputUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
 /* =====================================================================================
    Completitud del maestro de productos: qué porcentaje de productos tiene todos sus datos,
@@ -260,28 +264,14 @@ const Estilos = styled.div`
     padding-top: 16px;
     border-top: 1px solid var(--borde);
   }
-  .com-barra select,
-  .com-barra input[type="search"] {
-    display: block;
-    margin-top: 5px;
-    font: inherit;
-    color: var(--texto);
-    background: var(--bg);
-    border: 1px solid var(--borde);
-    border-radius: 8px;
-    padding: 9px 11px;
-    min-width: 11rem;
+  /* El campo de búsqueda y las listas son InputUI y SelectUI del portal: aquí solo se colocan. */
+  .com-barra label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
   }
   .com-busca {
     flex: 1 1 18rem;
-  }
-  .com-busca input {
-    width: 100%;
-  }
-  .com-barra select:focus-visible,
-  .com-barra input:focus-visible {
-    outline: 2px solid var(--acento);
-    outline-offset: 2px;
   }
   .tabla-caja.com-continua {
     max-height: min(70vh, 900px);
@@ -369,6 +359,15 @@ const Estilos = styled.div`
     }
   }
 `;
+
+/** Opciones del filtro «Cantidad de campos vacíos». */
+const OPCIONES_FALTANTES = [
+  { value: "", label: "Cualquiera" },
+  { value: "1", label: "Le falta 1 campo" },
+  { value: "2", label: "Le faltan 2 campos" },
+  { value: "3", label: "Le faltan 3 campos" },
+  { value: "4", label: "Le faltan 4 o más" },
+];
 
 const Mensaje = ({ children }) => (
   <RaizDoc>
@@ -703,7 +702,7 @@ export const DocTecCompletitud = () => {
     let vivo = true;
     DocTec_ObtenerCompletitudResumen(aplicados)
       .then((d) => vivo && (setResumen(d), setError(null)))
-      .catch(() => vivo && setError("No se pudo cargar la completitud. Revisa que la API esté disponible."));
+      .catch((e) => vivo && setError(e.response?.data?.message ?? "No se pudo cargar la completitud. Revisa que la API esté disponible."));
     return () => {
       vivo = false;
     };
@@ -782,7 +781,12 @@ export const DocTecCompletitud = () => {
   };
 
   if (error && !resumen) return <Mensaje>{error}</Mensaje>;
-  if (!resumen) return <Mensaje>Cargando completitud…</Mensaje>;
+  if (!resumen)
+    return (
+      <RaizDoc>
+        <LoaderUI text="Cargando completitud…" height="100%" />
+      </RaizDoc>
+    );
 
   const { corte, config: cfg, m, opciones } = resumen;
   const lista = m.orden;
@@ -820,49 +824,26 @@ export const DocTecCompletitud = () => {
               {fechaCorte(corte.fecha_hora)}
             </p>
             {hayFiltros && (
-              <button type="button" className="boton secundario" onClick={() => setFiltros(SIN_FILTROS)}>
-                Quitar filtros
-              </button>
+              <ButtonUI text="Quitar filtros" variant="outlined" onClick={() => setFiltros(SIN_FILTROS)} />
             )}
-            <button type="button" className="boton secundario" onClick={descargar} disabled={descargando}>
-              {descargando ? "Descargando…" : "Descargar CSV"}
-            </button>
+            <ButtonUI text={descargando ? "Descargando…" : "Descargar CSV"} variant="outlined" onClick={descargar} disabled={descargando} />
           </div>
 
           {(vista === "corregir" || vista === "revisar") && (
             <div className="com-barra">
               <label className="campo-etq com-busca">
                 Buscar por código, nombre o fabricante
-                <input
-                  type="search"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Escribe y pulsa Enter"
-                  autoComplete="off"
-                />
+                <InputUI type="search" value={q} onChange={setQ} placeholder="Escribe y pulsa Enter" />
               </label>
               {vista === "corregir" && (
                 <label className="campo-etq">
                   Cantidad de campos vacíos
-                  <select value={n} onChange={(e) => setN(e.target.value)}>
-                    <option value="">Cualquiera</option>
-                    <option value="1">Le falta 1 campo</option>
-                    <option value="2">Le faltan 2 campos</option>
-                    <option value="3">Le faltan 3 campos</option>
-                    <option value="4">Le faltan 4 o más</option>
-                  </select>
+                  <SelectSimple value={n} onChange={setN} opciones={OPCIONES_FALTANTES} ariaLabel="Cantidad de campos vacíos" />
                 </label>
               )}
               <label className="campo-etq">
                 {vista === "corregir" ? "Campo vacío" : "Campo"}
-                <select value={campo} onChange={(e) => setCampo(e.target.value)}>
-                  <option value="">Cualquiera</option>
-                  {lista.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                <SelectSimple value={campo} onChange={setCampo} opciones={[{ value: "", label: "Cualquiera" }, ...lista.map((c) => ({ value: c, label: c }))]} ariaLabel="Campo" />
               </label>
             </div>
           )}
@@ -904,7 +885,7 @@ export const DocTecCompletitud = () => {
             <h2>Códigos llenos pero repetidos</h2>
             <p className="com-nota">Mismo valor en más de un producto de la misma empresa.</p>
             {duplicados === null ? (
-              <p className="cuenta">Cargando…</p>
+              <LoaderUI text="Cargando…" height="80px" />
             ) : !duplicados.length ? (
               <p className="cuenta">No hay códigos repetidos con los filtros actuales.</p>
             ) : (

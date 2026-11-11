@@ -19,6 +19,7 @@ La documentación está **segmentada por tema** para que un desarrollador encuen
 | [despliegue.md](despliegue.md) | Proceso de build, configuración de ambientes, consideraciones para producción. | Hacer build, desplegar, configurar producción. |
 | [pendientes.md](pendientes.md) | Mejoras técnicas sugeridas, deuda técnica detectada, suposiciones o partes no claras. | Planificar mejoras y aclarar dudas. |
 | [guia-proyecto.md](guia-proyecto.md) | Resumen ejecutivo para onboarding: qué es el proyecto, cómo empezar, dónde está cada cosa, flujo para añadir pantalla, decisiones históricas, contacto. | Incorporación de un nuevo desarrollador o consulta rápida. |
+| [documentacion-tecnica.md](documentacion-tecnica.md) | Módulo «Documentación Técnica» (5 pestañas): estructura, cómo se escribe una pantalla, cómo agregar una pestaña, permisos y solución de problemas. | Modificar el módulo o agregarle pestañas. |
 | [seguridad.md](seguridad.md) | Cabeceras HTTP, sesión y token, variables de entorno, localStorage, encriptación, interceptor 401, ejemplo nginx, recomendaciones. | Revisar y mantener la configuración de seguridad; despliegue en producción. |
 
 ---
