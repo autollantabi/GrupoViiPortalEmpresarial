@@ -53,7 +53,7 @@ export async function DocTec_ObtenerCalidadEvolucion(ant, act) {
  * Falla con 503 si no hay credenciales o la base no responde; el mensaje viene en res.data.message.
  */
 export async function DocTec_ActualizarCalidad() {
-  const res = await axiosInstanceNew.post(`${BASE}/actualizar`, null, { timeout: 180000 });
+  const res = await axiosInstanceNew.post(`${BASE}/actualizar`, {}, { timeout: 180000 });
   return res.data.data;
 }
 
