@@ -20,7 +20,8 @@
  * canceladas: por eso no ve los filtros de envío ni la opción CANCELADO.
  * Tamaño de letra: en tablet y móvil se reduce un poco (variable CSS --escala-texto, que define EscalaTexto y usan Txt y los estilos de aquí).
  * Responsive: en tablet (hasta 1024px) la página se desplaza y la tabla tiene scroll horizontal; en móvil (hasta 640px) cada guía se
- * muestra como una tarjeta y los filtros y botones ocupan todo el ancho.
+ * muestra como una tarjeta y los filtros y botones ocupan todo el ancho. Al usuario (vendedor) la tarjeta le muestra además la guía de
+ * Laar (enlace al seguimiento) y no abre el detalle, porque sería lo mismo.
  * Roles: "usuario" solo consulta (no ve "Descargar Excel"); "supervisor" además descarga el Excel y marca como enviadas (routeConfig.rolDelRecurso).
  * El estado de la pantalla se organiza así: `consulta` (filtros que viajan al servidor), `guias`/`paginacion` (resultado),
  * `excelForm` (modal de descarga) y `cargaExcel` (modal de marcado desde Excel).
@@ -481,7 +482,7 @@ const TarjetaGuiaMovil = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 10px 12px;
   padding: 12px 12px 12px 13px;
-  cursor: pointer;
+  cursor: ${({ $clicable }) => ($clicable ? "pointer" : "default")};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-left: 3px solid ${({ theme, $cancelada }) => ($cancelada ? theme.colors.error : theme.colors.primary)};
   border-radius: 10px;
@@ -1202,17 +1203,40 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                 key={guia.id}
                 theme={theme}
                 $cancelada={guia.cancelada}
-                onClick={() => abrirDetalle(guia)}
+                $clicable={puedeMarcarEnviado}
+                // El usuario (vendedor) no abre el detalle en móvil: la tarjeta ya muestra lo mismo. El supervisor sí (acciones de envío).
+                onClick={puedeMarcarEnviado ? () => abrirDetalle(guia) : undefined}
               >
                 {COLUMNAS.map((columna) => (
-                  <CampoMovil
-                    key={columna.field}
-                    theme={theme}
-                    $ancho={columna.isCliente || columna.isVendedorFacturador}
-                  >
-                    <label>{columna.header}</label>
-                    <div>{renderCelda(guia, columna)}</div>
-                  </CampoMovil>
+                  <React.Fragment key={columna.field}>
+                    <CampoMovil theme={theme} $ancho={columna.isCliente || columna.isVendedorFacturador}>
+                      <label>{columna.header}</label>
+                      <div>{renderCelda(guia, columna)}</div>
+                    </CampoMovil>
+
+                    {/* Guía de entrega de Laar (enlace al seguimiento): solo para el usuario, como en su tarjeta de detalle */}
+                    {columna.isVendedorFacturador &&
+                      !puedeMarcarEnviado &&
+                      guia.transportistaId === ID_TRANSPORTISTA_LAAR &&
+                      guiasEntregaVisibles(guia).length > 0 && (
+                        <CampoMovil theme={theme} $ancho>
+                          <label>Guía de Laar</label>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            {guiasEntregaVisibles(guia).map((guiaEntrega) => (
+                              <a
+                                key={guiaEntrega}
+                                href={urlTrackingLaar(guiaEntrega)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontWeight: 700, color: theme.colors.error }}
+                              >
+                                {guiaEntrega} ↗
+                              </a>
+                            ))}
+                          </div>
+                        </CampoMovil>
+                      )}
+                  </React.Fragment>
                 ))}
               </TarjetaGuiaMovil>
             ))}
