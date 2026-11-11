@@ -14,7 +14,7 @@
  *
  * El rol "usuario" ve el detalle de las guías ENVIADAS como una tarjeta de seguimiento (factura, cliente, destino, transporte,
  * guía de Laar con enlace al tracking, fecha y logo de la empresa); ver TarjetaSeguimiento.
- * Cada guía con clave de acceso tiene un botón (icono PDF) que abre en otra pestaña su documento electrónico (RIDE); el servidor lo lee
+ * Cada guía con clave de acceso tiene un botón (icono PDF) que abre en otra pestaña su documento electrónico (RIDE) (en móvil y tablet hay dos: Visualizar y Descargar); el servidor lo lee
  * del almacén de documentos y valida quién puede verlo.
  * El rol "usuario" (vendedor) solo recibe las guías en las que es el vendedor (su nombre de usuario = hgr_vendedor), enviadas y no
  * canceladas: por eso no ve los filtros de envío ni la opción CANCELADO.
@@ -637,6 +637,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
   // Documento electrónico (PDF): id de la guía cuyo PDF se está pidiendo
   const [pdfCargandoId, setPdfCargandoId] = useState(null);
+  const [pdfModo, setPdfModo] = useState("ver"); // "ver" | "descargar": cuál de los dos botones está en curso
 
   // Sincronización manual de guías (el mismo proceso del cron, ejecutado en el servidor)
   const [sincronizando, setSincronizando] = useState(false);
@@ -736,17 +737,18 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
   // ================= Documento electrónico (PDF) =================
   // El PDF está en un almacén de red que solo ve el servidor: se pide al backend (con la sesión).
-  //  - Escritorio: se abre en otra pestaña (la pestaña se abre ANTES de la petición para que el navegador no la bloquee).
-  //  - Móvil/tablet: el visor del navegador es incómodo (se abre "como un archivo más"), así que se DESCARGA con un nombre claro.
-  const abrirPdf = async (guia) => {
+  //  - modo "ver": se abre en otra pestaña (la pestaña se abre ANTES de la petición para que el navegador no la bloquee).
+  //  - modo "descargar": se baja como archivo con un nombre claro (Guia_Remision_<número>.pdf).
+  const abrirPdf = async (guia, modo = "ver") => {
     if (pdfCargandoId) return;
-    const ventana = esTactil ? null : window.open("", "_blank");
+    const ventana = modo === "ver" ? window.open("", "_blank") : null;
     if (ventana) ventana.document.title = "Cargando documento…";
     setPdfCargandoId(guia.id);
+    setPdfModo(modo);
     try {
       const blob = await ObtenerPdfGuiaRemision({ id: guia.id });
       const url = window.URL.createObjectURL(blob);
-      if (esTactil) {
+      if (modo === "descargar") {
         const enlace = document.createElement("a");
         enlace.href = url;
         enlace.download = `Guia_Remision_${guia.numeroGuia}.pdf`;
@@ -754,8 +756,11 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         enlace.click();
         document.body.removeChild(enlace);
         toast.info("Descargando el documento…");
-      } else if (ventana) ventana.location.href = url;
-      else window.open(url, "_blank");
+      } else if (ventana) {
+        ventana.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
       setTimeout(() => window.URL.revokeObjectURL(url), 5 * 60 * 1000);
     } catch (err) {
       if (ventana) ventana.close();
@@ -767,6 +772,44 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     } finally {
       setPdfCargandoId(null);
     }
+  };
+
+  // Botones del documento. Escritorio: uno solo (ver). Móvil/tablet: dos, "Visualizar" y "Descargar" (con texto si `conTexto`).
+  // El contenedor detiene el clic para que no abra el detalle de la fila/tarjeta.
+  const renderBotonesPdf = (guia, conTexto = false) => {
+    const cargando = pdfCargandoId === guia.id;
+    const acciones = [
+      { modo: "ver", icono: "FaFilePdf", texto: "Visualizar", titulo: "Ver documento electrónico (PDF)" },
+      ...(esTactil ? [{ modo: "descargar", icono: "FaDownload", texto: "Descargar", titulo: "Descargar documento electrónico (PDF)" }] : []),
+    ];
+    return (
+      <div style={{ display: "inline-flex", gap: "8px", flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
+        {acciones.map((accion) =>
+          conTexto ? (
+            <ButtonUI
+              key={accion.modo}
+              text={accion.texto}
+              iconLeft={cargando && pdfModo === accion.modo ? "FaSpinner" : accion.icono}
+              variant="outlined"
+              onClick={() => abrirPdf(guia, accion.modo)}
+              disabled={cargando}
+            />
+          ) : (
+            <BotonPdf
+              key={accion.modo}
+              theme={theme}
+              type="button"
+              title={accion.titulo}
+              aria-label={accion.titulo}
+              disabled={cargando}
+              onClick={() => abrirPdf(guia, accion.modo)}
+            >
+              <IconUI name={cargando && pdfModo === accion.modo ? "FaSpinner" : accion.icono} size={16} />
+            </BotonPdf>
+          )
+        )}
+      </div>
+    );
   };
 
   // ================= Sincronización de guías =================
@@ -1086,21 +1129,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     // Botón del documento electrónico: sin clave de acceso no hay documento
     if (columna.isPdf) {
       if (!item.tienePdf) return "—";
-      return (
-        <BotonPdf
-          theme={theme}
-          type="button"
-          title="Ver documento electrónico (PDF)"
-          aria-label="Ver documento electrónico (PDF)"
-          disabled={pdfCargandoId === item.id}
-          onClick={(e) => {
-            e.stopPropagation(); // la fila abre el detalle
-            abrirPdf(item);
-          }}
-        >
-          <IconUI name={pdfCargandoId === item.id ? "FaSpinner" : "FaFilePdf"} size={16} />
-        </BotonPdf>
-      );
+      return renderBotonesPdf(item);
     }
 
     // Vendedor y, debajo, facturador
@@ -1424,18 +1453,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
             {/* Supervisor: marcar como enviada, o devolverla a NO enviada si ya lo estaba. Las canceladas solo con permiso de editar */}
             <div style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              {guiaSeleccionada.tienePdf && (
-                <BotonPdf
-                  theme={theme}
-                  type="button"
-                  title="Ver documento electrónico (PDF)"
-                  aria-label="Ver documento electrónico (PDF)"
-                  disabled={pdfCargandoId === guiaSeleccionada.id}
-                  onClick={() => abrirPdf(guiaSeleccionada)}
-                >
-                  <IconUI name={pdfCargandoId === guiaSeleccionada.id ? "FaSpinner" : "FaFilePdf"} size={16} />
-                </BotonPdf>
-              )}
+              {guiaSeleccionada.tienePdf && renderBotonesPdf(guiaSeleccionada, esTactil)}
               {puedeMarcarEnviado && (!guiaSeleccionada.cancelada || puedeSincronizar) && (
                 <>
                 {guiaSeleccionada.enviado ? (
