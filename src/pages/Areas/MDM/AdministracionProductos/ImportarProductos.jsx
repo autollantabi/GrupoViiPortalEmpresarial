@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -8,11 +8,12 @@ import { ContainerUI } from "components/UI/Components/ContainerUI";
 import { TextUI } from "components/UI/Components/TextUI";
 import { SelectUI } from "components/UI/Components/SelectUI";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
-import { resolverCodigosMDM } from "services/mdmProductosService";
+import { resolverCodigosMDM, validarCopiaProductosMDM } from "services/mdmProductosService";
 import { puedeEditarRecurso } from "utils/permisosRecurso";
 import { useAlcanceProductos } from "./useAlcanceProductos";
 import {
   AccionesEncabezado,
+  AvisoObservaciones,
   Campo,
   CabeceraColumnas,
   Contenedor,
@@ -26,9 +27,11 @@ import {
   TablaScroll,
   TarjetaCabecera,
   TarjetaFlexible,
+  TextoObservacion,
   Td,
   Th,
   claveProducto,
+  textoEncontrados,
 } from "./compartido";
 
 /* Encabezados que se ignoran si vienen como primera celda/línea del archivo */
@@ -79,12 +82,57 @@ function ImportarProductos() {
   const [buscando, setBuscando] = useState(false);
   const [resultado, setResultado] = useState(null); // { productos, noEncontrados, fueraDeAlcance }
 
+  const [observaciones, setObservaciones] = useState({}); // { IDENTIFICADOR: string[] }
+  const [validando, setValidando] = useState(false);
+
   const puedeEditar = useMemo(() => puedeEditarRecurso(user, RECURSO_ADMIN_PRODUCTOS), [user]);
 
   const opcionesDestino = useMemo(
     () => opcionesEmpresas.filter((o) => o.value !== origen?.value),
     [opcionesEmpresas, origen]
   );
+
+  /* Observaciones (propiedad, ya existe en destino...) cada vez que cambian el destino o la lista */
+  const productosResultado = resultado?.productos;
+  useEffect(() => {
+    if (!origen || !destino || !productosResultado?.length) {
+      setObservaciones({});
+      return undefined;
+    }
+    let activo = true;
+    setValidando(true);
+    validarCopiaProductosMDM({
+      empresaOrigen: origen.value,
+      empresaDestino: destino.value,
+      productos: productosResultado.map(claveProducto),
+    })
+      .then((lista) => {
+        if (!activo) return;
+        setObservaciones(
+          Object.fromEntries(lista.map((o) => [o.IDENTIFICADOR, o.Observaciones || []]))
+        );
+      })
+      .catch((err) => {
+        console.error("Error al validar los productos:", err);
+        if (activo) toast.error("No se pudieron validar los productos");
+      })
+      .finally(() => {
+        if (activo) setValidando(false);
+      });
+    return () => {
+      activo = false;
+    };
+  }, [origen, destino, productosResultado]);
+
+  const hayObservaciones = (productosResultado || []).some(
+    (p) => (observaciones[claveProducto(p)] || []).length > 0
+  );
+
+  const quitarProducto = (producto) =>
+    setResultado((previo) => ({
+      ...previo,
+      productos: previo.productos.filter((p) => claveProducto(p) !== claveProducto(producto)),
+    }));
 
   const alElegirArchivo = async (evento) => {
     const archivo = evento.target.files?.[0];
@@ -182,7 +230,7 @@ function ImportarProductos() {
               text="Continuar a copiar"
               iconLeft="FaArrowRight"
               onClick={continuar}
-              disabled={!puedeEditar || !destino || !resultado?.productos.length}
+              disabled={!puedeEditar || !destino || !resultado?.productos.length || validando || hayObservaciones}
               title={
                 !puedeEditar
                   ? "Requiere el permiso de edición sobre Administración de productos"
@@ -190,7 +238,11 @@ function ImportarProductos() {
                     ? "Seleccione la empresa destino"
                     : !resultado?.productos.length
                       ? "Busque los productos del archivo primero"
-                      : "Ir a la pantalla de copia con los productos encontrados"
+                      : validando
+                        ? "Validando los productos..."
+                        : hayObservaciones
+                          ? "Hay productos con observaciones por revisar"
+                          : "Ir a la pantalla de copia con los productos encontrados"
               }
             />
           </AccionesEncabezado>
@@ -259,10 +311,7 @@ function ImportarProductos() {
 
         {resultado && (
           <TarjetaCabecera theme={theme}>
-            <TextUI weight="bold">
-              {resultado.productos.length} producto{resultado.productos.length === 1 ? "" : "s"}{" "}
-              encontrado{resultado.productos.length === 1 ? "" : "s"}
-            </TextUI>
+            <TextUI weight="bold">{textoEncontrados(resultado.productos.length)}</TextUI>
             {resultado.fueraDeAlcance.length > 0 && (
               <TextUI size="13px" color={theme.colors.error}>
                 {resultado.fueraDeAlcance.length} fuera de sus líneas de negocio permitidas (se
@@ -279,6 +328,12 @@ function ImportarProductos() {
           </TarjetaCabecera>
         )}
 
+        {hayObservaciones && (
+          <AvisoObservaciones theme={theme}>
+            Algunas observaciones necesitan ser revisadas
+          </AvisoObservaciones>
+        )}
+
         {resultado?.productos.length > 0 && (
           <TarjetaFlexible theme={theme}>
             <TablaScroll>
@@ -289,6 +344,8 @@ function ImportarProductos() {
                     <Th>Nombre</Th>
                     <Th>Código de barras</Th>
                     <Th>Línea</Th>
+                    <Th>Observaciones</Th>
+                    <Th $align="center" $ancho="70px" />
                   </tr>
                 </thead>
                 <tbody>
@@ -298,6 +355,21 @@ function ImportarProductos() {
                       <Td $wrap>{producto.NOMBRE || "—"}</Td>
                       <Td>{producto.CODIGO_BARRAS || "—"}</Td>
                       <Td>{producto.LINEA_NEGOCIO || "—"}</Td>
+                      <Td $wrap>
+                        {(observaciones[claveProducto(producto)] || []).map((texto) => (
+                          <TextoObservacion key={texto} theme={theme}>
+                            {texto}
+                          </TextoObservacion>
+                        ))}
+                      </Td>
+                      <Td $align="center">
+                        <ButtonUI
+                          iconLeft="FaXmark"
+                          variant="outlined"
+                          onClick={() => quitarProducto(producto)}
+                          title="Quitar de la lista"
+                        />
+                      </Td>
                     </Fila>
                   ))}
                 </tbody>

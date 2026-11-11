@@ -33,6 +33,26 @@ export const OPCIONES_FILAS = [10, 15, 25, 50, 100].map((n) => ({
   label: `${n} por página`,
 }));
 
+export const AvisoObservaciones = styled.div`
+  align-self: flex-end;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.error || "#dc3545"};
+  background: ${({ theme }) => theme.colors.error || "#dc3545"}14;
+  border: 1px solid ${({ theme }) => theme.colors.error || "#dc3545"}55;
+`;
+
+export const TextoObservacion = styled.div`
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.error || "#dc3545"};
+`;
+
+/* Texto "58 productos encontrados" */
+export const textoEncontrados = (n) =>
+  `${n} producto${n === 1 ? "" : "s"} encontrado${n === 1 ? "" : "s"}`;
+
 export const claveProducto =(producto) => producto.IDENTIFICADOR;
 
 /* ------------------------------ Estilos ------------------------------ */

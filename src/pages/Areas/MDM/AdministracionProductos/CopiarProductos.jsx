@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import styled from "styled-components";
 import { toast } from "react-toastify";
 import { useTheme } from "context/ThemeContext";
 import { useAuthContext } from "context/authContext";
@@ -18,6 +17,7 @@ import {
 import { puedeEditarRecurso } from "utils/permisosRecurso";
 import {
   AccionesEncabezado,
+  AvisoObservaciones,
   CabeceraColumnas,
   Campo,
   CampoFijo,
@@ -31,26 +31,12 @@ import {
   TablaScroll,
   TarjetaCabecera,
   TarjetaFlexible,
+  TextoObservacion,
   Td,
   Th,
   claveProducto,
+  textoEncontrados,
 } from "./compartido";
-
-const AvisoObservaciones = styled.div`
-  align-self: flex-end;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colors.error || "#dc3545"};
-  background: ${({ theme }) => theme.colors.error || "#dc3545"}14;
-  border: 1px solid ${({ theme }) => theme.colors.error || "#dc3545"}55;
-`;
-
-const TextoObservacion = styled.div`
-  font-weight: 600;
-  color: ${({ theme }) => theme.colors.error || "#dc3545"};
-`;
 
 function CopiarProductos() {
   const { theme } = useTheme();
@@ -341,11 +327,14 @@ function CopiarProductos() {
           </CabeceraColumnas>
         </TarjetaCabecera>
 
-        {hayObservaciones && (
-          <AvisoObservaciones theme={theme}>
-            Algunas observaciones necesitan ser revisadas
-          </AvisoObservaciones>
-        )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <TextUI weight="bold">{textoEncontrados(productos.length)}</TextUI>
+          {hayObservaciones && (
+            <AvisoObservaciones theme={theme}>
+              Algunas observaciones necesitan ser revisadas
+            </AvisoObservaciones>
+          )}
+        </div>
 
         <TarjetaFlexible theme={theme}>
           <TablaScroll>
