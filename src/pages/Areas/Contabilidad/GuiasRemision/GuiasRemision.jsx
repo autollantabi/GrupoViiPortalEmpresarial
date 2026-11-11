@@ -43,6 +43,7 @@ import { useAuthContext } from "context/authContext";
 import { puedeEditarRecurso } from "utils/permisosRecurso";
 import { useDebouncedValue } from "hooks/useDebouncedValue";
 import { useMediaQuery } from "hooks/useMediaQuery";
+import { useIsMobile } from "hooks/useIsMobile";
 import logoStox from "/src/assets/images/webp_png_jpeg/S Color1.png";
 import logoAutollanta from "/src/assets/images/webp_png_jpeg/AW Color1.png";
 import logoMaxximundo from "/src/assets/images/webp_png_jpeg/M Color2.png";
@@ -479,10 +480,10 @@ const TarjetaGuiaMovil = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 12px;
-  padding: 12px 12px 12px 14px;
+  padding: 12px 12px 12px 13px;
   cursor: pointer;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  border-left: 5px solid ${({ theme, $cancelada }) => ($cancelada ? theme.colors.error : theme.colors.primary)};
+  border-left: 3px solid ${({ theme, $cancelada }) => ($cancelada ? theme.colors.error : theme.colors.primary)};
   border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, ${({ theme }) => (theme.name === "dark" ? "0.4" : "0.08")});
   background: ${({ theme, $cancelada }) =>
@@ -566,6 +567,7 @@ const PageInput = styled.input`
 export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const { theme } = useTheme();
   const esMovil = useMediaQuery(MOVIL);
+  const esTactil = useIsMobile(); // móvil o tablet (pantalla angosta o táctil): el PDF se descarga en lugar de abrirse en una pestaña
   const { user } = useAuthContext();
   const puedeMarcarEnviado = routeConfig?.rolDelRecurso === ROL_SUPERVISOR;
   // Sincronizar: supervisor Y con el permiso "editar" (el servidor vuelve a validarlo)
@@ -733,17 +735,26 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   }, [consulta, refrescos, listaEmpresasUsuario, puedeMarcarEnviado]);
 
   // ================= Documento electrónico (PDF) =================
-  // El PDF está en un almacén de red que solo ve el servidor: se pide al backend (con la sesión) y se abre en otra pestaña.
-  // La pestaña se abre ANTES de la petición para que el navegador no la bloquee como ventana emergente.
+  // El PDF está en un almacén de red que solo ve el servidor: se pide al backend (con la sesión).
+  //  - Escritorio: se abre en otra pestaña (la pestaña se abre ANTES de la petición para que el navegador no la bloquee).
+  //  - Móvil/tablet: el visor del navegador es incómodo (se abre "como un archivo más"), así que se DESCARGA con un nombre claro.
   const abrirPdf = async (guia) => {
     if (pdfCargandoId) return;
-    const ventana = window.open("", "_blank");
+    const ventana = esTactil ? null : window.open("", "_blank");
     if (ventana) ventana.document.title = "Cargando documento…";
     setPdfCargandoId(guia.id);
     try {
       const blob = await ObtenerPdfGuiaRemision({ id: guia.id });
       const url = window.URL.createObjectURL(blob);
-      if (ventana) ventana.location.href = url;
+      if (esTactil) {
+        const enlace = document.createElement("a");
+        enlace.href = url;
+        enlace.download = `Guia_Remision_${guia.numeroGuia}.pdf`;
+        document.body.appendChild(enlace);
+        enlace.click();
+        document.body.removeChild(enlace);
+        toast.info("Descargando el documento…");
+      } else if (ventana) ventana.location.href = url;
       else window.open(url, "_blank");
       setTimeout(() => window.URL.revokeObjectURL(url), 5 * 60 * 1000);
     } catch (err) {
