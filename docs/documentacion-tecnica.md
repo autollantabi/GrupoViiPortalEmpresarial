@@ -1,6 +1,6 @@
 # Módulo «Documentación Técnica» (frontend)
 
-Módulo de uso de TI con seis pestañas: **Diccionario**, **DWH mapping**, **Caracterización**, **Calidad**, **Completitud** y **Horario Automatizaciones**. El portal es
+Módulo de uso de TI con siete pestañas: **Diccionario**, **DWH mapping**, **Caracterización**, **Calidad**, **Completitud**, **Horario Automatizaciones** y **Líneas**. El portal es
 solo frontend: los datos los sirve el backend de la API 2 (`v1-portal-empresarial-back-new`) bajo `/documentacion-tecnica/*`, a través de
 `axiosInstanceNew` (ver [apis.md](apis.md)). La guía del backend está en `docs/documentacion-tecnica.md` de ese repositorio.
 
@@ -97,6 +97,13 @@ Ejemplo: «Linaje».
    `{ title: "Linaje", component: DocTecLinaje, recurso: "documentaciontecnica.linaje" }` a `rutasDocumentacionTecnica`.
 4. No hace falta tocar `Routes.js`, el menú ni los permisos del portal: la ruta y el menú se generan solos.
 5. Asigne el recurso a quien deba verlo (o use la raíz) desde «Asignaciones importantes».
+
+## 4a. Pestaña «Líneas» (copia de una pantalla de otra área)
+
+`lineas/DocTecLineas.jsx` es una **copia** de «Monitoreo de Líneas» (`pages/Areas/Negocio/Linea/Linea.jsx`): mismos endpoints
+(`/dwh-postgres/linea-negocio-parametros`, vía `postgresService`) y misma apariencia. Se duplicó para que TI la use sin acceso al área
+Negocio. La única diferencia: puede editar quien tenga el permiso 2 en `negocio.linea` **o** el recurso `documentaciontecnica.lineas`
+(o la raíz `documentaciontecnica`). Si cambia la original, hay que replicar el cambio en la copia.
 
 ## 4b. Patrón de pestaña editable (ejemplo: Horario Automatizaciones)
 
