@@ -85,6 +85,7 @@ import LiquidacionPrecioDetalle from "pages/Areas/MDM/MDM_Crud/LiquidacionPrecio
 import AdministracionProductos from "pages/Areas/MDM/AdministracionProductos/AdministracionProductos";
 import CopiarProductos from "pages/Areas/MDM/AdministracionProductos/CopiarProductos";
 import ImportarProductos from "pages/Areas/MDM/AdministracionProductos/ImportarProductos";
+import CopiarDesdeFactura from "pages/Areas/MDM/AdministracionProductos/CopiarDesdeFactura";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
@@ -439,6 +440,14 @@ export const RoutesConfig = [
     component: ImportarProductos,
     recurso: "mdm.administracionproductos",
     path: "/mdm/administracionproductos/importar",
+    hideInSidebar: true,
+  },
+  {
+    // Se abre desde "Acciones > Cargar desde factura" del listado, no desde el menú.
+    title: "Copiar productos desde factura",
+    component: CopiarDesdeFactura,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/factura",
     hideInSidebar: true,
   },
   // ================================= RRHH =================================

@@ -35,6 +35,7 @@ import {
   AccionesEncabezado,
   claveProducto,
   estiloCheckboxTabla,
+  RUTA_FACTURA_PRODUCTOS,
   RUTA_IMPORTAR_PRODUCTOS,
 } from "./compartido";
 import { useAlcanceProductos } from "./useAlcanceProductos";
@@ -250,6 +251,16 @@ function AdministracionProductos() {
     [opcionesEmpresas, empresa]
   );
 
+  const abrirCargaArchivo = () => {
+    setMenuAbierto(false);
+    navigate(RUTA_IMPORTAR_PRODUCTOS);
+  };
+
+  const abrirCargaFactura = () => {
+    setMenuAbierto(false);
+    navigate(RUTA_FACTURA_PRODUCTOS);
+  };
+
   const abrirDuplicar = () => {
     setMenuAbierto(false);
     setEmpresaDestino(opcionesDestino.length === 1 ? opcionesDestino[0] : null);
@@ -446,42 +457,52 @@ function AdministracionProductos() {
               </ResumenSeleccion>
             )}
 
-            <ButtonUI
-              text="Cargar desde archivo"
-              iconLeft="FaFileArrowUp"
-              variant="outlined"
-              onClick={() => navigate(RUTA_IMPORTAR_PRODUCTOS)}
-              disabled={!puedeEditar}
-              title={
-                puedeEditar
-                  ? "Copiar productos a otra empresa a partir de un archivo txt o Excel con códigos"
-                  : "Requiere el permiso de edición sobre Administración de productos"
-              }
-            />
-
             <MenuWrapper ref={menuRef}>
               <ButtonUI
                 text="Acciones"
                 iconLeft="FaListCheck"
                 iconRight="FaChevronDown"
                 onClick={() => setMenuAbierto((abierto) => !abierto)}
-                disabled={cantidadSeleccionada === 0}
-                title={
-                  cantidadSeleccionada === 0
-                    ? "Seleccione uno o más productos para ver las acciones"
-                    : "Acciones sobre los productos seleccionados"
-                }
+                title="Acciones disponibles"
               />
               {menuAbierto && (
                 <MenuLista theme={theme}>
                   <MenuOpcion
                     theme={theme}
-                    onClick={abrirDuplicar}
+                    onClick={abrirCargaArchivo}
                     disabled={!puedeEditar}
                     title={
                       puedeEditar
-                        ? "Copiar los productos seleccionados a otra empresa"
+                        ? "Copiar productos a otra empresa a partir de un archivo txt o Excel con códigos"
                         : "Requiere el permiso de edición sobre Administración de productos"
+                    }
+                  >
+                    <IconUI name="FaFileArrowUp" size={14} color={theme.colors.primary} />
+                    Cargar desde archivo
+                  </MenuOpcion>
+                  <MenuOpcion
+                    theme={theme}
+                    onClick={abrirCargaFactura}
+                    disabled={!puedeEditar}
+                    title={
+                      puedeEditar
+                        ? "Copiar los productos de una factura de venta a la empresa que la compró"
+                        : "Requiere el permiso de edición sobre Administración de productos"
+                    }
+                  >
+                    <IconUI name="FaFileInvoice" size={14} color={theme.colors.primary} />
+                    Cargar desde factura
+                  </MenuOpcion>
+                  <MenuOpcion
+                    theme={theme}
+                    onClick={abrirDuplicar}
+                    disabled={!puedeEditar || cantidadSeleccionada === 0}
+                    title={
+                      !puedeEditar
+                        ? "Requiere el permiso de edición sobre Administración de productos"
+                        : cantidadSeleccionada === 0
+                          ? "Seleccione uno o más productos para duplicarlos a otra empresa"
+                          : "Copiar los productos seleccionados a otra empresa"
                     }
                   >
                     <IconUI name="FaCopy" size={14} color={theme.colors.primary} />

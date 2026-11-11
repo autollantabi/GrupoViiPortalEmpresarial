@@ -10,6 +10,7 @@ export const RECURSO_ADMIN_PRODUCTOS = "mdm.administracionproductos";
 export const RUTA_ADMIN_PRODUCTOS = "/mdm/administracionproductos";
 export const RUTA_COPIAR_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/copiar`;
 export const RUTA_IMPORTAR_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/importar`;
+export const RUTA_FACTURA_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/factura`;
 
 /* Compañías con las que trabaja el MDM */
 export const EMPRESAS_MDM = ["AUTOLLANTA", "MAXXIMUNDO", "STOX", "IKONIX", "AUTOMAX"];

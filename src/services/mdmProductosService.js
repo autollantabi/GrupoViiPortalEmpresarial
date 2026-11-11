@@ -111,3 +111,13 @@ export const resolverCodigosMDM = async ({ empresa, codigos }) => {
   }
   return { Productos: [], NoEncontrados: [] };
 };
+
+/** Artículos de una factura de venta y empresa destino deducida del cliente */
+export const buscarFacturaMDM = async ({ empresa, numeroFactura }) => {
+  const response = await axiosInstanceNew.post("/mdm/productos/factura", { empresa, numeroFactura });
+
+  if (response.data && response.data.status === "Ok!") {
+    return response.data.data || { TotalRegistros: 0, Productos: [] };
+  }
+  return { TotalRegistros: 0, Productos: [] };
+};

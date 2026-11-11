@@ -14,6 +14,10 @@
  *
  * El rol "usuario" ve el detalle de las guías ENVIADAS como una tarjeta de seguimiento (factura, cliente, destino, transporte,
  * guía de Laar con enlace al tracking, fecha y logo de la empresa); ver TarjetaSeguimiento.
+ * Cada guía con clave de acceso tiene un botón (icono PDF) que abre en otra pestaña su documento electrónico (RIDE); el servidor lo lee
+ * del almacén de documentos y valida quién puede verlo.
+ * El rol "usuario" (vendedor) solo recibe las guías en las que es el vendedor (su nombre de usuario = hgr_vendedor), enviadas y no
+ * canceladas: por eso no ve los filtros de envío ni la opción CANCELADO.
  * Roles: "usuario" solo consulta (no ve "Descargar Excel"); "supervisor" además descarga el Excel y marca como enviadas (routeConfig.rolDelRecurso).
  * El estado de la pantalla se organiza así: `consulta` (filtros que viajan al servidor), `guias`/`paginacion` (resultado),
  * `excelForm` (modal de descarga) y `cargaExcel` (modal de marcado desde Excel).
@@ -51,6 +55,7 @@ import {
   MarcarEnviadasDesdeExcel,
   MarcarGuiaRemisionEnviada,
   MarcarGuiaRemisionNoEnviada,
+  ObtenerPdfGuiaRemision,
   SincronizarGuiasRemision,
   TAMANO_MAXIMO_EXCEL_MB,
 } from "services/guiasRemisionService";
@@ -93,6 +98,7 @@ const COLUMNAS = [
   { header: "Vendedor / Facturador", field: "vendedor", isVendedorFacturador: true, wrap: true },
   { header: "Estado documento", field: "detalleEstadoElectronico", isEstadoElectronico: true, align: "center" },
   { header: "Enviado", field: "enviado", isEnviado: true, align: "center" },
+  { header: "PDF", field: "tienePdf", isPdf: true, align: "center" },
 ];
 
 // Opción "TODAS" del filtro de empresa: consulta todas las empresas a las que el usuario tiene acceso
@@ -372,6 +378,30 @@ const LogoEmpresa = styled.img`
   object-fit: contain;
 `;
 
+// Botón solo con icono (documento PDF)
+const BotonPdf = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  color: ${({ theme }) => theme.colors.error};
+  background: ${({ theme }) => theme.colors.error}12;
+  border: 1px solid ${({ theme }) => theme.colors.error}55;
+  transition: filter 0.2s ease;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.15);
+  }
+  &:disabled {
+    cursor: wait;
+    opacity: 0.5;
+  }
+`;
+
 const CabeceraGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -464,9 +494,18 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     error: null,
   });
 
+  // Documento electrónico (PDF): id de la guía cuyo PDF se está pidiendo
+  const [pdfCargandoId, setPdfCargandoId] = useState(null);
+
   // Sincronización manual de guías (el mismo proceso del cron, ejecutado en el servidor)
   const [sincronizando, setSincronizando] = useState(false);
   const temporizadorSyncRef = useRef(null);
+
+  // El vendedor (rol usuario) no ve guías canceladas: no se ofrece ese estado
+  const opcionesEstado = useMemo(
+    () => (puedeMarcarEnviado ? OPCIONES_ESTADO : OPCIONES_ESTADO.filter((o) => o.value !== "CANCELADO")),
+    [puedeMarcarEnviado]
+  );
 
   // Opciones del filtro de empresa: "TODAS" solo tiene sentido si el usuario tiene más de una
   const opcionesFiltroEmpresa = useMemo(
@@ -524,7 +563,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             cliente: consulta.cliente,
             busqueda: consulta.busqueda,
             estado: consulta.estado,
-            enviado: consulta.enviado,
+            // El vendedor (rol usuario) solo recibe sus guías enviadas: el filtro de envío no aplica
+            enviado: puedeMarcarEnviado ? consulta.enviado : undefined,
           },
           controller.signal
         );
@@ -551,7 +591,33 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     })();
 
     return () => controller.abort();
-  }, [consulta, refrescos, listaEmpresasUsuario]);
+  }, [consulta, refrescos, listaEmpresasUsuario, puedeMarcarEnviado]);
+
+  // ================= Documento electrónico (PDF) =================
+  // El PDF está en un almacén de red que solo ve el servidor: se pide al backend (con la sesión) y se abre en otra pestaña.
+  // La pestaña se abre ANTES de la petición para que el navegador no la bloquee como ventana emergente.
+  const abrirPdf = async (guia) => {
+    if (pdfCargandoId) return;
+    const ventana = window.open("", "_blank");
+    if (ventana) ventana.document.title = "Cargando documento…";
+    setPdfCargandoId(guia.id);
+    try {
+      const blob = await ObtenerPdfGuiaRemision({ id: guia.id });
+      const url = window.URL.createObjectURL(blob);
+      if (ventana) ventana.location.href = url;
+      else window.open(url, "_blank");
+      setTimeout(() => window.URL.revokeObjectURL(url), 5 * 60 * 1000);
+    } catch (err) {
+      if (ventana) ventana.close();
+      console.error("Error al abrir el documento electrónico:", err);
+      const estado = err?.response?.status;
+      const mensaje = err?.response?.data?.message;
+      if (estado === 404 || estado === 403 || estado === 503) toast.warn(mensaje);
+      else toast.error("No se pudo abrir el documento electrónico");
+    } finally {
+      setPdfCargandoId(null);
+    }
+  };
 
   // ================= Sincronización de guías =================
   // Se consulta el estado hasta que el servidor indique que terminó; entonces se recarga el listado con los mismos filtros
@@ -867,6 +933,26 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         </div>
       );
     }
+    // Botón del documento electrónico: sin clave de acceso no hay documento
+    if (columna.isPdf) {
+      if (!item.tienePdf) return "—";
+      return (
+        <BotonPdf
+          theme={theme}
+          type="button"
+          title="Ver documento electrónico (PDF)"
+          aria-label="Ver documento electrónico (PDF)"
+          disabled={pdfCargandoId === item.id}
+          onClick={(e) => {
+            e.stopPropagation(); // la fila abre el detalle
+            abrirPdf(item);
+          }}
+        >
+          <IconUI name={pdfCargandoId === item.id ? "FaSpinner" : "FaFilePdf"} size={16} />
+        </BotonPdf>
+      );
+    }
+
     // Vendedor y, debajo, facturador
     if (columna.isVendedorFacturador) {
       return (
@@ -1093,8 +1179,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
             <SelectUI
               label="Estado"
-              options={OPCIONES_ESTADO}
-              value={OPCIONES_ESTADO.find((o) => o.value === consulta.estado)}
+              options={opcionesEstado}
+              value={opcionesEstado.find((o) => o.value === consulta.estado)}
               onChange={handleEstado}
               placeholder="TODOS"
               isSearchable={false}
@@ -1102,15 +1188,17 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
               maxWidth="240px"
             />
 
-            <SelectUI
-              label="Envío"
-              options={OPCIONES_ENVIO}
-              value={OPCIONES_ENVIO.find((o) => o.value === consulta.enviado)}
-              onChange={handleEnvio}
-              isSearchable={false}
-              minWidth="210px"
-              maxWidth="230px"
-            />
+            {puedeMarcarEnviado && (
+              <SelectUI
+                label="Envío"
+                options={OPCIONES_ENVIO}
+                value={OPCIONES_ENVIO.find((o) => o.value === consulta.enviado)}
+                onChange={handleEnvio}
+                isSearchable={false}
+                minWidth="210px"
+                maxWidth="230px"
+              />
+            )}
 
             <FiltroGrupo theme={theme} style={{ minWidth: "230px" }}>
               <label>Cliente</label>
@@ -1160,8 +1248,21 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
             {/* Supervisor: marcar como enviada, o devolverla a NO enviada si ya lo estaba. Las canceladas solo con permiso de editar */}
-            {puedeMarcarEnviado && (!guiaSeleccionada.cancelada || puedeSincronizar) && (
-              <div style={{ display: "flex", justifyContent: "end" }}>
+            <div style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "10px" }}>
+              {guiaSeleccionada.tienePdf && (
+                <BotonPdf
+                  theme={theme}
+                  type="button"
+                  title="Ver documento electrónico (PDF)"
+                  aria-label="Ver documento electrónico (PDF)"
+                  disabled={pdfCargandoId === guiaSeleccionada.id}
+                  onClick={() => abrirPdf(guiaSeleccionada)}
+                >
+                  <IconUI name={pdfCargandoId === guiaSeleccionada.id ? "FaSpinner" : "FaFilePdf"} size={16} />
+                </BotonPdf>
+              )}
+              {puedeMarcarEnviado && (!guiaSeleccionada.cancelada || puedeSincronizar) && (
+                <>
                 {guiaSeleccionada.enviado ? (
                   <ButtonUI
                     text="Marcar como NO enviado"
@@ -1178,8 +1279,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                     disabled={enviando}
                   />
                 )}
-              </div>
-            )}
+                </>
+              )}
+            </div>
 
             {/* Rol usuario + guía enviada: tarjeta de seguimiento */}
             {!puedeMarcarEnviado && guiaSeleccionada.enviado && !guiaSeleccionada.cancelada ? (
