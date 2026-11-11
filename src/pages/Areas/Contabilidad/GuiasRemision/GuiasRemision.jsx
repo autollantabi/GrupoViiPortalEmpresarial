@@ -18,6 +18,9 @@
  * del almacén de documentos y valida quién puede verlo.
  * El rol "usuario" (vendedor) solo recibe las guías en las que es el vendedor (su nombre de usuario = hgr_vendedor), enviadas y no
  * canceladas: por eso no ve los filtros de envío ni la opción CANCELADO.
+ * Tamaño de letra: en tablet y móvil se reduce un poco (variable CSS --escala-texto, que define EscalaTexto y usan Txt y los estilos de aquí).
+ * Responsive: en tablet (hasta 1024px) la página se desplaza y la tabla tiene scroll horizontal; en móvil (hasta 640px) cada guía se
+ * muestra como una tarjeta y los filtros y botones ocupan todo el ancho.
  * Roles: "usuario" solo consulta (no ve "Descargar Excel"); "supervisor" además descarga el Excel y marca como enviadas (routeConfig.rolDelRecurso).
  * El estado de la pantalla se organiza así: `consulta` (filtros que viajan al servidor), `guias`/`paginacion` (resultado),
  * `excelForm` (modal de descarga) y `cargaExcel` (modal de marcado desde Excel).
@@ -39,6 +42,7 @@ import { useTheme } from "context/ThemeContext";
 import { useAuthContext } from "context/authContext";
 import { puedeEditarRecurso } from "utils/permisosRecurso";
 import { useDebouncedValue } from "hooks/useDebouncedValue";
+import { useMediaQuery } from "hooks/useMediaQuery";
 import logoStox from "/src/assets/images/webp_png_jpeg/S Color1.png";
 import logoAutollanta from "/src/assets/images/webp_png_jpeg/AW Color1.png";
 import logoMaxximundo from "/src/assets/images/webp_png_jpeg/M Color2.png";
@@ -140,6 +144,10 @@ const ROL_SUPERVISOR = "supervisor";
 // Recurso del portal (usuarios_rol_contexto) sobre el que se evalúa el permiso "editar" para sincronizar
 const RECURSO_GUIAS_REMISION = "contabilidad.guiasremision";
 
+// Puntos de corte: tablet y móvil (en móvil la tabla se reemplaza por tarjetas)
+const TABLET = "(max-width: 1024px)";
+const MOVIL = "(max-width: 640px)";
+
 // Cada cuánto se consulta si la sincronización terminó
 const INTERVALO_ESTADO_SYNC_MS = 4000;
 
@@ -175,6 +183,29 @@ const formatFecha = (valor) => {
 };
 
 // ================= Estilos =================
+// Escala del tamaño de letra: 1 en escritorio, un poco menos en tablet y móvil. Es una variable CSS que heredan la pantalla y sus
+// modales (que se dibujan dentro de este mismo árbol); display: contents evita que el contenedor afecte al diseño.
+const EscalaTexto = styled.div`
+  display: contents;
+
+  /* Título de los modales (ModalUI lo dibuja con un h2 de 20px) */
+  & h2 {
+    font-size: calc(20px * var(--escala-texto, 1));
+  }
+
+  @media ${TABLET} {
+    --escala-texto: 0.94;
+  }
+  @media ${MOVIL} {
+    --escala-texto: 0.88;
+  }
+`;
+
+// TextUI con el tamaño multiplicado por la escala (el tamaño en línea gana sobre el de la clase de TextUI)
+const Txt = ({ size = "16px", style, ...props }) => (
+  <TextUI size={size} style={{ ...style, fontSize: `calc(${size} * var(--escala-texto, 1))` }} {...props} />
+);
+
 const Contenedor = styled.div`
   display: flex;
   flex-direction: column;
@@ -185,6 +216,16 @@ const Contenedor = styled.div`
   box-sizing: border-box;
   overflow: hidden;
   color: ${({ theme }) => theme.colors.text};
+
+  /* Tablet y móvil: los filtros ocupan más alto, así que toda la pantalla se desplaza en lugar de comprimir la tabla */
+  @media ${TABLET} {
+    padding: 12px;
+    gap: 12px;
+    overflow-y: auto;
+  }
+  @media ${MOVIL} {
+    padding: 8px;
+  }
 `;
 
 const FiltrosContainer = styled.div`
@@ -204,6 +245,12 @@ const FilaAcciones = styled.div`
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+
+  @media ${MOVIL} {
+    & > button {
+      flex: 1 1 100%;
+    }
+  }
 `;
 
 // Fila de filtros
@@ -212,6 +259,22 @@ const FilaFiltros = styled.div`
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 14px;
+
+  /* Los filtros traen anchos fijos (en línea): se anulan para repartirlos en columnas — 3 en tablet, 1 en móvil */
+  @media ${TABLET} {
+    & > * {
+      flex: 1 1 calc(33.333% - 14px) !important;
+      width: auto !important;
+      min-width: 180px !important;
+      max-width: none !important;
+    }
+  }
+  @media ${MOVIL} {
+    & > * {
+      flex: 1 1 100% !important;
+      min-width: 0 !important;
+    }
+  }
 `;
 
 const FiltroGrupo = styled.div`
@@ -220,7 +283,7 @@ const FiltroGrupo = styled.div`
   gap: 6px;
 
   label {
-    font-size: 12px;
+    font-size: calc(12px * var(--escala-texto, 1));
     font-weight: 600;
     color: ${({ theme }) => theme.colors.textSecondary};
   }
@@ -236,6 +299,12 @@ const Tarjeta = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: 12px;
   overflow: hidden;
+
+  /* La pantalla entera se desplaza: la tarjeta toma su alto natural */
+  @media ${TABLET} {
+    flex: none;
+    min-height: 260px;
+  }
 `;
 
 const TablaScroll = styled.div`
@@ -256,13 +325,22 @@ const TablaScroll = styled.div`
     background: ${({ theme }) => theme.colors.border};
     border-radius: 4px;
   }
+
+  @media ${TABLET} {
+    flex: none;
+  }
 `;
 
 const Tabla = styled.table`
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 13px;
+  font-size: calc(13px * var(--escala-texto, 1));
+
+  /* En tablet las columnas no se aprietan: la tabla mantiene un ancho mínimo y se desplaza horizontalmente */
+  @media ${TABLET} {
+    min-width: 1000px;
+  }
 `;
 
 const Th = styled.th`
@@ -273,7 +351,7 @@ const Th = styled.th`
   text-align: ${({ $align }) => $align || "left"};
   white-space: nowrap;
   font-weight: 700;
-  font-size: 12px;
+  font-size: calc(12px * var(--escala-texto, 1));
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: ${({ theme }) => theme.colors.white};
@@ -302,7 +380,7 @@ const Badge = styled.span`
   display: inline-block;
   padding: 3px 10px;
   border-radius: 12px;
-  font-size: 11px;
+  font-size: calc(11px * var(--escala-texto, 1));
   font-weight: 700;
   white-space: nowrap;
   color: ${({ $color }) => $color};
@@ -319,6 +397,11 @@ const PiePaginacion = styled.div`
   padding: 10px 14px;
   border-top: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.backgroundLight};
+
+  @media ${MOVIL} {
+    justify-content: center;
+    text-align: center;
+  }
 `;
 
 const Vacio = styled.div`
@@ -370,12 +453,63 @@ const FilaSeguimiento = styled.div`
   grid-template-columns: 130px 1fr;
   align-items: center;
   gap: 8px;
+
+  @media ${MOVIL} {
+    grid-template-columns: 100px 1fr;
+  }
 `;
 
 const LogoEmpresa = styled.img`
   height: 34px;
   max-width: 160px;
   object-fit: contain;
+`;
+
+// Móvil: una guía como tarjeta (en lugar de una fila de la tabla)
+const ListaMovil = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px;
+`;
+
+// Cada guía es una tarjeta independiente: borde, esquinas redondeadas, sombra y una franja de color a la izquierda
+// (naranja del portal; roja si está cancelada) para que se note dónde empieza y termina cada registro.
+const TarjetaGuiaMovil = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  padding: 12px 12px 12px 14px;
+  cursor: pointer;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-left: 5px solid ${({ theme, $cancelada }) => ($cancelada ? theme.colors.error : theme.colors.primary)};
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, ${({ theme }) => (theme.name === "dark" ? "0.4" : "0.08")});
+  background: ${({ theme, $cancelada }) =>
+    $cancelada
+      ? `${theme.colors.error}14`
+      : theme.name === "dark"
+        ? `${theme.colors.white}0d`
+        : theme.colors.white};
+`;
+
+const CampoMovil = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: calc(13px * var(--escala-texto, 1));
+  word-break: break-word;
+  grid-column: ${({ $ancho }) => ($ancho ? "1 / -1" : "auto")};
+  color: ${({ theme }) => theme.colors.text};
+
+  & > label {
+    font-size: calc(11px * var(--escala-texto, 1));
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: ${({ theme }) => theme.colors.textSecondary};
+  }
 `;
 
 // Botón solo con icono (documento PDF)
@@ -406,6 +540,10 @@ const CabeceraGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
+
+  @media ${MOVIL} {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
 `;
 
 const CabeceraItem = styled.div`
@@ -422,11 +560,12 @@ const PageInput = styled.input`
   border: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.backgroundCard || theme.colors.white};
   color: ${({ theme }) => theme.colors.text};
-  font-size: 13px;
+  font-size: calc(13px * var(--escala-texto, 1));
 `;
 
 export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const { theme } = useTheme();
+  const esMovil = useMediaQuery(MOVIL);
   const { user } = useAuthContext();
   const puedeMarcarEnviado = routeConfig?.rolDelRecurso === ROL_SUPERVISOR;
   // Sincronizar: supervisor Y con el permiso "editar" (el servidor vuelve a validarlo)
@@ -927,9 +1066,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
           <span>{valor || "—"}</span>
-          <TextUI size="12px" color={theme.colors.textSecondary}>
+          <Txt size="12px" color={theme.colors.textSecondary}>
             {item.codigoSocio || "—"}
-          </TextUI>
+          </Txt>
         </div>
       );
     }
@@ -958,9 +1097,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
           <span>{item.vendedor || "—"}</span>
-          <TextUI size="12px" color={theme.colors.textSecondary}>
+          <Txt size="12px" color={theme.colors.textSecondary}>
             {item.facturador || "—"}
-          </TextUI>
+          </Txt>
         </div>
       );
     }
@@ -978,7 +1117,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
           <CirculoIcono $color={theme.colors.primary}>
             <IconUI name="FaSpinner" size={28} color={theme.colors.primary} />
           </CirculoIcono>
-          <TextUI weight="bold">Cargando guías de remisión...</TextUI>
+          <Txt weight="bold">Cargando guías de remisión...</Txt>
         </Vacio>
       );
     }
@@ -989,7 +1128,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
           <CirculoIcono $color={theme.colors.error}>
             <IconUI name="FaTriangleExclamation" size={28} color={theme.colors.error} />
           </CirculoIcono>
-          <TextUI weight="bold">No se pudo cargar la información</TextUI>
+          <Txt weight="bold">No se pudo cargar la información</Txt>
           <ButtonUI text="Reintentar" iconLeft="FaRotateRight" onClick={recargar} />
         </Vacio>
       );
@@ -1001,12 +1140,12 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
           <CirculoIcono>
             <IconUI name="FaFileLines" size={28} color={theme.colors.primary} />
           </CirculoIcono>
-          <TextUI weight="bold">Sin guías de remisión</TextUI>
-          <TextUI color={theme.colors.textSecondary}>
+          <Txt weight="bold">Sin guías de remisión</Txt>
+          <Txt color={theme.colors.textSecondary}>
             {consultado
               ? "No se encontraron guías con los filtros seleccionados."
               : "Seleccione una empresa para consultar la información."}
-          </TextUI>
+          </Txt>
         </Vacio>
       );
     }
@@ -1016,6 +1155,29 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     return (
       <>
         <TablaScroll $cargando={loading}>
+          {esMovil ? (
+            <ListaMovil>
+            {guias.map((guia) => (
+              <TarjetaGuiaMovil
+                key={guia.id}
+                theme={theme}
+                $cancelada={guia.cancelada}
+                onClick={() => abrirDetalle(guia)}
+              >
+                {COLUMNAS.map((columna) => (
+                  <CampoMovil
+                    key={columna.field}
+                    theme={theme}
+                    $ancho={columna.isCliente || columna.isVendedorFacturador}
+                  >
+                    <label>{columna.header}</label>
+                    <div>{renderCelda(guia, columna)}</div>
+                  </CampoMovil>
+                ))}
+              </TarjetaGuiaMovil>
+            ))}
+            </ListaMovil>
+          ) : (
           <Tabla>
             <thead>
               <tr>
@@ -1043,12 +1205,13 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
               ))}
             </tbody>
           </Tabla>
+          )}
         </TablaScroll>
 
         <PiePaginacion>
-          <TextUI size="13px" color={theme.colors.textSecondary}>
+          <Txt size="13px" color={theme.colors.textSecondary}>
             Mostrando {inicio + 1}–{inicio + guias.length} de {paginacion?.total ?? 0} registros
-          </TextUI>
+          </Txt>
 
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             <ButtonUI
@@ -1064,9 +1227,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
               value={consulta.page}
               onChange={(e) => irAPagina(Number(e.target.value) || 1)}
             />
-            <TextUI size="13px" color={theme.colors.textSecondary}>
+            <Txt size="13px" color={theme.colors.textSecondary}>
               de {totalPaginas}
-            </TextUI>
+            </Txt>
             <ButtonUI
               iconLeft="FaArrowRight"
               onClick={() => irAPagina(consulta.page + 1)}
@@ -1091,14 +1254,15 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   if (!opcionesEmpresas.length) {
     return (
       <Contenedor theme={theme}>
-        <TextUI weight="bold" size="18px">
+        <Txt weight="bold" size="18px">
           No tiene acceso a ninguna empresa para consultar guías de remisión.
-        </TextUI>
+        </Txt>
       </Contenedor>
     );
   }
 
   return (
+    <EscalaTexto>
     <ContainerUI
       width="100%"
       height="100%"
@@ -1109,9 +1273,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       className="notranslate"
     >
       <Contenedor theme={theme}>
-        <TextUI weight="bold" size="22px">
+        <Txt weight="bold" size="22px">
           Guías de Remisión
-        </TextUI>
+        </Txt>
 
         <FiltrosContainer theme={theme}>
           {/* Botones de Excel (derecha). "Marcar enviadas" solo lo ve el supervisor */}
@@ -1248,7 +1412,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
             {/* Supervisor: marcar como enviada, o devolverla a NO enviada si ya lo estaba. Las canceladas solo con permiso de editar */}
-            <div style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               {guiaSeleccionada.tienePdf && (
                 <BotonPdf
                   theme={theme}
@@ -1286,14 +1450,14 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             {/* Rol usuario + guía enviada: tarjeta de seguimiento */}
             {!puedeMarcarEnviado && guiaSeleccionada.enviado && !guiaSeleccionada.cancelada ? (
               <TarjetaSeguimiento theme={theme}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <TextUI size="12px" color={theme.colors.textSecondary}>
+                    <Txt size="12px" color={theme.colors.textSecondary}>
                       Nº DE FACTURA
-                    </TextUI>
-                    <TextUI size="28px" weight="bold">
+                    </Txt>
+                    <Txt size="28px" weight="bold">
                       {sinSerie(guiaSeleccionada.numeroFactura)}
-                    </TextUI>
+                    </Txt>
                   </div>
                   {guiaSeleccionada.transportistaNombre && (
                     <Badge $color={theme.colors.success}>{guiaSeleccionada.transportistaNombre.toUpperCase()}</Badge>
@@ -1309,15 +1473,15 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                   ["Facturador", guiaSeleccionada.facturador],
                 ].map(([titulo, valor]) => (
                   <FilaSeguimiento key={titulo}>
-                    <TextUI color={theme.colors.textSecondary}>{titulo}</TextUI>
-                    <TextUI weight="bold">{valor || "—"}</TextUI>
+                    <Txt color={theme.colors.textSecondary}>{titulo}</Txt>
+                    <Txt weight="bold">{valor || "—"}</Txt>
                   </FilaSeguimiento>
                 ))}
 
                 {/* El enlace al tracking solo existe para las guías de Laar */}
                 {guiaSeleccionada.transportistaId === ID_TRANSPORTISTA_LAAR && guiasEntregaVisibles(guiaSeleccionada).length > 0 && (
                   <FilaSeguimiento>
-                    <TextUI color={theme.colors.textSecondary}>Guía de Laar</TextUI>
+                    <Txt color={theme.colors.textSecondary}>Guía de Laar</Txt>
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       {guiasEntregaVisibles(guiaSeleccionada).map((guiaEntrega) => (
                         <a
@@ -1335,12 +1499,12 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                 )}
 
                 <FilaSeguimiento>
-                  <TextUI color={theme.colors.textSecondary}>Fecha</TextUI>
-                  <TextUI weight="bold">{guiaSeleccionada.fechaGuia || "—"}</TextUI>
+                  <Txt color={theme.colors.textSecondary}>Fecha</Txt>
+                  <Txt weight="bold">{guiaSeleccionada.fechaGuia || "—"}</Txt>
                 </FilaSeguimiento>
 
                 <FilaSeguimiento>
-                  <TextUI color={theme.colors.textSecondary}>Empresa</TextUI>
+                  <Txt color={theme.colors.textSecondary}>Empresa</Txt>
                   {LOGOS_EMPRESA[String(guiaSeleccionada.empresa).toUpperCase()] ? (
                     <LogoEmpresa
                       src={
@@ -1351,7 +1515,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                       alt={guiaSeleccionada.empresa}
                     />
                   ) : (
-                    <TextUI weight="bold">{guiaSeleccionada.empresa || "—"}</TextUI>
+                    <Txt weight="bold">{guiaSeleccionada.empresa || "—"}</Txt>
                   )}
                 </FilaSeguimiento>
               </TarjetaSeguimiento>
@@ -1371,16 +1535,16 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                   ["Facturador", guiaSeleccionada.facturador],
                 ].map(([titulo, valor]) => (
                   <CabeceraItem key={titulo}>
-                    <TextUI size="12px" color={theme.colors.textSecondary}>
+                    <Txt size="12px" color={theme.colors.textSecondary}>
                       {titulo}
-                    </TextUI>
-                    <TextUI weight="bold">{valor || "—"}</TextUI>
+                    </Txt>
+                    <Txt weight="bold">{valor || "—"}</Txt>
                   </CabeceraItem>
                 ))}
                 <CabeceraItem>
-                  <TextUI size="12px" color={theme.colors.textSecondary}>
+                  <Txt size="12px" color={theme.colors.textSecondary}>
                     Estado documento
-                  </TextUI>
+                  </Txt>
                   <div>
                     {guiaSeleccionada.cancelada ? (
                       <Badge $color={theme.colors.error}>CANCELADO</Badge>
@@ -1394,9 +1558,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                 {/* Las guías canceladas no muestran estado de envío, salvo al supervisor con permiso de editar (que lo administra) */}
                 {(!guiaSeleccionada.cancelada || puedeSincronizar) && (
                   <CabeceraItem>
-                    <TextUI size="12px" color={theme.colors.textSecondary}>
+                    <Txt size="12px" color={theme.colors.textSecondary}>
                       Estado de envío
-                    </TextUI>
+                    </Txt>
                     <div>
                       <Badge
                         $color={
@@ -1419,13 +1583,13 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
               guiaSeleccionada.transportistaId === ID_TRANSPORTISTA_LAAR && (
               <CardModal theme={theme}>
                 <CabeceraItem>
-                  <TextUI size="12px" color={theme.colors.textSecondary}>
+                  <Txt size="12px" color={theme.colors.textSecondary}>
                     GUÍA ENTREGA
-                  </TextUI>
+                  </Txt>
                   {/* Enlace al tracking de Laar solo si la guía está enviada (no cancelada) y tiene guía de entrega */}
                   {/* Solo las guías de entrega NO anuladas; si todas están anuladas no se muestra ninguna ("—") */}
                   {guiasEntregaVisibles(guiaSeleccionada).length === 0 ? (
-                    <TextUI weight="bold">—</TextUI>
+                    <Txt weight="bold">—</Txt>
                   ) : guiaSeleccionada.enviado && !guiaSeleccionada.cancelada ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       {guiasEntregaVisibles(guiaSeleccionada).map((guiaEntrega) => (
@@ -1441,7 +1605,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                       ))}
                     </div>
                   ) : (
-                    <TextUI weight="bold">{guiasEntregaVisibles(guiaSeleccionada).join(" / ")}</TextUI>
+                    <Txt weight="bold">{guiasEntregaVisibles(guiaSeleccionada).join(" / ")}</Txt>
                   )}
                 </CabeceraItem>
               </CardModal>
@@ -1523,11 +1687,11 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             disabled={generandoExcel}
           />
 
-          <TextUI size="12px" color={theme.colors.textSecondary}>
+          <Txt size="12px" color={theme.colors.textSecondary}>
             {generandoExcel
               ? "Generando el archivo, puede tardar unos segundos. No cierre esta ventana."
               : "Incluye las guías con estado Aprobado o Enviado del rango, más las canceladas (estas últimas solo en DATOS MAESTROS, con \"SI\" en la columna Cancelada). Por defecto solo las pendientes de envío; con \"Descargar enviadas y no enviadas\" también las ya enviadas. Hojas DATOS MAESTROS, LAAR y CONSOLIDADO_FINAL. Las “ULT GUIA” son las máximas del rango descargado: con un rango corto o una sola empresa no representan la última guía real de cada serie. Al abrir el archivo, habilite el contenido y use Datos > Actualizar todo para actualizar las tablas dinámicas."}
-          </TextUI>
+          </Txt>
         </div>
       </ModalUI>
 
@@ -1570,7 +1734,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             <CirculoIcono $color={theme.colors.primary}>
               <IconUI name="FaSpinner" size={28} color={theme.colors.primary} />
             </CirculoIcono>
-            <TextUI weight="bold">Leyendo y validando el archivo…</TextUI>
+            <Txt weight="bold">Leyendo y validando el archivo…</Txt>
           </Vacio>
         )}
 
@@ -1579,18 +1743,18 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             <CirculoIcono $color={theme.colors.error}>
               <IconUI name="FaTriangleExclamation" size={28} color={theme.colors.error} />
             </CirculoIcono>
-            <TextUI weight="bold">No se pudo usar el archivo</TextUI>
-            <TextUI color={theme.colors.textSecondary}>{cargaExcel.error}</TextUI>
+            <Txt weight="bold">No se pudo usar el archivo</Txt>
+            <Txt color={theme.colors.textSecondary}>{cargaExcel.error}</Txt>
           </Vacio>
         )}
 
         {cargaExcel.resumen && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <TextUI>
+            <Txt>
               ¿Confirma que desea marcar como <b>enviadas</b> las guías de remisión del archivo{" "}
               <b>{cargaExcel.resumen.archivo}</b>? Solo se marcan las guías de la hoja DATOS MAESTROS que
               coinciden por empresa, N. Guía, N. Factura y destinatario.
-            </TextUI>
+            </Txt>
 
             <CardModal theme={theme}>
               <CabeceraGrid>
@@ -1602,12 +1766,12 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                   ["No encontradas en el sistema", cargaExcel.resumen.noEncontradas, cargaExcel.resumen.noEncontradas ? theme.colors.error : null],
                 ].map(([titulo, valor, color]) => (
                   <CabeceraItem key={titulo}>
-                    <TextUI size="12px" color={theme.colors.textSecondary}>
+                    <Txt size="12px" color={theme.colors.textSecondary}>
                       {titulo}
-                    </TextUI>
-                    <TextUI weight="bold" size="18px" color={color || undefined}>
+                    </Txt>
+                    <Txt weight="bold" size="18px" color={color || undefined}>
                       {Number(valor).toLocaleString("es-EC")}
-                    </TextUI>
+                    </Txt>
                   </CabeceraItem>
                 ))}
               </CabeceraGrid>
@@ -1643,9 +1807,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
             {cargaExcel.resumen.noEncontradas > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <TextUI weight="bold" color={theme.colors.error}>
+                <Txt weight="bold" color={theme.colors.error}>
                   Guías del archivo que no se encontraron (no se marcarán):
-                </TextUI>
+                </Txt>
                 <TablaScroll style={{ maxHeight: "170px" }}>
                   <Tabla>
                     <thead>
@@ -1669,19 +1833,19 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                   </Tabla>
                 </TablaScroll>
                 {cargaExcel.resumen.noEncontradas > cargaExcel.resumen.ejemplosNoEncontradas.length && (
-                  <TextUI size="12px" color={theme.colors.textSecondary}>
+                  <Txt size="12px" color={theme.colors.textSecondary}>
                     … y {cargaExcel.resumen.noEncontradas - cargaExcel.resumen.ejemplosNoEncontradas.length} más.
-                  </TextUI>
+                  </Txt>
                 )}
               </div>
             )}
 
             {cargaExcel.resumen.errores?.total > 0 && (
-              <TextUI size="12px" color={theme.colors.error}>
+              <Txt size="12px" color={theme.colors.error}>
                 {cargaExcel.resumen.errores.total} fila(s) del archivo se ignoraron por datos faltantes o inválidos
                 (por ejemplo, fila {cargaExcel.resumen.errores.ejemplos[0]?.fila}:{" "}
                 {cargaExcel.resumen.errores.ejemplos[0]?.motivo}).
-              </TextUI>
+              </Txt>
             )}
           </div>
         )}
@@ -1703,6 +1867,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         iconName={accionEnvio === "enviar" ? "FaFileCircleCheck" : "FaRotateLeft"}
       />
     </ContainerUI>
+    </EscalaTexto>
   );
 };
 
