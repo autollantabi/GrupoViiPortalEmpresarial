@@ -3,6 +3,8 @@ import styled from "styled-components";
 import { Link } from "react-router-dom";
 import { DocTec_ObtenerDwhMapping } from "./servicios";
 import { RaizDoc } from "../estilos/RaizDoc";
+import { InputUI } from "components/UI/Components/InputUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
 /* =====================================================================================
    DWH mapping: cada columna del almacén de datos (core.dim_item) hacia su origen en SAP HANA,
@@ -1468,7 +1470,7 @@ export const DocTecDwhMapping = () => {
         setIdTabla(d.tablas?.[0]?.id ?? null);
         setFilaAbierta(d.tablas?.[0]?.columnas?.[0]?.col ?? null);
       })
-      .catch((e) => vivo && setError(e.response?.data?.error ?? "No se pudo cargar el mapeo del DWH. Revisa que la API esté disponible."));
+      .catch((e) => vivo && setError(e.response?.data?.message ?? "No se pudo cargar el mapeo del DWH. Revisa que la API esté disponible."));
     return () => {
       vivo = false;
     };
@@ -1516,7 +1518,7 @@ export const DocTecDwhMapping = () => {
   if (!datos || !tabla)
     return (
       <RaizDoc>
-        <div style={{ padding: 28, color: "var(--suave)" }}>Cargando mapeo del DWH…</div>
+        <LoaderUI text="Cargando mapeo del DWH…" height="100%" />
       </RaizDoc>
     );
 
@@ -1553,14 +1555,7 @@ export const DocTecDwhMapping = () => {
             )}
 
             <div className="dwh-sidebar-buscar-wrap">
-              <span className="dwh-sidebar-buscar-icon">🔍</span>
-              <input
-                type="text"
-                className="dwh-sidebar-buscar"
-                placeholder="Buscar columna o campo SAP..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-              />
+              <InputUI type="search" placeholder="Buscar columna o campo SAP..." value={busqueda} onChange={setBusqueda} />
             </div>
           </div>
 

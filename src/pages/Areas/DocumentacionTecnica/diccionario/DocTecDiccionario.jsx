@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 import { DocTec_ActualizarDiccionario, DocTec_ObtenerDiccionario } from "./servicios";
 import { RaizDoc } from "../estilos/RaizDoc";
+import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { InputUI } from "components/UI/Components/InputUI";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
+import { toast } from "react-toastify";
 
 /* =====================================================================================
    Diccionario SAP B1: tablas, campos, relaciones, JOIN y valores reales de SAP.
@@ -1315,25 +1319,12 @@ const fechaHora = (iso) =>
     .replace(",", "");
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
-/** Mensaje de aviso tras actualizar valores de SAP o si ocurre un error. */
-function PanelSap({ aviso }) {
-  if (!aviso) return null;
-  return (
-    <div className="sap-panel" aria-live="polite">
-      <p className={aviso.ok ? "ok" : "mal"} role={aviso.ok ? "status" : "alert"}>
-        {aviso.texto}
-      </p>
-    </div>
-  );
-}
-
 /* ----------------------------- pantalla ----------------------------- */
 
 export const DocTecDiccionario = () => {
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState(null);
   const [actualizando, setActualizando] = useState(false);
-  const [aviso, setAviso] = useState(null); // { ok, texto }
   const [version, setVersion] = useState(0); // sube al actualizar: vuelve a pedir el diccionario
   const [busqueda, setBusqueda] = useState("");
   const [codigo, setCodigo] = useState(() => decodeURIComponent(window.location.hash.slice(1)) || null);
@@ -1344,7 +1335,7 @@ export const DocTecDiccionario = () => {
     let vivo = true;
     DocTec_ObtenerDiccionario()
       .then((d) => vivo && setDatos(d))
-      .catch((e) => vivo && setError(e.response?.data?.error ?? "No se pudo cargar el diccionario. Revisa que la API esté disponible."));
+      .catch((e) => vivo && setError(e.response?.data?.message ?? "No se pudo cargar el diccionario. Revisa que la API esté disponible."));
     return () => {
       vivo = false;
     };
@@ -1352,17 +1343,13 @@ export const DocTecDiccionario = () => {
 
   const actualizar = async () => {
     setActualizando(true);
-    setAviso(null);
     try {
       const r = await DocTec_ActualizarDiccionario();
       const a = r.actualizacion;
-      setAviso({
-        ok: true,
-        texto: `Valores de SAP actualizados: ${plural(a.muestras_cambiadas, "muestra cambiada", "muestras cambiadas")}, ${plural(a.fallos.length, "consulta con problemas", "consultas con problemas")}.`,
-      });
+      toast.success(`Valores de SAP actualizados: ${plural(a.muestras_cambiadas, "muestra cambiada", "muestras cambiadas")}, ${plural(a.fallos.length, "consulta con problemas", "consultas con problemas")}.`);
       setVersion((v) => v + 1);
     } catch (e) {
-      setAviso({ ok: false, texto: e.response?.data?.error ?? "No se pudo actualizar desde SAP. Revisa que la API y SAP estén disponibles." });
+      toast.error(e.response?.data?.message ?? "No se pudo actualizar desde SAP. Revisa que la API y SAP estén disponibles.");
     } finally {
       setActualizando(false);
     }
@@ -1414,7 +1401,7 @@ export const DocTecDiccionario = () => {
   if (!datos)
     return (
       <RaizDoc>
-        <div style={{ padding: 28, color: "var(--suave)" }}>Cargando diccionario…</div>
+        <LoaderUI text="Cargando diccionario…" height="100%" />
       </RaizDoc>
     );
 
@@ -1431,15 +1418,7 @@ export const DocTecDiccionario = () => {
             </span>
           </div>
           <div className="buscar-wrap">
-            <span className="buscar-icon">🔍</span>
-            <input
-              className="buscar"
-              type="search"
-              placeholder="Buscar tabla o campo: OITM, FirmCode, proveedor…"
-              autoComplete="off"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
+            <InputUI type="search" placeholder="Buscar tabla o campo: OITM, FirmCode, proveedor…" value={busqueda} onChange={setBusqueda} />
           </div>
           {(datos.puede_actualizar || datos.actualizacion) && (
             <div className="sap-estado">
@@ -1448,14 +1427,11 @@ export const DocTecDiccionario = () => {
                 <b>{datos.actualizacion ? `SAP, ${fechaHora(datos.actualizacion.fecha_hora)}` : "foto del proyecto Django"}</b>
               </span>
               {datos.puede_actualizar && (
-                <button type="button" className="btn-sap" onClick={actualizar} disabled={actualizando} aria-busy={actualizando}>
-                  {actualizando ? "Leyendo SAP… (puede tardar un minuto)" : "Actualizar desde SAP"}
-                </button>
+                <ButtonUI text={actualizando ? "Leyendo SAP…" : "Actualizar desde SAP"} variant="outlined" onClick={actualizar} disabled={actualizando} />
               )}
             </div>
           )}
         </header>
-        <PanelSap aviso={aviso} />
 
         <div className="cuerpo">
           <nav className="lista">

@@ -24,7 +24,7 @@ const Variables = styled.div`
      de contraste. Para texto se usan variantes más oscuras; el naranja de marca se conserva en rellenos y bordes. */
   --suave: ${({ theme }) => (theme.name === "dark" ? theme.colors.textSecondary : "#5a6268")};
   --acento-texto: ${({ theme }) => (theme.name === "dark" ? "#ff8a5c" : "#b83200")};
-  --acento-boton: #d63b00; /* relleno que lleva texto blanco encima (4,7:1) */
+  --acento-boton: ${({ theme }) => theme.colors.primary}; /* mismo relleno que ButtonUI del portal */
   --borde: ${({ theme }) => theme.colors.border};
   --acento: ${({ theme }) => theme.colors.primary};
   --acento-fondo: ${({ theme }) => conOpacidad(theme.colors.primary, 0.12)};
@@ -43,14 +43,14 @@ const Variables = styled.div`
   --hover: ${({ theme }) => theme.colors.hover};
   --kw: ${({ theme }) => theme.colors.infoDark};
   --st: ${({ theme }) => theme.colors.successDark};
-  --fuente: "Inter", system-ui, "Segoe UI", sans-serif;
+  --fuente: "Nunito Sans", sans-serif; /* la tipografía del portal (src/index.css) */
   /* Estados de calidad: se toman de los colores de estado del portal */
   --e-correcto: ${({ theme }) => theme.colors.success};
   --e-inconsistente: ${({ theme }) => theme.colors.error};
   --e-sin-clasificar: ${({ theme }) => theme.colors.warning};
   --e-no-verificable: ${({ theme }) => theme.colors.info};
   --e-no-evaluable: ${({ theme }) => theme.colors.gray};
-  --fuente-titulo: "Inter", system-ui, "Segoe UI", sans-serif;
+  --fuente-titulo: "Nunito Sans", sans-serif;
   --fuente-mono: ui-monospace, Consolas, monospace;
 
   display: flex;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { DocTec_ObtenerCaracterizacion } from "./servicios";
 import { RaizDoc } from "../estilos/RaizDoc";
+import { LoaderUI } from "components/UI/Components/LoaderUI";
 
 /* =====================================================================================
    Caracterización: de dónde viene cada dato mínimo del producto
@@ -394,7 +395,7 @@ export const DocTecCaracterizacion = () => {
           return d.grupos.some((g) => g.n === candidato) ? candidato : d.grupos[0]?.n ?? null;
         });
       })
-      .catch((e) => vivo && setError(e.response?.data?.error ?? "No se pudo cargar la caracterización. Revisa que la API esté disponible."));
+      .catch((e) => vivo && setError(e.response?.data?.message ?? "No se pudo cargar la caracterización. Revisa que la API esté disponible."));
     return () => {
       vivo = false;
     };
@@ -421,7 +422,7 @@ export const DocTecCaracterizacion = () => {
   if (!datos)
     return (
       <RaizDoc>
-        <div style={{ padding: 28, color: "var(--suave)" }}>Cargando caracterización…</div>
+        <LoaderUI text="Cargando caracterización…" height="100%" />
       </RaizDoc>
     );
 
