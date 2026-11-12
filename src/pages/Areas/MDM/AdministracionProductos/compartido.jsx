@@ -1,10 +1,47 @@
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 
 /**
  * Constantes y estilos compartidos por las pantallas de Administración de
  * productos. Viven aquí (y no se importan de Clientes/ClienteDetalle) para que
  * este módulo no dependa del MDM principal.
  */
+
+const girar = keyframes`
+  to { transform: rotate(360deg); }
+`;
+
+const CapaCarga = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+`;
+
+const Giro = styled.div`
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  animation: ${girar} 0.8s linear infinite;
+`;
+
+/* Bloquea la pantalla con un spinner mientras se ejecuta una acción (p. ej. sincronizar con SAP) */
+export const PantallaCarga = ({ visible, mensaje = "Procesando..." }) =>
+  visible ? (
+    <CapaCarga role="alert" aria-busy="true">
+      <Giro />
+      <span>{mensaje}</span>
+    </CapaCarga>
+  ) : null;
 
 export const RECURSO_ADMIN_PRODUCTOS = "mdm.administracionproductos";
 export const RUTA_ADMIN_PRODUCTOS = "/mdm/administracionproductos";

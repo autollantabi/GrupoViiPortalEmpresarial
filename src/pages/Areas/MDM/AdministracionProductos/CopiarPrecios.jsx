@@ -14,6 +14,7 @@ import {
 } from "services/mdmProductosService";
 import {
   AvisoObservaciones,
+  PantallaCarga,
   CabeceraColumnas,
   Campo,
   CampoFijo,
@@ -158,8 +159,8 @@ function CopiarPrecios() {
   const [sincronizando, setSincronizando] = useState(false);
 
   /* PVP sin IVA de cada fila con precio calculado (es lo que se envía a SAP) */
-  /* LLANTAS MOTO con regla (descuento + incremento): el PVP sale de la fórmula fija y el incremento no se edita.
-     Sin regla se trabaja como el resto: incremento manual (vacío o 0 = mismo precio de lista A). */
+  /* LLANTAS MOTO con regla (descuento + incremento): el PVP usa la fórmula fija. Que el incremento se pueda
+     editar lo define delmi_editar (Editable); sin regla el incremento es manual (vacío o 0 = precio de lista A). */
   const calcularFila = (producto) => {
     const id = claveProducto(producto);
     const fila = detalle[id];
@@ -167,13 +168,14 @@ function CopiarPrecios() {
     const formulaMoto = esMoto && fila?.Incremento != null;
     const pvp = calcularPvp(
       fila?.PrecioListaA,
-      formulaMoto ? fila?.Incremento : incrementos[id],
+      incrementos[id],
       fila?.Descuento,
       formulaMoto
     );
     /* delmi_mostrar_incremento: verdadero = se muestra el incremento; falso = el campo queda vacío */
     const mostrarIncremento = fila?.MostrarIncremento !== false;
-    return { id, fila, formulaMoto, mostrarIncremento, pvp };
+    const editable = fila?.Editable !== false;
+    return { id, fila, formulaMoto, mostrarIncremento, editable, pvp };
   };
 
   const preciosCalculados = productos
@@ -232,6 +234,7 @@ function CopiarPrecios() {
       alignItems="flex-start"
       style={{ padding: 0, overflow: "hidden" }}
     >
+      <PantallaCarga visible={sincronizando} />
       <Contenedor theme={theme}>
         <Encabezado>
           <ButtonUI
@@ -326,7 +329,7 @@ function CopiarPrecios() {
               </thead>
               <tbody>
                 {ordenarPorIdentificador(productos).map((producto, index) => {
-                  const { id, fila, formulaMoto, mostrarIncremento, pvp } = calcularFila(producto);
+                  const { id, fila, mostrarIncremento, editable, pvp } = calcularFila(producto);
                   return (
                     <Fila key={id} $par={index % 2 === 0}>
                       <Td>{producto.IDENTIFICADOR || "—"}</Td>
@@ -347,12 +350,12 @@ function CopiarPrecios() {
                         <InputIncremento
                           theme={theme}
                           inputMode="decimal"
-                          value={mostrarIncremento ? (formulaMoto ? String(fila?.Incremento ?? "") : incrementos[id] ?? "") : ""}
-                          disabled={lista == null || formulaMoto || !mostrarIncremento}
+                          value={mostrarIncremento ? incrementos[id] ?? "" : ""}
+                          disabled={lista == null || !editable || !mostrarIncremento}
                           onChange={(e) =>
                             setIncrementos((previo) => ({ ...previo, [id]: soloNumeros(e.target.value) }))
                           }
-                          placeholder={mostrarIncremento && !formulaMoto ? "0" : ""}
+                          placeholder={mostrarIncremento && editable ? "0" : ""}
                         />
                       </Td>
                       <Td $align="right">{pvp != null ? formatear(pvp) : "—"}</Td>

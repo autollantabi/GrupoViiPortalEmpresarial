@@ -18,6 +18,7 @@ import { useAlcanceProductos } from "./useAlcanceProductos";
 import {
   AccionesEncabezado,
   AvisoObservaciones,
+  PantallaCarga,
   CabeceraColumnas,
   Campo,
   Contenedor,
@@ -187,6 +188,7 @@ function ActualizarPreciosArchivo() {
       alignItems="flex-start"
       style={{ padding: 0, overflow: "hidden" }}
     >
+      <PantallaCarga visible={sincronizando} />
       <Contenedor theme={theme}>
         <Encabezado>
           <ButtonUI

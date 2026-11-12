@@ -22,6 +22,7 @@ import {
   Campo,
   CampoFijo,
   Contenedor,
+  PantallaCarga,
   Encabezado,
   Fila,
   Filas,
@@ -262,6 +263,7 @@ function CopiarProductos() {
       alignItems="flex-start"
       style={{ padding: 0, overflow: "hidden" }}
     >
+      <PantallaCarga visible={copiando} />
       <Contenedor theme={theme}>
         <Encabezado>
           <ButtonUI

@@ -156,6 +156,42 @@ export const ObtenerPdfGuiaRemision = async ({ id }) => {
 };
 
 /**
+ * PDF de impresión de varias guías: el servidor une sus documentos electrónicos repitiendo cada uno 2 veces (TRANS. PROPIO) o 3 (otro
+ * transportista). Las guías que no se pudieron incluir vienen en `sinPdf` (números de guía) y `omitidas` (cantidad).
+ * @param {{ids: number[]}} params - hgr_id de las guías seleccionadas
+ * @returns {Promise<{blob: Blob, impresas: number, paginas: number, sinPdf: string[], omitidas: number}>}
+ * @throws Error de axios; 403 ninguna accesible, 404 ninguna con documento, 503 almacén no disponible
+ */
+export const ImprimirGuiasRemision = async ({ ids }) => {
+  try {
+    const res = await axiosInstanceNew.post(
+      "/guias-remision/imprimir",
+      { ids },
+      // El interceptor reintenta ante timeout: aquí no, relanzaría la generación
+      { responseType: "blob", timeout: 5 * 60 * 1000, _retry: true }
+    );
+    const h = res.headers;
+    return {
+      blob: res.data,
+      impresas: Number(h["x-guias-impresas"] || 0),
+      paginas: Number(h["x-paginas"] || 0),
+      sinPdf: String(h["x-guias-sin-pdf"] || "").split(",").filter(Boolean),
+      omitidas: Number(h["x-guias-omitidas"] || 0),
+    };
+  } catch (error) {
+    // Con responseType "blob" el cuerpo del error también llega como Blob: se lee para obtener el mensaje
+    if (error.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text());
+      } catch (e) {
+        // cuerpo no JSON: se deja como está
+      }
+    }
+    throw error;
+  }
+};
+
+/**
  * Lanza la sincronización de guías de remisión (el mismo proceso que corre cada hora) en el servidor.
  * Responde enseguida: el avance se consulta con EstadoSincronizacionGuias.
  * @throws Error de axios; 403 sin permiso, 409 ya hay una en curso, 503 el script no está disponible

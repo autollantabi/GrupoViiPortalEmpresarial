@@ -20,6 +20,9 @@
  * El rol "usuario" (vendedor) solo recibe las guías en las que es el vendedor (su nombre de usuario = hgr_vendedor), enviadas y no
  * canceladas: por eso no ve los filtros de envío ni la opción CANCELADO.
  * Tamaño de letra: en tablet y móvil se reduce un poco (variable CSS --escala-texto, que define EscalaTexto y usan Txt y los estilos de aquí).
+ * Impresión: cada guía con documento (y no cancelada) tiene un check; con al menos una marcada se habilita IMPRIMIR, que pide al servidor un
+ * solo PDF con los documentos de las guías marcadas y sus copias (2 si el transporte es TRANS. PROPIO, 3 si no). La selección se conserva
+ * al cambiar de página y de filtros (máximo MAX_IMPRESION guías).
  * Responsive: en tablet (hasta 1024px) la página se desplaza y la tabla tiene scroll horizontal; en móvil (hasta 640px) cada guía se
  * muestra como una tarjeta y los filtros y botones ocupan todo el ancho. Al usuario (vendedor) la tarjeta le muestra además la guía de
  * Laar (enlace al seguimiento) y no abre el detalle, porque sería lo mismo.
@@ -62,6 +65,7 @@ import {
   MarcarEnviadasDesdeExcel,
   MarcarGuiaRemisionEnviada,
   MarcarGuiaRemisionNoEnviada,
+  ImprimirGuiasRemision,
   ObtenerPdfGuiaRemision,
   SincronizarGuiasRemision,
   TAMANO_MAXIMO_EXCEL_MB,
@@ -94,6 +98,7 @@ const OPCIONES_FILAS = [10, 25, 50, 100].map((n) => ({
 }));
 
 const COLUMNAS = [
+  { header: "Imprimir", field: "seleccion", isSeleccion: true, align: "center" },
   { header: "Fecha de Guía", field: "fechaGuia", isDate: true, align: "center" },
   { header: "Empresa", field: "empresa" },
   { header: "Nº de Guía", field: "numeroGuia" },
@@ -150,6 +155,9 @@ const RECURSO_GUIAS_REMISION = "contabilidad.guiasremision";
 // Puntos de corte: tablet y móvil (en móvil la tabla se reemplaza por tarjetas)
 const TABLET = "(max-width: 1024px)";
 const MOVIL = "(max-width: 640px)";
+
+// Máximo de guías por impresión (el servidor aplica el mismo límite)
+const MAX_IMPRESION = 100;
 
 // Cada cuánto se consulta si la sincronización terminó
 const INTERVALO_ESTADO_SYNC_MS = 4000;
@@ -637,6 +645,11 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     error: null,
   });
 
+  // Impresión: guías marcadas ({id, numeroGuia}, en el orden en que se marcaron) y si se está preparando el PDF
+  const [seleccion, setSeleccion] = useState([]);
+  const [imprimiendo, setImprimiendo] = useState(false);
+  const idsSeleccion = useMemo(() => new Set(seleccion.map((s) => s.id)), [seleccion]);
+
   // Documento electrónico (PDF): id de la guía cuyo PDF se está pidiendo
   const [pdfCargandoId, setPdfCargandoId] = useState(null);
   const [pdfModo, setPdfModo] = useState("ver"); // "ver" | "descargar": cuál de los dos botones está en curso
@@ -812,6 +825,76 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         )}
       </div>
     );
+  };
+
+  // ================= Impresión de guías =================
+  // Solo se imprimen guías con documento electrónico y no canceladas
+  const puedeSeleccionar = (guia) => guia.tienePdf && !guia.cancelada;
+
+  const alternarSeleccion = (guia, marcada) => {
+    if (marcada && !idsSeleccion.has(guia.id) && seleccion.length >= MAX_IMPRESION) {
+      toast.warn(`Máximo ${MAX_IMPRESION} guías por impresión`);
+      return;
+    }
+    setSeleccion((prev) => {
+      const sin = prev.filter((s) => s.id !== guia.id);
+      return marcada ? [...sin, { id: guia.id, numeroGuia: guia.numeroGuia }] : sin;
+    });
+  };
+
+  // Marca o desmarca todas las seleccionables de la página actual (respetando el máximo)
+  const alternarPagina = (marcada) => {
+    const seleccionables = guias.filter(puedeSeleccionar);
+    if (!marcada) {
+      const idsPagina = new Set(seleccionables.map((g) => g.id));
+      setSeleccion((prev) => prev.filter((s) => !idsPagina.has(s.id)));
+      return;
+    }
+    setSeleccion((prev) => {
+      const ya = new Set(prev.map((s) => s.id));
+      const nuevas = seleccionables.filter((g) => !ya.has(g.id));
+      const cupo = MAX_IMPRESION - prev.length;
+      if (nuevas.length > cupo) toast.warn(`Máximo ${MAX_IMPRESION} guías por impresión`);
+      return [...prev, ...nuevas.slice(0, Math.max(cupo, 0)).map((g) => ({ id: g.id, numeroGuia: g.numeroGuia }))];
+    });
+  };
+
+  // Pide el PDF de impresión. Escritorio: se abre en otra pestaña (para imprimir desde el visor). Móvil/tablet: se descarga.
+  const imprimir = async () => {
+    if (!seleccion.length || imprimiendo) return;
+    const ventana = esTactil ? null : window.open("", "_blank");
+    if (ventana) ventana.document.title = "Preparando impresión…";
+    setImprimiendo(true);
+    try {
+      const { blob, impresas, paginas, sinPdf, omitidas } = await ImprimirGuiasRemision({ ids: seleccion.map((s) => s.id) });
+      const url = window.URL.createObjectURL(blob);
+      if (esTactil) {
+        const enlace = document.createElement("a");
+        enlace.href = url;
+        enlace.download = "Guias_Remision_Impresion.pdf";
+        document.body.appendChild(enlace);
+        enlace.click();
+        document.body.removeChild(enlace);
+      } else if (ventana) {
+        ventana.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
+      setTimeout(() => window.URL.revokeObjectURL(url), 10 * 60 * 1000);
+
+      toast.success(`PDF listo: ${impresas} guía${impresas === 1 ? "" : "s"}, ${paginas} página${paginas === 1 ? "" : "s"} (con copias)`);
+      if (sinPdf.length) toast.warn(`Sin documento electrónico, no incluidas: ${sinPdf.join(", ")}`, { autoClose: 12000 });
+      else if (omitidas) toast.warn(`${omitidas} guía${omitidas === 1 ? "" : "s"} no se incluyeron (canceladas o sin acceso)`);
+    } catch (err) {
+      if (ventana) ventana.close();
+      console.error("Error al preparar la impresión:", err);
+      const estado = err?.response?.status;
+      const mensaje = err?.response?.data?.message;
+      if (estado === 403 || estado === 404 || estado === 503) toast.warn(mensaje);
+      else toast.error("No se pudo preparar el PDF de impresión");
+    } finally {
+      setImprimiendo(false);
+    }
   };
 
   // ================= Sincronización de guías =================
@@ -1128,9 +1211,29 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         </div>
       );
     }
+    // Check para imprimir (deshabilitado si la guía no tiene documento o está cancelada)
+    if (columna.isSeleccion) {
+      const seleccionable = puedeSeleccionar(item);
+      return (
+        <label
+          onClick={(e) => e.stopPropagation()} // la fila/tarjeta abre el detalle
+          title={seleccionable ? "Seleccionar para imprimir" : item.cancelada ? "Guía cancelada" : "Sin documento electrónico"}
+          style={{ display: "inline-flex", padding: "6px", cursor: seleccionable ? "pointer" : "not-allowed" }}
+        >
+          <input
+            type="checkbox"
+            checked={idsSeleccion.has(item.id)}
+            disabled={!seleccionable}
+            onChange={(e) => alternarSeleccion(item, e.target.checked)}
+            style={{ width: 18, height: 18, accentColor: theme.colors.primary, cursor: "inherit" }}
+          />
+        </label>
+      );
+    }
+
     // Botón del documento electrónico: sin clave de acceso no hay documento
     if (columna.isPdf) {
-      if (!item.tienePdf) return "—";
+      if (!item.tienePdf || item.cancelada) return "—"; // una guía cancelada no tiene documento que ver ni descargar
       return renderBotonesPdf(item);
     }
 
@@ -1193,6 +1296,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     }
 
     const inicio = (consulta.page - 1) * consulta.size;
+    const seleccionablesPagina = guias.filter(puedeSeleccionar);
+    const marcadasPagina = seleccionablesPagina.filter((g) => idsSeleccion.has(g.id)).length;
 
     return (
       <>
@@ -1248,7 +1353,21 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
               <tr>
                 {COLUMNAS.map((columna) => (
                   <Th key={columna.field} $align={columna.align}>
-                    {columna.header}
+                    {columna.isSeleccion ? (
+                      <input
+                        type="checkbox"
+                        title="Seleccionar todas las de esta página"
+                        checked={seleccionablesPagina.length > 0 && marcadasPagina === seleccionablesPagina.length}
+                        ref={(el) => {
+                          if (el) el.indeterminate = marcadasPagina > 0 && marcadasPagina < seleccionablesPagina.length;
+                        }}
+                        disabled={seleccionablesPagina.length === 0}
+                        onChange={(e) => alternarPagina(e.target.checked)}
+                        style={{ width: 18, height: 18, accentColor: theme.colors.primary, cursor: "pointer" }}
+                      />
+                    ) : (
+                      columna.header
+                    )}
                   </Th>
                 ))}
               </tr>
@@ -1345,6 +1464,15 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         <FiltrosContainer theme={theme}>
           {/* Botones de Excel (derecha). "Marcar enviadas" solo lo ve el supervisor */}
           <FilaAcciones>
+            {seleccion.length > 0 && (
+              <ButtonUI text="Limpiar selección" variant="outlined" onClick={() => setSeleccion([])} disabled={imprimiendo} />
+            )}
+            <ButtonUI
+              text={imprimiendo ? "Preparando…" : seleccion.length ? `IMPRIMIR (${seleccion.length})` : "IMPRIMIR"}
+              iconLeft={imprimiendo ? "FaSpinner" : "FaPrint"}
+              onClick={imprimir}
+              disabled={seleccion.length === 0 || imprimiendo}
+            />
             {puedeMarcarEnviado && empresasExcel.length > 0 && (
               <ButtonUI
                 text="Descargar Excel"
@@ -1478,7 +1606,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
 
             {/* Supervisor: marcar como enviada, o devolverla a NO enviada si ya lo estaba. Las canceladas solo con permiso de editar */}
             <div style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              {guiaSeleccionada.tienePdf && renderBotonesPdf(guiaSeleccionada, esTactil)}
+              {guiaSeleccionada.tienePdf && !guiaSeleccionada.cancelada && renderBotonesPdf(guiaSeleccionada, esTactil)}
               {puedeMarcarEnviado && (!guiaSeleccionada.cancelada || puedeSincronizar) && (
                 <>
                 {guiaSeleccionada.enviado ? (
