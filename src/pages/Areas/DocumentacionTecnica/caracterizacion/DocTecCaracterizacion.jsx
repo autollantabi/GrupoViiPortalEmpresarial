@@ -111,7 +111,8 @@ const Estilos = styled.div`
   }
   .car-attr summary {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto 16px;
+    /* La columna de la etiqueta tiene ancho fijo: así el texto queda alineado igual en todas las filas, tengan o no etiqueta */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) 110px 16px;
     gap: 12px;
     align-items: center;
     padding: 12px 16px;
@@ -160,6 +161,7 @@ const Estilos = styled.div`
     border-radius: 6px;
     padding: 2px 8px;
     white-space: nowrap;
+    justify-self: end;
   }
   .car-etq-verificar {
     color: var(--aviso);
@@ -308,8 +310,8 @@ function Atributo({ a }) {
         </span>
         <span className="car-attr-desc">{a.descripcion || a.nota || ""}</span>
         {a.estado === "verificar" && <span className="car-etq car-etq-verificar">Por verificar</span>}
-        {a.estado === "pendiente" && <span className="car-etq">Pendiente</span>}
-        {a.estado === "completo" && <span />}
+        {/* Pendiente y completo no llevan etiqueta; el span vacío mantiene la columna para que todo quede alineado */}
+        {a.estado !== "verificar" && <span />}
       </summary>
 
       <div className="car-origen">
@@ -364,7 +366,7 @@ function Atributo({ a }) {
                 </>
               ) : (
                 <>
-                  <div className="car-valor car-sin">Fuente en SAP por identificar</div>
+                  <div className="car-valor car-sin">{a.sap_pendiente || "Fuente en SAP por identificar"}</div>
                   {a.nota && <div className="car-detalle">{a.nota}</div>}
                 </>
               )}
