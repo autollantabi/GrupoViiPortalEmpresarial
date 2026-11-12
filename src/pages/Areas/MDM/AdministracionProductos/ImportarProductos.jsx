@@ -22,6 +22,7 @@ import {
   Filas,
   RECURSO_ADMIN_PRODUCTOS,
   RUTA_ADMIN_PRODUCTOS,
+  RUTA_COPIAR_PRECIOS,
   RUTA_COPIAR_PRODUCTOS,
   Tabla,
   TablaScroll,
@@ -30,6 +31,7 @@ import {
   TextoObservacion,
   Td,
   Th,
+  ordenarPorIdentificador,
   claveProducto,
   textoEncontrados,
 } from "./compartido";
@@ -68,7 +70,9 @@ const leerExcel = async (archivo) => {
   return limpiarCodigos(filas.map((fila) => fila[0]));
 };
 
-function ImportarProductos() {
+/* modo "productos" copia artículos; modo "precios" copia los precios de los artículos del archivo */
+function ImportarProductos({ modo = "productos" }) {
+  const esPrecios = modo === "precios";
   const { theme } = useTheme();
   const { user } = useAuthContext();
   const navigate = useNavigate();
@@ -95,7 +99,7 @@ function ImportarProductos() {
   /* Observaciones (propiedad, ya existe en destino...) cada vez que cambian el destino o la lista */
   const productosResultado = resultado?.productos;
   useEffect(() => {
-    if (!origen || !destino || !productosResultado?.length) {
+    if (esPrecios || !origen || !destino || !productosResultado?.length) {
       setObservaciones({});
       return undefined;
     }
@@ -122,7 +126,7 @@ function ImportarProductos() {
     return () => {
       activo = false;
     };
-  }, [origen, destino, productosResultado]);
+  }, [origen, destino, productosResultado, esPrecios]);
 
   const hayObservaciones = (productosResultado || []).some(
     (p) => (observaciones[claveProducto(p)] || []).length > 0
@@ -195,7 +199,7 @@ function ImportarProductos() {
     if (!resultado?.productos.length) return toast.info("No hay productos para copiar");
 
     const filtros = new URLSearchParams({ origen: origen.value, destino: destino.value });
-    navigate(`${RUTA_COPIAR_PRODUCTOS}?${filtros.toString()}`, {
+    navigate(`${esPrecios ? RUTA_COPIAR_PRECIOS : RUTA_COPIAR_PRODUCTOS}?${filtros.toString()}`, {
       state: { productos: resultado.productos, volverA: "" },
     });
   };
@@ -223,12 +227,12 @@ function ImportarProductos() {
             title="Volver al listado"
           />
           <TextUI weight="bold" size="20px">
-            Copiar productos desde archivo
+            {esPrecios ? "Copiar precios desde archivo" : "Copiar productos desde archivo"}
           </TextUI>
 
           <AccionesEncabezado>
             <ButtonUI
-              text="Continuar a copiar"
+              text={esPrecios ? "Continuar a copiar precios" : "Continuar a copiar"}
               iconLeft="FaArrowRight"
               onClick={continuar}
               disabled={!puedeEditar || !destino || !resultado?.productos.length || validando || hayObservaciones}
@@ -352,24 +356,23 @@ function ImportarProductos() {
                     <Th>Nombre</Th>
                     <Th>Código de barras</Th>
                     <Th>Línea</Th>
-                    <Th>Observaciones</Th>
                     <Th $align="center" $ancho="70px" />
                   </tr>
                 </thead>
                 <tbody>
-                  {resultado.productos.map((producto, index) => (
+                  {ordenarPorIdentificador(resultado.productos).map((producto, index) => (
                     <Fila key={claveProducto(producto)} $par={index % 2 === 0}>
                       <Td>{producto.IDENTIFICADOR || "—"}</Td>
-                      <Td $wrap>{producto.NOMBRE || "—"}</Td>
+                      <Td $wrap>
+                      {producto.NOMBRE || "—"}
+                      {(observaciones[claveProducto(producto)] || []).map((texto) => (
+                        <TextoObservacion key={texto} theme={theme}>
+                          {texto}
+                        </TextoObservacion>
+                      ))}
+                    </Td>
                       <Td>{producto.CODIGO_BARRAS || "—"}</Td>
                       <Td>{producto.LINEA_NEGOCIO || "—"}</Td>
-                      <Td $wrap>
-                        {(observaciones[claveProducto(producto)] || []).map((texto) => (
-                          <TextoObservacion key={texto} theme={theme}>
-                            {texto}
-                          </TextoObservacion>
-                        ))}
-                      </Td>
                       <Td $align="center">
                         <ButtonUI
                           iconLeft="FaXmark"
@@ -389,5 +392,7 @@ function ImportarProductos() {
     </ContainerUI>
   );
 }
+
+export const ImportarPrecios = () => <ImportarProductos modo="precios" />;
 
 export default ImportarProductos;

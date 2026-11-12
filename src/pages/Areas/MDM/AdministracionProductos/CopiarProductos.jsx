@@ -34,6 +34,7 @@ import {
   TextoObservacion,
   Td,
   Th,
+  ordenarPorIdentificador,
   claveProducto,
   textoEncontrados,
 } from "./compartido";
@@ -345,24 +346,23 @@ function CopiarProductos() {
                   <Th>Nombre</Th>
                   <Th>Código de barras</Th>
                   <Th>Línea</Th>
-                  <Th>Observaciones</Th>
                   <Th $align="center" $ancho="70px" />
                 </tr>
               </thead>
               <tbody>
-                {productos.map((producto, index) => (
+                {ordenarPorIdentificador(productos).map((producto, index) => (
                   <Fila key={claveProducto(producto)} $par={index % 2 === 0}>
                     <Td>{producto.IDENTIFICADOR || "—"}</Td>
-                    <Td $wrap>{producto.NOMBRE || "—"}</Td>
-                    <Td>{producto.CODIGO_BARRAS || "—"}</Td>
-                    <Td>{producto.LINEA_NEGOCIO || "—"}</Td>
                     <Td $wrap>
+                      {producto.NOMBRE || "—"}
                       {(observaciones[claveProducto(producto)] || []).map((texto) => (
                         <TextoObservacion key={texto} theme={theme}>
                           {texto}
                         </TextoObservacion>
                       ))}
                     </Td>
+                    <Td>{producto.CODIGO_BARRAS || "—"}</Td>
+                    <Td>{producto.LINEA_NEGOCIO || "—"}</Td>
                     <Td $align="center">
                       <ButtonUI
                         iconLeft="FaXmark"

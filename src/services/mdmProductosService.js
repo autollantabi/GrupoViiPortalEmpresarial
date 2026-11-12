@@ -121,3 +121,59 @@ export const buscarFacturaMDM = async ({ empresa, numeroFactura }) => {
   }
   return { TotalRegistros: 0, Productos: [] };
 };
+
+/** Listas de precios de la empresa (select "Aplicar a") */
+export const getListasPreciosMDM = async (empresa) => {
+  const response = await axiosInstanceNew.get(`/mdm/productos/listas-precios/${empresa}`);
+
+  if (response.data && response.data.status === "Ok!") {
+    return response.data.data || [];
+  }
+  return [];
+};
+
+/** Precio lista A, incremento sugerido y observaciones de cada artículo para copiar precios */
+export const getDetallePreciosMDM = async ({ empresaOrigen, empresaDestino, productos, listaPrecio }) => {
+  const response = await axiosInstanceNew.post("/mdm/productos/precios/detalle", {
+    empresaOrigen,
+    empresaDestino,
+    productos,
+    listaPrecio,
+  });
+
+  if (response.data && response.data.status === "Ok!") {
+    return response.data.data || [];
+  }
+  return [];
+};
+
+/** Filas de la plantilla de precios (código de proveedor + PVP sin IVA) resueltas contra core.dim_item */
+export const resolverPlantillaPreciosMDM = async ({ empresa, filas }) => {
+  const response = await axiosInstanceNew.post("/mdm/productos/precios/plantilla", { empresa, filas });
+
+  if (response.data && response.data.status === "Ok!") {
+    return response.data.data || [];
+  }
+  return [];
+};
+
+/** Envía a SAP los precios de la plantilla (ListaPrecio = delp_codigo) */
+export const sincronizarPlantillaPreciosMDM = async ({ empresa, listaPrecio, precios }) => {
+  const response = await axiosInstanceNew.post("/mdm/productos/precios/plantilla/sincronizar", {
+    empresa,
+    listaPrecio,
+    precios,
+  });
+  return response.data?.data || null;
+};
+
+/** Envía a SAP los precios calculados en Copiar precios (ListaPrecio = delp_codigo de la empresa destino) */
+export const sincronizarCopiaPreciosMDM = async ({ empresaOrigen, empresaDestino, listaPrecio, precios }) => {
+  const response = await axiosInstanceNew.post("/mdm/productos/precios/copia/sincronizar", {
+    empresaOrigen,
+    empresaDestino,
+    listaPrecio,
+    precios,
+  });
+  return response.data?.data || null;
+};

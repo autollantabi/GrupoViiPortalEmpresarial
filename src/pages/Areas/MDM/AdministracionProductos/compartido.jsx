@@ -11,6 +11,10 @@ export const RUTA_ADMIN_PRODUCTOS = "/mdm/administracionproductos";
 export const RUTA_COPIAR_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/copiar`;
 export const RUTA_IMPORTAR_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/importar`;
 export const RUTA_FACTURA_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/factura`;
+export const RUTA_FACTURA_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/factura`;
+export const RUTA_IMPORTAR_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/importar`;
+export const RUTA_ACTUALIZAR_PRECIOS_ARCHIVO = `${RUTA_ADMIN_PRODUCTOS}/actualizar-precios/archivo`;
+export const RUTA_COPIAR_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/copiar`;
 
 /* Compañías con las que trabaja el MDM */
 export const EMPRESAS_MDM = ["AUTOLLANTA", "MAXXIMUNDO", "STOX", "IKONIX", "AUTOMAX"];
@@ -53,6 +57,15 @@ export const TextoObservacion = styled.div`
 /* Texto "58 productos encontrados" */
 export const textoEncontrados = (n) =>
   `${n} producto${n === 1 ? "" : "s"} encontrado${n === 1 ? "" : "s"}`;
+
+/* Orden ascendente por identificador (numérico si corresponde); los sin identificador van al final */
+export const ordenarPorIdentificador = (lista) =>
+  [...lista].sort((a, b) => {
+    const x = String(a.IDENTIFICADOR ?? "");
+    const y = String(b.IDENTIFICADOR ?? "");
+    if (!x !== !y) return x ? -1 : 1;
+    return x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" });
+  });
 
 export const claveProducto =(producto) => producto.IDENTIFICADOR;
 

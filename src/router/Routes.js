@@ -84,8 +84,10 @@ import LiquidacionesPrecios from "pages/Areas/MDM/MDM_Crud/LiquidacionesPrecios"
 import LiquidacionPrecioDetalle from "pages/Areas/MDM/MDM_Crud/LiquidacionPrecioDetalle";
 import AdministracionProductos from "pages/Areas/MDM/AdministracionProductos/AdministracionProductos";
 import CopiarProductos from "pages/Areas/MDM/AdministracionProductos/CopiarProductos";
-import ImportarProductos from "pages/Areas/MDM/AdministracionProductos/ImportarProductos";
-import CopiarDesdeFactura from "pages/Areas/MDM/AdministracionProductos/CopiarDesdeFactura";
+import ImportarProductos, { ImportarPrecios } from "pages/Areas/MDM/AdministracionProductos/ImportarProductos";
+import CopiarDesdeFactura, { CopiarPreciosDesdeFactura } from "pages/Areas/MDM/AdministracionProductos/CopiarDesdeFactura";
+import CopiarPrecios from "pages/Areas/MDM/AdministracionProductos/CopiarPrecios";
+import ActualizarPreciosArchivo from "pages/Areas/MDM/AdministracionProductos/ActualizarPreciosArchivo";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
@@ -454,6 +456,34 @@ export const RoutesConfig = [
     component: CopiarDesdeFactura,
     recurso: "mdm.administracionproductos",
     path: "/mdm/administracionproductos/factura",
+    hideInSidebar: true,
+  },
+  {
+    title: "Copiar precios desde factura",
+    component: CopiarPreciosDesdeFactura,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/precios/factura",
+    hideInSidebar: true,
+  },
+  {
+    title: "Copiar precios desde archivo",
+    component: ImportarPrecios,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/precios/importar",
+    hideInSidebar: true,
+  },
+  {
+    title: "Actualizar precios desde archivo",
+    component: ActualizarPreciosArchivo,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/actualizar-precios/archivo",
+    hideInSidebar: true,
+  },
+  {
+    title: "Copiar precios",
+    component: CopiarPrecios,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/precios/copiar",
     hideInSidebar: true,
   },
   // ================================= RRHH =================================

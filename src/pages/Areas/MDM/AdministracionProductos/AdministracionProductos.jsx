@@ -25,6 +25,7 @@ import {
   PageInput,
   PiePaginacion,
   RECURSO_ADMIN_PRODUCTOS,
+  RUTA_COPIAR_PRECIOS,
   RUTA_COPIAR_PRODUCTOS,
   Tabla,
   TablaScroll,
@@ -35,6 +36,9 @@ import {
   AccionesEncabezado,
   claveProducto,
   estiloCheckboxTabla,
+  RUTA_FACTURA_PRECIOS,
+  RUTA_ACTUALIZAR_PRECIOS_ARCHIVO,
+  RUTA_IMPORTAR_PRECIOS,
   RUTA_FACTURA_PRODUCTOS,
   RUTA_IMPORTAR_PRODUCTOS,
 } from "./compartido";
@@ -140,6 +144,7 @@ function AdministracionProductos() {
   const menuRef = useRef(null);
 
   const [modalDestino, setModalDestino] = useState(false);
+  const [accionModal, setAccionModal] = useState("productos"); // "productos" | "precios"
   const [empresaDestino, setEmpresaDestino] = useState(null);
 
   const puedeEditar = useMemo(() => puedeEditarRecurso(user, RECURSO_ADMIN_PRODUCTOS), [user]);
@@ -256,13 +261,36 @@ function AdministracionProductos() {
     navigate(RUTA_IMPORTAR_PRODUCTOS);
   };
 
+  const abrirPreciosFactura = () => {
+    setMenuAbierto(false);
+    navigate(RUTA_FACTURA_PRECIOS);
+  };
+
   const abrirCargaFactura = () => {
     setMenuAbierto(false);
     navigate(RUTA_FACTURA_PRODUCTOS);
   };
 
+  const abrirPreciosArchivo = () => {
+    setMenuAbierto(false);
+    navigate(RUTA_IMPORTAR_PRECIOS);
+  };
+
+  const abrirActualizarPreciosArchivo = () => {
+    setMenuAbierto(false);
+    navigate(RUTA_ACTUALIZAR_PRECIOS_ARCHIVO);
+  };
+
+  const abrirCopiarPrecios = () => {
+    setMenuAbierto(false);
+    setAccionModal("precios");
+    setEmpresaDestino(opcionesDestino.length === 1 ? opcionesDestino[0] : null);
+    setModalDestino(true);
+  };
+
   const abrirDuplicar = () => {
     setMenuAbierto(false);
+    setAccionModal("productos");
     setEmpresaDestino(opcionesDestino.length === 1 ? opcionesDestino[0] : null);
     setModalDestino(true);
   };
@@ -278,7 +306,7 @@ function AdministracionProductos() {
     });
     /* Los productos viajan en el estado de la navegación: la pantalla de copia
        los muestra tal cual se seleccionaron. */
-    navigate(`${RUTA_COPIAR_PRODUCTOS}?${filtros.toString()}`, {
+    navigate(`${accionModal === "precios" ? RUTA_COPIAR_PRECIOS : RUTA_COPIAR_PRODUCTOS}?${filtros.toString()}`, {
       state: { productos: Object.values(seleccion), volverA: searchParams.toString() },
     });
   };
@@ -457,29 +485,17 @@ function AdministracionProductos() {
               </ResumenSeleccion>
             )}
 
-            <MenuWrapper ref={menuRef}>
+            <div ref={menuRef} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <MenuWrapper>
               <ButtonUI
-                text="Acciones"
+                text="Acciones Copiar productos"
                 iconLeft="FaListCheck"
                 iconRight="FaChevronDown"
-                onClick={() => setMenuAbierto((abierto) => !abierto)}
-                title="Acciones disponibles"
+                onClick={() => setMenuAbierto((abierto) => (abierto === "duplicar" ? false : "duplicar"))}
+                title="Acciones para duplicar productos"
               />
-              {menuAbierto && (
+              {menuAbierto === "duplicar" && (
                 <MenuLista theme={theme}>
-                  <MenuOpcion
-                    theme={theme}
-                    onClick={abrirCargaArchivo}
-                    disabled={!puedeEditar}
-                    title={
-                      puedeEditar
-                        ? "Copiar productos a otra empresa a partir de un archivo txt o Excel con códigos"
-                        : "Requiere el permiso de edición sobre Administración de productos"
-                    }
-                  >
-                    <IconUI name="FaFileArrowUp" size={14} color={theme.colors.primary} />
-                    Cargar desde archivo
-                  </MenuOpcion>
                   <MenuOpcion
                     theme={theme}
                     onClick={abrirCargaFactura}
@@ -492,6 +508,19 @@ function AdministracionProductos() {
                   >
                     <IconUI name="FaFileInvoice" size={14} color={theme.colors.primary} />
                     Cargar desde factura
+                  </MenuOpcion>
+                  <MenuOpcion
+                    theme={theme}
+                    onClick={abrirCargaArchivo}
+                    disabled={!puedeEditar}
+                    title={
+                      puedeEditar
+                        ? "Copiar productos a otra empresa a partir de un archivo txt o Excel con códigos"
+                        : "Requiere el permiso de edición sobre Administración de productos"
+                    }
+                  >
+                    <IconUI name="FaFileArrowUp" size={14} color={theme.colors.primary} />
+                    Cargar desde archivo
                   </MenuOpcion>
                   <MenuOpcion
                     theme={theme}
@@ -511,6 +540,89 @@ function AdministracionProductos() {
                 </MenuLista>
               )}
             </MenuWrapper>
+            <MenuWrapper>
+              <ButtonUI
+                text="Acciones Copiar Precios"
+                iconLeft="FaCoins"
+                iconRight="FaChevronDown"
+                onClick={() => setMenuAbierto((abierto) => (abierto === "precios" ? false : "precios"))}
+                title="Acciones para copiar precios"
+              />
+              {menuAbierto === "precios" && (
+                <MenuLista theme={theme}>
+                  <MenuOpcion
+                    theme={theme}
+                    onClick={abrirPreciosFactura}
+                    disabled={!puedeEditar}
+                    title={
+                      puedeEditar
+                        ? "Copiar los precios de los artículos de una factura a la empresa que la compró"
+                        : "Requiere el permiso de edición sobre Administración de productos"
+                    }
+                  >
+                    <IconUI name="FaFileInvoice" size={14} color={theme.colors.primary} />
+                    Copiar precios desde factura
+                  </MenuOpcion>
+                  <MenuOpcion
+                    theme={theme}
+                    onClick={abrirPreciosArchivo}
+                    disabled={!puedeEditar}
+                    title={
+                      puedeEditar
+                        ? "Copiar precios a otra empresa a partir de un archivo txt o Excel con códigos"
+                        : "Requiere el permiso de edición sobre Administración de productos"
+                    }
+                  >
+                    <IconUI name="FaFileArrowUp" size={14} color={theme.colors.primary} />
+                    Copiar precios desde archivo
+                  </MenuOpcion>
+                  <MenuOpcion
+                    theme={theme}
+                    onClick={abrirCopiarPrecios}
+                    disabled={!puedeEditar || cantidadSeleccionada === 0}
+                    title={
+                      !puedeEditar
+                        ? "Requiere el permiso de edición sobre Administración de productos"
+                        : cantidadSeleccionada === 0
+                          ? "Seleccione uno o más productos para copiar sus precios"
+                          : "Copiar los precios de los productos seleccionados a otra empresa"
+                    }
+                  >
+                    <IconUI name="FaCoins" size={14} color={theme.colors.primary} />
+                    Copiar precios
+                  </MenuOpcion>
+                </MenuLista>
+              )}
+            </MenuWrapper>
+            <MenuWrapper>
+              <ButtonUI
+                text="Acciones Actualizar precios"
+                iconLeft="FaTags"
+                iconRight="FaChevronDown"
+                onClick={() =>
+                  setMenuAbierto((abierto) => (abierto === "actualizar" ? false : "actualizar"))
+                }
+                title="Acciones para actualizar precios en SAP"
+              />
+              {menuAbierto === "actualizar" && (
+                <MenuLista theme={theme}>
+                  <MenuOpcion
+                    theme={theme}
+                    onClick={abrirActualizarPreciosArchivo}
+                    disabled={!puedeEditar}
+                    title={
+                      puedeEditar
+                        ? "Actualizar los precios de una empresa con una plantilla de precios"
+                        : "Requiere el permiso de edición sobre Administración de productos"
+                    }
+                  >
+                    <IconUI name="FaFileArrowUp" size={14} color={theme.colors.primary} />
+                    Cargar desde archivo
+                  </MenuOpcion>
+                </MenuLista>
+              )}
+            </MenuWrapper>
+            </div>
           </AccionesEncabezado>
         </Encabezado>
 
@@ -563,7 +675,7 @@ function AdministracionProductos() {
       <ModalUI
         isOpen={modalDestino}
         onClose={() => setModalDestino(false)}
-        title="Duplicar a empresa"
+        title={accionModal === "precios" ? "Copiar precios" : "Duplicar a empresa"}
         maxWidth="520px"
         width="90%"
         saveText="Continuar"
@@ -572,8 +684,10 @@ function AdministracionProductos() {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <TextUI size="13px" color={theme.colors.textSecondary}>
-            Se copiarán {cantidadSeleccionada} producto{cantidadSeleccionada === 1 ? "" : "s"} de{" "}
-            <strong>{empresa}</strong>. Elija la empresa a la que se van a duplicar.
+            {accionModal === "precios" ? "Se copiarán los precios de" : "Se copiarán"} {cantidadSeleccionada} producto{cantidadSeleccionada === 1 ? "" : "s"} de{" "}
+            <strong>{empresa}</strong>. {accionModal === "precios"
+              ? "Elija la empresa a la que se van a copiar los precios."
+              : "Elija la empresa a la que se van a duplicar."}
           </TextUI>
 
           {opcionesDestino.length ? (
