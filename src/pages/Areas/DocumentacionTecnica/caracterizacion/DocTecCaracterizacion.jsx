@@ -333,7 +333,7 @@ function Atributo({ a }) {
                   {a.regla_dwh && <div className="car-detalle">{a.regla_dwh}</div>}
                 </>
               ) : (
-                <div className="car-valor car-sin">Aún sin campo en el DWH</div>
+                <div className="car-valor car-sin">{a.dwh_pendiente || "Aún sin campo en el DWH"}</div>
               )}
             </div>
             <div className="car-flecha" aria-hidden="true">
