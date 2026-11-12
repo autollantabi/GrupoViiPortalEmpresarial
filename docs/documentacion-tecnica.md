@@ -134,6 +134,7 @@ No tiene variables propias. Usa `VITE_API_URL_NEW` (API 2), que **debe terminar 
 | La pantalla carga pero muestra un error / 404 en la consola | El backend desplegado todavía no incluye las rutas del módulo |
 | 403 en las llamadas | Sesión sin el recurso de esa sección |
 | El login no avanza en local | `VITE_API_URL_NEW` sin `/api/v1`, o el backend local no puede leer los catálogos del DWH de SQL Server (`DWH_*`) que pide `/auth/me` |
+| Una pestaña sale vacía o con error **solo en local** (Líneas, Horario Automatizaciones…) | El backend local que se esté usando no monta las rutas de esa pestaña (404 en la consola). Con el backend completo no pasa; con un servidor mínimo de pruebas hay que montar sus rutas (ver §6b) |
 | Calidad dice «todavía no hay datos» | Falta pulsar «Actualizar datos» la primera vez; si ya se hizo, revisar que el backend persista su carpeta de resultados |
 
 ## 6b. Verla en local sin iniciar sesión
@@ -147,6 +148,15 @@ El portal exige login real, y el login necesita el SQL Server del backend. Para 
   (con sesión simulada o real) en la URL de `VITE_API_URL_NEW`.
 
 En modo local el menú lateral aparece colapsado: pase el mouse sobre la barra izquierda para desplegar «Documentación Técnica».
+
+## 6c. Probar en local con un servidor mínimo (trampa conocida)
+
+Cuando no se puede levantar el backend completo (por ejemplo, falta el SQL Server de catálogos del DWH que pide `/auth/me`), se usa un
+servidor de pruebas mínimo que monta solo auth y las rutas del módulo. **Cada pestaña nueva necesita que se monten sus rutas ahí**; si no,
+la pestaña sale vacía o con error en local aunque en producción funcione. Ya pasó con **Líneas** (`/dwh-postgres/linea-negocio-parametros`)
+y **Horario Automatizaciones** (`/documentacion-tecnica/horarios`). Al agregar una pestaña: montar su ruta en ese servidor y probarla con
+una llamada directa (sin sesión debe responder 403, no 404). Recordar también que, con la base real conectada, lo que se edite en local se
+guarda de verdad.
 
 ## 7. Cosas que no hay que hacer
 
