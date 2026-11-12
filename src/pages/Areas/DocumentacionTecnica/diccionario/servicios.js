@@ -21,6 +21,6 @@ export async function DocTec_ObtenerDiccionario() {
  * Falla con 503 si no hay credenciales o SAP no responde; el mensaje viene en res.data.message.
  */
 export async function DocTec_ActualizarDiccionario() {
-  const res = await axiosInstanceNew.post("/documentacion-tecnica/diccionario/actualizar", null, { timeout: 600000 });
+  const res = await axiosInstanceNew.post("/documentacion-tecnica/diccionario/actualizar", {}, { timeout: 600000 });
   return res.data.data;
 }
