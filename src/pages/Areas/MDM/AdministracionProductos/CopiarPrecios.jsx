@@ -64,12 +64,11 @@ const formatear = (n) => (Number.isFinite(n) ? redondear2(n).toFixed(2) : "—")
      decimal (0,15 y 0,25), no un porcentaje del precio: PVP = PVD − descuento/100 + incremento/100. */
 const calcularPvp = (pvd, incremento, descuento, esMoto = false) => {
   const base = Number(pvd);
-  const inc = Number(incremento);
+  /* Sin incremento (vacío) se toma 0: el PVP queda igual al precio de lista A */
+  const inc = incremento === "" || incremento == null ? 0 : Number(incremento);
   const desc = Number(descuento || 0);
   if (
     pvd == null ||
-    incremento === "" ||
-    incremento == null ||
     !Number.isFinite(base) ||
     !Number.isFinite(inc) ||
     !Number.isFinite(desc)
@@ -159,22 +158,36 @@ function CopiarPrecios() {
   const [sincronizando, setSincronizando] = useState(false);
 
   /* PVP sin IVA de cada fila con precio calculado (es lo que se envía a SAP) */
+  /* LLANTAS MOTO con regla (descuento + incremento): el PVP sale de la fórmula fija y el incremento no se edita.
+     Sin regla se trabaja como el resto: incremento manual (vacío o 0 = mismo precio de lista A). */
+  const calcularFila = (producto) => {
+    const id = claveProducto(producto);
+    const fila = detalle[id];
+    const esMoto = String(producto.LINEA_NEGOCIO ?? "").trim().toUpperCase() === "LLANTAS MOTO";
+    const formulaMoto = esMoto && fila?.Incremento != null;
+    const pvp = calcularPvp(
+      fila?.PrecioListaA,
+      formulaMoto ? fila?.Incremento : incrementos[id],
+      fila?.Descuento,
+      formulaMoto
+    );
+    /* delmi_mostrar_incremento: verdadero = se muestra el incremento; falso = el campo queda vacío */
+    const mostrarIncremento = fila?.MostrarIncremento !== false;
+    return { id, fila, formulaMoto, mostrarIncremento, pvp };
+  };
+
   const preciosCalculados = productos
     .map((producto) => {
-      const id = claveProducto(producto);
-      const fila = detalle[id];
-      const esMoto = String(producto.LINEA_NEGOCIO ?? "").trim().toUpperCase() === "LLANTAS MOTO";
-      const pvp = calcularPvp(
-        fila?.PrecioListaA,
-        esMoto ? fila?.Incremento : incrementos[id],
-        fila?.Descuento,
-        esMoto
-      );
+      const { id, fila, pvp } = calcularFila(producto);
       return { IDENTIFICADOR: id, PRECIO: pvp != null ? redondear2(pvp) : null, existe: !(fila?.Observaciones || []).length };
     })
     .filter((f) => f.PRECIO != null && f.PRECIO > 0 && f.existe);
 
   const sincronizar = async () => {
+    if (lista == null) {
+      toast.warn("Seleccione la lista de precios (Aplicar a)");
+      return;
+    }
     setSincronizando(true);
     try {
       const r = await sincronizarCopiaPreciosMDM({
@@ -239,7 +252,7 @@ function CopiarPrecios() {
               disabled={sincronizando || lista == null || !preciosCalculados.length}
               title={
                 lista == null
-                  ? "Seleccione la lista de precios (Aplicar a)"
+                  ? "Seleccione la lista de precios"
                   : !preciosCalculados.length
                     ? "No hay precios calculados para enviar"
                     : "Enviar los PVP sin IVA a SAP con la lista de precios seleccionada"
@@ -256,7 +269,7 @@ function CopiarPrecios() {
             </Filas>
 
             <Filas>
-              <Campo theme={theme} label="Aplicar a">
+              <Campo theme={theme} label="Seleccionar lista de precios">
                 <SelectUI
                   options={opcionesListas}
                   value={opcionesListas.find((o) => o.value === lista) || null}
@@ -266,7 +279,7 @@ function CopiarPrecios() {
                       ? "Cargando listas de precios..."
                       : listas.length === 0
                         ? "Sin listas de precios para esta empresa"
-                        : "Seleccione la lista de precios"
+                        : "Seleccionar"
                   }
                   isClearable
                   isDisabled={!opcionesListas.length}
@@ -313,17 +326,7 @@ function CopiarPrecios() {
               </thead>
               <tbody>
                 {ordenarPorIdentificador(productos).map((producto, index) => {
-                  const id = claveProducto(producto);
-                  const fila = detalle[id];
-                  /* LLANTAS MOTO: el PVP sale de una fórmula fija de la regla (descuento + incremento);
-                     el campo de incremento se muestra deshabilitado y sin valor */
-                  const esMoto = String(producto.LINEA_NEGOCIO ?? "").trim().toUpperCase() === "LLANTAS MOTO";
-                  const pvp = calcularPvp(
-                    fila?.PrecioListaA,
-                    esMoto ? fila?.Incremento : incrementos[id],
-                    fila?.Descuento,
-                    esMoto
-                  );
+                  const { id, fila, formulaMoto, mostrarIncremento, pvp } = calcularFila(producto);
                   return (
                     <Fila key={id} $par={index % 2 === 0}>
                       <Td>{producto.IDENTIFICADOR || "—"}</Td>
@@ -344,12 +347,12 @@ function CopiarPrecios() {
                         <InputIncremento
                           theme={theme}
                           inputMode="decimal"
-                          value={esMoto ? "" : incrementos[id] ?? ""}
-                          disabled={esMoto}
+                          value={mostrarIncremento ? (formulaMoto ? String(fila?.Incremento ?? "") : incrementos[id] ?? "") : ""}
+                          disabled={lista == null || formulaMoto || !mostrarIncremento}
                           onChange={(e) =>
                             setIncrementos((previo) => ({ ...previo, [id]: soloNumeros(e.target.value) }))
                           }
-                          placeholder={esMoto ? "" : "0"}
+                          placeholder={mostrarIncremento && !formulaMoto ? "0" : ""}
                         />
                       </Td>
                       <Td $align="right">{pvp != null ? formatear(pvp) : "—"}</Td>

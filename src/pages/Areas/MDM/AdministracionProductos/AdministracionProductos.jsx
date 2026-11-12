@@ -597,7 +597,7 @@ function AdministracionProductos() {
             <MenuWrapper>
               <ButtonUI
                 text="Acciones Actualizar precios"
-                iconLeft="FaTags"
+                iconLeft="FaArrowsRotate"
                 iconRight="FaChevronDown"
                 onClick={() =>
                   setMenuAbierto((abierto) => (abierto === "actualizar" ? false : "actualizar"))
