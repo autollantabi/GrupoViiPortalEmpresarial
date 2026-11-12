@@ -82,6 +82,10 @@ import Clientes from "pages/Areas/MDM/MDM_Crud/Clientes";
 import ClienteDetalle from "pages/Areas/MDM/MDM_Crud/ClienteDetalle";
 import LiquidacionesPrecios from "pages/Areas/MDM/MDM_Crud/LiquidacionesPrecios";
 import LiquidacionPrecioDetalle from "pages/Areas/MDM/MDM_Crud/LiquidacionPrecioDetalle";
+import AdministracionProductos from "pages/Areas/MDM/AdministracionProductos/AdministracionProductos";
+import CopiarProductos from "pages/Areas/MDM/AdministracionProductos/CopiarProductos";
+import ImportarProductos from "pages/Areas/MDM/AdministracionProductos/ImportarProductos";
+import CopiarDesdeFactura from "pages/Areas/MDM/AdministracionProductos/CopiarDesdeFactura";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
@@ -279,10 +283,16 @@ export const RoutesConfig = [
     component: ComisionesLubricantes,
     recurso: "contabilidad.comisiones.lubricantes",
   },
+
+  // ================================= GUÍAS DE REMISIÓN =================================
+  // Menú principal (ya no cuelga de Contabilidad). Los permisos siguen asignados al recurso "contabilidad.guiasremision" en
+  // usuarios-rol-contexto, por eso va como recurso alternativo: da acceso, rol y empresas igual que antes, sin migrar datos.
   {
-    title: "Guías Remisión",
+    title: "Guías de Remisión",
+    icon: "FaFileLines",
     component: GuiasRemision,
-    recurso: "contabilidad.guiasremision",
+    recurso: "guiasremision",
+    recursosAlternativos: ["contabilidad.guiasremision"],
   },
 
   // ================================= XCOIN =================================
@@ -415,6 +425,35 @@ export const RoutesConfig = [
     component: LiquidacionPrecioDetalle,
     recurso: "mdm.liquidacionprecios",
     path: "/mdm/liquidacionprecios/:id",
+    hideInSidebar: true,
+  },
+  {
+    title: "Administración de productos",
+    component: AdministracionProductos,
+    recurso: "mdm.administracionproductos",
+  },
+  {
+    // Se abre desde la acción "Duplicar a empresa" del listado, no desde el menú.
+    title: "Copiar Productos",
+    component: CopiarProductos,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/copiar",
+    hideInSidebar: true,
+  },
+  {
+    // Se abre desde el botón "Cargar desde archivo" del listado, no desde el menú.
+    title: "Copiar productos desde archivo",
+    component: ImportarProductos,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/importar",
+    hideInSidebar: true,
+  },
+  {
+    // Se abre desde "Acciones > Cargar desde factura" del listado, no desde el menú.
+    title: "Copiar productos desde factura",
+    component: CopiarDesdeFactura,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/factura",
     hideInSidebar: true,
   },
   // ================================= RRHH =================================

@@ -34,7 +34,7 @@ const PROPIEDADES = {
         "CST MOTO": "QryGroup6",
         "APLUS LIVIANO": "QryGroup7",
         "APLUS PESADO": "QryGroup8",
-        "READCRUZA LIVIADNO": "QryGroup9",
+        "ROADCRUZA LIVIANO": "QryGroup9",
         "BAYI": "QryGroup10",
         "ANSU": "QryGroup11",
         "WONDERLAND": "QryGroup12",
@@ -46,7 +46,8 @@ const PROPIEDADES = {
     },
     "IKONIX": {
         "SATA": "QryGroup4",
-        "UYUSTOOLS": "QryGroup1"
+        "UYUSTOOLS": "QryGroup1",
+        "DONG CHENG": "QryGroup5",
     },
     "STOX": {
         "CST LIVIANO": "QryGroup1",

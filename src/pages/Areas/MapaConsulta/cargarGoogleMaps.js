@@ -8,24 +8,12 @@ export const cargarGoogleMaps = () => {
   if (!GOOGLE_MAPS_API_KEY) return Promise.reject(new Error("Falta VITE_GOOGLE_MAPS_API_KEY en el .env del front"));
   if (!promesa) {
     promesa = new Promise((resolve, reject) => {
+      // `onload` del script llega antes de que Google termine de cargar sus módulos (main.js...): con una
+      // conexión lenta `google.maps.Map` aún no existe. El `callback` avisa cuando la API está lista.
+      window.__googleMapsListo = () => (window.google?.maps?.Map ? resolve(window.google.maps) : reject(new Error("Google Maps no inicializó")));
       const script = document.createElement("script");
-      // loading=async: patrón recomendado; las clases se obtienen con importLibrary.
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&v=weekly&language=es&region=EC&loading=async`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&v=weekly&language=es&region=EC&callback=__googleMapsListo`;
       script.async = true;
-      script.onload = async () => {
-        try {
-          if (!window.google?.maps?.importLibrary) throw new Error("Google Maps no inicializó");
-          // Map y Point (core) y Marker (clásico) quedan disponibles en google.maps
-          await Promise.all([
-            window.google.maps.importLibrary("maps"),
-            window.google.maps.importLibrary("core"),
-            window.google.maps.importLibrary("marker"),
-          ]);
-          resolve(window.google.maps);
-        } catch (e) {
-          reject(e);
-        }
-      };
       script.onerror = () => reject(new Error("No se pudo cargar Google Maps"));
       document.head.appendChild(script);
     }).catch((e) => {

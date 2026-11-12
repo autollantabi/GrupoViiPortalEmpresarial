@@ -133,6 +133,29 @@ export const DescargarExcelGuiasRemision = async ({ desde, hasta, empresas, incl
 };
 
 /**
+ * Documento electrónico (RIDE en PDF) de una guía. El servidor valida que el usuario pueda verlo y lo lee del almacén de documentos.
+ * @param {{id: number}} params - hgr_id de la guía
+ * @returns {Promise<Blob>} el PDF
+ * @throws Error de axios; 403 no es suya, 404 sin documento, 503 almacén de documentos no disponible
+ */
+export const ObtenerPdfGuiaRemision = async ({ id }) => {
+  try {
+    const res = await axiosInstanceNew.get(`/guias-remision/${id}/pdf`, { responseType: "blob" });
+    return res.data;
+  } catch (error) {
+    // Con responseType "blob" el cuerpo del error también llega como Blob: se lee para obtener el mensaje
+    if (error.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text());
+      } catch (e) {
+        // cuerpo no JSON: se deja como está
+      }
+    }
+    throw error;
+  }
+};
+
+/**
  * Lanza la sincronización de guías de remisión (el mismo proceso que corre cada hora) en el servidor.
  * Responde enseguida: el avance se consulta con EstadoSincronizacionGuias.
  * @throws Error de axios; 403 sin permiso, 409 ya hay una en curso, 503 el script no está disponible
