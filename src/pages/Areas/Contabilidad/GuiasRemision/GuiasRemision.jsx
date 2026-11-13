@@ -863,6 +863,19 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const actualizarImpresoLocal = (ids, impreso) => {
     if (!ids?.length) return;
     const conjunto = new Set(ids);
+    // Con el filtro Impreso aplicado, la guía que ya no cumple el filtro desaparece de la tabla (y del detalle abierto)
+    const sale = () => consulta.impreso !== "" && String(impreso) !== consulta.impreso;
+    if (sale()) {
+      const quedan = guias.filter((g) => !conjunto.has(g.id));
+      const retiradas = guias.length - quedan.length;
+      setGuias(quedan);
+      setPaginacion((prev) => (prev ? { ...prev, total: Math.max(0, (prev.total || 0) - retiradas) } : prev));
+      setSeleccion((prev) => prev.filter((s) => !conjunto.has(s.id)));
+      setGuiaSeleccionada((prev) => (prev && conjunto.has(prev.id) ? null : prev));
+      // Página vacía: se vuelve a consultar (el efecto retrocede a la última página con datos)
+      if (retiradas > 0 && quedan.length === 0) recargar();
+      return;
+    }
     setGuias((prev) => prev.map((g) => (conjunto.has(g.id) && g.impreso !== impreso ? { ...g, impreso } : g)));
     setGuiaSeleccionada((prev) => (prev && conjunto.has(prev.id) ? { ...prev, impreso } : prev));
   };
