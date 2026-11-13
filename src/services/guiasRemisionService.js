@@ -77,6 +77,19 @@ export const MarcarGuiaRemisionNoEnviada = async ({ id, empresa }) => {
   }
 };
 
+/**
+ * Marca (impreso = true) o desmarca (false) una guía como impresa (hgr_impreso). No aplica a guías canceladas.
+ * @param {{id: number, empresa: string, impreso: boolean}} params - id = hgr_id de la guía
+ * @throws Propaga el error; el mensaje del servidor viene en error.response.data.message
+ */
+export const CambiarImpresoGuiaRemision = async ({ id, empresa, impreso }) => {
+  const response = await axiosInstanceNew.patch(`/guias-remision/${id}/${impreso ? "impreso" : "no-impreso"}`, { empresa });
+
+  if (response.data?.status !== "Ok!") {
+    throw new Error(response.data?.message || "Respuesta inesperada del servidor");
+  }
+};
+
 /** Empresas que participan en el Excel de guías de remisión (IKONIX no existe en este proceso). */
 export const EMPRESAS_EXCEL = ["AUTOLLANTA", "MAXXIMUNDO", "STOX"];
 
@@ -159,7 +172,7 @@ export const ObtenerPdfGuiaRemision = async ({ id }) => {
  * PDF de impresión de varias guías: el servidor une sus documentos electrónicos repitiendo cada uno 2 veces (TRANS. PROPIO) o 3 (otro
  * transportista). Las guías que no se pudieron incluir vienen en `sinPdf` (números de guía) y `omitidas` (cantidad).
  * @param {{ids: number[]}} params - hgr_id de las guías seleccionadas
- * @returns {Promise<{blob: Blob, impresas: number, paginas: number, sinPdf: string[], omitidas: number}>}
+ * @returns {Promise<{blob: Blob, impresas: number, paginas: number, sinPdf: string[], omitidas: number, idsImpresos: number[]}>}
  * @throws Error de axios; 403 ninguna accesible, 404 ninguna con documento, 503 almacén no disponible
  */
 export const ImprimirGuiasRemision = async ({ ids }) => {
@@ -177,6 +190,8 @@ export const ImprimirGuiasRemision = async ({ ids }) => {
       paginas: Number(h["x-paginas"] || 0),
       sinPdf: String(h["x-guias-sin-pdf"] || "").split(",").filter(Boolean),
       omitidas: Number(h["x-guias-omitidas"] || 0),
+      // hgr_id de las guías que el servidor dejó marcadas como impresas
+      idsImpresos: String(h["x-ids-marcados-impresos"] || "").split(",").filter(Boolean).map(Number),
     };
   } catch (error) {
     // Con responseType "blob" el cuerpo del error también llega como Blob: se lee para obtener el mensaje

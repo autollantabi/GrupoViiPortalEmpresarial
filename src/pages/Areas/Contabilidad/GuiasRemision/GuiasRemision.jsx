@@ -65,6 +65,7 @@ import {
   MarcarEnviadasDesdeExcel,
   MarcarGuiaRemisionEnviada,
   MarcarGuiaRemisionNoEnviada,
+  CambiarImpresoGuiaRemision,
   ImprimirGuiasRemision,
   ObtenerPdfGuiaRemision,
   SincronizarGuiasRemision,
@@ -110,6 +111,7 @@ const COLUMNAS = [
   { header: "Vendedor / Facturador", field: "vendedor", isVendedorFacturador: true, wrap: true },
   { header: "Estado documento", field: "detalleEstadoElectronico", isEstadoElectronico: true, align: "center" },
   { header: "Enviado", field: "enviado", isEnviado: true, align: "center" },
+  { header: "Impreso", field: "impreso", isImpreso: true, align: "center" },
   { header: "PDF", field: "tienePdf", isPdf: true, align: "center" },
 ];
 
@@ -604,16 +606,13 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     hasta: hoySinHora(),
     estado: "",
     enviado: "false",
-    cliente: "",
     busqueda: "",
     page: 1,
     size: OPCIONES_FILAS[1].value,
   }));
 
   // Lo que el usuario está escribiendo; solo se aplica a `consulta` cuando deja de teclear
-  const [clienteInput, setClienteInput] = useState("");
   const [busquedaInput, setBusquedaInput] = useState("");
-  const clienteDebounced = useDebouncedValue(clienteInput.trim(), RETARDO_BUSQUEDA_MS);
   const busquedaDebounced = useDebouncedValue(busquedaInput.trim(), RETARDO_BUSQUEDA_MS);
 
   const [guias, setGuias] = useState([]);
@@ -627,6 +626,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const [confirmandoEnvio, setConfirmandoEnvio] = useState(false);
   const [accionEnvio, setAccionEnvio] = useState("enviar");
   const [enviando, setEnviando] = useState(false);
+  const [cambiandoImpreso, setCambiandoImpreso] = useState(false);
 
   // Descarga del Excel de guías de remisión: su propio rango y empresas (arranca con los filtros de la tabla)
   const [excelAbierto, setExcelAbierto] = useState(false);
@@ -685,19 +685,12 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     }
   }, [opcionesEmpresas, consulta.empresa]);
 
-  // Aplica los textos de búsqueda una vez terminado el debounce
+  // Aplica el texto de búsqueda una vez terminado el debounce
   useEffect(() => {
     setConsulta((prev) =>
-      prev.cliente === clienteDebounced && prev.busqueda === busquedaDebounced
-        ? prev
-        : {
-          ...prev,
-          cliente: clienteDebounced,
-          busqueda: busquedaDebounced,
-          page: 1,
-        }
+      prev.busqueda === busquedaDebounced ? prev : { ...prev, busqueda: busquedaDebounced, page: 1 }
     );
-  }, [clienteDebounced, busquedaDebounced]);
+  }, [busquedaDebounced]);
 
   // Consulta paginada al servidor. Si los filtros cambian mientras hay una consulta
   // en vuelo, se cancela para que una respuesta lenta no pise a la más reciente.
@@ -717,7 +710,6 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             size: consulta.size,
             fechaDesde: formatFechaISO(consulta.desde),
             fechaHasta: formatFechaISO(consulta.hasta),
-            cliente: consulta.cliente,
             busqueda: consulta.busqueda,
             estado: consulta.estado,
             // El vendedor (rol usuario) solo recibe sus guías enviadas: el filtro de envío no aplica
@@ -859,6 +851,14 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     });
   };
 
+  // Refleja en el listado ya cargado (y en el detalle abierto) el cambio de "impreso", sin consultar de nuevo al servidor
+  const actualizarImpresoLocal = (ids, impreso) => {
+    if (!ids?.length) return;
+    const conjunto = new Set(ids);
+    setGuias((prev) => prev.map((g) => (conjunto.has(g.id) && g.impreso !== impreso ? { ...g, impreso } : g)));
+    setGuiaSeleccionada((prev) => (prev && conjunto.has(prev.id) ? { ...prev, impreso } : prev));
+  };
+
   // Pide el PDF de impresión. Escritorio: se abre en otra pestaña (para imprimir desde el visor). Móvil/tablet: se descarga.
   const imprimir = async () => {
     if (!seleccion.length || imprimiendo) return;
@@ -866,7 +866,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     if (ventana) ventana.document.title = "Preparando impresión…";
     setImprimiendo(true);
     try {
-      const { blob, impresas, paginas, sinPdf, omitidas } = await ImprimirGuiasRemision({ ids: seleccion.map((s) => s.id) });
+      const { blob, impresas, paginas, sinPdf, omitidas, idsImpresos } = await ImprimirGuiasRemision({ ids: seleccion.map((s) => s.id) });
       const url = window.URL.createObjectURL(blob);
       if (esTactil) {
         const enlace = document.createElement("a");
@@ -881,6 +881,9 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
         window.open(url, "_blank");
       }
       setTimeout(() => window.URL.revokeObjectURL(url), 10 * 60 * 1000);
+
+      // Las guías impresas pasan a Impreso = SI en la tabla actual, sin recargar (se conservan los filtros y la página)
+      actualizarImpresoLocal(idsImpresos, true);
 
       toast.success(`PDF listo: ${impresas} guía${impresas === 1 ? "" : "s"}, ${paginas} página${paginas === 1 ? "" : "s"} (con copias)`);
       if (sinPdf.length) toast.warn(`Sin documento electrónico, no incluidas: ${sinPdf.join(", ")}`, { autoClose: 12000 });
@@ -1003,6 +1006,22 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     } finally {
       setEnviando(false);
       setConfirmandoEnvio(false);
+    }
+  };
+
+  // Marcar / desmarcar como impresa desde el detalle (sin confirmación; el listado se actualiza en vivo, sin recargar)
+  const cambiarImpreso = async (impreso) => {
+    if (!guiaSeleccionada || guiaSeleccionada.cancelada || cambiandoImpreso) return;
+    setCambiandoImpreso(true);
+    try {
+      await CambiarImpresoGuiaRemision({ id: guiaSeleccionada.id, empresa: guiaSeleccionada.empresa, impreso });
+      actualizarImpresoLocal([guiaSeleccionada.id], impreso);
+      toast.success(impreso ? "Guía de remisión marcada como impresa" : "Guía de remisión marcada como NO impresa");
+    } catch (err) {
+      console.error("Error al cambiar el estado de impresión de la guía:", err);
+      toast.error(err?.response?.data?.message || "No se pudo cambiar el estado de impresión de la guía");
+    } finally {
+      setCambiandoImpreso(false);
     }
   };
 
@@ -1191,6 +1210,14 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       return (
         <Badge $color={item.enviado ? theme.colors.success : theme.colors.textSecondary}>
           {item.enviado ? "SI" : "NO"}
+        </Badge>
+      );
+    }
+    if (columna.isImpreso) {
+      if (item.cancelada) return "—";
+      return (
+        <Badge $color={item.impreso ? theme.colors.success : theme.colors.textSecondary}>
+          {item.impreso ? "SI" : "NO"}
         </Badge>
       );
     }
@@ -1557,17 +1584,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
               />
             )}
 
-            <FiltroGrupo theme={theme} style={{ minWidth: "230px" }}>
-              <label>Cliente</label>
-              <InputUI
-                placeholder="Código de socio o nombre..."
-                value={clienteInput}
-                onChange={setClienteInput}
-                iconLeft="FaMagnifyingGlass"
-              />
-            </FiltroGrupo>
-
-            <FiltroGrupo theme={theme} style={{ minWidth: "260px" }}>
+            <FiltroGrupo theme={theme} style={{ minWidth: "280px" }}>
               <label>Buscar</label>
               <InputUI
                 placeholder="N° guía, factura, código o nombre..."
@@ -1607,6 +1624,25 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             {/* Supervisor: marcar como enviada, o devolverla a NO enviada si ya lo estaba. Las canceladas solo con permiso de editar */}
             <div style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               {guiaSeleccionada.tienePdf && !guiaSeleccionada.cancelada && renderBotonesPdf(guiaSeleccionada, esTactil)}
+              {!guiaSeleccionada.cancelada && (
+                guiaSeleccionada.impreso ? (
+                  <ButtonUI
+                    text="Marcar como NO impreso"
+                    iconLeft="FaRotateLeft"
+                    variant="outlined"
+                    onClick={() => cambiarImpreso(false)}
+                    disabled={cambiandoImpreso}
+                  />
+                ) : (
+                  <ButtonUI
+                    text="Marcar como impreso"
+                    iconLeft="FaPrint"
+                    variant="outlined"
+                    onClick={() => cambiarImpreso(true)}
+                    disabled={cambiandoImpreso}
+                  />
+                )
+              )}
               {puedeMarcarEnviado && (!guiaSeleccionada.cancelada || puedeSincronizar) && (
                 <>
                 {guiaSeleccionada.enviado ? (
@@ -1737,6 +1773,18 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                     )}
                   </div>
                 </CabeceraItem>
+                {!guiaSeleccionada.cancelada && (
+                  <CabeceraItem>
+                    <Txt size="12px" color={theme.colors.textSecondary}>
+                      Impreso
+                    </Txt>
+                    <div>
+                      <Badge $color={guiaSeleccionada.impreso ? theme.colors.success : theme.colors.textSecondary}>
+                        {guiaSeleccionada.impreso ? "SI" : "NO"}
+                      </Badge>
+                    </div>
+                  </CabeceraItem>
+                )}
                 {/* Las guías canceladas no muestran estado de envío, salvo al supervisor con permiso de editar (que lo administra) */}
                 {(!guiaSeleccionada.cancelada || puedeSincronizar) && (
                   <CabeceraItem>

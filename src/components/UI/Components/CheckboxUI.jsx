@@ -106,6 +106,8 @@ export const CheckboxUI = ({
           name={name}
           checked={checked}
           onChange={handleChange}
+          // El contenedor ya alterna al hacer clic (cuadro o texto); el clic directo/teclado sobre el input no debe alternar dos veces
+          onClick={(e) => e.stopPropagation()}
           disabled={disabled}
           required={required}
         />
@@ -114,7 +116,6 @@ export const CheckboxUI = ({
 
       {label && (
         <StyledCheckboxLabel
-          htmlFor={id}
           style={labelStyle}
           disabled={disabled}
           $color={labelColor}
