@@ -1,6 +1,6 @@
 # Módulo «Documentación Técnica» (frontend)
 
-Módulo de uso de TI con siete pestañas: **Diccionario**, **DWH mapping**, **Caracterización**, **Calidad**, **Completitud**, **Horario Automatizaciones** y **Líneas**. El portal es
+Módulo de uso de TI con ocho pestañas: **Diccionario**, **DWH mapping**, **Caracterización**, **Calidad**, **Completitud**, **Horario Automatizaciones**, **Líneas** y **Vendedor**. El portal es
 solo frontend: los datos los sirve el backend de la API 2 (`v1-portal-empresarial-back-new`) bajo `/documentacion-tecnica/*`, a través de
 `axiosInstanceNew` (ver [apis.md](apis.md)). La guía del backend está en `docs/documentacion-tecnica.md` de ese repositorio.
 
@@ -104,6 +104,10 @@ Ejemplo: «Linaje».
 (`/dwh-postgres/linea-negocio-parametros`, vía `postgresService`) y misma apariencia. Se duplicó para que TI la use sin acceso al área
 Negocio. La única diferencia: puede editar quien tenga el permiso 2 en `negocio.linea` **o** el recurso `documentaciontecnica.lineas`
 (o la raíz `documentaciontecnica`). Si cambia la original, hay que replicar el cambio en la copia.
+
+`vendedor/DocTecVendedor.jsx` es del mismo modo una copia de «Vendedor» (`pages/Areas/Negocio/Vendedor/Vendedor.jsx`), recurso
+`documentaciontecnica.vendedor`. Usa `/dwh-postgres/vendedores-parametros`, `linea-negocio-parametros` y `categoria-parametros`
+(crear). La original no distingue permisos de edición, así que la copia tampoco: quien ve la pestaña, edita.
 
 ## 4b. Patrón de pestaña editable (ejemplo: Horario Automatizaciones)
 
