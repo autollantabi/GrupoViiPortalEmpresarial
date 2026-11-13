@@ -17,13 +17,14 @@ import { axiosInstanceNew } from "config/axiosConfig";
  * @param {string} [params.estado] - detalle de estado electrónico; vacío = todos
  * @param {string} [params.cliente] - código de socio o nombre
  * @param {string} [params.busqueda] - número de guía, factura, código de socio o nombre
+ * @param {string} [params.impreso] - "true" solo impresas, "false" solo no impresas; vacío = todas
  * @param {string} [params.enviado] - "true" solo enviadas, "false" solo pendientes de envío; vacío = todas
  * @param {AbortSignal} [signal] - permite cancelar la consulta si el usuario cambia los filtros
  * @returns {Promise<{Paginacion: Object, Guias: Array}>}
  * @throws Propaga el error de red/servidor para que la vista distinga "sin datos" de "fallo".
  */
 export const ListarGuiasRemision = async (
-  { empresa, page = 1, size = 25, fechaDesde, fechaHasta, estado, cliente, busqueda, enviado },
+  { empresa, page = 1, size = 25, fechaDesde, fechaHasta, estado, cliente, busqueda, enviado, impreso },
   signal
 ) => {
   // Los filtros vacíos no se envían
@@ -34,6 +35,7 @@ export const ListarGuiasRemision = async (
   if (cliente) params.cliente = cliente;
   if (busqueda) params.busqueda = busqueda;
   if (enviado) params.enviado = enviado;
+  if (impreso) params.impreso = impreso;
 
   const response = await axiosInstanceNew.get("/guias-remision", {
     params,

@@ -93,6 +93,12 @@ const OPCIONES_ENVIO = [
   { value: "", label: "TODAS" },
 ];
 
+const OPCIONES_IMPRESO = [
+  { value: "", label: "TODAS" },
+  { value: "false", label: "NO IMPRESAS" },
+  { value: "true", label: "IMPRESAS" },
+];
+
 const OPCIONES_FILAS = [10, 25, 50, 100].map((n) => ({
   value: n,
   label: `${n} por página`,
@@ -606,6 +612,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     hasta: hoySinHora(),
     estado: "",
     enviado: "false",
+    impreso: "",
     busqueda: "",
     page: 1,
     size: OPCIONES_FILAS[1].value,
@@ -711,6 +718,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
             fechaDesde: formatFechaISO(consulta.desde),
             fechaHasta: formatFechaISO(consulta.hasta),
             busqueda: consulta.busqueda,
+            impreso: consulta.impreso,
             estado: consulta.estado,
             // El vendedor (rol usuario) solo recibe sus guías enviadas: el filtro de envío no aplica
             enviado: puedeMarcarEnviado ? consulta.enviado : undefined,
@@ -956,6 +964,8 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
   const handleEstado = (opt) => actualizarFiltros({ estado: opt?.value || "" });
 
   const handleEnvio = (opt) => opt && actualizarFiltros({ enviado: opt.value });
+
+  const handleImpreso = (opt) => opt && actualizarFiltros({ impreso: opt.value });
 
   // El rango nunca queda vacío ni invertido: "desde" no pasa de "hasta" y viceversa
   // (además de los min/max del selector); si se borra una fecha vuelve a su valor por defecto.
@@ -1583,6 +1593,16 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
                 maxWidth="230px"
               />
             )}
+
+            <SelectUI
+              label="Impreso"
+              options={OPCIONES_IMPRESO}
+              value={OPCIONES_IMPRESO.find((o) => o.value === consulta.impreso)}
+              onChange={handleImpreso}
+              isSearchable={false}
+              minWidth="160px"
+              maxWidth="180px"
+            />
 
             <FiltroGrupo theme={theme} style={{ minWidth: "280px" }}>
               <label>Buscar</label>
