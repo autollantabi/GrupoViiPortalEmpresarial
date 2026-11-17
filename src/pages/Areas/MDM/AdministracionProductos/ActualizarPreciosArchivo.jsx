@@ -35,18 +35,54 @@ import {
   Td,
   ordenarPorIdentificador,
   Th,
+  InputIncremento,
+  soloNumeros,
+  redondear2,
+  calcularPvp,
 } from "./compartido";
 
-const normalizar = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+const normalizar = (v) =>
+  String(v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 
-/* Formato de plantilla por empresa: columnas del archivo que traen el código de referencia
-   del proveedor y el precio final. Las demás empresas se agregan aquí cuando se definan. */
+/* Formato de plantilla por empresa (columnas del archivo, normalizadas sin acentos).
+   - IKONIX: "Item Code" (código de proveedor) y "PVP SIN IVA", que ya es el precio final.
+   - Resto: "Número de artículo" (código SAP) y "PRECIO"; el PVP sale de aplicar la regla de
+     incremento/descuento de la lista de precios elegida. */
+const FORMATO_IKONIX = {
+  columnaCodigo: "item code",
+  columnaPrecio: "pvp sin iva",
+  etiquetaCodigo: "Item Code",
+  etiquetaPrecio: "PVP SIN IVA",
+  conIncremento: false,
+};
+const FORMATO_NUMERO_ARTICULO = {
+  columnaCodigo: "numero de articulo",
+  columnaPrecio: "precio",
+  etiquetaCodigo: "Número de artículo",
+  etiquetaPrecio: "PRECIO",
+  conIncremento: true,
+};
 const FORMATOS = {
-  IKONIX: { columnaCodigo: "item code", columnaPrecio: "pvp sin iva", etiquetaPrecio: "PVP sin IVA" },
+  IKONIX: FORMATO_IKONIX,
+  AUTOLLANTA: FORMATO_NUMERO_ARTICULO,
+  MAXXIMUNDO: FORMATO_NUMERO_ARTICULO,
+  STOX: FORMATO_NUMERO_ARTICULO,
+};
+
+/* Precio del archivo como número ("47,10" o "1 234,5" también); null si no es un número */
+const numeroDePrecio = (v) => {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const n = Number(String(v ?? "").replace(/\s/g, "").replace(",", "."));
+  return String(v ?? "").trim() !== "" && Number.isFinite(n) ? n : null;
 };
 
 /* Busca en todas las hojas la fila de encabezados con las dos columnas y lee las filas siguientes.
-   Se omiten las filas sin Item Code o sin valor de precio (totales, notas al pie). */
+   Se omiten las filas sin código de artículo o sin precio válido (totales, notas al pie, "NO LLEGO"). */
 const leerPlantilla = async (archivo, formato) => {
   const libro = XLSX.read(await archivo.arrayBuffer(), { type: "array" });
   for (const nombre of libro.SheetNames) {
@@ -59,7 +95,10 @@ const leerPlantilla = async (archivo, formato) => {
     const iPrecio = filas[cab].findIndex((c) => normalizar(c) === formato.columnaPrecio);
     return filas
       .slice(cab + 1)
-      .map((f) => ({ codigo: String(f[iCodigo] ?? "").trim(), precio: f[iPrecio] }))
+      .map((f) => ({
+        codigo: String(f[iCodigo] ?? "").trim(),
+        precio: formato.conIncremento ? numeroDePrecio(f[iPrecio]) : f[iPrecio],
+      }))
       .filter((f) => f.codigo && f.precio !== "" && f.precio != null);
   }
   return null;
@@ -81,6 +120,9 @@ function ActualizarPreciosArchivo() {
   const [nombreArchivo, setNombreArchivo] = useState("");
   const [filasArchivo, setFilasArchivo] = useState([]);
   const [filas, setFilas] = useState(null); // resultado resuelto contra dim_item
+  const [incrementos, setIncrementos] = useState({}); // { IDENTIFICADOR: string } (editable)
+  const filasRef = useRef(null);
+  filasRef.current = filas;
   const [procesando, setProcesando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
 
@@ -133,22 +175,36 @@ function ActualizarPreciosArchivo() {
       }
       const lectura = await leerPlantilla(archivo, formato);
       if (!lectura) {
-        toast.error(`No se encontraron las columnas "Item Code" y "${formato.etiquetaPrecio.toUpperCase()}" en el archivo`);
+        toast.error(`No se encontraron las columnas "${formato.etiquetaCodigo}" y "${formato.etiquetaPrecio}" en el archivo`);
         return;
       }
       setNombreArchivo(archivo.name);
       setFilasArchivo(lectura);
-      if (!lectura.length) toast.warn("El archivo no tiene filas con Item Code y precio");
+      if (!lectura.length) toast.warn(`El archivo no tiene filas con ${formato.etiquetaCodigo} y precio`);
     } catch (err) {
       console.error("Error al leer el archivo:", err);
       toast.error("No se pudo leer el archivo");
     }
   };
 
+  /* Aplica el resultado y deja en cada incremento el valor de la regla (vacío si no hay) */
+  const aplicarResultado = (resultado) => {
+    setFilas(resultado);
+    setIncrementos(
+      Object.fromEntries(
+        resultado
+          .filter((f) => f.IDENTIFICADOR)
+          .map((f) => [f.IDENTIFICADOR, f.Incremento != null ? String(f.Incremento) : ""])
+      )
+    );
+  };
+
   const buscar = async () => {
     setProcesando(true);
     try {
-      setFilas(await resolverPlantillaPreciosMDM({ empresa: empresa.value, filas: filasArchivo }));
+      aplicarResultado(
+        await resolverPlantillaPreciosMDM({ empresa: empresa.value, filas: filasArchivo, listaPrecio: lista })
+      );
     } catch (err) {
       console.error("Error al procesar la plantilla:", err);
       toast.error(err?.response?.data?.message || "No se pudo procesar la plantilla");
@@ -157,9 +213,54 @@ function ActualizarPreciosArchivo() {
     }
   };
 
+  /* Al cambiar la lista de precios se consultan de nuevo las reglas (incremento, descuento, mostrar, editar)
+     de los artículos que siguen en la tabla; IKONIX no usa reglas */
+  useEffect(() => {
+    const actuales = filasRef.current;
+    if (!formato?.conIncremento || !actuales?.length) return undefined;
+    let activo = true;
+    setProcesando(true);
+    resolverPlantillaPreciosMDM({
+      empresa: empresa.value,
+      filas: actuales.map((f) => ({ codigo: f.CODIGO, precio: f.PRECIO })),
+      listaPrecio: lista,
+    })
+      .then((resultado) => activo && aplicarResultado(resultado))
+      .catch((err) => {
+        console.error("Error al consultar las reglas de la lista:", err);
+        if (activo) toast.error("No se pudieron consultar las reglas de la lista de precios");
+      })
+      .finally(() => activo && setProcesando(false));
+    return () => {
+      activo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lista]);
+
   const quitarFila = (fila) => setFilas((previo) => previo.filter((x) => x !== fila));
 
-  const enviables = (filas || []).filter((f) => f.IDENTIFICADOR && f.PVP_SIN_IVA > 0 && !f.Observaciones.some((o) => o.includes("corresponde a")));
+  /* PVP sin IVA de la fila: IKONIX trae el final en el archivo; el resto aplica incremento/descuento sobre PRECIO.
+     LLANTAS MOTO con regla usa la fórmula fija (igual que Copiar precios); delmi_editar define si se edita. */
+  const calcularFila = (f) => {
+    if (!formato?.conIncremento) return { pvp: f.PRECIO, mostrar: false, editable: false };
+    const esMoto = String(f.LINEA_NEGOCIO ?? "").trim().toUpperCase() === "LLANTAS MOTO";
+    const formulaMoto = esMoto && f.Incremento != null;
+    return {
+      pvp: calcularPvp(f.PRECIO, incrementos[f.IDENTIFICADOR], f.Descuento, formulaMoto),
+      mostrar: f.MostrarIncremento !== false,
+      editable: f.Editable !== false,
+    };
+  };
+
+  const enviables = (filas || [])
+    .map((f) => ({ f, pvp: calcularFila(f).pvp }))
+    .filter(
+      ({ f, pvp }) =>
+        f.IDENTIFICADOR &&
+        pvp != null &&
+        redondear2(pvp) > 0 &&
+        !f.Observaciones.some((o) => o.includes("corresponde a"))
+    );
   const hayObservaciones = (filas || []).some((f) => f.Observaciones.length > 0);
 
   const sincronizar = async () => {
@@ -168,7 +269,7 @@ function ActualizarPreciosArchivo() {
       const r = await sincronizarPlantillaPreciosMDM({
         empresa: empresa.value,
         listaPrecio: lista,
-        precios: enviables.map((f) => ({ IDENTIFICADOR: f.IDENTIFICADOR, PRECIO: f.PVP_SIN_IVA })),
+        precios: enviables.map(({ f, pvp }) => ({ IDENTIFICADOR: f.IDENTIFICADOR, PRECIO: redondear2(pvp) })),
       });
       toast.success(`${r?.Actualizados ?? enviables.length} precio(s) sincronizados con SAP (${r?.Compania ?? empresa.value})`);
       if (r?.Omitidos?.length) toast.warn(`Omitidos: ${r.Omitidos.join(", ")}`);
@@ -223,7 +324,7 @@ function ActualizarPreciosArchivo() {
         <TarjetaCabecera theme={theme}>
           <CabeceraColumnas>
             <Filas>
-              <Campo theme={theme} label="Empresa destino">
+              <Campo theme={theme} label="Empresa">
                 <SelectUI
                   options={empresasConFormato}
                   value={empresa}
@@ -278,7 +379,7 @@ function ActualizarPreciosArchivo() {
                     {nombreArchivo
                       ? `${nombreArchivo} · ${filasArchivo.length} fila${filasArchivo.length === 1 ? "" : "s"}`
                       : formato
-                        ? `Se leen las columnas "Item Code" y "${formato.etiquetaPrecio}"`
+                        ? `Se leen las columnas "${formato.etiquetaCodigo}" y "${formato.etiquetaPrecio}"`
                         : "Seleccione la empresa para ver el formato"}
                   </TextUI>
                 </div>
@@ -310,16 +411,21 @@ function ActualizarPreciosArchivo() {
               <Tabla>
                 <thead>
                   <tr>
-                    <Th>Item code</Th>
+                    <Th>Identificador</Th>
                     <Th>Nombre</Th>
-                    <Th>Código de proveedor</Th>
-                    <Th $align="right">{formato?.etiquetaPrecio}</Th>
+                    <Th>Código de barras</Th>
+                    <Th>Línea</Th>
+                    {formato?.conIncremento && <Th $align="right">Precio</Th>}
+                    {formato?.conIncremento && <Th $align="right">Incremento %</Th>}
+                    <Th $align="right">PVP sin IVA</Th>
                     <Th $align="center" $ancho="70px" />
                   </tr>
                 </thead>
                 <tbody>
-                  {ordenarPorIdentificador(filas).map((f, index) => (
-                    <Fila key={`${f.CODIGO_PROVEEDOR}-${f.IDENTIFICADOR}-${index}`} $par={index % 2 === 0}>
+                  {ordenarPorIdentificador(filas).map((f, index) => {
+                    const { pvp, mostrar, editable } = calcularFila(f);
+                    return (
+                    <Fila key={`${f.CODIGO}-${f.IDENTIFICADOR}-${index}`} $par={index % 2 === 0}>
                       <Td>{f.IDENTIFICADOR || "—"}</Td>
                       <Td $wrap>
                         {f.NOMBRE || "—"}
@@ -329,8 +435,26 @@ function ActualizarPreciosArchivo() {
                           </TextoObservacion>
                         ))}
                       </Td>
-                      <Td>{f.CODIGO_PROVEEDOR}</Td>
-                      <Td $align="right">{formatear(f.PVP_SIN_IVA)}</Td>
+                      <Td>{f.CODIGO_BARRAS || "—"}</Td>
+                      <Td>{f.LINEA_NEGOCIO || "—"}</Td>
+                      {formato?.conIncremento && <Td $align="right">{formatear(f.PRECIO)}</Td>}
+                      {formato?.conIncremento && (
+                        <Td $align="right">
+                          {f.IDENTIFICADOR && (
+                            <InputIncremento
+                              theme={theme}
+                              inputMode="decimal"
+                              value={mostrar ? incrementos[f.IDENTIFICADOR] ?? "" : ""}
+                              disabled={lista == null || !editable || !mostrar}
+                              onChange={(e) =>
+                                setIncrementos((previo) => ({ ...previo, [f.IDENTIFICADOR]: soloNumeros(e.target.value) }))
+                              }
+                              placeholder={mostrar && editable ? "0" : ""}
+                            />
+                          )}
+                        </Td>
+                      )}
+                      <Td $align="right">{formatear(pvp)}</Td>
                       <Td $align="center">
                         <ButtonUI
                           iconLeft="FaXmark"
@@ -340,7 +464,8 @@ function ActualizarPreciosArchivo() {
                         />
                       </Td>
                     </Fila>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </Tabla>
             </TablaScroll>
