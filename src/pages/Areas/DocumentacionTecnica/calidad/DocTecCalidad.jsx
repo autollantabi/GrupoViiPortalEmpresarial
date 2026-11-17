@@ -658,6 +658,10 @@ const Estilos = styled.div`
 /* ----------------------------- piezas ----------------------------- */
 
 /** Deslizador de puntaje con dos extremos. */
+// Filtro «Puntaje de calidad» oculto a pedido (se consideró innecesario). Para volver a mostrarlo basta poner true.
+// Mientras esté oculto queda en 0.00–1.00, es decir, no filtra nada.
+const MOSTRAR_RANGO_PUNTAJE = false;
+
 function RangoPuntaje({ pmin, pmax, onChange }) {
   const a = parseFloat(pmin);
   const b = parseFloat(pmax);
@@ -1199,7 +1203,9 @@ export const DocTecCalidad = () => {
           </div>
 
           <div className="fg-fila2">
-            <RangoPuntaje pmin={pmin} pmax={pmax} onChange={(v) => { setPmin(v.pmin); setPmax(v.pmax); }} />
+            {MOSTRAR_RANGO_PUNTAJE && (
+              <RangoPuntaje pmin={pmin} pmax={pmax} onChange={(v) => { setPmin(v.pmin); setPmax(v.pmax); }} />
+            )}
             <BuscadorProducto
               aplicados={aplicados}
               texto={entradaQ}

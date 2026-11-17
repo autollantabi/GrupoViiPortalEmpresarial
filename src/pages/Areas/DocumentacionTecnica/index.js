@@ -5,6 +5,7 @@ import { DocTecCalidad } from "./calidad/DocTecCalidad";
 import { DocTecCompletitud } from "./completitud/DocTecCompletitud";
 import { DocTecHorarios } from "./horarios/DocTecHorarios";
 import { DocTecLineas } from "./lineas/DocTecLineas";
+import { DocTecVendedor } from "./vendedor/DocTecVendedor";
 
 /**
  * Módulo «Documentación Técnica» (acceso exclusivo de TI).
@@ -24,4 +25,5 @@ export const rutasDocumentacionTecnica = [
   { title: "Completitud", component: DocTecCompletitud, recurso: "documentaciontecnica.completitud" },
   { title: "Horario Automatizaciones", component: DocTecHorarios, recurso: "documentaciontecnica.horarios" },
   { title: "Líneas", component: DocTecLineas, recurso: "documentaciontecnica.lineas" },
+  { title: "Vendedor", component: DocTecVendedor, recurso: "documentaciontecnica.vendedor" },
 ];

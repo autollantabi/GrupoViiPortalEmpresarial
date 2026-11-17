@@ -498,7 +498,7 @@ export function DocTecHorarios() {
               </div>
             )}
             <details className="mas-opc">
-              <summary>Más opciones (nota, duración, madrugada)</summary>
+              <summary>Más opciones (nota, duración, madrugada, paralelo)</summary>
               <div className="cuerpo">
                 <input type="text" value={p.nota ?? ""} maxLength={300} placeholder="Nota (opcional): por ejemplo, por qué corre a esa hora" aria-label="Nota" onChange={(e) => cambiarProceso(p.id, (x) => (x.nota = e.target.value))} />
                 <div className="horas">
@@ -508,6 +508,10 @@ export function DocTecHorarios() {
                   <label className="meta" style={{ display: "flex", gap: 5, alignItems: "center" }}>
                     <input type="checkbox" checked={!!p.nocturno} onChange={(e) => cambiarProceso(p.id, (x) => (x.nocturno = e.target.checked || undefined))} />
                     Corre de madrugada (no avisar por el horario de oficina)
+                  </label>
+                  <label className="meta" style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                    <input type="checkbox" checked={!!p.paralelo} onChange={(e) => cambiarProceso(p.id, (x) => (x.paralelo = e.target.checked || undefined))} />
+                    Puede correr en paralelo con otros (no avisar por coincidir en la misma hora)
                   </label>
                 </div>
               </div>
