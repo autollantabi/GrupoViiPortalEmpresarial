@@ -1697,7 +1697,13 @@ function Llantas() {
                 ]);
 
                 (respReenvio?.errors || []).forEach(e => idsConError.add(e.id));
-                (respNuevos?.errors || []).forEach(e => idsConError.add(payloadsNuevos[e.index]?.__localId));
+                (respNuevos?.errors || []).forEach(e => {
+                    const payloadConError = payloadsNuevos[e.index];
+                    idsConError.add(payloadConError?.__localId);
+                    // El artículo duplicado (mismo Código de Barras o Código Proveedor) no se
+                    // envía; se avisa puntualmente cuál es, en vez de solo el conteo genérico.
+                    toast.error(`${payloadConError?.CODIGO_BARRAS || payloadConError?.CODIGO_PROVEEDOR || "Artículo"}: ${e.message}`);
+                });
                 erroresCount = idsConError.size;
             } else if (idRolPrincipal === 3) {
                 const payloads = currentItems.map(item => ({
