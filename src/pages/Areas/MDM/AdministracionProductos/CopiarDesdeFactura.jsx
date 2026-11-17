@@ -21,6 +21,7 @@ import {
   Filas,
   RECURSO_ADMIN_PRODUCTOS,
   RUTA_ADMIN_PRODUCTOS,
+  RUTA_COPIAR_PRECIOS,
   RUTA_COPIAR_PRODUCTOS,
   Tabla,
   TablaScroll,
@@ -28,11 +29,14 @@ import {
   TarjetaFlexible,
   Td,
   Th,
+  ordenarPorIdentificador,
   claveProducto,
   textoEncontrados,
 } from "./compartido";
 
-function CopiarDesdeFactura() {
+/* modo "productos" copia artículos; modo "precios" copia los precios de los artículos de la factura */
+function CopiarDesdeFactura({ modo = "productos" }) {
+  const esPrecios = modo === "precios";
   const { theme } = useTheme();
   const { user } = useAuthContext();
   const navigate = useNavigate();
@@ -92,7 +96,7 @@ function CopiarDesdeFactura() {
   const confirmar = () => {
     if (motivoBloqueo) return toast.info(motivoBloqueo);
     const filtros = new URLSearchParams({ origen: empresa.value, destino });
-    navigate(`${RUTA_COPIAR_PRODUCTOS}?${filtros.toString()}`, {
+    navigate(`${esPrecios ? RUTA_COPIAR_PRECIOS : RUTA_COPIAR_PRODUCTOS}?${filtros.toString()}`, {
       state: { productos: resultado.Productos, volverA: "" },
     });
   };
@@ -114,16 +118,21 @@ function CopiarDesdeFactura() {
             title="Volver al listado"
           />
           <TextUI weight="bold" size="20px">
-            Copiar productos desde factura
+            {esPrecios ? "Copiar precios desde factura" : "Copiar productos desde factura"}
           </TextUI>
 
           <AccionesEncabezado>
             <ButtonUI
-              text="Confirmar y cargar productos"
+              text={esPrecios ? "Confirmar y revisar precios" : "Confirmar y revisar productos"}
               iconLeft="FaCheck"
               onClick={confirmar}
               disabled={Boolean(motivoBloqueo)}
-              title={motivoBloqueo || "La factura es correcta: cargar sus productos para copiarlos"}
+              title={
+                motivoBloqueo ||
+                (esPrecios
+                  ? "La factura es correcta: revisar los precios a copiar"
+                  : "La factura es correcta: revisar los productos a copiar")
+              }
             />
           </AccionesEncabezado>
         </Encabezado>
@@ -236,7 +245,7 @@ function CopiarDesdeFactura() {
                   </tr>
                 </thead>
                 <tbody>
-                  {resultado.Productos.map((producto, index) => (
+                  {ordenarPorIdentificador(resultado.Productos).map((producto, index) => (
                     <Fila key={claveProducto(producto)} $par={index % 2 === 0}>
                       <Td>{producto.IDENTIFICADOR || "—"}</Td>
                       <Td $wrap>{producto.NOMBRE || "—"}</Td>
@@ -253,5 +262,7 @@ function CopiarDesdeFactura() {
     </ContainerUI>
   );
 }
+
+export const CopiarPreciosDesdeFactura = () => <CopiarDesdeFactura modo="precios" />;
 
 export default CopiarDesdeFactura;

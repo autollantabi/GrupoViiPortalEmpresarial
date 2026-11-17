@@ -406,26 +406,14 @@ function LiquidacionPrecioDetalle() {
 
   const volcar = useCallback((data) => {
     setCabecera(data);
-    /* Sin incremento guardado se propone el de la tabla por empresa + línea + marca del
-       artículo (si no hay, queda vacío = 0). Solo en liquidaciones editables. */
-    let hayPropuestos = false;
-    const filasNuevas = (data.DETALLE || []).map((d) => {
-      const proponer =
-        data.ESTADO === ESTADO_PENDIENTE &&
-        d.ENCONTRADO &&
-        (d.MARGEN === null || d.MARGEN === undefined) &&
-        d.INCREMENTO_TABLA !== null &&
-        d.INCREMENTO_TABLA !== undefined;
-      if (proponer) hayPropuestos = true;
-      return {
+    setFilas(
+      (data.DETALLE || []).map((d) => ({
         ...d,
         PVD_TXT: aTexto(d.PVD),
-        MARGEN_TXT: aTexto(proponer ? d.INCREMENTO_TABLA : d.MARGEN),
-      };
-    });
-    setFilas(filasNuevas);
-    // El incremento propuesto aún no está guardado: se guarda al Guardar o al Sincronizar
-    setSinGuardar(hayPropuestos);
+        MARGEN_TXT: aTexto(d.MARGEN),
+      }))
+    );
+    setSinGuardar(false);
     setSinPvd(false);
   }, []);
 

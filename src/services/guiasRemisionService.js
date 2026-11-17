@@ -17,13 +17,14 @@ import { axiosInstanceNew } from "config/axiosConfig";
  * @param {string} [params.estado] - detalle de estado electrónico; vacío = todos
  * @param {string} [params.cliente] - código de socio o nombre
  * @param {string} [params.busqueda] - número de guía, factura, código de socio o nombre
+ * @param {string} [params.impreso] - "true" solo impresas, "false" solo no impresas; vacío = todas
  * @param {string} [params.enviado] - "true" solo enviadas, "false" solo pendientes de envío; vacío = todas
  * @param {AbortSignal} [signal] - permite cancelar la consulta si el usuario cambia los filtros
  * @returns {Promise<{Paginacion: Object, Guias: Array}>}
  * @throws Propaga el error de red/servidor para que la vista distinga "sin datos" de "fallo".
  */
 export const ListarGuiasRemision = async (
-  { empresa, page = 1, size = 25, fechaDesde, fechaHasta, estado, cliente, busqueda, enviado },
+  { empresa, page = 1, size = 25, fechaDesde, fechaHasta, estado, cliente, busqueda, enviado, impreso },
   signal
 ) => {
   // Los filtros vacíos no se envían
@@ -34,6 +35,7 @@ export const ListarGuiasRemision = async (
   if (cliente) params.cliente = cliente;
   if (busqueda) params.busqueda = busqueda;
   if (enviado) params.enviado = enviado;
+  if (impreso) params.impreso = impreso;
 
   const response = await axiosInstanceNew.get("/guias-remision", {
     params,
@@ -71,6 +73,19 @@ export const MarcarGuiaRemisionNoEnviada = async ({ id, empresa }) => {
   const response = await axiosInstanceNew.patch(`/guias-remision/${id}/no-enviado`, {
     empresa,
   });
+
+  if (response.data?.status !== "Ok!") {
+    throw new Error(response.data?.message || "Respuesta inesperada del servidor");
+  }
+};
+
+/**
+ * Marca (impreso = true) o desmarca (false) una guía como impresa (hgr_impreso). No aplica a guías canceladas.
+ * @param {{id: number, empresa: string, impreso: boolean}} params - id = hgr_id de la guía
+ * @throws Propaga el error; el mensaje del servidor viene en error.response.data.message
+ */
+export const CambiarImpresoGuiaRemision = async ({ id, empresa, impreso }) => {
+  const response = await axiosInstanceNew.patch(`/guias-remision/${id}/${impreso ? "impreso" : "no-impreso"}`, { empresa });
 
   if (response.data?.status !== "Ok!") {
     throw new Error(response.data?.message || "Respuesta inesperada del servidor");
@@ -142,6 +157,46 @@ export const ObtenerPdfGuiaRemision = async ({ id }) => {
   try {
     const res = await axiosInstanceNew.get(`/guias-remision/${id}/pdf`, { responseType: "blob" });
     return res.data;
+  } catch (error) {
+    // Con responseType "blob" el cuerpo del error también llega como Blob: se lee para obtener el mensaje
+    if (error.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text());
+      } catch (e) {
+        // cuerpo no JSON: se deja como está
+      }
+    }
+    throw error;
+  }
+};
+
+/**
+ * PDF de impresión de varias guías: el servidor une sus documentos electrónicos repitiendo cada uno 2 veces (TRANS. PROPIO) o 3 (otro
+ * transportista). Las guías que no se pudieron incluir vienen en `sinPdf` (números de guía) y `omitidas` (cantidad).
+ * @param {{ids: number[]}} params - hgr_id de las guías seleccionadas
+ * @returns {Promise<{blob: Blob, impresas: number, paginas: number, sinPdf: string[], omitidas: number, idsImpresos: number[], sinContenido: string[]}>}
+ * @throws Error de axios; 403 ninguna accesible, 404 ninguna con documento, 503 almacén no disponible
+ */
+export const ImprimirGuiasRemision = async ({ ids }) => {
+  try {
+    const res = await axiosInstanceNew.post(
+      "/guias-remision/imprimir",
+      { ids },
+      // El interceptor reintenta ante timeout: aquí no, relanzaría la generación
+      { responseType: "blob", timeout: 5 * 60 * 1000, _retry: true }
+    );
+    const h = res.headers;
+    return {
+      blob: res.data,
+      impresas: Number(h["x-guias-impresas"] || 0),
+      paginas: Number(h["x-paginas"] || 0),
+      sinPdf: String(h["x-guias-sin-pdf"] || "").split(",").filter(Boolean),
+      omitidas: Number(h["x-guias-omitidas"] || 0),
+      // Guías cuyo documento no tiene ninguna hoja con contenido (no se incluyeron)
+      sinContenido: String(h["x-guias-sin-contenido"] || "").split(",").filter(Boolean),
+      // hgr_id de las guías que el servidor dejó marcadas como impresas
+      idsImpresos: String(h["x-ids-marcados-impresos"] || "").split(",").filter(Boolean).map(Number),
+    };
   } catch (error) {
     // Con responseType "blob" el cuerpo del error también llega como Blob: se lee para obtener el mensaje
     if (error.response?.data instanceof Blob) {

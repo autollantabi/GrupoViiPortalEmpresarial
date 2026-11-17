@@ -22,6 +22,7 @@ import {
   Campo,
   CampoFijo,
   Contenedor,
+  PantallaCarga,
   Encabezado,
   Fila,
   Filas,
@@ -34,6 +35,7 @@ import {
   TextoObservacion,
   Td,
   Th,
+  ordenarPorIdentificador,
   claveProducto,
   textoEncontrados,
 } from "./compartido";
@@ -161,6 +163,7 @@ function CopiarProductos() {
   const hayObservaciones = productos.some(
     (p) => (observaciones[claveProducto(p)] || []).length > 0
   );
+  const [erroresSap, setErroresSap] = useState({}); // { IDENTIFICADOR: mensaje de SAP }
   const faltaUnidad = lineas.some((l) => !grupoPorLinea[l]);
 
   const motivoBloqueo = !puedeEditar
@@ -178,6 +181,7 @@ function CopiarProductos() {
   const copiar = async () => {
     if (motivoBloqueo || copiando) return;
     setCopiando(true);
+    setErroresSap({});
     try {
       const respuesta = await copiarProductosMDM({
         empresaOrigen,
@@ -187,7 +191,17 @@ function CopiarProductos() {
         gruposCompra: grupoPorLinea,
         productos: productos.map(claveProducto),
       });
-      toast.success(respuesta?.message || "Productos procesados");
+      const resultado = respuesta?.data || {};
+      const fallidos = resultado.Fallidos || [];
+      const creados = resultado.Creados || [];
+      setErroresSap(Object.fromEntries(fallidos.map((f) => [f.IDENTIFICADOR, f.Motivo])));
+      if (creados.length) {
+        toast.success(`${creados.length} producto(s) creados en SAP`);
+        // Los creados salen de la lista; quedan solo los que fallaron para corregir y reintentar
+        setProductos((previo) => previo.filter((p) => !creados.includes(claveProducto(p))));
+      }
+      if (fallidos.length) toast.error(`${fallidos.length} producto(s) no se pudieron crear en SAP`);
+      if (!creados.length && !fallidos.length) toast.success("Productos procesados");
     } catch (err) {
       const cuerpo = err?.response?.data;
       const detalle = cuerpo?.data;
@@ -199,7 +213,7 @@ function CopiarProductos() {
         );
       }
       if (detalle?.Errores?.length) {
-        detalle.Errores.forEach((e) => toast.error(`${e.IDENTIFICADOR}: ${e.Motivo}`));
+        setErroresSap(Object.fromEntries(detalle.Errores.map((e) => [e.IDENTIFICADOR, e.Motivo])));
       }
       toast.error(cuerpo?.message || "No se pudo copiar los productos");
     } finally {
@@ -249,6 +263,7 @@ function CopiarProductos() {
       alignItems="flex-start"
       style={{ padding: 0, overflow: "hidden" }}
     >
+      <PantallaCarga visible={copiando} />
       <Contenedor theme={theme}>
         <Encabezado>
           <ButtonUI
@@ -345,24 +360,28 @@ function CopiarProductos() {
                   <Th>Nombre</Th>
                   <Th>Código de barras</Th>
                   <Th>Línea</Th>
-                  <Th>Observaciones</Th>
                   <Th $align="center" $ancho="70px" />
                 </tr>
               </thead>
               <tbody>
-                {productos.map((producto, index) => (
+                {ordenarPorIdentificador(productos).map((producto, index) => (
                   <Fila key={claveProducto(producto)} $par={index % 2 === 0}>
                     <Td>{producto.IDENTIFICADOR || "—"}</Td>
-                    <Td $wrap>{producto.NOMBRE || "—"}</Td>
-                    <Td>{producto.CODIGO_BARRAS || "—"}</Td>
-                    <Td>{producto.LINEA_NEGOCIO || "—"}</Td>
                     <Td $wrap>
+                      {producto.NOMBRE || "—"}
                       {(observaciones[claveProducto(producto)] || []).map((texto) => (
                         <TextoObservacion key={texto} theme={theme}>
                           {texto}
                         </TextoObservacion>
                       ))}
+                      {erroresSap[claveProducto(producto)] && (
+                        <TextoObservacion theme={theme}>
+                          {erroresSap[claveProducto(producto)]}
+                        </TextoObservacion>
+                      )}
                     </Td>
+                    <Td>{producto.CODIGO_BARRAS || "—"}</Td>
+                    <Td>{producto.LINEA_NEGOCIO || "—"}</Td>
                     <Td $align="center">
                       <ButtonUI
                         iconLeft="FaXmark"

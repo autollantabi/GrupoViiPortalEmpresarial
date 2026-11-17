@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 
 /**
  * Constantes y estilos compartidos por las pantallas de Administración de
@@ -6,11 +6,52 @@ import styled from "styled-components";
  * este módulo no dependa del MDM principal.
  */
 
+const girar = keyframes`
+  to { transform: rotate(360deg); }
+`;
+
+const CapaCarga = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+`;
+
+const Giro = styled.div`
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  animation: ${girar} 0.8s linear infinite;
+`;
+
+/* Bloquea la pantalla con un spinner mientras se ejecuta una acción (p. ej. sincronizar con SAP) */
+export const PantallaCarga = ({ visible, mensaje = "Procesando..." }) =>
+  visible ? (
+    <CapaCarga role="alert" aria-busy="true">
+      <Giro />
+      <span>{mensaje}</span>
+    </CapaCarga>
+  ) : null;
+
 export const RECURSO_ADMIN_PRODUCTOS = "mdm.administracionproductos";
 export const RUTA_ADMIN_PRODUCTOS = "/mdm/administracionproductos";
 export const RUTA_COPIAR_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/copiar`;
 export const RUTA_IMPORTAR_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/importar`;
 export const RUTA_FACTURA_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/factura`;
+export const RUTA_FACTURA_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/factura`;
+export const RUTA_IMPORTAR_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/importar`;
+export const RUTA_ACTUALIZAR_PRECIOS_ARCHIVO = `${RUTA_ADMIN_PRODUCTOS}/actualizar-precios/archivo`;
+export const RUTA_COPIAR_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/copiar`;
 
 /* Compañías con las que trabaja el MDM */
 export const EMPRESAS_MDM = ["AUTOLLANTA", "MAXXIMUNDO", "STOX", "IKONIX", "AUTOMAX"];
@@ -53,6 +94,15 @@ export const TextoObservacion = styled.div`
 /* Texto "58 productos encontrados" */
 export const textoEncontrados = (n) =>
   `${n} producto${n === 1 ? "" : "s"} encontrado${n === 1 ? "" : "s"}`;
+
+/* Orden ascendente por identificador (numérico si corresponde); los sin identificador van al final */
+export const ordenarPorIdentificador = (lista) =>
+  [...lista].sort((a, b) => {
+    const x = String(a.IDENTIFICADOR ?? "");
+    const y = String(b.IDENTIFICADOR ?? "");
+    if (!x !== !y) return x ? -1 : 1;
+    return x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" });
+  });
 
 export const claveProducto =(producto) => producto.IDENTIFICADOR;
 
@@ -316,3 +366,46 @@ export function CampoFijo({ label, valor, theme }) {
     </Campo>
   );
 }
+
+export const InputIncremento = styled.input`
+  width: 90px;
+  padding: 6px 8px;
+  text-align: right;
+  border-radius: 5px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.backgroundCard || theme.colors.white};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 13px;
+`;
+
+/* Solo dígitos y un punto decimal */
+export const soloNumeros = (valor) => {
+  const limpio = String(valor ?? "").replace(/[^0-9.]/g, "");
+  const [entero, ...decimales] = limpio.split(".");
+  return decimales.length ? `${entero}.${decimales.join("")}` : entero;
+};
+
+/* Los precios se manejan con dos decimales (redondeo comercial, sin errores de coma flotante) */
+export const redondear2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+export const formatear = (n) => (Number.isFinite(n) ? redondear2(n).toFixed(2) : "—");
+
+/* PVP sin IVA
+   - Resto de líneas: PVD × (1 − descuento/100) × (1 + incremento/100).
+   - LLANTAS MOTO: igual que la hoja de Excel "=B10-15%+25%", donde cada % es el número
+     decimal (0,15 y 0,25), no un porcentaje del precio: PVP = PVD − descuento/100 + incremento/100. */
+export const calcularPvp = (pvd, incremento, descuento, esMoto = false) => {
+  const base = Number(pvd);
+  /* Sin incremento (vacío) se toma 0: el PVP queda igual al precio de lista A */
+  const inc = incremento === "" || incremento == null ? 0 : Number(incremento);
+  const desc = Number(descuento || 0);
+  if (
+    pvd == null ||
+    !Number.isFinite(base) ||
+    !Number.isFinite(inc) ||
+    !Number.isFinite(desc)
+  ) {
+    return null;
+  }
+  return esMoto ? base - desc / 100 + inc / 100 : base * (1 - desc / 100) * (1 + inc / 100);
+};
