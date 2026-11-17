@@ -207,6 +207,7 @@ const OPTIONS_ORIGEN_LUB = [
     { value: "Alemania", label: "Alemania" },
     { value: "Turquía", label: "Turquía" },
     { value: "Perú", label: "Perú" },
+    { value: "Singapur", label: "Singapur" },
 ];
 
 const OPTIONS_MEDIDA_LUB = [
@@ -275,6 +276,7 @@ const CODIGO_ORIGEN_LUB = {
     "ALEMANIA": "D236",
     "TURQUIA": "T124",
     "PERU": "E225",
+    "PERU": "S842",
 };
 
 /* Solo los ítems de origen Perú llevan este texto al final del nombre. */
