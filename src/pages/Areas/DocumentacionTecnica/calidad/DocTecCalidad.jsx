@@ -1454,6 +1454,12 @@ export const DocTecCalidad = () => {
                           <th>Base</th>
                           <th>Extraído del nombre</th>
                           <th>Estado</th>
+                          {r.atributo === "MARCA" && (
+                            <>
+                              <th className="num">Stock</th>
+                              <th>F. Última Compra</th>
+                            </>
+                          )}
                           <th className="num">Puntaje</th>
                         </tr>
                       </thead>
@@ -1474,12 +1480,18 @@ export const DocTecCalidad = () => {
                                 {x.estado}
                               </span>
                             </td>
+                            {r.atributo === "MARCA" && (
+                              <>
+                                <td className="num">{x.stock === null || x.stock === undefined ? "—" : miles(x.stock)}</td>
+                                <td>{x.ultima_compra || "—"}</td>
+                              </>
+                            )}
                             <td className="num">{x.score === null ? "" : coma(x.score, 1)}</td>
                           </tr>
                         ))}
                         {sinFilas && (
                           <tr>
-                            <td colSpan={10} className="vacio-fila">
+                            <td colSpan={r.atributo === "MARCA" ? 12 : 10} className="vacio-fila">
                               Ningún producto cumple los filtros.
                             </td>
                           </tr>
