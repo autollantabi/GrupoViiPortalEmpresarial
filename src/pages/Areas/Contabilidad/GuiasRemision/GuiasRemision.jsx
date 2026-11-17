@@ -887,7 +887,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
     if (ventana) ventana.document.title = "Preparando impresión…";
     setImprimiendo(true);
     try {
-      const { blob, impresas, paginas, sinPdf, omitidas, idsImpresos } = await ImprimirGuiasRemision({ ids: seleccion.map((s) => s.id) });
+      const { blob, impresas, paginas, sinPdf, omitidas, idsImpresos, sinContenido } = await ImprimirGuiasRemision({ ids: seleccion.map((s) => s.id) });
       const url = window.URL.createObjectURL(blob);
       if (esTactil) {
         const enlace = document.createElement("a");
@@ -907,6 +907,7 @@ export const GuiasRemision = ({ availableCompanies = [], routeConfig }) => {
       actualizarImpresoLocal(idsImpresos, true);
 
       toast.success(`PDF listo: ${impresas} guía${impresas === 1 ? "" : "s"}, ${paginas} página${paginas === 1 ? "" : "s"} (con copias)`);
+      if (sinContenido.length) toast.warn(`Documento sin contenido, no incluidas: ${sinContenido.join(", ")}`, { autoClose: 12000 });
       if (sinPdf.length) toast.warn(`Sin documento electrónico, no incluidas: ${sinPdf.join(", ")}`, { autoClose: 12000 });
       else if (omitidas) toast.warn(`${omitidas} guía${omitidas === 1 ? "" : "s"} no se incluyeron (canceladas o sin acceso)`);
     } catch (err) {

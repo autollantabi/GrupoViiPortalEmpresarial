@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import styled from "styled-components";
 import { toast } from "react-toastify";
 import { useTheme } from "context/ThemeContext";
 import { ContainerUI } from "components/UI/Components/ContainerUI";
@@ -32,52 +31,14 @@ import {
   Td,
   Th,
   ordenarPorIdentificador,
+  InputIncremento,
+  soloNumeros,
+  redondear2,
+  formatear,
+  calcularPvp,
   claveProducto,
   textoEncontrados,
 } from "./compartido";
-
-const InputIncremento = styled.input`
-  width: 90px;
-  padding: 6px 8px;
-  text-align: right;
-  border-radius: 5px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.backgroundCard || theme.colors.white};
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 13px;
-`;
-
-/* Solo dígitos y un punto decimal */
-const soloNumeros = (valor) => {
-  const limpio = String(valor ?? "").replace(/[^0-9.]/g, "");
-  const [entero, ...decimales] = limpio.split(".");
-  return decimales.length ? `${entero}.${decimales.join("")}` : entero;
-};
-
-/* Los precios se manejan con dos decimales (redondeo comercial, sin errores de coma flotante) */
-const redondear2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
-
-const formatear = (n) => (Number.isFinite(n) ? redondear2(n).toFixed(2) : "—");
-
-/* PVP sin IVA
-   - Resto de líneas: PVD × (1 − descuento/100) × (1 + incremento/100).
-   - LLANTAS MOTO: igual que la hoja de Excel "=B10-15%+25%", donde cada % es el número
-     decimal (0,15 y 0,25), no un porcentaje del precio: PVP = PVD − descuento/100 + incremento/100. */
-const calcularPvp = (pvd, incremento, descuento, esMoto = false) => {
-  const base = Number(pvd);
-  /* Sin incremento (vacío) se toma 0: el PVP queda igual al precio de lista A */
-  const inc = incremento === "" || incremento == null ? 0 : Number(incremento);
-  const desc = Number(descuento || 0);
-  if (
-    pvd == null ||
-    !Number.isFinite(base) ||
-    !Number.isFinite(inc) ||
-    !Number.isFinite(desc)
-  ) {
-    return null;
-  }
-  return esMoto ? base - desc / 100 + inc / 100 : base * (1 - desc / 100) * (1 + inc / 100);
-};
 
 function CopiarPrecios() {
   const { theme } = useTheme();
