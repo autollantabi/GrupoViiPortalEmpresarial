@@ -18,7 +18,7 @@ export const ComercialMarketing = () => {
       id: 0,
       tituloBtn: "Comercial",
       titulo: "Ventas - Marketing",
-      url: "https://app.powerbi.com/view?r=eyJrIjoiOTE4OTE2YTAtODk5Ny00MmZlLWI3YzUtOTczNzcxMDc4NWYxIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+      url: "https://app.powerbi.com/view?r=eyJrIjoiNTEwOWNiNDgtODJlZi00NDJhLTgwNDItM2U1YmM5MmY4ZWFkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     },
   ];
 
