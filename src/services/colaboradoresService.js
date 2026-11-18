@@ -28,6 +28,13 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {"Activo"|"Inactivo"} estado
  * @property {string|null} fechaIngreso  Formato AAAA-MM-DD
  * @property {string|null} fechaSalida   Formato AAAA-MM-DD
+ * @property {string|null} legalizadoIessEn
+ * @property {string|null} legalizadoMinisterioEn
+ * @property {string|null} creadoSapExcelEn
+ * @property {string|null} creadoNominaEn
+ * @property {string|null} archivadoIngresoEn
+ * @property {string|null} fechaLimiteIess
+ * @property {string|null} fechaLimiteMinisterio
  *
  * @typedef {Object} Movimiento
  * @property {number} id
@@ -80,6 +87,13 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {number|null} motivoSalidaId
  * @property {string|null} motivoSalida
  * @property {string|null} observacion
+ * @property {string|null} legalizadoIessEn
+ * @property {string|null} legalizadoMinisterioEn
+ * @property {string|null} creadoSapExcelEn
+ * @property {string|null} creadoNominaEn
+ * @property {string|null} archivadoIngresoEn
+ * @property {string|null} fechaLimiteIess
+ * @property {string|null} fechaLimiteMinisterio
  * @property {AuditoriaResumen} auditoria
  * @property {Movimiento[]} movimientos
  *
@@ -653,6 +667,22 @@ export const ObtenerPeriodoPruebaPendientes = async ({ signal } = {}) => {
     }));
   } catch (error) {
     return propagar(error, "No se pudo obtener el período de prueba pendiente");
+  }
+};
+
+/** Colaboradores Activos con al menos un trámite del checklist de ingreso pendiente. */
+export const ObtenerChecklistIngresoPendientes = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/checklist-ingreso/pendientes`, { signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      empleadoId: numero(fila.empleadoId),
+      fechaIngreso: soloFecha(fila.fechaIngreso),
+      fechaLimiteIess: soloFecha(fila.fechaLimiteIess),
+      fechaLimiteMinisterio: soloFecha(fila.fechaLimiteMinisterio),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el checklist de ingreso pendiente");
   }
 };
 
