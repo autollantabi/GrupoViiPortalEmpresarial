@@ -1722,15 +1722,15 @@ function Llantas() {
                 (respNuevos?.errors || []).forEach(e => {
                     const payloadConError = payloadsNuevos[e.index];
                     idsConError.add(payloadConError?.__localId);
-                    // El artículo duplicado (mismo Código de Barras o Código Proveedor) no se
-                    // envía; se avisa puntualmente cuál es, en vez de solo el conteo genérico.
-                    toast.error(`${payloadConError?.CODIGO_BARRAS || payloadConError?.CODIGO_PROVEEDOR || "Artículo"}: ${e.message}`);
                     const esDuplicado = String(e.message || "").toLowerCase().includes("ya existe");
                     if (esDuplicado && payloadConError?.__localId !== undefined) {
                         idsConDuplicado.push(payloadConError.__localId);
                     }
                 });
                 if (idsConDuplicado.length > 0) {
+                    // Un solo aviso agrupado en vez de un toast por cada artículo duplicado;
+                    // el detalle de cuál quedó pendiente se ve en la fila (texto en rojo).
+                    toast.error("Algunos artículos ya se encuentran creados.");
                     setErroresEnvioPorId(prev => {
                         const next = { ...prev };
                         idsConDuplicado.forEach(id => { next[id] = "El artículo ya existe"; });
@@ -4023,27 +4023,38 @@ function Llantas() {
                 isOpen={isSAPModalOpen}
                 onClose={() => setIsSAPModalOpen(false)}
                 title="Confirmar envío a revisión"
-                width="460px"
+                width="420px"
+                cancelText="Cancelar"
+                saveText="Confirmar"
+                onSave={async () => {
+                    const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
+                    await handleFinalSubmit(currentItems);
+                }}
             >
-                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                    <TextUI text="¿Estás seguro de enviar todos los artículos/ítems a la siguiente fase de revisión?" variant="small" />
-                    <div style={{ borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, paddingTop: "16px", marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                        <ButtonUI
-                            text="Cancelar"
-                            variant="outlined"
-                            onClick={() => setIsSAPModalOpen(false)}
-                        />
-                        <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Confirmar"}
-                            pcolor={theme?.colors?.primary}
-                            disabled={isSubmitting}
-                            onClick={async () => {
-                                const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
-                                handleFinalSubmit(currentItems);
-                            }}
-                        />
-                    </div>
-                </div>
+                {(() => {
+                    const cantidadAEnviar = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length;
+                    return (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px", padding: "8px 8px 4px" }}>
+                            <div style={{
+                                width: "56px",
+                                height: "56px",
+                                borderRadius: "50%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: `${theme?.colors?.primary || "#ff6600"}1A`,
+                            }}>
+                                <IconUI name="FaPaperPlane" size={24} color={theme?.colors?.primary || "#ff6600"} />
+                            </div>
+                            <TextUI size="16px" weight="600">
+                                {`Se enviarán ${cantidadAEnviar} artículo${cantidadAEnviar === 1 ? "" : "s"} a revisión`}
+                            </TextUI>
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Pasarán a la siguiente fase del flujo de aprobación. Los que ya existan quedarán marcados como pendientes.
+                            </TextUI>
+                        </div>
+                    );
+                })()}
             </ModalUI>
 
             <ModalUI
