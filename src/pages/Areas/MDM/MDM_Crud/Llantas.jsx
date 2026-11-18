@@ -2582,12 +2582,12 @@ function Llantas() {
                                             )}
                                             {idRolPrincipal === 4 && (
                                                 <>
-                                                    <Th>Marca</Th>
-                                                    <Th $min="150px">Diseño</Th>
-                                                    <Th $w="250px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
+                                                    <Th $min="200px">Marca</Th>
+                                                    <Th $min="250px">Diseño</Th>
+                                                    <Th $w="450px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                     <Th>Imagen PNG</Th>
                                                     <Th>Imagen WebP</Th>
-                                                    <Th $min="200px">Comentarios</Th>
+                                                    <Th $w="130px">Comentarios</Th>
                                                     <Th $w="100px" $align="center" $fija="right">Acciones</Th>
                                                 </>
                                             )}
@@ -2769,17 +2769,17 @@ function Llantas() {
                                                     <>
 
                                                         <Td $densa>
-                                                            <CeldaLectura>
+                                                            <CeldaLectura title={item.marca || "-"}>
                                                                 {item.marca || "-"}
                                                             </CeldaLectura>
                                                         </Td>
                                                         <Td $densa>
-                                                            <CeldaLectura>
+                                                            <CeldaLectura title={item.diseño || "-"}>
                                                                 {item.diseño || "-"}
                                                             </CeldaLectura>
                                                         </Td>
-                                                        <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="250px">
-                                                            <CeldaLectura>
+                                                        <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="450px">
+                                                            <CeldaLectura title={item.descripcion || "-"}>
                                                                 {item.descripcion || "-"}
                                                             </CeldaLectura>
                                                         </Td>
@@ -2927,7 +2927,7 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa>
                                                             <InputUI
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", width: "110px" }}
                                                                 value={item.comentarios || ""}
                                                                 onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
                                                             />
