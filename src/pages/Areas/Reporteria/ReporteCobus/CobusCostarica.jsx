@@ -4,15 +4,15 @@ import { TemplateReporteria } from "../TemplateReporteria";
 const REPORTES = [
   {
     id: 0,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiOTgzNWFiZTktNDFkMC00NWZhLWFjMGMtMDZlZTg4MjI4ZTFhIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
-    titulo: "Cobus",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiZTNhY2E0ODMtMzJkYy00MzQ1LTllMmUtNDNhNWIxNmI0Yzg5IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    titulo: "Cobus Costa Rica",
     rol: "jefatura",
     linea: null,
     empresa: "GRUPOVII"
   },
 ];
 
-export const ReporteCobus = ({
+export const ReporteCobusCostarica = ({
   routeConfig,
   availableCompanies = [],
   availableLines = [],
