@@ -1267,7 +1267,7 @@ export const DocTecCalidad = () => {
                 </ul>
                 {res.aparte.length > 0 && (
                   <>
-                    <p className="aparte-titulo">No entra al índice</p>
+                    <p className="aparte-titulo">Unidades de Medida</p>
                     <ul className="atributos">
                       {res.aparte.map((a) => (
                         <FilaAtributo key={a.clave} a={a} activa={a.clave === atributo} onElegir={elegirAtributo} />

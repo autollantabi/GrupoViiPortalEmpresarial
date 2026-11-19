@@ -23,6 +23,12 @@ export async function DocTec_ObtenerCompletitudResumen(filtros) {
   return res.data.data;
 }
 
+/** Vuelve a leer core.dim_item ahora, sin esperar al caché del servidor: { ok, productos, fecha_hora }. */
+export async function DocTec_ActualizarCompletitud() {
+  const res = await axiosInstanceNew.post(`${BASE}/actualizar`, {}, { timeout: 180000 });
+  return res.data.data;
+}
+
 /** Productos a corregir o a revisar, de 100 en 100: { total, siguiente, filas[] }. */
 export async function DocTec_ObtenerCompletitudProductos(filtros, { vista, q, n, campo, pagina }) {
   const res = await axiosInstanceNew.get(`${BASE}/productos`, { params: parametros(filtros, { vista, q, n, campo, pagina }) });
