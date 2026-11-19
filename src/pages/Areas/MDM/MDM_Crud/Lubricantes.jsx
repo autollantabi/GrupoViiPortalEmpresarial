@@ -276,7 +276,7 @@ const CODIGO_ORIGEN_LUB = {
     "ALEMANIA": "D236",
     "TURQUIA": "T124",
     "PERU": "E225",
-    "PERU": "S842",
+    "SINGAPUR": "S842",
 };
 
 /* Solo los ítems de origen Perú llevan este texto al final del nombre. */
