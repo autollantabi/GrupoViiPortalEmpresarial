@@ -65,7 +65,8 @@ const REPORTES = [
   },
   {
     id: 8,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiMTA4ZTBiY2EtNTljYi00MmVmLTgwYWEtYzQ1NzAyNmE5ZDljIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: " https://app.powerbi.com/view?r=eyJrIjoiOTVhMmVjZTQtMDc4ZS00OWNkLTg3NzktOWI4ODVhODEyYjc2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    // url: "https://app.powerbi.com/view?r=eyJrIjoiMTA4ZTBiY2EtNTljYi00MmVmLTgwYWEtYzQ1NzAyNmE5ZDljIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "jefatura",
     linea: "LLANTAS",
@@ -74,7 +75,7 @@ const REPORTES = [
   },
   {
     id: 9,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiN2Y5ZGNkNWUtZmZiMC00NzY3LWFjNDMtODEzYjJjZWQyNzJiIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMjRhNGRjMGItMTAyNC00OGRlLWFlNTItZTBkNGUwOTMwZTM4IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "jefatura",
     linea: "LLANTAS",
@@ -82,7 +83,7 @@ const REPORTES = [
   },
   {
     id: 10,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiNDMzOTNjZjgtYzJiYi00MmE2LTgyMDMtNzM0ZTkwOGJjM2E1IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMDA3NGJmNmMtY2ZmOC00OWJlLTg5Y2EtNTVhMWViYjkzNGJkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "jefatura",
     linea: "LLANTAS",
@@ -90,7 +91,7 @@ const REPORTES = [
   },
   {
     id: 11,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiZjY0OGMzNTEtZDhhMy00ZDY2LTkzODItN2Y1YmFiOGI5YmM0IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMGVhZGI1YjQtY2IyOC00MzY4LWEwZDQtMGZmMzA0NDBhMjBkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "jefatura",
     linea: "LLANTAS MOTO",
@@ -98,7 +99,7 @@ const REPORTES = [
   },
   {
     id: 12,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiMjNiZDZjZWItMTc2My00YjU0LTljMzMtNzMzMmFhYzMwMzBiIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiMjJmODYyNWMtZGM3Yy00ZDE4LTk3MWMtYzNhYjQwZjkyMjY5IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "jefatura",
     linea: "LUBRICANTES",
@@ -106,7 +107,7 @@ const REPORTES = [
   },
   {
     id: 13,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiMzhjYzYyZjMtZTk1OC00NjA5LTljY2EtNWE3OWRlNWZmMDZiIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9 ",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiODczZmJkYWItYWFmZS00NWQyLWJmMDQtZjNjZWI3NjE4MzU2IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "jefatura",
     linea: "HERRAMIENTAS",
@@ -171,7 +172,7 @@ const REPORTES = [
   },
   {
     id: 21,
-    url: "https://app.powerbi.com/view?r=eyJrIjoiZmNjNGZkMmItMjJhZi00MmU3LTllMmYtN2I0OTBkNzg1ZGVkIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    url: "https://app.powerbi.com/view?r=eyJrIjoiYWViNzQ0OTQtMDk2My00MmY0LTgwM2QtZDUwMDRmOTMwZGRhIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
     titulo: "Flash de Ventas - Grupo VII (JEFATURA)",
     rol: "jefatura",
     linea: "LLANTAS",
