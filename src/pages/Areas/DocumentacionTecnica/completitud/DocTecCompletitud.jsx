@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
+import { toast } from "react-toastify";
 import {
+  DocTec_ActualizarCompletitud,
   DocTec_DescargarCompletitudCsv,
   DocTec_ObtenerCompletitudDuplicados,
   DocTec_ObtenerCompletitudProductos,
@@ -160,6 +162,12 @@ const Estilos = styled.div`
     margin: 0 0 2px;
     font-size: 1.05rem;
     color: var(--titulo);
+  }
+  .com-bloque {
+    margin: 22px 0 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--suave);
   }
   .com-nota {
     margin: 2px 0 14px;
@@ -499,21 +507,30 @@ function Resumen({ m, cfg, dim, setDim, ir }) {
           De peor a mejor. Clic en un campo para ver los productos que lo tienen vacío. Verde desde{" "}
           {cfg.semaforo.verde.toFixed(2).replace(".", ",")}, amarillo desde {cfg.semaforo.amarillo.toFixed(2).replace(".", ",")}.
         </p>
-        <ul className="com-barras com-campos">
-          {m.campos.map((c) => (
-            <li key={c.campo}>
-              <button type="button" onClick={() => ir("corregir", { campo: c.campo })}>
-                <span className="com-et">{c.campo}</span>
-                <span className="com-pista">
-                  <i className={`bg-${c.semaforo}`} style={{ width: ancho(c.pct) }} />
-                </span>
-                <span className="com-val">
-                  <span className={`sf-pill sf-${c.semaforo}`}>{pct1(c.pct)} %</span> <small>{c.vacios} vacíos</small>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {[null, ...new Set(m.campos.map((c) => c.bloque).filter(Boolean))].map((bloque) => {
+          const campos = m.campos.filter((c) => (c.bloque ?? null) === bloque);
+          if (!campos.length) return null;
+          return (
+            <React.Fragment key={bloque ?? "general"}>
+              {bloque && <p className="com-bloque">{bloque}</p>}
+              <ul className="com-barras com-campos">
+                {campos.map((c) => (
+                  <li key={c.campo}>
+                    <button type="button" onClick={() => ir("corregir", { campo: c.campo })}>
+                      <span className="com-et">{c.campo}</span>
+                      <span className="com-pista">
+                        <i className={`bg-${c.semaforo}`} style={{ width: ancho(c.pct) }} />
+                      </span>
+                      <span className="com-val">
+                        <span className={`sf-pill sf-${c.semaforo}`}>{pct1(c.pct)} %</span> <small>{c.vacios} vacíos</small>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </React.Fragment>
+          );
+        })}
       </section>
 
       {m.revisar.length > 0 && (
@@ -687,6 +704,8 @@ export const DocTecCompletitud = () => {
   const [productos, setProductos] = useState({ filas: [], total: 0, siguiente: null, cargando: false });
   const [duplicados, setDuplicados] = useState(null);
   const [descargando, setDescargando] = useState(false);
+  const [actualizando, setActualizando] = useState(false);
+  const [version, setVersion] = useState(0); // sube al pulsar «Actualizar datos» para volver a pedir todo
 
   const cajaRef = useRef(null);
   const peticion = useRef(0);
@@ -706,7 +725,7 @@ export const DocTecCompletitud = () => {
     return () => {
       vivo = false;
     };
-  }, [aplicados]);
+  }, [aplicados, version]);
 
   // Tabla continua: primer lote
   useEffect(() => {
@@ -718,7 +737,7 @@ export const DocTecCompletitud = () => {
       .then((d) => mia === peticion.current && setProductos({ filas: d.filas, total: d.total, siguiente: d.siguiente, cargando: false }))
       .catch(() => mia === peticion.current && (setProductos((p) => ({ ...p, cargando: false })), setError("No se pudieron cargar los productos.")));
     return undefined;
-  }, [vista, aplicados, qAplicado, n, campo]);
+  }, [vista, aplicados, qAplicado, n, campo, version]);
 
   // Códigos repetidos
   useEffect(() => {
@@ -731,7 +750,7 @@ export const DocTecCompletitud = () => {
     return () => {
       vivo = false;
     };
-  }, [vista, aplicados]);
+  }, [vista, aplicados, version]);
 
   // Siguiente lote cuando se llega al final de la tabla
   const cargarMas = useCallback(() => {
@@ -769,6 +788,19 @@ export const DocTecCompletitud = () => {
 
   const hayFiltros = Object.values(filtros).some((v) => v.length);
 
+  const actualizar = async () => {
+    setActualizando(true);
+    try {
+      const r = await DocTec_ActualizarCompletitud();
+      toast.success(`Completitud actualizada: ${miles(r.productos)} productos leídos de la base.`);
+      setVersion((v) => v + 1);
+    } catch (e) {
+      toast.error(e.response?.data?.message ?? "No se pudo actualizar la completitud. Revisa que la API y la base estén disponibles.");
+    } finally {
+      setActualizando(false);
+    }
+  };
+
   const descargar = async () => {
     setDescargando(true);
     try {
@@ -803,6 +835,7 @@ export const DocTecCompletitud = () => {
       <Estilos>
         <div className="titulo-fila">
           <h1>{cfg.titulo}</h1>
+          <ButtonUI text={actualizando ? "Actualizando…" : "Actualizar datos"} variant="outlined" onClick={actualizar} disabled={actualizando} />
         </div>
 
         <form className="filtros-generales" onSubmit={(e) => { e.preventDefault(); setQAplicado(q); }} aria-labelledby="t-filtros">

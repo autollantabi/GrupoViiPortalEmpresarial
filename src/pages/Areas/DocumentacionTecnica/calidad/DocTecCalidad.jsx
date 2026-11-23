@@ -470,7 +470,7 @@ const Estilos = styled.div`
   }
   .ap-fila {
     display: grid;
-    grid-template-columns: 7rem 1fr;
+    grid-template-columns: 8.2rem 1fr;
     gap: 10px;
     align-items: center;
     font-size: 0.85rem;
@@ -1267,7 +1267,7 @@ export const DocTecCalidad = () => {
                 </ul>
                 {res.aparte.length > 0 && (
                   <>
-                    <p className="aparte-titulo">No entra al índice</p>
+                    <p className="aparte-titulo">Unidades de Medida</p>
                     <ul className="atributos">
                       {res.aparte.map((a) => (
                         <FilaAtributo key={a.clave} a={a} activa={a.clave === atributo} onElegir={elegirAtributo} />
@@ -1336,7 +1336,7 @@ export const DocTecCalidad = () => {
                       <div className="apiladas" role="img" aria-label="Estado de cada atributo">
                         {r.detalle.apiladas.map((a) => (
                           <div className="ap-fila" key={a.atributo}>
-                            <span className="ap-etq">{a.atributo.charAt(0) + a.atributo.slice(1).toLowerCase()}</span>
+                            <span className="ap-etq">{a.nombre ?? a.atributo.charAt(0) + a.atributo.slice(1).toLowerCase()}</span>
                             <span className="ap-barra">
                               {a.segmentos.map(
                                 (s) =>
@@ -1345,7 +1345,7 @@ export const DocTecCalidad = () => {
                                       key={s.estado}
                                       className={`seg e-${s.clase}`}
                                       style={{ width: `${s.pct.toFixed(2)}%` }}
-                                      title={`${a.atributo.charAt(0) + a.atributo.slice(1).toLowerCase()} · ${s.estado}: ${s.n} (${coma(s.pct, 1)} %)`}
+                                      title={`${a.nombre ?? a.atributo.charAt(0) + a.atributo.slice(1).toLowerCase()} · ${s.estado}: ${s.n} (${coma(s.pct, 1)} %)`}
                                     />
                                   )
                               )}
