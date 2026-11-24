@@ -22,7 +22,7 @@ import styled from "styled-components";
 /* quedan congeladas a los costados.                                   */
 /* ------------------------------------------------------------------ */
 
-const TablaScroll = styled.div`
+export const TablaScroll = styled.div`
     flex: 1;
     min-height: 0;
     overflow: auto;
@@ -44,7 +44,7 @@ const TablaScroll = styled.div`
     }
 `;
 
-const Tabla = styled.table`
+export const Tabla = styled.table`
     width: max-content;
     min-width: 100%;
     border-collapse: separate;
@@ -55,13 +55,13 @@ const Tabla = styled.table`
 
 /* Ancho exacto de la columna de selección: es el desplazamiento con el que
    se congela una segunda columna, así que no puede negociarlo el navegador. */
-const ANCHO_COL_SELECCION = "76px";
+export const ANCHO_COL_SELECCION = "76px";
 
 /* Ancho de la columna Nombre cuando va congelada (rol 5), misma técnica que
    Llantas.jsx: acotado a propósito para no comerse el ancho útil del scroll. */
 const ANCHO_COL_NOMBRE = "220px";
 
-const Th = styled.th`
+export const Th = styled.th`
     position: sticky;
     top: 0;
     z-index: ${({ $fija }) => ($fija ? 5 : 3)};
@@ -93,7 +93,7 @@ const Th = styled.th`
         $fija === "right" ? `border-left: 2px solid ${theme?.colors?.white || "#ffffff"};` : ""}
 `;
 
-const Td = styled.td`
+export const Td = styled.td`
     padding: ${({ $densa }) => ($densa ? "4px 8px" : "9px 14px")};
     text-align: ${({ $align }) => $align || "left"};
     vertical-align: middle;
@@ -231,7 +231,7 @@ const limpiarNombreBase = (nombreBase, marca = "") => {
     return sinNew.replace(new RegExp("^(" + quitar.join("|") + ")\\s+", "i"), "").trim();
 };
 
-const calcularNombreSistema = (nombreBase, isNew = false, marca = "") => {
+export const calcularNombreSistema = (nombreBase, isNew = false, marca = "") => {
     const limpio = limpiarNombreBase(nombreBase, marca);
     if (!limpio) return "";
     const abreviatura = ABREVIATURA_POR_MARCA[String(marca || "").trim().toUpperCase()];
@@ -250,7 +250,7 @@ const interpretarEsNuevo = (valor) => {
 
 /* Bandera "Es nuevo". El fallback conserva el comportamiento de los ítems
    que todavía no traen el campo. */
-const esNuevo = (item) =>
+export const esNuevo = (item) =>
     item?.isNew !== undefined && item?.isNew !== null
         ? Boolean(item.isNew)
         : !item?.fueRechazado;
@@ -342,7 +342,7 @@ const OPTIONS_UNIDAD = [
 const SEP_CATALOGO = "\u0001";
 
 /* Catálogo Grupo > Subgrupo > Subgrupo 1 > Tipo indexado para consultar sus opciones sin filtrar. */
-const construirCatalogoHerramientas = (filas = []) => {
+export const construirCatalogoHerramientas = (filas = []) => {
     const grupos = new Set();
     const porGrupo = new Map();
     const porSubgrupo = new Map();
