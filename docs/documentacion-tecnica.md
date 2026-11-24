@@ -98,11 +98,24 @@ Ejemplo: «Linaje».
 4. No hace falta tocar `Routes.js`, el menú ni los permisos del portal: la ruta y el menú se generan solos.
 5. Asigne el recurso a quien deba verlo (o use la raíz) desde «Asignaciones importantes».
 
+## 4. bis. Menú «Gobierno de Datos» (submenús)
+
+El módulo se llama ahora «Gobierno de Datos» y el menú tiene grupos: Documentación (Diccionario, DWH mapping, Horario
+Automatizaciones), Caracterización › Productos, Calidad › Productos, Completitud › Productos y Parametrización Mapping ›
+Productos › Líneas / Vendedor. Los submenús salen de los puntos del recurso (`documentaciontecnica.calidad.productos`). El título de
+cada grupo se declara en `index.js` con un item `rootOnly` cuyo recurso tiene varios niveles (así llevan tildes); `SimpleRouter.jsx`
+(`titulosGrupos`) lo usa y, si no hay, capitaliza el nombre del nivel.
+
+Cada pantalla que cambió de lugar se declara con el ayudante `movida(...)` de `index.js`: crea la ruta nueva (recurso nuevo, el
+antiguo como `recursosAlternativos`) **y** una ruta antigua oculta (`hideInSidebar`) para que sigan funcionando los enlaces y
+permisos anteriores. Para añadir «Socios» basta una entrada con su recurso (`documentaciontecnica.calidad.socios`, etc.): aparece
+sola en su grupo.
+
 ## 4a. Pestaña «Líneas» (copia de una pantalla de otra área)
 
 `lineas/DocTecLineas.jsx` es una **copia** de «Monitoreo de Líneas» (`pages/Areas/Negocio/Linea/Linea.jsx`): mismos endpoints
 (`/dwh-postgres/linea-negocio-parametros`, vía `postgresService`) y misma apariencia. Se duplicó para que TI la use sin acceso al área
-Negocio. La única diferencia: puede editar quien tenga el permiso 2 en `negocio.linea` **o** el recurso `documentaciontecnica.lineas`
+Negocio. La única diferencia: puede editar quien tenga el permiso 2 en `negocio.linea` **o** el recurso `documentaciontecnica.parametrizacion.productos.lineas` (o el antiguo `documentaciontecnica.lineas`)
 (o la raíz `documentaciontecnica`). Si cambia la original, hay que replicar el cambio en la copia.
 
 `vendedor/DocTecVendedor.jsx` es del mismo modo una copia de «Vendedor» (`pages/Areas/Negocio/Vendedor/Vendedor.jsx`), recurso

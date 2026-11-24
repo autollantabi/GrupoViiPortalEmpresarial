@@ -95,7 +95,8 @@ export function DocTecLineas() {
   // ese módulo es de uso exclusivo de TI.
   const canEdit = useMemo(() => {
     const contextos = user?.CONTEXTOS || user?.data || [];
-    if (contextos.some(ctx => ctx.RECURSO === "documentaciontecnica.lineas" || ctx.RECURSO === "documentaciontecnica")) return true;
+    const recursosTI = ["documentaciontecnica.parametrizacion.productos.lineas", "documentaciontecnica.lineas", "documentaciontecnica"];
+    if (contextos.some(ctx => recursosTI.includes(ctx.RECURSO))) return true;
     const contextoNegocioLinea = contextos.find(ctx => ctx.RECURSO === "negocio.linea");
     if (!contextoNegocioLinea) return false;
 

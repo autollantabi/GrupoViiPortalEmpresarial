@@ -11,8 +11,8 @@ import { LoaderUI } from "components/UI/Components/LoaderUI";
    con diagrama de transformación, regla de cálculo, guía interactiva y valores reales.
    ===================================================================================== */
 
-/** Ruta del Diccionario (mismo criterio del portal: recurso "documentaciontecnica.diccionario"). */
-const RUTA_DICCIONARIO = "/documentaciontecnica/diccionario";
+/** Ruta del Diccionario (recurso "documentaciontecnica.documentacion.diccionario"; la ruta antigua sigue activa). */
+const RUTA_DICCIONARIO = "/documentaciontecnica/documentacion/diccionario";
 
 const Estilos = styled.div`
   display: grid;
