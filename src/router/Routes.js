@@ -110,10 +110,11 @@ import { ReporteAutomaxNeumaticos } from "pages/Areas/Reporteria/AutomaxNeumatic
 import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
 import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnidadesVendidas/ReporteIkonixUnidadesVendidas";
-import { ReporteCobus } from "pages/Areas/Reporteria/ReporteCobus/Cobus";
 import { ReporteTop200ClientesIkonix } from "pages/Areas/Reporteria/NuevoReporte/NuevoReporte";
 import { ReporteInventarioBodegaHerramientas } from "pages/Areas/Reporteria/InventarioBodegaHerramientas/ReporteInventarioBodegaHerramientas";
 import { rutasDocumentacionTecnica } from "pages/Areas/DocumentacionTecnica";
+import { ReporteCobusCostarica } from "pages/Areas/Reporteria/ReporteCobus/CobusCostarica";
+import { ReporteCobusEcuador } from "pages/Areas/Reporteria/ReporteCobus/CobusEcuador";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -635,9 +636,14 @@ export const RoutesConfig = [
     recurso: "reportes.importacionescobus",
   },
   {
-    title: "Cobus",
-    component: ReporteCobus,
-    recurso: "reportes.cobus",
+    title: "Cobus Costa Rica",
+    component: ReporteCobusCostarica,
+    recurso: "reportes.cobuscostarica",
+  },
+  {
+    title: "Cobus Ecuador",
+    component: ReporteCobusEcuador,
+    recurso: "reportes.cobusecuador",
   },
   {
     title: "Top Clientes",

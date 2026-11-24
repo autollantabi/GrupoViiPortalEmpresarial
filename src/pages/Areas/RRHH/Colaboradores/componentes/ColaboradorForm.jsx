@@ -15,6 +15,7 @@ import {
 import { CampoLabel } from "./CampoLabel";
 import { ComboLibreUI } from "./ComboLibreUI";
 import { EditorCorreosAdicionales, validarCorreosAdicionales } from "./EditorCorreosAdicionales";
+import { ColumnaDatos, ColumnasIngreso, TramitesIngreso } from "./TramitesIngreso";
 import {
   Acciones,
   AreaTexto,
@@ -94,6 +95,18 @@ const VACIO = {
   telefonoEmpresarial: "",
   fechaIngreso: "",
   observacion: "",
+  // Checklist de tramites de ingreso. El booleano manda el check; el "...En"
+  // solo se usa para mostrar la fecha en que se marco (ver CampoChecklist).
+  legalizadoIess: false,
+  legalizadoIessEn: null,
+  legalizadoMinisterio: false,
+  legalizadoMinisterioEn: null,
+  creadoSapExcel: false,
+  creadoSapExcelEn: null,
+  creadoNomina: false,
+  creadoNominaEn: null,
+  archivadoIngreso: false,
+  archivadoIngresoEn: null,
 };
 
 const desdeFicha = (ficha) =>
@@ -129,13 +142,21 @@ const desdeFicha = (ficha) =>
         sustitutoParentesco: ficha.sustitutoParentesco ?? null,
         correoCorporativo: ficha.correoCorporativo ?? "",
         permiteMultiplesCorreos: ficha.permiteMultiplesCorreos === true,
-        correosAdicionales: Array.isArray(ficha.correosAdicionales)
-          ? ficha.correosAdicionales
-          : [],
+        correosAdicionales: Array.isArray(ficha.correosAdicionales) ? ficha.correosAdicionales : [],
         extension: ficha.extension ?? "",
         telefonoEmpresarial: ficha.telefonoEmpresarial ?? "",
         fechaIngreso: ficha.fechaIngreso ?? "",
         observacion: ficha.observacion ?? "",
+        legalizadoIess: Boolean(ficha.legalizadoIessEn),
+        legalizadoIessEn: ficha.legalizadoIessEn ?? null,
+        legalizadoMinisterio: Boolean(ficha.legalizadoMinisterioEn),
+        legalizadoMinisterioEn: ficha.legalizadoMinisterioEn ?? null,
+        creadoSapExcel: Boolean(ficha.creadoSapExcelEn),
+        creadoSapExcelEn: ficha.creadoSapExcelEn ?? null,
+        creadoNomina: Boolean(ficha.creadoNominaEn),
+        creadoNominaEn: ficha.creadoNominaEn ?? null,
+        archivadoIngreso: Boolean(ficha.archivadoIngresoEn),
+        archivadoIngresoEn: ficha.archivadoIngresoEn ?? null,
       };
 
 export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }) => {
@@ -164,7 +185,13 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
         if (!cancelado) setCatalogos({ empresas, cargos, areas, lineas, ciudades });
       } catch (error) {
         if (!cancelado) {
-          setCatalogos({ empresas: [], cargos: [], areas: [], lineas: [], ciudades: [] });
+          setCatalogos({
+            empresas: [],
+            cargos: [],
+            areas: [],
+            lineas: [],
+            ciudades: [],
+          });
           toast.error(error.message || "No se pudieron cargar los catálogos");
         }
       } finally {
@@ -227,7 +254,11 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
   };
 
   const opcionesEmpresa = useMemo(
-    () => (catalogos?.empresas ?? []).map((e) => ({ value: e.id, label: e.nombre })),
+    () =>
+      (catalogos?.empresas ?? []).map((e) => ({
+        value: e.id,
+        label: e.nombre,
+      })),
     [catalogos],
   );
 
@@ -340,6 +371,11 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
       telefonoEmpresarial: aTexto(valores.telefonoEmpresarial),
       fechaIngreso: aTexto(valores.fechaIngreso),
       observacion: aTexto(valores.observacion),
+      legalizadoIess: valores.legalizadoIess === true,
+      legalizadoMinisterio: valores.legalizadoMinisterio === true,
+      creadoSapExcel: valores.creadoSapExcel === true,
+      creadoNomina: valores.creadoNomina === true,
+      archivadoIngreso: valores.archivadoIngreso === true,
     };
 
     setGuardando(true);
@@ -400,10 +436,9 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
         <Tarjeta>
           <TituloTarjeta>Situación personal</TituloTarjeta>
           <Aviso $tono="info">
-            Estos tres datos deciden qué documentos se le piden: el acta de matrimonio solo
-            si es casado, las partidas de nacimiento solo si tiene hijos, y la licencia y la
-            matrícula solo si conduce. Mientras estén vacíos no se le reclama ninguno de
-            ellos.
+            Estos tres datos deciden qué documentos se le piden: el acta de matrimonio solo si es
+            casado, las partidas de nacimiento solo si tiene hijos, y la licencia y la matrícula
+            solo si conduce. Mientras estén vacíos no se le reclama ninguno de ellos.
           </Aviso>
           <FilaFormulario>
             <CampoLabel etiqueta="Estado civil">
@@ -448,9 +483,9 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
         <Tarjeta>
           <TituloTarjeta>Discapacidad</TituloTarjeta>
           <Aviso $tono="info">
-            Estos datos habilitan los beneficios legales de discapacidad. Si marca cualquiera
-            de las dos casillas, se le pedirá el documento de respaldo en la pestaña
-            Documentos una vez guardada la ficha.
+            Estos datos habilitan los beneficios legales de discapacidad. Si marca cualquiera de las
+            dos casillas, se le pedirá el documento de respaldo en la pestaña Documentos una vez
+            guardada la ficha.
           </Aviso>
 
           <FilaFormulario>
@@ -511,9 +546,9 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
             />
           </div>
           <Aviso $tono="neutro">
-            El sustituto es una figura legal: una persona SIN discapacidad propia que tiene
-            bajo su cuidado o dependencia económica a alguien que sí la tiene, y por eso
-            recibe los mismos beneficios laborales que un colaborador con discapacidad.
+            El sustituto es una figura legal: una persona SIN discapacidad propia que tiene bajo su
+            cuidado o dependencia económica a alguien que sí la tiene, y por eso recibe los mismos
+            beneficios laborales que un colaborador con discapacidad.
           </Aviso>
 
           {valores.esSustitutoDiscapacidad && (
@@ -559,8 +594,8 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
               </FilaFormulario>
 
               <Aviso $tono="aviso">
-                Se solicitará el documento de validación de sustituto en la pestaña
-                Documentos una vez guardada la ficha.
+                Se solicitará el documento de validación de sustituto en la pestaña Documentos una
+                vez guardada la ficha.
               </Aviso>
             </>
           )}
@@ -571,7 +606,7 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
           <Aviso $tono="info">
             {modo === "crear"
               ? "Cargo, área, línea y ciudad aceptan valores nuevos: si escribe uno que no está en la lista, se crea al guardar."
-              : "Área, línea y ciudad aceptan valores nuevos: si escribe uno que no está en la lista, se crea al guardar. El cargo ya no se edita aquí: use \"Cambiar cargo\" en la ficha, que deja rastro en el historial."}
+              : 'Área, línea y ciudad aceptan valores nuevos: si escribe uno que no está en la lista, se crea al guardar. El cargo ya no se edita aquí: use "Cambiar cargo" en la ficha, que deja rastro en el historial.'}
           </Aviso>
           <Separador />
           <FilaFormulario>
@@ -676,33 +711,38 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
 
         <Tarjeta>
           <TituloTarjeta>{modo === "crear" ? "Ingreso" : "Datos del ingreso"}</TituloTarjeta>
-          <FilaFormulario $min={260}>
-            <CampoLabel
-              etiqueta="Fecha de ingreso"
-              requerido={modo === "crear"}
-              error={errores.fechaIngreso}
-              ayuda={
-                modo === "editar"
-                  ? "Si la ficha vino de la carga inicial puede estar vacía."
-                  : undefined
-              }
-            >
-              <InputUI
-                type="date"
-                value={valores.fechaIngreso}
-                onChange={campo("fechaIngreso")}
-                max={hoyIso()}
-              />
-            </CampoLabel>
-            <CampoLabel etiqueta="Observación">
-              <AreaTexto
-                value={valores.observacion}
-                onChange={(evento) => campo("observacion")(evento.target.value)}
-                maxLength={1000}
-                rows={3}
-              />
-            </CampoLabel>
-          </FilaFormulario>
+          <ColumnasIngreso $dos={modo === "editar"}>
+            <ColumnaDatos $limitar={modo !== "editar"}>
+              <CampoLabel
+                etiqueta="Fecha de ingreso"
+                requerido={modo === "crear"}
+                error={errores.fechaIngreso}
+                ayuda={
+                  modo === "editar"
+                    ? "Si la ficha vino de la carga inicial puede estar vacía."
+                    : undefined
+                }
+              >
+                <InputUI
+                  type="date"
+                  value={valores.fechaIngreso}
+                  onChange={campo("fechaIngreso")}
+                  max={hoyIso()}
+                />
+              </CampoLabel>
+              <CampoLabel etiqueta="Observación" ayuda={`${valores.observacion?.length ?? 0}/1000`}>
+                <AreaTexto
+                  value={valores.observacion}
+                  onChange={(evento) => campo("observacion")(evento.target.value)}
+                  maxLength={1000}
+                  rows={4}
+                  placeholder="Notas sobre el ingreso (opcional)"
+                />
+              </CampoLabel>
+            </ColumnaDatos>
+
+            {modo === "editar" && <TramitesIngreso valores={valores} onCambiar={campo} />}
+          </ColumnasIngreso>
         </Tarjeta>
 
         <Acciones>
@@ -715,12 +755,7 @@ export const ColaboradorForm = ({ modo = "crear", ficha, onGuardar, onCancelar }
             iconLeft="FaFloppyDisk"
             disabled={guardando}
           />
-          <ButtonUI
-            text="Cancelar"
-            variant="outlined"
-            onClick={onCancelar}
-            disabled={guardando}
-          />
+          <ButtonUI text="Cancelar" variant="outlined" onClick={onCancelar} disabled={guardando} />
         </Acciones>
       </div>
     </form>

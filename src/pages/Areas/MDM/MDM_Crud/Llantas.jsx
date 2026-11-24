@@ -716,16 +716,27 @@ function Llantas() {
     };
 
     /* Segmento DISEÑO del código de barras:
-       1) limpia el diseño de caracteres especiales/puntuación (deja solo A-Z/0-9/Ñ)
-       2) si el diseño limpio EMPIEZA con una letra (o el dígrafo CH), esa letra se
-          reemplaza por su código de CODIGO_LETRA_DISENO y se conserva el resto tal cual
-       3) si el diseño limpio NO empieza con una letra (arranca con dígito, ej. "207A"),
-          el segmento es "00" + diseño limpio completo — no se busca ninguna letra
-          más adelante en la cadena para reemplazarla
-       Ej: "KS-062" -> limpio "KS062" -> K=11 -> "11" + "S062" = "11S062"
-       Ej: "207A" -> limpio "207A" (no empieza con letra) -> "00" + "207A" = "00207A" */
+       1) solo se considera la PRIMERA PALABRA del diseño (separada por espacios);
+          cualquier palabra siguiente se descarta por completo
+       2) esa primera palabra se limpia de caracteres especiales/puntuación (deja
+          solo A-Z/0-9/Ñ)
+       3) si la palabra limpia EMPIEZA con una letra (o el dígrafo CH), esa letra se
+          reemplaza por su código de CODIGO_LETRA_DISENO y se toman solo las 3
+          posiciones siguientes de esa misma palabra (se rellena con "0" si la
+          palabra no alcanza esas 3 posiciones); el resto de la palabra, si lo hay,
+          se desecha
+       4) si la palabra limpia NO empieza con una letra (arranca con dígito, ej.
+          "207A"), el segmento es "00" + esa palabra completa — no se busca ninguna
+          letra más adelante en la cadena para reemplazarla
+       Ej: "BLITZK SPT01" -> primera palabra "BLITZK" -> B=02 -> "02" + "LIT" = "02LIT"
+           (el resto "ZK" de la primera palabra y la segunda palabra "SPT01" se descartan)
+       Ej: "KS-062" -> primera palabra limpia "KS062" -> K=11 -> "11" + "S06" = "11S06"
+       Ej: "207A" -> primera palabra limpia "207A" (no empieza con letra) -> "00207A" */
     function construirSegmentoDiseño(diseñoCrudo) {
-        const limpio = String(diseñoCrudo || "").trim().toUpperCase().replace(/[^A-Z0-9Ñ]/g, "");
+        const crudo = String(diseñoCrudo || "").trim().toUpperCase();
+        if (!crudo) return "0000";
+        const primeraPalabra = crudo.split(/\s+/)[0] || "";
+        const limpio = primeraPalabra.replace(/[^A-Z0-9Ñ]/g, "");
         if (!limpio) return "0000";
         const primero = limpio[0];
         if (!/[A-ZÑ]/.test(primero)) {
@@ -734,7 +745,7 @@ function Llantas() {
         const esCH = primero === "C" && limpio[1] === "H";
         const letra = esCH ? "CH" : primero;
         const codigo = CODIGO_LETRA_DISENO[letra] || "00";
-        const resto = limpio.slice(letra.length);
+        const resto = limpio.slice(letra.length, letra.length + 3).padEnd(3, "0");
         return `${codigo}${resto}`;
     }
 
@@ -1099,7 +1110,10 @@ function Llantas() {
     const [selectedItemsToReviewIds, setSelectedItemsToReviewIds] = useState(new Set());
     const [searchTermReview, setSearchTermReview] = useState("");
     const [isSAPModalOpen, setIsSAPModalOpen] = useState(false);
-    const [groupedItemsByCompany, setGroupedItemsByCompany] = useState({});
+    // Mensaje de "ya existe" por ítem (id local), mostrado en rojo bajo el Nombre del
+    // sistema cuando el backend rechaza el envío a revisión por duplicado (Código de
+    // Barras o Código Proveedor ya creados, sea en el MDM o ya aprobados en el DWH).
+    const [erroresEnvioPorId, setErroresEnvioPorId] = useState({});
     const [approvedItems, setApprovedItems] = useState([]);
     const [isSAPExportModalOpen, setIsSAPExportModalOpen] = useState(false);
     const [selectedApprovedItemIds, setSelectedApprovedItemIds] = useState(new Set());
@@ -1642,6 +1656,13 @@ function Llantas() {
 
     const handleFinalSubmit = async (currentItems) => {
         setIsSubmitting(true);
+        // Limpiar el aviso de "ya existe" de un intento previo para los ítems que se
+        // van a reenviar ahora; si vuelven a fallar, se vuelve a marcar más abajo.
+        setErroresEnvioPorId(prev => {
+            const next = { ...prev };
+            currentItems.forEach(it => { delete next[it.id]; });
+            return next;
+        });
         try {
             let erroresCount = 0;
             const idsConError = new Set();
@@ -1697,7 +1718,25 @@ function Llantas() {
                 ]);
 
                 (respReenvio?.errors || []).forEach(e => idsConError.add(e.id));
-                (respNuevos?.errors || []).forEach(e => idsConError.add(payloadsNuevos[e.index]?.__localId));
+                const idsConDuplicado = [];
+                (respNuevos?.errors || []).forEach(e => {
+                    const payloadConError = payloadsNuevos[e.index];
+                    idsConError.add(payloadConError?.__localId);
+                    const esDuplicado = String(e.message || "").toLowerCase().includes("ya existe");
+                    if (esDuplicado && payloadConError?.__localId !== undefined) {
+                        idsConDuplicado.push(payloadConError.__localId);
+                    }
+                });
+                if (idsConDuplicado.length > 0) {
+                    // Un solo aviso agrupado en vez de un toast por cada artículo duplicado;
+                    // el detalle de cuál quedó pendiente se ve en la fila (texto en rojo).
+                    toast.error("Algunos artículos ya se encuentran creados.");
+                    setErroresEnvioPorId(prev => {
+                        const next = { ...prev };
+                        idsConDuplicado.forEach(id => { next[id] = "El artículo ya existe"; });
+                        return next;
+                    });
+                }
                 erroresCount = idsConError.size;
             } else if (idRolPrincipal === 3) {
                 const payloads = currentItems.map(item => ({
@@ -2543,12 +2582,12 @@ function Llantas() {
                                             )}
                                             {idRolPrincipal === 4 && (
                                                 <>
-                                                    <Th>Marca</Th>
-                                                    <Th $min="150px">Diseño</Th>
-                                                    <Th $w="250px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
+                                                    <Th $min="200px">Marca</Th>
+                                                    <Th $min="250px">Diseño</Th>
+                                                    <Th $w="450px" $fija="left" $offset={ANCHO_COL_SELECCION}>Nombre</Th>
                                                     <Th>Imagen PNG</Th>
                                                     <Th>Imagen WebP</Th>
-                                                    <Th $min="200px">Comentarios</Th>
+                                                    <Th $w="130px">Comentarios</Th>
                                                     <Th $w="100px" $align="center" $fija="right">Acciones</Th>
                                                 </>
                                             )}
@@ -2730,17 +2769,17 @@ function Llantas() {
                                                     <>
 
                                                         <Td $densa>
-                                                            <CeldaLectura>
+                                                            <CeldaLectura title={item.marca || "-"}>
                                                                 {item.marca || "-"}
                                                             </CeldaLectura>
                                                         </Td>
                                                         <Td $densa>
-                                                            <CeldaLectura>
+                                                            <CeldaLectura title={item.diseño || "-"}>
                                                                 {item.diseño || "-"}
                                                             </CeldaLectura>
                                                         </Td>
-                                                        <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="250px">
-                                                            <CeldaLectura>
+                                                        <Td $densa $fija="left" $offset={ANCHO_COL_SELECCION} $w="450px">
+                                                            <CeldaLectura title={item.descripcion || "-"}>
                                                                 {item.descripcion || "-"}
                                                             </CeldaLectura>
                                                         </Td>
@@ -2888,7 +2927,7 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa>
                                                             <InputUI
-                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "180px" }}
+                                                                style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", width: "110px" }}
                                                                 value={item.comentarios || ""}
                                                                 onChange={(v) => actualizarCampoFila(item.id, "comentarios", v)}
                                                             />
@@ -3000,7 +3039,14 @@ function Llantas() {
                                                                 );
                                                             })()}
                                                         </Td>
-                                                        <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
+                                                        <Td $densa>
+                                                            <div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div>
+                                                            {erroresEnvioPorId[item.id] && (
+                                                                <div style={{ fontSize: "10px", color: theme?.colors?.danger || "#dc3545", marginTop: "2px", fontWeight: 600 }}>
+                                                                    {erroresEnvioPorId[item.id]}
+                                                                </div>
+                                                            )}
+                                                        </Td>
                                                         <Td $densa $align="center">
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
@@ -3207,7 +3253,14 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
-                                                        <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
+                                                        <Td $densa>
+                                                            <div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div>
+                                                            {erroresEnvioPorId[item.id] && (
+                                                                <div style={{ fontSize: "10px", color: theme?.colors?.danger || "#dc3545", marginTop: "2px", fontWeight: 600 }}>
+                                                                    {erroresEnvioPorId[item.id]}
+                                                                </div>
+                                                            )}
+                                                        </Td>
                                                         <Td $densa $align="center">
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
@@ -3401,7 +3454,14 @@ function Llantas() {
                                                         </Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "120px" }} value={item.nombreExtranjero || ""} onChange={(v) => actualizarCampoFila(item.id, "nombreExtranjero", v)} /></Td>
                                                         <Td $densa><InputUI style={{ height: "30px", fontSize: "12px", minHeight: "30px", textTransform: "uppercase", minWidth: "140px" }} value={item.partidaArancelaria || ""} onChange={(v) => actualizarCampoFila(item.id, "partidaArancelaria", v)} /></Td>
-                                                        <Td $densa><div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div></Td>
+                                                        <Td $densa>
+                                                            <div style={{ height: "30px", display: "flex", alignItems: "center", fontSize: "11px", textTransform: "uppercase", minWidth: "380px", color: theme?.colors?.textSecondary, backgroundColor: theme?.colors?.border + "22", padding: "0 8px", borderRadius: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.nombreSistema}>{item.nombreSistema || "N/A"}</div>
+                                                            {erroresEnvioPorId[item.id] && (
+                                                                <div style={{ fontSize: "10px", color: theme?.colors?.danger || "#dc3545", marginTop: "2px", fontWeight: 600 }}>
+                                                                    {erroresEnvioPorId[item.id]}
+                                                                </div>
+                                                            )}
+                                                        </Td>
                                                         <Td $densa $align="center">
                                                             <CheckboxUI
                                                                 checked={esNuevo(item)}
@@ -3460,28 +3520,8 @@ function Llantas() {
                                 if (idRolPrincipal === 4 && hayVerificacionesPendientes(currentItems)) return;
 
                                 if (idRolPrincipal === 5) {
-                                    const createdItems = currentItems.filter(i => !i.fueRechazado);
-                                    if (createdItems.length > 0) {
-                                        // Agrupar items por empresa para el modal de SAP, solo los nuevos
-                                        const grouped = {};
-                                        createdItems.forEach(item => {
-                                            const companyName = diccionarioEmpresas[item.idEmpresa] || "SIN EMPRESA";
-                                            if (!grouped[companyName]) grouped[companyName] = [];
-                                            grouped[companyName].push({
-                                                CODIGO_BARRAS: item.codigo,
-                                                CODIGO_PROVEEDOR: item.codigoProveedor,
-                                                ID_PROVEEDOR: item.proveedor,
-                                                MARCA: item.marca,
-                                                LINEA_NEGOCIO: normalizarLinea(item.linea),
-                                                NOMBRE_EXTRANJERO: item.nombreExtranjero,
-                                                DESCRIPCION: item.nombreSistema,
-                                                PARTIDA_ARANCELARIA: item.partidaArancelaria
-                                            });
-                                        });
-                                        setGroupedItemsByCompany(grouped);
-                                        setIsSAPModalOpen(true);
-                                        return;
-                                    }
+                                    setIsSAPModalOpen(true);
+                                    return;
                                 }
 
                                 await handleFinalSubmit(currentItems);
@@ -3982,38 +4022,39 @@ function Llantas() {
             <ModalUI
                 isOpen={isSAPModalOpen}
                 onClose={() => setIsSAPModalOpen(false)}
-                title="Descargar datos para subir a SAP"
-                width="500px"
+                title="Confirmar envío a revisión"
+                width="420px"
+                cancelText="Cancelar"
+                saveText="Confirmar"
+                onSave={async () => {
+                    const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
+                    await handleFinalSubmit(currentItems);
+                }}
             >
-                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                    <TextUI text="Se han generado los siguientes archivos por empresa. Por favor descargue cada uno para subir a SAP antes de continuar." variant="small" />
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
-                        {Object.keys(groupedItemsByCompany).map(companyName => (
-                            <ButtonUI
-                                key={companyName}
-                                text={`Descargar ${companyName}`}
-                                iconLeft="FaDownload"
-                                onClick={() => generateSAPExport(companyName, groupedItemsByCompany[companyName], caracteristicasMDM)}
-                            />
-                        ))}
-                    </div>
-                    <div style={{ borderTop: `1px solid ${theme?.colors?.border || "#eee"}`, paddingTop: "16px", marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                        <ButtonUI
-                            text="Cancelar"
-                            variant="outlined"
-                            onClick={() => setIsSAPModalOpen(false)}
-                        />
-                        <ButtonUI
-                            text={isSubmitting ? "Enviando..." : "Continuar con el envío"}
-                            pcolor={theme?.colors?.primary}
-                            disabled={isSubmitting}
-                            onClick={async () => {
-                                const currentItems = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id));
-                                handleFinalSubmit(currentItems);
-                            }}
-                        />
-                    </div>
-                </div>
+                {(() => {
+                    const cantidadAEnviar = items.filter(i => i.linea === lineaSeleccionada.value && selectedItemIds.has(i.id)).length;
+                    return (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px", padding: "8px 8px 4px" }}>
+                            <div style={{
+                                width: "56px",
+                                height: "56px",
+                                borderRadius: "50%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: `${theme?.colors?.primary || "#ff6600"}1A`,
+                            }}>
+                                <IconUI name="FaPaperPlane" size={24} color={theme?.colors?.primary || "#ff6600"} />
+                            </div>
+                            <TextUI size="16px" weight="600">
+                                {`Se enviarán ${cantidadAEnviar} artículo${cantidadAEnviar === 1 ? "" : "s"} a revisión`}
+                            </TextUI>
+                            <TextUI size="13px" color={theme?.colors?.textSecondary}>
+                                Pasarán a la siguiente fase del flujo de aprobación. Los que ya existan quedarán marcados como pendientes.
+                            </TextUI>
+                        </div>
+                    );
+                })()}
             </ModalUI>
 
             <ModalUI

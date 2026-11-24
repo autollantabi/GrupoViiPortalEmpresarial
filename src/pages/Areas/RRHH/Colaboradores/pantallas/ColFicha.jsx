@@ -27,6 +27,7 @@ import { ModalEliminar } from "../componentes/ModalEliminar";
 import { ModalSubrogacion } from "../componentes/ModalSubrogacion";
 import { PestanasFicha } from "../componentes/PestanasFicha";
 import { useConsulta } from "../hooks/useConsulta";
+import { usePermisosColaboradores } from "../hooks/usePermisos";
 import { ESTADO, RUTA_BASE, TONO_MOVIMIENTO } from "../utils/constantes";
 import { diasHasta, formatearFecha, formatearMomento } from "../utils/fechas";
 import { ObtenerDocumentacionEmpleado, ObtenerDotacionEmpleado } from "services/dotacionService";
@@ -190,6 +191,7 @@ export const ColFicha = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { puedeGestionar } = usePermisosColaboradores();
 
   const [modal, setModal] = useState(null); // 'baja' | 'reingreso' | 'eliminar' | 'cambiarCargo' | 'subrogar'
   const [verPerfilAbierto, setVerPerfilAbierto] = useState(false);
@@ -363,6 +365,22 @@ export const ColFicha = () => {
       ? Math.min(100, Math.max(0, Math.round(((totalDiasPrueba - diasPeriodoPrueba) / totalDiasPrueba) * 100)))
       : 100;
 
+  // Checklist de ingreso: visible solo para quien gestiona (ver usePermisos.js).
+  // IESS/Ministerio tienen plazo; SAP/Excel, Nómina y Archivado no, solo
+  // importa si ya están hechos.
+  const checklistCompletados = [
+    ficha.legalizadoIessEn,
+    ficha.legalizadoMinisterioEn,
+    ficha.creadoSapExcelEn,
+    ficha.creadoNominaEn,
+    ficha.archivadoIngresoEn,
+  ].filter(Boolean).length;
+  const checklistDiasUrgentes = [
+    !ficha.legalizadoIessEn ? diasHasta(ficha.fechaLimiteIess) : null,
+    !ficha.legalizadoMinisterioEn ? diasHasta(ficha.fechaLimiteMinisterio) : null,
+  ].filter((dias) => dias !== null);
+  const checklistVencido = checklistDiasUrgentes.some((dias) => dias < 0);
+
   const perfilActual = (perfilesCargo ?? []).find((perfil) => perfil.cargoId === ficha.cargoId) ?? null;
 
   return (
@@ -469,6 +487,19 @@ export const ColFicha = () => {
           </Tarjeta>
         )}
 
+        {activo && puedeGestionar && (
+          <Tarjeta>
+            <TituloAtencion>Checklist de ingreso</TituloAtencion>
+            <ValorResumen>{checklistCompletados} de 5 completados</ValorResumen>
+            <PistaProgreso>
+              <RellenoProgreso
+                $tono={checklistCompletados === 5 ? "exito" : checklistVencido ? "peligro" : "aviso"}
+                $porcentaje={(checklistCompletados / 5) * 100}
+              />
+            </PistaProgreso>
+          </Tarjeta>
+        )}
+
         <Tarjeta>
           <Acciones style={{ justifyContent: "space-between" }}>
             <TituloAtencion>Dotación</TituloAtencion>
@@ -536,6 +567,21 @@ export const ColFicha = () => {
           <Dato etiqueta="Teléfono empresarial">{ficha.telefonoEmpresarial}</Dato>
           <Dato etiqueta="Ingreso">
             {ficha.fechaIngreso ? formatearFecha(ficha.fechaIngreso) : null}
+          </Dato>
+          <Dato etiqueta="Legalizado IESS">
+            {ficha.legalizadoIessEn ? formatearMomento(ficha.legalizadoIessEn) : "Pendiente"}
+          </Dato>
+          <Dato etiqueta="Legalizado Ministerio">
+            {ficha.legalizadoMinisterioEn ? formatearMomento(ficha.legalizadoMinisterioEn) : "Pendiente"}
+          </Dato>
+          <Dato etiqueta="Creado SAP/Excel">
+            {ficha.creadoSapExcelEn ? formatearMomento(ficha.creadoSapExcelEn) : "Pendiente"}
+          </Dato>
+          <Dato etiqueta="Creado Nómina">
+            {ficha.creadoNominaEn ? formatearMomento(ficha.creadoNominaEn) : "Pendiente"}
+          </Dato>
+          <Dato etiqueta="Archivado">
+            {ficha.archivadoIngresoEn ? formatearMomento(ficha.archivadoIngresoEn) : "Pendiente"}
           </Dato>
           <Dato etiqueta="Estado civil">
             {ficha.estadoCivil

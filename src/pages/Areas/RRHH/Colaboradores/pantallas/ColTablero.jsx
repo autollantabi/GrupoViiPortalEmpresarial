@@ -6,6 +6,7 @@ import IconUI from "components/UI/Components/IconsUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
 import { useTheme } from "context/ThemeContext";
 import {
+  ObtenerChecklistIngresoPendientes,
   ObtenerDocumentosPendientesGlobal,
   ObtenerDocumentosPendientesPorTipo,
   ObtenerPazSalvoPendienteGlobal,
@@ -299,6 +300,12 @@ export const ColTablero = () => {
     [puedeGestionar],
   );
 
+  // Mismo criterio que período de prueba: solo para quien gestiona.
+  const { datos: checklistIngreso } = useConsulta(
+    ({ signal }) => (puedeGestionar ? ObtenerChecklistIngresoPendientes({ signal }) : Promise.resolve([])),
+    [puedeGestionar],
+  );
+
   // Los dos banners de abajo son el mismo criterio: solo para quien gestiona,
   // y no disparan nada con acceso de consulta.
   const { datos: pazSalvoPendiente } = useConsulta(
@@ -377,10 +384,12 @@ export const ColTablero = () => {
     }
 
     const prueba = periodoPrueba ?? [];
+    const checklist = checklistIngreso ?? [];
     const pazSalvo = pazSalvoPendiente ?? [];
     const documentos = documentosPendientes ?? [];
     const tiposFaltantes = documentosPorTipo ?? [];
-    const hayAtencion = puedeGestionar && (prueba.length > 0 || pazSalvo.length > 0 || documentos.length > 0);
+    const hayAtencion =
+      puedeGestionar && (prueba.length > 0 || checklist.length > 0 || pazSalvo.length > 0 || documentos.length > 0);
 
     const pruebaHoy = prueba.filter((fila) => diasHasta(fila.fechaFinPeriodoPrueba) === 0).length;
     const pruebaProxima = prueba.reduce(
@@ -388,6 +397,21 @@ export const ColTablero = () => {
         !menor || String(fila.fechaFinPeriodoPrueba) < String(menor) ? fila.fechaFinPeriodoPrueba : menor,
       null,
     );
+
+    // El plazo mas urgente de cada fila (el que todavia este pendiente), en
+    // dias. null si a esa persona solo le faltan los 3 tramites sin plazo
+    // (SAP/Excel, Nomina, Archivado).
+    const diasMasUrgente = (fila) => {
+      const candidatos = [
+        !fila.legalizadoIessEn ? diasHasta(fila.fechaLimiteIess) : null,
+        !fila.legalizadoMinisterioEn ? diasHasta(fila.fechaLimiteMinisterio) : null,
+      ].filter((dias) => dias !== null);
+      return candidatos.length > 0 ? Math.min(...candidatos) : null;
+    };
+    const checklistVencidos = checklist.filter((fila) => {
+      const dias = diasMasUrgente(fila);
+      return dias !== null && dias < 0;
+    }).length;
 
     const totalActivos = datos.totalActivos ?? 0;
     const completos = Math.max(0, totalActivos - documentos.length);
@@ -447,6 +471,30 @@ export const ColTablero = () => {
                         : pruebaProxima
                           ? `el más próximo vence el ${formatearFecha(pruebaProxima)}`
                           : ""}
+                    </DetalleAtencion>
+                  </CuerpoAtencion>
+                  <FlechaAtencion $tono="aviso">Revisar ›</FlechaAtencion>
+                </EnlaceAtencion>
+              )}
+              {checklist.length > 0 && (
+                <EnlaceAtencion
+                  as="button"
+                  type="button"
+                  onClick={() => revisar("checklist-ingreso")}
+                  $tono="aviso"
+                >
+                  <CirculoIcono $tono="aviso" $tamano={44}>
+                    <IconUI name="FaListCheck" size={20} color={theme?.colors?.warningDark ?? theme?.colors?.warning} />
+                  </CirculoIcono>
+                  <CuerpoAtencion>
+                    <TituloAtencion>
+                      {checklist.length} checklist{checklist.length === 1 ? "" : "s"} de ingreso incompleto
+                      {checklist.length === 1 ? "" : "s"}
+                    </TituloAtencion>
+                    <DetalleAtencion $tono="aviso">
+                      {checklistVencidos > 0
+                        ? `${checklistVencidos} con plazo de IESS/Ministerio vencido`
+                        : "IESS, Ministerio, SAP/Excel, Nómina o Archivado"}
                     </DetalleAtencion>
                   </CuerpoAtencion>
                   <FlechaAtencion $tono="aviso">Revisar ›</FlechaAtencion>
@@ -657,6 +705,45 @@ export const ColTablero = () => {
                         <Badge $tono={restantes !== null && restantes <= 7 ? "peligro" : "aviso"}>
                           {restantes === 0 ? "hoy" : `${restantes} d.`}
                         </Badge>
+                      </FilaPendiente>
+                    );
+                  })}
+                </ListaPendientes>
+              </Tarjeta>
+            )}
+
+            {puedeGestionar && checklist.length > 0 && (
+              <Tarjeta id="checklist-ingreso">
+                <Acciones style={{ justifyContent: "space-between" }}>
+                  <TituloTarjeta style={{ margin: 0 }}>Checklist de ingreso pendiente</TituloTarjeta>
+                  <Badge $tono="aviso">{checklist.length}</Badge>
+                </Acciones>
+                <ListaPendientes style={{ marginTop: 10 }}>
+                  {checklist.map((fila) => {
+                    const pendientes = [
+                      !fila.legalizadoIessEn && "IESS",
+                      !fila.legalizadoMinisterioEn && "Ministerio",
+                      !fila.creadoSapExcelEn && "SAP/Excel",
+                      !fila.creadoNominaEn && "Nómina",
+                      !fila.archivadoIngresoEn && "Archivado",
+                    ].filter(Boolean);
+                    const dias = diasMasUrgente(fila);
+
+                    return (
+                      <FilaPendiente
+                        key={fila.empleadoId}
+                        to={`${RUTA_BASE}/empleados/${fila.empleadoId}`}
+                        title={fila.nombresCompletos}
+                      >
+                        <CuerpoPendiente>
+                          <NombrePendiente>{fila.nombresCompletos}</NombrePendiente>
+                          <PieFilaEmpresa>{pendientes.join(" · ")}</PieFilaEmpresa>
+                        </CuerpoPendiente>
+                        {dias !== null && (
+                          <Badge $tono={dias <= 1 ? "peligro" : "aviso"}>
+                            {dias < 0 ? `venció` : dias === 0 ? "hoy" : `${dias} d.`}
+                          </Badge>
+                        )}
                       </FilaPendiente>
                     );
                   })}
