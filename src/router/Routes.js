@@ -406,10 +406,11 @@ export const RoutesConfig = [
   },
   {
     // Pantalla temporal para que el Técnico (rol 3) complete grupo/tipo/subgrupos y corrija nombres.
-    // Comparte el recurso con Herramientas; solo se muestra el contenido al rol Técnico.
+    // Recurso propio, pero también da acceso quien tenga mdm.herramientas; el contenido solo se muestra al rol Técnico.
     title: "Herramientas Mantenimiento",
     component: HerramientasMantenimiento,
-    recurso: "mdm.herramientasmantenimiento"
+    recurso: "mdm.herramientasmantenimiento",
+    recursosAlternativos: ["mdm.herramientas"],
   },
   {
     title: "Clientes",

@@ -23,7 +23,8 @@ import {
 /* SIN notificaciones: solo mantiene los datos.                       */
 /* ------------------------------------------------------------------ */
 
-const RECURSO = "mdm.herramientas";
+// Recursos desde los que se acepta el rol Técnico: el propio de esta pantalla y el de Herramientas.
+const RECURSOS = ["mdm.herramientas", "mdm.herramientasmantenimiento"];
 const ID_ROL_TECNICO = 3;
 const ITEMS_POR_PAGINA = 50;
 const LOTE_GUARDADO = 100;
@@ -124,7 +125,7 @@ function HerramientasMantenimiento() {
     const { user } = useAuthContext();
 
     const esTecnico = Array.isArray(user?.CONTEXTOS) &&
-        user.CONTEXTOS.some(ctx => ctx.RECURSO === RECURSO && ctx.ID_ROL === ID_ROL_TECNICO);
+        user.CONTEXTOS.some(ctx => RECURSOS.includes(String(ctx.RECURSO || "").toLowerCase()) && ctx.ID_ROL === ID_ROL_TECNICO);
 
     const [items, setItems] = useState([]);
     const [gruposRaw, setGruposRaw] = useState([]);
