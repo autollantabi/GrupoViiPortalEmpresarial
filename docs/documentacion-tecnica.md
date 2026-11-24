@@ -111,6 +111,13 @@ antiguo como `recursosAlternativos`) **y** una ruta antigua oculta (`hideInSideb
 permisos anteriores. Para añadir «Socios» basta una entrada con su recurso (`documentaciontecnica.calidad.socios`, etc.): aparece
 sola en su grupo.
 
+## 4. ter. Calidad › Socios
+
+`calidad/DocTecCalidadSocios.jsx` (+ `calidad/serviciosSocios.js`) usa el mismo estilo de Completitud: indicadores, filtros por
+empresa y tipo de socio, y debajo del resumen (misma pantalla, sin pestañas) la tabla de identificaciones con variantes: cada nombre
+distinto va en su columna (Variante A, B, C…) con las empresas que lo usan; «Actualizar datos» y CSV. Recurso `documentaciontecnica.calidad.socios`. Pendiente: historial/evolución y más
+reglas (formato de cédula/RUC, nombres en minúsculas).
+
 ## 4a. Pestaña «Líneas» (copia de una pantalla de otra área)
 
 `lineas/DocTecLineas.jsx` es una **copia** de «Monitoreo de Líneas» (`pages/Areas/Negocio/Linea/Linea.jsx`): mismos endpoints

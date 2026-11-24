@@ -2,6 +2,7 @@ import { DocTecDiccionario } from "./diccionario/DocTecDiccionario";
 import { DocTecDwhMapping } from "./dwh_mapping/DocTecDwhMapping";
 import { DocTecCaracterizacion } from "./caracterizacion/DocTecCaracterizacion";
 import { DocTecCalidad } from "./calidad/DocTecCalidad";
+import { DocTecCalidadSocios } from "./calidad/DocTecCalidadSocios";
 import { DocTecCompletitud } from "./completitud/DocTecCompletitud";
 import { DocTecHorarios } from "./horarios/DocTecHorarios";
 import { DocTecLineas } from "./lineas/DocTecLineas";
@@ -57,6 +58,7 @@ export const rutasDocumentacionTecnica = [
   // Caracterización, Calidad y Completitud (la pantalla actual pasa a «Productos»; «Socios» llegará después)
   ...movida("Productos", DocTecCaracterizacion, `${RAIZ}.caracterizacion.productos`, `${RAIZ}.caracterizacion`),
   ...movida("Productos", DocTecCalidad, `${RAIZ}.calidad.productos`, `${RAIZ}.calidad`),
+  { title: "Socios", component: DocTecCalidadSocios, recurso: `${RAIZ}.calidad.socios` },
   ...movida("Productos", DocTecCompletitud, `${RAIZ}.completitud.productos`, `${RAIZ}.completitud`),
 
   // Parametrización Mapping → Productos
