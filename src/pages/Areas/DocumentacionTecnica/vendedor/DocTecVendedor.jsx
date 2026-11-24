@@ -457,6 +457,9 @@ export function DocTecVendedor() {
     <ContainerUI width="100%" height="100%" flexDirection="column" style={{ overflow: "hidden", background: theme?.colors?.background }}>
       <ContenedorFlex $width="100%" $padding="15px 25px 0 25px" $flexDirection="column" $alignItems="flex-start">
         <TextUI size="20px" weight="600">Gestión de Líneas por Vendedor</TextUI>
+        <TextUI size="12px" color={theme?.colors?.textSecondary || "#6c757d"} style={{ display: "block", marginTop: "4px" }}>
+          Tablas del DWH: <code>core.dim_categoria_parametros</code> y <code>core.dim_vendedores</code>
+        </TextUI>
       </ContenedorFlex>
 
       <FilterBar theme={theme}>

@@ -72,6 +72,13 @@ export const getSidebarItems = (userContexts = []) => {
   // Items que son exactamente el root (sin hijos) - se mostrarán directamente
   const rootItems = [];
 
+  // Títulos de submenús declarados como `rootOnly` con recurso de varios niveles
+  // (ej. "documentaciontecnica.calidad" -> "Calidad"); el resto de grupos sigue igual.
+  const titulosGrupos = {};
+  RoutesConfig.forEach((item) => {
+    if (item.rootOnly && item.recurso?.includes(".")) titulosGrupos[item.recurso] = item.title;
+  });
+
   RoutesConfig.forEach((item) => {
     // Saltar rutas públicas, metadata de grupos (rootOnly), rutas ocultas
     // (hideInSidebar: detalles que se abren desde otra pantalla, no desde el
@@ -150,7 +157,6 @@ export const getSidebarItems = (userContexts = []) => {
 
         // Obtener el nivel actual (ej: "comisiones" de "contabilidad.comisiones.tecnicentro")
         const nivelActualNombre = partes[0];
-        const nivelActualTitle = nivelActualNombre.charAt(0).toUpperCase() + nivelActualNombre.slice(1);
 
         // Construir la key única para este nivel
         const nivelKey = nivelActual ? `${nivelActual}.${nivelActualNombre}` : nivelActualNombre;
@@ -158,6 +164,12 @@ export const getSidebarItems = (userContexts = []) => {
         // Construir el path del recurso hasta este nivel para buscar items existentes
         const recursoHastaEsteNivel = root ? `${root}.${recursoHastaAqui}` : recursoHastaAqui;
         const pathHastaEsteNivel = recursoToPath(recursoHastaEsteNivel);
+
+        // Título del grupo: el declarado en un item `rootOnly` con ese recurso (permite tildes y
+        // nombres compuestos); si no hay, el nombre del nivel con la primera letra en mayúscula.
+        const nivelActualTitle =
+          titulosGrupos[recursoHastaEsteNivel] ??
+          nivelActualNombre.charAt(0).toUpperCase() + nivelActualNombre.slice(1);
 
         // Buscar si ya existe un grupo o item para este nivel
         let grupoNivel = contenedor.find(

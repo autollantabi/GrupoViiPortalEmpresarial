@@ -95,7 +95,8 @@ export function DocTecLineas() {
   // ese módulo es de uso exclusivo de TI.
   const canEdit = useMemo(() => {
     const contextos = user?.CONTEXTOS || user?.data || [];
-    if (contextos.some(ctx => ctx.RECURSO === "documentaciontecnica.lineas" || ctx.RECURSO === "documentaciontecnica")) return true;
+    const recursosTI = ["documentaciontecnica.parametrizacion.productos.lineas", "documentaciontecnica.lineas", "documentaciontecnica"];
+    if (contextos.some(ctx => recursosTI.includes(ctx.RECURSO))) return true;
     const contextoNegocioLinea = contextos.find(ctx => ctx.RECURSO === "negocio.linea");
     if (!contextoNegocioLinea) return false;
 
@@ -205,7 +206,12 @@ export function DocTecLineas() {
   return (
     <ContainerUI width="100%" height="100%" padding="25px" flexDirection="column" style={{ overflow: "hidden", background: theme?.colors?.background }}>
       <div style={{ width: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "30px", zIndex: 10 }}>
-        <TextUI size="24px" weight="600">Monitoreo de Líneas</TextUI>
+        <div>
+          <TextUI size="24px" weight="600">Monitoreo de Líneas</TextUI>
+          <TextUI size="12px" color={theme?.colors?.textSecondary || "#6c757d"} style={{ display: "block", marginTop: "4px" }}>
+            Tabla del DWH: <code>core.dim_linea_negocio_parametros</code>
+          </TextUI>
+        </div>
         <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", width: "400px" }}>
           <SelectUI
             label="Filtrar por Línea Comercial"
