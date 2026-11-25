@@ -241,6 +241,59 @@ const Estilos = styled.div`
   .soc-busca {
     flex: 1 1 18rem;
   }
+  .soc-sug-caja {
+    position: relative;
+  }
+  .soc-sug-caja > label {
+    width: 100%;
+  }
+  .soc-sug {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin: 4px 0 0;
+    padding: 4px;
+    list-style: none;
+    background: var(--panel);
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .soc-sug li {
+    display: grid;
+    grid-template-columns: 9.5rem minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: baseline;
+    padding: 7px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .soc-sug li.activo,
+  .soc-sug li:hover {
+    background: var(--acento-fondo);
+  }
+  .soc-sug .soc-sug-id {
+    font-family: var(--fuente-mono);
+    font-size: 0.85rem;
+  }
+  .soc-sug .soc-sug-nom {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .soc-sug .soc-sug-n,
+  .soc-sug-vacio {
+    color: var(--suave);
+    font-size: 0.8rem;
+  }
+  .soc-sug-vacio {
+    padding: 8px 10px;
+  }
   .tabla-caja.soc-continua {
     max-height: min(70vh, 900px);
   }
@@ -538,11 +591,70 @@ export const DocTecCalidadSocios = () => {
   const listaRef = useRef(null);
   const peticion = useRef(0);
   const cargandoMas = useRef(false);
+  const peticionSug = useRef(0);
+  const [sugerencias, setSugerencias] = useState(null);
+  const [abierto, setAbierto] = useState(false);
+  const [activo, setActivo] = useState(-1);
 
   useEffect(() => {
     const t = setTimeout(() => setAplicados(filtros), 300);
     return () => clearTimeout(t);
   }, [filtros]);
+
+  // Sugerencias al escribir (desplegable): no tocan la tabla hasta que se elige una o se pulsa Enter
+  useEffect(() => {
+    const texto = q.trim();
+    if (!texto) {
+      setQAplicado("");
+      setSugerencias(null);
+      return undefined;
+    }
+    if (texto === qAplicado) return undefined; // ya aplicado (se eligió una sugerencia)
+    if (texto.length < 2) {
+      setSugerencias(null);
+      return undefined;
+    }
+    const mia = ++peticionSug.current;
+    const t = setTimeout(() => {
+      DocTec_ObtenerSociosIdentificaciones(aplicados, { q: texto, cantidad, tipoIdentificacion: tipoId, pagina: 1 })
+        .then((d) => {
+          if (mia !== peticionSug.current) return;
+          setSugerencias(d.filas.slice(0, 8).map((f) => ({ ...f, total: d.total })));
+          setActivo(-1);
+          setAbierto(true);
+        })
+        .catch(() => mia === peticionSug.current && setSugerencias([]));
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, aplicados, cantidad, tipoId]);
+
+  const elegir = (f) => {
+    setQ(f.identificacion);
+    setQAplicado(f.identificacion);
+    setAbierto(false);
+    setSugerencias(null);
+  };
+
+  const alTeclear = (e) => {
+    if (e.key === "ArrowDown" && sugerencias?.length) {
+      e.preventDefault();
+      setAbierto(true);
+      setActivo((a) => (a + 1) % sugerencias.length);
+    } else if (e.key === "ArrowUp" && sugerencias?.length) {
+      e.preventDefault();
+      setActivo((a) => (a <= 0 ? sugerencias.length - 1 : a - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (abierto && activo >= 0 && sugerencias?.[activo]) elegir(sugerencias[activo]);
+      else {
+        setQAplicado(q.trim());
+        setAbierto(false);
+      }
+    } else if (e.key === "Escape") {
+      setAbierto(false);
+    }
+  };
 
   // Resumen (indicadores + opciones de filtros)
   useEffect(() => {
@@ -687,10 +799,46 @@ export const DocTecCalidadSocios = () => {
                 Cada nombre distinto va en su columna, con las empresas que lo usan. Ordenado por más empresas y más variantes.
               </p>
               <form className="soc-barra" style={{ marginTop: 0, paddingTop: 0, borderTop: 0, marginBottom: 14 }} onSubmit={(e) => { e.preventDefault(); setQAplicado(q); }}>
-                <label className="campo-etq soc-busca">
-                  Buscar por identificación o nombre
-                  <InputUI type="search" value={q} onChange={setQ} placeholder="Escribe y pulsa Enter" />
-                </label>
+                <div
+                  className="soc-busca soc-sug-caja"
+                  onKeyDown={alTeclear}
+                  onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setAbierto(false)}
+                >
+                  <label className="campo-etq">
+                    Buscar por identificación o nombre
+                    <InputUI
+                      type="search"
+                      value={q}
+                      onChange={(v) => {
+                        setQ(v);
+                        setAbierto(true);
+                      }}
+                      placeholder="Escribe un nombre o una cédula / RUC"
+                    />
+                  </label>
+                  {abierto && sugerencias && q.trim().length >= 2 && q.trim() !== qAplicado && (
+                    <ul className="soc-sug" role="listbox" aria-label="Sugerencias">
+                      {sugerencias.length === 0 ? (
+                        <li className="soc-sug-vacio" style={{ display: "block", cursor: "default" }}>Sin coincidencias con variantes</li>
+                      ) : (
+                        sugerencias.map((f, i) => (
+                          <li
+                            key={f.identificacion}
+                            role="option"
+                            aria-selected={i === activo}
+                            className={i === activo ? "activo" : ""}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => elegir(f)}
+                          >
+                            <span className="soc-sug-id">{f.identificacion}</span>
+                            <span className="soc-sug-nom">{f.variantes[0]?.nombre}</span>
+                            <span className="soc-sug-n">{f.n_variantes} nombres · {f.n_empresas} empresas</span>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
                 <label className="campo-etq">
                   Tipo de identificación
                   <SelectSimple
