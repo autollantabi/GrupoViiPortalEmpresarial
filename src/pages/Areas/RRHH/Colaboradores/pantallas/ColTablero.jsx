@@ -29,6 +29,7 @@ import {
   RUTA_CONFIGURACION,
   RUTA_MOVIMIENTOS,
   RUTA_REPORTE_INGRESOS_SALIDAS,
+  RUTA_REPORTE_PERMISOS,
 } from "../utils/constantesDotacion";
 import {
   Acciones,
@@ -882,6 +883,12 @@ export const ColTablero = () => {
                 iconLeft="FaFileArrowDown"
                 variant="outlined"
                 onClick={() => navigate(RUTA_REPORTE_INGRESOS_SALIDAS)}
+              />
+              <ButtonUI
+                text="Permisos"
+                iconLeft="FaCalendarXmark"
+                variant="outlined"
+                onClick={() => navigate(RUTA_REPORTE_PERMISOS)}
               />
               <TooltipUI title="Descarga en Excel el listado de colaboradores activos de todas las empresas" position="bottom">
                 <ExportToExcelUI

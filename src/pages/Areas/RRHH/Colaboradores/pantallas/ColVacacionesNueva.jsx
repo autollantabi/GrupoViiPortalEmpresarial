@@ -32,10 +32,10 @@ import {
 import { RUTA_VACACIONES } from "../utils/constantesDotacion";
 import { formatearFechaCorta, hoyIso } from "../utils/fechas";
 
-const OPCIONES_TIPO = [
-  { value: "Vacaciones", label: "Vacaciones" },
-  { value: "Permiso", label: "Permiso" },
-];
+// "Permiso" se retiró de aquí: ahora vive en su propio módulo (pestaña
+// Permisos, ver ColPermisos.jsx), con catálogo de tipos y soporte de horas.
+// Las solicitudes tipo='Permiso' ya registradas acá quedan como historial.
+const OPCIONES_TIPO = [{ value: "Vacaciones", label: "Vacaciones" }];
 
 const BACKUP_VACIO = { nombre: "", cargo: "" };
 const ACTIVIDAD_VACIA = { actividad: "", backupResponsable: "", documentacionSoporte: "", observaciones: "" };

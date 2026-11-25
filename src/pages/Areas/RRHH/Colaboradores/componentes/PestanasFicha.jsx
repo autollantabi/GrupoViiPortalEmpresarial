@@ -11,6 +11,7 @@ import {
   RUTA_FICHA,
   RUTA_INDUCCION,
   RUTA_PAZ_SALVO,
+  RUTA_PERMISOS,
   RUTA_VACACIONES,
 } from "../utils/constantesDotacion";
 
@@ -93,6 +94,7 @@ export const PestanasFicha = ({
   pendientesDocumentos = 0,
   pendientesInduccion = 0,
   pendientesVacaciones = 0,
+  pendientesPermisos = 0,
   mostrarPazSalvo = false,
 }) => {
   const { soloDotacion } = usePermisosColaboradores();
@@ -132,6 +134,10 @@ export const PestanasFicha = ({
       <Pestana to={RUTA_VACACIONES(id)}>
         Vacaciones
         {pendientesVacaciones > 0 && <Contador title="Solicitudes pendientes">{pendientesVacaciones}</Contador>}
+      </Pestana>
+      <Pestana to={RUTA_PERMISOS(id)}>
+        Permisos
+        {pendientesPermisos > 0 && <Contador title="Solicitudes pendientes">{pendientesPermisos}</Contador>}
       </Pestana>
       {mostrarPazSalvo && <Pestana to={RUTA_PAZ_SALVO(id)}>Paz y salvo</Pestana>}
       <Pestana to={RUTA_CERTIFICADOS(id)}>Certificados</Pestana>

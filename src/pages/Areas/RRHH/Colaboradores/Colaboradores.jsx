@@ -16,7 +16,9 @@ import { ColPazSalvo } from "./pantallas/ColPazSalvo";
 import { ColCertificados } from "./pantallas/ColCertificados";
 import { ColVacaciones } from "./pantallas/ColVacaciones";
 import { ColVacacionesNueva } from "./pantallas/ColVacacionesNueva";
+import { ColPermisos } from "./pantallas/ColPermisos";
 import { ReporteIngresosSalidas } from "./pantallas/ReporteIngresosSalidas";
+import { ReportePermisos } from "./pantallas/ReportePermisos";
 import { usePermisosColaboradores } from "./hooks/usePermisos";
 import { RUTA_BASE } from "./utils/constantes";
 
@@ -95,6 +97,10 @@ export const Colaboradores = ({
         path="empleados/:id/vacaciones/nueva"
         element={soloGestion(<ColVacacionesNueva {...contexto} />)}
       />
+      {/* A diferencia de vacaciones, "Nueva solicitud" de permiso es un modal
+          (ver ModalPermiso.jsx dentro de ColPermisos.jsx): el formulario es
+          corto, sin backups ni actividades, así que no necesita ruta propia. */}
+      <Route path="empleados/:id/permisos" element={soloGestion(<ColPermisos {...contexto} />)} />
       {/* Paz y salvo solo tiene sentido con la ficha de baja: la propia pantalla
           redirige si el empleado sigue activo. */}
       <Route path="empleados/:id/paz-salvo" element={soloGestion(<ColPazSalvo {...contexto} />)} />
@@ -109,6 +115,7 @@ export const Colaboradores = ({
         path="reportes/ingresos-salidas"
         element={soloGestion(<ReporteIngresosSalidas {...contexto} />)}
       />
+      <Route path="reportes/permisos" element={soloGestion(<ReportePermisos {...contexto} />)} />
       {/* La configuración de dotación y documentos vive DENTRO de esta sección y
           no como opción de menú aparte: así no hay que otorgar un recurso nuevo a
           cada usuario de RRHH para que la vea. Sus secciones van en la query

@@ -228,7 +228,11 @@ export const RUTA_PAZ_SALVO = (id) => `${RUTA_BASE}/empleados/${id}/paz-salvo`;
 export const RUTA_CERTIFICADOS = (id) => `${RUTA_BASE}/empleados/${id}/certificados`;
 export const RUTA_VACACIONES = (id) => `${RUTA_BASE}/empleados/${id}/vacaciones`;
 export const RUTA_VACACIONES_NUEVA = (id) => `${RUTA_BASE}/empleados/${id}/vacaciones/nueva`;
+// Sin ruta de "nueva"/"editar": a diferencia de vacaciones, el formulario de
+// permiso es un modal (ver ModalPermiso.jsx), no una página propia.
+export const RUTA_PERMISOS = (id) => `${RUTA_BASE}/empleados/${id}/permisos`;
 export const RUTA_REPORTE_INGRESOS_SALIDAS = `${RUTA_BASE}/reportes/ingresos-salidas`;
+export const RUTA_REPORTE_PERMISOS = `${RUTA_BASE}/reportes/permisos`;
 export const RUTA_MOVIMIENTOS = `${RUTA_BASE}/movimientos`;
 
 /** Secciones de la pantalla de configuración. Van en la query string. */
@@ -245,6 +249,8 @@ export const SECCION_CONFIGURACION = Object.freeze({
   PAZ_SALVO_AREAS: "paz-salvo-areas",
   // Certificados.
   EMPRESAS: "empresas",
+  // Permisos.
+  TIPOS_PERMISO: "tipos-permiso",
 });
 
 // ── Archivos ────────────────────────────────────────────────────────────────

@@ -559,6 +559,31 @@ export const ObtenerReporteIngresosSalidas = async (filtros = {}, { signal } = {
   }
 };
 
+// ── 3.1.1 — Reporte de permisos ─────────────────────────────────────────────
+
+/**
+ * @param {Object} filtros empresaId (opcional), estado (opcional), fechaInicio y fechaFin (AAAA-MM-DD, obligatorias)
+ * @returns {Promise<Object[]>}
+ */
+export const ObtenerReportePermisos = async (filtros = {}, { signal } = {}) => {
+  try {
+    const params = {};
+    Object.entries(filtros).forEach(([clave, valor]) => {
+      if (valor !== undefined && valor !== null && valor !== "") params[clave] = valor;
+    });
+
+    const respuesta = await axiosInstanceNew.get(`${BASE}/reportes/permisos`, { params, signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      empleadoId: numero(fila.empleadoId),
+      fechaInicio: soloFecha(fila.fechaInicio),
+      fechaFin: soloFecha(fila.fechaFin),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el reporte de permisos");
+  }
+};
+
 // ── 3.2 — Perfiles de cargo ──────────────────────────────────────────────────
 
 const mapearPerfilCargo = (perfil) => ({

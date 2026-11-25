@@ -86,6 +86,25 @@ export const diasHasta = (iso) => {
 };
 
 /**
+ * El rango de un permiso, en una sola línea: con horas es un tramo (p. ej.
+ * "12 mar 09:00 – 11:00"), sin horas es día(s) completo(s) (p. ej.
+ * "12 mar – 14 mar", o solo "12 mar" si fechaInicio === fechaFin).
+ */
+export const formatearRangoPermiso = (fechaInicio, horaInicio, fechaFin, horaFin) => {
+  const mismoDia = fechaInicio === fechaFin;
+
+  if (horaInicio && horaFin) {
+    return mismoDia
+      ? `${formatearFechaCorta(fechaInicio)} ${horaInicio} – ${horaFin}`
+      : `${formatearFechaCorta(fechaInicio)} ${horaInicio} – ${formatearFechaCorta(fechaFin)} ${horaFin}`;
+  }
+
+  return mismoDia
+    ? formatearFechaCorta(fechaInicio)
+    : `${formatearFechaCorta(fechaInicio)} – ${formatearFechaCorta(fechaFin)}`;
+};
+
+/**
  * Recorta cualquier cosa a 'AAAA-MM-DD'.
  *
  * Red de seguridad del contrato: si el backend devolviera un datetime en vez de
