@@ -518,6 +518,20 @@ export const ListarEstados = async ({ signal } = {}) => {
  * @property {number|null} valor  Solo lleno cuando tieneNovedad = true
  */
 
+/** Colaboradores Activos de TODAS las empresas, sin paginar (para el botón "Descargar Excel"). */
+export const ObtenerActivosTodasLasEmpresas = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/reportes/activos`, { signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      id: numero(fila.id),
+      fechaIngreso: soloFecha(fila.fechaIngreso),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener a los colaboradores activos");
+  }
+};
+
 // ── 3.1 — Reporte de ingresos y salidas ─────────────────────────────────────
 
 /**

@@ -10,6 +10,9 @@ export const ExportToExcelUI = ({
   nombresPersonalizados = {},
   filaFinal = [],
   habilitarBoton,
+  text,
+  variant,
+  pcolortext,
 }) => {
   const cabeceras =
     data.length > 0 ? Object.keys(data[0]) : Object.keys(nombresPersonalizados);
@@ -56,10 +59,12 @@ export const ExportToExcelUI = ({
   return (
     <ButtonUI
       onClick={handleExport}
-      title="Exportar Excel"
       disabled={habilitarBoton}
-      iconLeft={"FaFileExcel"}      
-      style={{ fontSize: "20px", padding:"5px 10px" }}
+      iconLeft={"FaFileExcel"}
+      text={text}
+      variant={variant}
+      pcolortext={pcolortext}
+      style={text ? { fontSize: "16px", padding: "5px 10px" } : { fontSize: "20px", padding: "5px 10px" }}
     />
   );
 };

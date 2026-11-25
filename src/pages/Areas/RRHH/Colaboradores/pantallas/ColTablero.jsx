@@ -2,10 +2,13 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { ButtonUI } from "components/UI/Components/ButtonUI";
+import { ExportToExcelUI } from "components/UI/Components/ExportarAExcelUI";
 import IconUI from "components/UI/Components/IconsUI";
+import { TooltipUI } from "components/UI/Components/TooltipUI";
 import { LoaderUI } from "components/UI/Components/LoaderUI";
 import { useTheme } from "context/ThemeContext";
 import {
+  ObtenerActivosTodasLasEmpresas,
   ObtenerChecklistIngresoPendientes,
   ObtenerDocumentosPendientesGlobal,
   ObtenerDocumentosPendientesPorTipo,
@@ -304,6 +307,26 @@ export const ColTablero = () => {
   const { datos: checklistIngreso } = useConsulta(
     ({ signal }) => (puedeGestionar ? ObtenerChecklistIngresoPendientes({ signal }) : Promise.resolve([])),
     [puedeGestionar],
+  );
+
+  // Para el botón "Descargar Excel": activos de TODAS las empresas, sin
+  // paginar. Mismo criterio que lo demás: solo para quien gestiona (incluye
+  // cédula, un dato sensible).
+  const { datos: activosExcel } = useConsulta(
+    ({ signal }) => (puedeGestionar ? ObtenerActivosTodasLasEmpresas({ signal }) : Promise.resolve([])),
+    [puedeGestionar],
+  );
+
+  const datosExcelActivos = useMemo(
+    () =>
+      (activosExcel ?? []).map((fila) => ({
+        empresa: fila.empresa,
+        nombresCompletos: fila.nombresCompletos,
+        cedula: fila.cedula ?? "",
+        cargo: fila.cargo ?? "",
+        fechaIngreso: formatearFecha(fila.fechaIngreso),
+      })),
+    [activosExcel],
   );
 
   // Los dos banners de abajo son el mismo criterio: solo para quien gestiona,
@@ -860,6 +883,23 @@ export const ColTablero = () => {
                 variant="outlined"
                 onClick={() => navigate(RUTA_REPORTE_INGRESOS_SALIDAS)}
               />
+              <TooltipUI title="Descarga en Excel el listado de colaboradores activos de todas las empresas" position="bottom">
+                <ExportToExcelUI
+                  data={datosExcelActivos}
+                  filename="Colaboradores activos"
+                  nombresPersonalizados={{
+                    empresa: "Empresa",
+                    nombresCompletos: "Apellidos y nombres",
+                    cedula: "Cédula",
+                    cargo: "Cargo",
+                    fechaIngreso: "Fecha de ingreso",
+                  }}
+                  habilitarBoton={datosExcelActivos.length === 0}
+                  text="Descargar colaboradores"
+                  variant="outlined"
+                  pcolortext="#1D6F42"
+                />
+              </TooltipUI>
               {/* La configuración de dotación y documentos no tiene ítem de menú
                   propio: se entra desde acá. */}
               <ButtonUI
