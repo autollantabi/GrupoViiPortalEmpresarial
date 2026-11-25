@@ -313,7 +313,7 @@ const Mensaje = ({ children }) => (
 
 /* ----------------------------- pestaña Resumen ----------------------------- */
 
-/** Barras de fallo: % de identificaciones comparables que tienen variantes. */
+/** Barras de consistencia: % de identificaciones comparables sin variantes (100 − % con variantes). */
 function BarrasFallo({ filas, clave, ir }) {
   return (
     <ul className="soc-barras">
@@ -331,10 +331,10 @@ function BarrasFallo({ filas, clave, ir }) {
             <button type="button" onClick={() => ir()} title="Ver la lista">
               <span className="soc-et">{f[clave]}</span>
               <span className="soc-pista">
-                <i className="bg-rojo" style={{ width: ancho(f.pct_fallo) }} />
+                <i className={`bg-${semaforo(100 - f.pct_fallo)}`} style={{ width: ancho(100 - f.pct_fallo) }} />
               </span>
               <span className="soc-val">
-                {pct1(f.pct_fallo)} % <small>{miles(f.con_variantes)} de {miles(f.comparables)}</small>
+                {pct1(100 - f.pct_fallo)} % <small>{miles(f.comparables - f.con_variantes)} de {miles(f.comparables)}</small>
               </span>
             </button>
           )}
@@ -373,12 +373,12 @@ function Resumen({ m, ir }) {
           </span>
         </button>
         <button type="button" className={`soc-hero${peor ? "" : " sin-enlace"}`} onClick={() => peor && ir()}>
-          <span className="soc-hero-q">¿Qué empresa falla más?</span>
+          <span className="soc-hero-q">¿Qué empresa es menos consistente?</span>
           {peor ? (
             <>
               <span className="soc-hero-cifra soc-hero-texto">{peor.empresa}</span>
               <span className="soc-hero-t">
-                {pct1(peor.pct_fallo)} % de sus identificaciones comparables ({miles(peor.con_variantes)} de {miles(peor.comparables)}).
+                {pct1(100 - peor.pct_fallo)} % de sus identificaciones comparables son consistentes ({miles(peor.comparables - peor.con_variantes)} de {miles(peor.comparables)}).
               </span>
             </>
           ) : (
@@ -392,8 +392,8 @@ function Resumen({ m, ir }) {
 
       <div className="soc-fila2">
         <section className="soc-tarjeta">
-          <h2>¿Dónde fallan?</h2>
-          <p className="soc-nota">% de identificaciones comparables con variantes, por empresa. De peor a mejor.</p>
+          <h2>Consistencia por empresa</h2>
+          <p className="soc-nota">% de identificaciones comparables con el mismo nombre en todas las empresas. De peor a mejor.</p>
           <BarrasFallo filas={m.por_empresa} clave="empresa" ir={ir} />
 
           <h2 style={{ marginTop: 22 }}>Por tipo de socio</h2>
