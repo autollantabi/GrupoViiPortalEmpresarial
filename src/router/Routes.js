@@ -78,6 +78,7 @@ import AS_UsuariosApp from "pages/Areas/AppShell/AS_UsuariosApp/AS_UsuariosApp";
 import Llantas from "pages/Areas/MDM/MDM_Crud/Llantas";
 import Lubricantes from "pages/Areas/MDM/MDM_Crud/Lubricantes";
 import Herramientas from "pages/Areas/MDM/MDM_Crud/Herramientas";
+import HerramientasMantenimiento from "pages/Areas/MDM/MDM_Crud/HerramientasMantenimiento";
 import Clientes from "pages/Areas/MDM/MDM_Crud/Clientes";
 import ClienteDetalle from "pages/Areas/MDM/MDM_Crud/ClienteDetalle";
 import LiquidacionesPrecios from "pages/Areas/MDM/MDM_Crud/LiquidacionesPrecios";
@@ -402,6 +403,14 @@ export const RoutesConfig = [
     title: "Herramientas",
     component: Herramientas,
     recurso: "mdm.herramientas",
+  },
+  {
+    // Pantalla temporal para que el Técnico (rol 3) complete grupo/tipo/subgrupos y corrija nombres.
+    // Recurso propio, pero también da acceso quien tenga mdm.herramientas; el contenido solo se muestra al rol Técnico.
+    title: "Herramientas Mantenimiento",
+    component: HerramientasMantenimiento,
+    recurso: "mdm.herramientasmantenimiento",
+    recursosAlternativos: ["mdm.herramientas"],
   },
   {
     title: "Clientes",
