@@ -118,6 +118,20 @@ empresa y tipo de socio, y debajo del resumen (misma pantalla, sin pestañas) la
 distinto va en su columna (Variante A, B, C…) con las empresas que lo usan; «Actualizar datos» y CSV. Recurso `documentaciontecnica.calidad.socios`. Pendiente: historial/evolución y más
 reglas (formato de cédula/RUC, nombres en minúsculas).
 
+## 4. quater. Calidad › Productos (26-nov-2026)
+
+`calidad/DocTecCalidad.jsx`. Atributos, estados y cifras llegan del backend (ver su guía).
+
+- **Vista general** (`VistaGeneral`): aparece cuando el resumen trae `vista_general` (sin filtros o solo Empresa). Tabla por
+  empresa con Calidad, Llantas, Lubricantes y Productos; «N/A» si no hay productos. El nombre de la empresa abre el detalle de
+  llantas (o lubricantes si no tiene llantas) y cada cifra abre esa empresa y línea.
+- El filtro `grupo` se muestra como **Línea de Negocio**.
+- En el resumen, «Cód. Proveedor» va con los atributos de arriba, no en «Unidades de Medida».
+- La evolución semanal es solo de llantas.
+
+Calidad › Socios (además de lo del punto 4. ter): las barras muestran consistencia (100 − % con variantes) y el buscador tiene un
+desplegable de sugerencias que no cambia la tabla hasta elegir una o pulsar Enter.
+
 ## 4a. Pestaña «Líneas» (copia de una pantalla de otra área)
 
 `lineas/DocTecLineas.jsx` es una **copia** de «Monitoreo de Líneas» (`pages/Areas/Negocio/Linea/Linea.jsx`): mismos endpoints
