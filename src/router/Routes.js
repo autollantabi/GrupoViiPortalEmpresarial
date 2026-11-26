@@ -84,6 +84,7 @@ import ClienteDetalle from "pages/Areas/MDM/MDM_Crud/ClienteDetalle";
 import LiquidacionesPrecios from "pages/Areas/MDM/MDM_Crud/LiquidacionesPrecios";
 import LiquidacionPrecioDetalle from "pages/Areas/MDM/MDM_Crud/LiquidacionPrecioDetalle";
 import AdministracionProductos from "pages/Areas/MDM/AdministracionProductos/AdministracionProductos";
+import MDMImagenes from "pages/Areas/MDM/Imagenes/MDMImagenes";
 import CopiarProductos from "pages/Areas/MDM/AdministracionProductos/CopiarProductos";
 import ImportarProductos, { ImportarPrecios } from "pages/Areas/MDM/AdministracionProductos/ImportarProductos";
 import CopiarDesdeFactura, { CopiarPreciosDesdeFactura } from "pages/Areas/MDM/AdministracionProductos/CopiarDesdeFactura";
@@ -443,6 +444,11 @@ export const RoutesConfig = [
     title: "Administración de productos",
     component: AdministracionProductos,
     recurso: "mdm.administracionproductos",
+  },
+  {
+    title: "Administración de Imágenes",
+    component: MDMImagenes,
+    recurso: "mdm.imagenes",
   },
   {
     // Se abre desde la acción "Duplicar a empresa" del listado, no desde el menú.
