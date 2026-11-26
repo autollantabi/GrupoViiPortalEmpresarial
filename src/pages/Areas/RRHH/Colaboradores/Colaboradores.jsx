@@ -58,11 +58,13 @@ export const Colaboradores = ({
     puedeGestionar ? elemento : <Navigate to={`${RUTA_BASE}/empleados`} replace />;
 
   /**
-   * Variante de `soloGestion` solo para la pestaña Dotación: además de
-   * "editar", acepta la acción "dotacion" (`puedeDotacion` ya contempla las
-   * dos, ver usePermisos.js), que da acceso a ÚNICAMENTE este módulo. El resto
-   * de rutas de la ficha (editar, documentos, cargas familiares...) siguen
-   * exigiendo gestión completa.
+   * Variante de `soloGestion` para Dotación, Vacaciones y Permisos: además
+   * de "editar", acepta la acción "dotacion" (`puedeDotacion` ya contempla
+   * las dos, ver usePermisos.js). Quien solo tiene "dotacion" puede
+   * gestionar esas tres pestañas (el backend lo exige igual, con
+   * exigirAccesoDotacion en routesVacacionesRrhh.ts/routesPermisosRrhh.ts).
+   * El resto de rutas de la ficha (editar, documentos, cargas familiares...)
+   * siguen exigiendo gestión completa.
    */
   const soloDotacionOGestion = (elemento) =>
     puedeDotacion ? elemento : <Navigate to={`${RUTA_BASE}/empleados`} replace />;
@@ -89,18 +91,24 @@ export const Colaboradores = ({
         element={soloGestion(<ColCargasFamiliares {...contexto} />)}
       />
       <Route path="empleados/:id/induccion" element={soloGestion(<ColInduccion {...contexto} />)} />
-      <Route path="empleados/:id/vacaciones" element={soloGestion(<ColVacaciones {...contexto} />)} />
+      <Route
+        path="empleados/:id/vacaciones"
+        element={soloDotacionOGestion(<ColVacaciones {...contexto} />)}
+      />
       {/* Página completa del formulario, no modal: con hasta 2 backups y la
           tabla de actividades a entregarles, el formulario es demasiado largo
           para un cuadro compacto. */}
       <Route
         path="empleados/:id/vacaciones/nueva"
-        element={soloGestion(<ColVacacionesNueva {...contexto} />)}
+        element={soloDotacionOGestion(<ColVacacionesNueva {...contexto} />)}
       />
       {/* A diferencia de vacaciones, "Nueva solicitud" de permiso es un modal
           (ver ModalPermiso.jsx dentro de ColPermisos.jsx): el formulario es
           corto, sin backups ni actividades, así que no necesita ruta propia. */}
-      <Route path="empleados/:id/permisos" element={soloGestion(<ColPermisos {...contexto} />)} />
+      <Route
+        path="empleados/:id/permisos"
+        element={soloDotacionOGestion(<ColPermisos {...contexto} />)}
+      />
       {/* Paz y salvo solo tiene sentido con la ficha de baja: la propia pantalla
           redirige si el empleado sigue activo. */}
       <Route path="empleados/:id/paz-salvo" element={soloGestion(<ColPazSalvo {...contexto} />)} />

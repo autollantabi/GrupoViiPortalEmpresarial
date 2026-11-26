@@ -13,8 +13,21 @@ const ESTADO_TONO = {
  * Historial de solicitudes de vacaciones/permisos de una ficha. Cada fila es
  * una solicitud (con su checklist de backups/actividades adentro, que no se
  * muestra acá: el PDF trae el detalle completo).
+ *
+ * `permiteRegistrar` oculta el botón "Registrar": esa caja es "PARA USO
+ * EXCLUSIVO DE TALENTO HUMANO" (el ingreso real a nómina) y sigue exigiendo
+ * gestión completa en el backend, a diferencia del resto de estas acciones,
+ * que también puede hacer quien solo tiene el permiso de Dotación.
  */
-export const TablaVacaciones = ({ solicitudes = [], ocupado, onVerPdf, onDecidir, onRegistrar, onEliminar }) => {
+export const TablaVacaciones = ({
+  solicitudes = [],
+  ocupado,
+  onVerPdf,
+  onDecidir,
+  onRegistrar,
+  onEliminar,
+  permiteRegistrar = true,
+}) => {
   if (solicitudes.length === 0) return null;
 
   return (
@@ -81,7 +94,7 @@ export const TablaVacaciones = ({ solicitudes = [], ocupado, onVerPdf, onDecidir
                       />
                     </>
                   )}
-                  {solicitud.estado === "Aprobada" && !solicitud.registradaEnSistema && (
+                  {permiteRegistrar && solicitud.estado === "Aprobada" && !solicitud.registradaEnSistema && (
                     <ButtonUI
                       text="Registrar"
                       iconLeft="FaCheck"
