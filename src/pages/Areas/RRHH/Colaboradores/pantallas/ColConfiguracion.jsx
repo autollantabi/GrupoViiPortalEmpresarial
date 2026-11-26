@@ -10,6 +10,7 @@ import { EditorMotivosBaja } from "../componentes/EditorMotivosBaja";
 import { EditorPerfilesCargo } from "../componentes/EditorPerfilesCargo";
 import { EditorPlantillas } from "../componentes/EditorPlantillas";
 import { EditorTiposDocumento } from "../componentes/EditorTiposDocumento";
+import { EditorTiposPermiso } from "../componentes/EditorTiposPermiso";
 import { FiltroPastillas } from "../componentes/FiltroPastillas";
 import { Contenedor, Encabezado, EnlaceVolver, Subtitulo, Titulo } from "../componentes/piezas";
 import { RUTA_BASE } from "../utils/constantes";
@@ -40,6 +41,7 @@ const SECCIONES = [
   { valor: SECCION_CONFIGURACION.INDUCCION, etiqueta: "Cronograma de inducción" },
   { valor: SECCION_CONFIGURACION.PAZ_SALVO_AREAS, etiqueta: "Áreas de paz y salvo" },
   { valor: SECCION_CONFIGURACION.EMPRESAS, etiqueta: "Empresas" },
+  { valor: SECCION_CONFIGURACION.TIPOS_PERMISO, etiqueta: "Tipos de permiso" },
 ];
 
 const DESCRIPCION = {
@@ -57,6 +59,7 @@ const DESCRIPCION = {
   [SECCION_CONFIGURACION.PAZ_SALVO_AREAS]: "Las áreas que deben dar el visto bueno en una baja.",
   [SECCION_CONFIGURACION.EMPRESAS]:
     "Razón social, RUC y representante legal para los certificados.",
+  [SECCION_CONFIGURACION.TIPOS_PERMISO]: "Los motivos que se pueden elegir al registrar un permiso.",
 };
 
 export const ColConfiguracion = () => {
@@ -102,6 +105,7 @@ export const ColConfiguracion = () => {
       {seccion === SECCION_CONFIGURACION.INDUCCION && <EditorInduccion />}
       {seccion === SECCION_CONFIGURACION.PAZ_SALVO_AREAS && <EditorAreasPazSalvo />}
       {seccion === SECCION_CONFIGURACION.EMPRESAS && <EditorEmpresas />}
+      {seccion === SECCION_CONFIGURACION.TIPOS_PERMISO && <EditorTiposPermiso />}
     </Contenedor>
   );
 };

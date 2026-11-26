@@ -518,6 +518,20 @@ export const ListarEstados = async ({ signal } = {}) => {
  * @property {number|null} valor  Solo lleno cuando tieneNovedad = true
  */
 
+/** Colaboradores Activos de TODAS las empresas, sin paginar (para el botón "Descargar Excel"). */
+export const ObtenerActivosTodasLasEmpresas = async ({ signal } = {}) => {
+  try {
+    const respuesta = await axiosInstanceNew.get(`${BASE}/reportes/activos`, { signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      id: numero(fila.id),
+      fechaIngreso: soloFecha(fila.fechaIngreso),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener a los colaboradores activos");
+  }
+};
+
 // ── 3.1 — Reporte de ingresos y salidas ─────────────────────────────────────
 
 /**
@@ -542,6 +556,31 @@ export const ObtenerReporteIngresosSalidas = async (filtros = {}, { signal } = {
     }));
   } catch (error) {
     return propagar(error, "No se pudo obtener el reporte de ingresos y salidas");
+  }
+};
+
+// ── 3.1.1 — Reporte de permisos ─────────────────────────────────────────────
+
+/**
+ * @param {Object} filtros empresaId (opcional), estado (opcional), fechaInicio y fechaFin (AAAA-MM-DD, obligatorias)
+ * @returns {Promise<Object[]>}
+ */
+export const ObtenerReportePermisos = async (filtros = {}, { signal } = {}) => {
+  try {
+    const params = {};
+    Object.entries(filtros).forEach(([clave, valor]) => {
+      if (valor !== undefined && valor !== null && valor !== "") params[clave] = valor;
+    });
+
+    const respuesta = await axiosInstanceNew.get(`${BASE}/reportes/permisos`, { params, signal });
+    return (desenvolver(respuesta) ?? []).map((fila) => ({
+      ...fila,
+      empleadoId: numero(fila.empleadoId),
+      fechaInicio: soloFecha(fila.fechaInicio),
+      fechaFin: soloFecha(fila.fechaFin),
+    }));
+  } catch (error) {
+    return propagar(error, "No se pudo obtener el reporte de permisos");
   }
 };
 
