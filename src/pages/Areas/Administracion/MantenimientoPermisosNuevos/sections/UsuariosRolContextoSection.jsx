@@ -15,6 +15,24 @@ import {
   EliminarUsuarioRolContexto,
 } from "services/administracionService";
 
+// El backend puede devolver SOBRE_ESCRIBIR_PERMISOS como array o como JSON string
+// ("[2,3]") según la columna de la BD; se normaliza siempre a un array.
+const aListaIds = (valor) => {
+  if (!valor || valor === "null") return [];
+  if (Array.isArray(valor)) return valor;
+  if (typeof valor === "string") {
+    try {
+      const parseado = JSON.parse(valor);
+      return Array.isArray(parseado) ? parseado : [];
+    } catch {
+      return valor.split(",").map((v) => v.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
+
+const mismoId = (a, b) => String(a) === String(b);
+
 export const UsuariosRolContextoSection = ({
   theme,
   usuariosRolContexto,
@@ -24,9 +42,17 @@ export const UsuariosRolContextoSection = ({
   empresas: empresasProp, // Mantener el prop por compatibilidad pero no usarlo
   cargandoUsuariosRolContexto,
   cargarUsuariosRolContexto,
+  setUsuariosRolContexto,
   usuariosExpandidos,
   setUsuariosExpandidos,
   buscarUsuario,
+  buscarPermiso,
+  setBuscarPermiso,
+  paginaUrc,
+  setPaginaUrc,
+  paginacionUrc,
+  recursosExistentes: recursosExistentesProp,
+  cargarRecursosExistentes,
   setBuscarUsuario,
   mostrarFormulario,
   setMostrarFormulario,
@@ -57,7 +83,6 @@ export const UsuariosRolContextoSection = ({
   setBloqueado,
 }) => {
   const { user } = useAuthContext();
-  const [buscarPermiso, setBuscarPermiso] = useState("");
 
   // Canales del usuario: misma lógica que empresas (objeto { "1": "B2B", ... } o array de { id, nombre })
   const opcionesCanales = useMemo(() => {
@@ -175,6 +200,7 @@ export const UsuariosRolContextoSection = ({
         toast.success(res.message || "Usuario-rol-contexto creado exitosamente");
         handleCerrarFormulario();
         cargarUsuariosRolContexto();
+        cargarRecursosExistentes?.();
       } else {
         toast.error(res.message || "Error al crear el usuario-rol-contexto");
       }
@@ -221,8 +247,20 @@ export const UsuariosRolContextoSection = ({
       });
       if (res.success) {
         toast.success(res.message || "Usuario-rol-contexto actualizado exitosamente");
+        // El PATCH devuelve el contexto ya guardado y enriquecido: se refleja al instante en la
+        // lista (así reabrir la edición ya trae lo nuevo) y luego se recarga para confirmar con la BD.
+        if (res.data?.ID_USUARIO_ROL_CONTEXTO && setUsuariosRolContexto) {
+          setUsuariosRolContexto((lista) =>
+            lista.map((item) =>
+              item.ID_USUARIO_ROL_CONTEXTO === res.data.ID_USUARIO_ROL_CONTEXTO
+                ? { ...item, ...res.data }
+                : item
+            )
+          );
+        }
         handleCerrarFormulario();
-        cargarUsuariosRolContexto();
+        await cargarUsuariosRolContexto();
+        cargarRecursosExistentes?.();
       } else {
         toast.error(res.message || "Error al actualizar el usuario-rol-contexto");
       }
@@ -274,28 +312,8 @@ export const UsuariosRolContextoSection = ({
       agrupados[idUsuario].contextos.push(item);
     });
 
-    let grupos = Object.values(agrupados);
-
-    // Filtrar por búsqueda de permisos primero (si hay búsqueda de permisos)
-    if (buscarPermiso.trim()) {
-      grupos = grupos.map((grupo) => {
-        const contextosFiltrados = filtrarContextos(grupo.contextos);
-        return {
-          ...grupo,
-          contextos: contextosFiltrados,
-        };
-      }).filter((grupo) => grupo.contextos.length > 0); // Solo mantener usuarios con al menos un permiso que coincida
-    }
-
-    // Filtrar por búsqueda de usuario
-    if (buscarUsuario.trim()) {
-      const busqueda = buscarUsuario.toLowerCase().trim();
-      grupos = grupos.filter((grupo) => {
-        const nombre = (grupo.usuario?.USUA_NOMBRE || "").toLowerCase();
-        const correo = (grupo.usuario?.USUA_CORREO || "").toLowerCase();
-        return nombre.includes(busqueda) || correo.includes(busqueda);
-      });
-    }
+    // El filtrado (usuario y búsqueda general) y la paginación los resuelve el backend.
+    const grupos = Object.values(agrupados);
 
     return grupos;
   };
@@ -391,21 +409,14 @@ export const UsuariosRolContextoSection = ({
 
     setHerencia(contexto.HERENCIA || false);
 
-    if (contexto.SOBRE_ESCRIBIR_PERMISOS && contexto.SOBRE_ESCRIBIR_PERMISOS !== "null") {
-      const permisosIds = Array.isArray(contexto.SOBRE_ESCRIBIR_PERMISOS)
-        ? contexto.SOBRE_ESCRIBIR_PERMISOS
-        : [];
-      const permisosSeleccionados = permisosIds
-        .map((id) => permisos.find((p) => p.ID_PERMISO === id))
-        .filter(Boolean)
-        .map((p) => ({
-          value: p.ID_PERMISO,
-          label: p.NOMBRE_ACCION,
-        }));
-      setSobreEscribirPermisos(permisosSeleccionados);
-    } else {
-      setSobreEscribirPermisos([]);
-    }
+    const permisosSeleccionados = aListaIds(contexto.SOBRE_ESCRIBIR_PERMISOS)
+      .map((id) => permisos.find((p) => mismoId(p.ID_PERMISO, id)))
+      .filter(Boolean)
+      .map((p) => ({
+        value: p.ID_PERMISO,
+        label: p.NOMBRE_ACCION,
+      }));
+    setSobreEscribirPermisos(permisosSeleccionados);
 
     const alcance = typeof contexto.ALCANCE === "string"
       ? JSON.parse(contexto.ALCANCE)
@@ -483,74 +494,8 @@ export const UsuariosRolContextoSection = ({
 
   // Obtener nombre del permiso por ID
   const obtenerNombrePermiso = (idPermiso) => {
-    const permiso = permisos.find((p) => p.ID_PERMISO === idPermiso);
+    const permiso = permisos.find((p) => mismoId(p.ID_PERMISO, idPermiso));
     return permiso?.NOMBRE_ACCION || "Permiso no encontrado";
-  };
-
-  // Filtrar contextos por término de búsqueda
-  const filtrarContextos = (contextos) => {
-    if (!buscarPermiso.trim()) return contextos;
-
-    const busqueda = buscarPermiso.toLowerCase().trim();
-
-    return contextos.filter((item) => {
-      // Buscar en recurso
-      const recurso = (item.RECURSO || "").toLowerCase();
-      if (recurso.includes(busqueda)) return true;
-
-      // Buscar en nombre del rol
-      const nombreRol = (item.ROL?.NOMBRE_ROL || "").toLowerCase();
-      if (nombreRol.includes(busqueda)) return true;
-
-      // Buscar en permisos sobrescritos
-      if (item.SOBRE_ESCRIBIR_PERMISOS && item.SOBRE_ESCRIBIR_PERMISOS !== "null") {
-        const permisosArray = Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS)
-          ? item.SOBRE_ESCRIBIR_PERMISOS
-          : [];
-        const nombresPermisos = permisosArray
-          .map((id) => obtenerNombrePermiso(id))
-          .join(" ")
-          .toLowerCase();
-        if (nombresPermisos.includes(busqueda)) return true;
-      }
-
-      // Buscar en empresas del alcance
-      const alcance = typeof item.ALCANCE === "string"
-        ? JSON.parse(item.ALCANCE)
-        : item.ALCANCE || {};
-      const empresasIds = alcance.empresas || alcance.EMPRESAS || [];
-      const nombresEmpresas = empresasIds
-        .map((id) => empresas.find((e) => e.ID === id)?.NOMBRE || "")
-        .join(" ")
-        .toLowerCase();
-      if (nombresEmpresas.includes(busqueda)) return true;
-
-      // Buscar en líneas del alcance
-      const lineasIds = alcance.lineas || alcance.LINEAS || [];
-      const nombresLineas = lineasIds
-        .map((id) => lineasNegocio.find((l) => l.value === id)?.label || "")
-        .join(" ")
-        .toLowerCase();
-      if (nombresLineas.includes(busqueda)) return true;
-
-      // Buscar en canales del alcance (por id se resuelve a label para el texto)
-      const canalesIds = alcance.canales || alcance.CANALES || [];
-      const nombresCanales = canalesIds.map((id) => opcionesCanales.find((c) => c.value === id)?.label ?? id).join(" ").toLowerCase();
-      if (nombresCanales.includes(busqueda)) return true;
-
-      // Buscar en recursos bloqueados
-      if (item.BLOQUEADO && item.BLOQUEADO !== "<null>" && item.BLOQUEADO !== "null") {
-        const bloqueadosArray = Array.isArray(item.BLOQUEADO)
-          ? item.BLOQUEADO
-          : typeof item.BLOQUEADO === "string"
-            ? item.BLOQUEADO.split(",").map((b) => b.trim())
-            : [];
-        const bloqueadosStr = bloqueadosArray.join(" ").toLowerCase();
-        if (bloqueadosStr.includes(busqueda)) return true;
-      }
-
-      return false;
-    });
   };
 
   // Agrupar contextos por el primer segmento del recurso
@@ -598,21 +543,11 @@ export const UsuariosRolContextoSection = ({
     label: empresa.NOMBRE,
   }));
 
-  // Extraer recursos únicos de usuarios-rol-contexto existentes
-  const recursosExistentes = useMemo(() => {
-    const recursosSet = new Set();
-    usuariosRolContexto.forEach((item) => {
-      if (item.RECURSO && item.RECURSO.trim()) {
-        recursosSet.add(item.RECURSO.trim());
-      }
-    });
-    return Array.from(recursosSet)
-      .sort()
-      .map((recurso) => ({
-        value: recurso,
-        label: recurso,
-      }));
-  }, [usuariosRolContexto]);
+  // Recursos existentes: vienen del backend (todos los distintos, no solo los de la página visible)
+  const recursosExistentes = useMemo(
+    () => (recursosExistentesProp || []).map((r) => ({ value: r, label: r })),
+    [recursosExistentesProp]
+  );
 
   // lineasNegocio ya está definido en el useMemo arriba, usando user.LINEAS
 
@@ -870,6 +805,38 @@ export const UsuariosRolContextoSection = ({
               />
             </div>
 
+            {/* Paginación (por usuario): la consulta y los filtros se resuelven en el backend */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "12px",
+                color: theme.colors.textSecondary,
+              }}
+            >
+              <span>
+                {paginacionUrc?.totalUsuarios ?? 0} usuario(s)
+                {cargandoUsuariosRolContexto ? " · cargando..." : ""}
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <ButtonUI
+                  iconLeft="FaChevronLeft"
+                  onClick={() => setPaginaUrc((p) => Math.max(p - 1, 1))}
+                  disabled={cargandoUsuariosRolContexto || paginaUrc <= 1}
+                />
+                <span>
+                  Página {paginaUrc} de {paginacionUrc?.totalPages || 1}
+                </span>
+                <ButtonUI
+                  iconLeft="FaChevronRight"
+                  onClick={() => setPaginaUrc((p) => Math.min(p + 1, paginacionUrc?.totalPages || 1))}
+                  disabled={cargandoUsuariosRolContexto || paginaUrc >= (paginacionUrc?.totalPages || 1)}
+                />
+              </div>
+            </div>
+
             {/* Lista de usuarios-rol-contexto agrupada por usuario */}
             <div
               style={{
@@ -889,7 +856,9 @@ export const UsuariosRolContextoSection = ({
                 >
                   {cargandoUsuariosRolContexto
                     ? "Cargando..."
-                    : "No hay usuarios-rol-contexto"}
+                    : buscarUsuario.trim() || buscarPermiso.trim()
+                      ? "No se encontraron usuarios con ese criterio de búsqueda"
+                      : "No hay usuarios-rol-contexto"}
                 </div>
               ) : agruparPorUsuario().length === 0 ? (
                 <div
@@ -1026,11 +995,8 @@ export const UsuariosRolContextoSection = ({
                           }}
                         >
                           {(() => {
-                            // grupo.contextos ya viene filtrado por buscarPermiso en agruparPorUsuario
-                            const contextosFiltrados = buscarPermiso.trim() 
-                              ? grupo.contextos 
-                              : filtrarContextos(grupo.contextos);
-                            const gruposRecursos = agruparContextosPorRecurso(contextosFiltrados);
+                            // grupo.contextos ya viene filtrado desde el backend
+                            const gruposRecursos = agruparContextosPorRecurso(grupo.contextos);
 
                             if (gruposRecursos.length === 0) {
                               // Este caso solo debería ocurrir si no hay búsqueda activa y no hay contextos
@@ -1095,15 +1061,11 @@ export const UsuariosRolContextoSection = ({
                                             ? item.BLOQUEADO.split(",").map((b) => b.trim())
                                             : []
                                         : [];
-                                    const sobrescribirCount =
-                                      item.SOBRE_ESCRIBIR_PERMISOS &&
-                                        item.SOBRE_ESCRIBIR_PERMISOS !== "null" &&
-                                        Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS)
-                                        ? item.SOBRE_ESCRIBIR_PERMISOS.length
-                                        : 0;
+                                    const sobrescribirIds = aListaIds(item.SOBRE_ESCRIBIR_PERMISOS);
+                                    const sobrescribirCount = sobrescribirIds.length;
                                     const tituloCompleto = [
                                       item.HERENCIA !== false ? "Herencia: Sí" : "Herencia: No",
-                                      sobrescribirCount > 0 && `Sobrescribir: ${(Array.isArray(item.SOBRE_ESCRIBIR_PERMISOS) ? item.SOBRE_ESCRIBIR_PERMISOS : []).map((id) => obtenerNombrePermiso(id)).join(", ")}`,
+                                      sobrescribirCount > 0 && `Sobrescribir: ${sobrescribirIds.map((id) => obtenerNombrePermiso(id)).join(", ")}`,
                                       empresasAlcance.length > 0 && `Empresas: ${empresasAlcance.map((id) => empresas.find((e) => e.ID === id)?.NOMBRE || id).join(", ")}`,
                                       lineasAlcance.length > 0 && `Líneas: ${lineasAlcance.map((id) => lineasNegocio.find((l) => l.value === id)?.label || id).join(", ")}`,
                                       canalesAlcance.length > 0 && `Canales: ${canalesAlcance.map((id) => opcionesCanales.find((c) => c.value === id)?.label ?? id).join(", ")}`,

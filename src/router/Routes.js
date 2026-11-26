@@ -82,6 +82,12 @@ import Clientes from "pages/Areas/MDM/MDM_Crud/Clientes";
 import ClienteDetalle from "pages/Areas/MDM/MDM_Crud/ClienteDetalle";
 import LiquidacionesPrecios from "pages/Areas/MDM/MDM_Crud/LiquidacionesPrecios";
 import LiquidacionPrecioDetalle from "pages/Areas/MDM/MDM_Crud/LiquidacionPrecioDetalle";
+import AdministracionProductos from "pages/Areas/MDM/AdministracionProductos/AdministracionProductos";
+import CopiarProductos from "pages/Areas/MDM/AdministracionProductos/CopiarProductos";
+import ImportarProductos, { ImportarPrecios } from "pages/Areas/MDM/AdministracionProductos/ImportarProductos";
+import CopiarDesdeFactura, { CopiarPreciosDesdeFactura } from "pages/Areas/MDM/AdministracionProductos/CopiarDesdeFactura";
+import CopiarPrecios from "pages/Areas/MDM/AdministracionProductos/CopiarPrecios";
+import ActualizarPreciosArchivo from "pages/Areas/MDM/AdministracionProductos/ActualizarPreciosArchivo";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
@@ -104,9 +110,11 @@ import { ReporteAutomaxNeumaticos } from "pages/Areas/Reporteria/AutomaxNeumatic
 import StreamlitEmbed from "pages/Areas/Cobus/Cobus";
 import ViaticosEmbed from "pages/Areas/Viaticos/Viaticos";
 import { ReporteIkonixUnidadesVendidas } from "pages/Areas/Reporteria/IkonixUnidadesVendidas/ReporteIkonixUnidadesVendidas";
-import { ReporteCobus } from "pages/Areas/Reporteria/ReporteCobus/Cobus";
 import { ReporteTop200ClientesIkonix } from "pages/Areas/Reporteria/NuevoReporte/NuevoReporte";
 import { ReporteInventarioBodegaHerramientas } from "pages/Areas/Reporteria/InventarioBodegaHerramientas/ReporteInventarioBodegaHerramientas";
+import { rutasDocumentacionTecnica } from "pages/Areas/DocumentacionTecnica";
+import { ReporteCobusCostarica } from "pages/Areas/Reporteria/ReporteCobus/CobusCostarica";
+import { ReporteCobusEcuador } from "pages/Areas/Reporteria/ReporteCobus/CobusEcuador";
 
 
 // Configuración centralizada - Una sola fuente de verdad
@@ -278,10 +286,16 @@ export const RoutesConfig = [
     component: ComisionesLubricantes,
     recurso: "contabilidad.comisiones.lubricantes",
   },
+
+  // ================================= GUÍAS DE REMISIÓN =================================
+  // Menú principal (ya no cuelga de Contabilidad). Los permisos siguen asignados al recurso "contabilidad.guiasremision" en
+  // usuarios-rol-contexto, por eso va como recurso alternativo: da acceso, rol y empresas igual que antes, sin migrar datos.
   {
-    title: "Guías Remisión",
+    title: "Guías de Remisión",
+    icon: "FaFileLines",
     component: GuiasRemision,
-    recurso: "contabilidad.guiasremision",
+    recurso: "guiasremision",
+    recursosAlternativos: ["contabilidad.guiasremision"],
   },
 
   // ================================= XCOIN =================================
@@ -414,6 +428,63 @@ export const RoutesConfig = [
     component: LiquidacionPrecioDetalle,
     recurso: "mdm.liquidacionprecios",
     path: "/mdm/liquidacionprecios/:id",
+    hideInSidebar: true,
+  },
+  {
+    title: "Administración de productos",
+    component: AdministracionProductos,
+    recurso: "mdm.administracionproductos",
+  },
+  {
+    // Se abre desde la acción "Duplicar a empresa" del listado, no desde el menú.
+    title: "Copiar Productos",
+    component: CopiarProductos,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/copiar",
+    hideInSidebar: true,
+  },
+  {
+    // Se abre desde el botón "Cargar desde archivo" del listado, no desde el menú.
+    title: "Copiar productos desde archivo",
+    component: ImportarProductos,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/importar",
+    hideInSidebar: true,
+  },
+  {
+    // Se abre desde "Acciones > Cargar desde factura" del listado, no desde el menú.
+    title: "Copiar productos desde factura",
+    component: CopiarDesdeFactura,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/factura",
+    hideInSidebar: true,
+  },
+  {
+    title: "Copiar precios desde factura",
+    component: CopiarPreciosDesdeFactura,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/precios/factura",
+    hideInSidebar: true,
+  },
+  {
+    title: "Copiar precios desde archivo",
+    component: ImportarPrecios,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/precios/importar",
+    hideInSidebar: true,
+  },
+  {
+    title: "Actualizar precios desde archivo",
+    component: ActualizarPreciosArchivo,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/actualizar-precios/archivo",
+    hideInSidebar: true,
+  },
+  {
+    title: "Copiar precios",
+    component: CopiarPrecios,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/precios/copiar",
     hideInSidebar: true,
   },
   // ================================= RRHH =================================
@@ -565,9 +636,14 @@ export const RoutesConfig = [
     recurso: "reportes.importacionescobus",
   },
   {
-    title: "Cobus",
-    component: ReporteCobus,
-    recurso: "reportes.cobus",
+    title: "Cobus Costa Rica",
+    component: ReporteCobusCostarica,
+    recurso: "reportes.cobuscostarica",
+  },
+  {
+    title: "Cobus Ecuador",
+    component: ReporteCobusEcuador,
+    recurso: "reportes.cobusecuador",
   },
   {
     title: "Top Clientes",
@@ -646,6 +722,8 @@ export const RoutesConfig = [
     component: VisitasAsignadas,
     recurso: "visitas.asignadas",
   },
+  // ================================= DOCUMENTACIÓN TÉCNICA =================================
+  ...rutasDocumentacionTecnica,
   // ================================= 404 (debe ir al final) =================================
   {
     path: "*",

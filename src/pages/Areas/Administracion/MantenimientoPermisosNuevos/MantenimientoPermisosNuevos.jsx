@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { useTheme } from "context/ThemeContext";
+import { useDebouncedValue } from "hooks/useDebouncedValue";
 import {
   ListarPermisos,
   ListarRoles,
   ListarPermisosRol,
   ListarUsuariosRolContexto,
+  ListarRecursosUsuarioRolContexto,
   ListarUsuariosSistema,
   ListarEmpresasAdmin,
 } from "services/administracionService";
@@ -101,6 +104,10 @@ export const MantenimientoPermisosNuevos = () => {
     useState(false);
   const [usuariosExpandidos, setUsuariosExpandidos] = useState(new Set());
   const [buscarUsuario, setBuscarUsuario] = useState("");
+  const [buscarPermiso, setBuscarPermiso] = useState("");
+  const [paginaUrc, setPaginaUrc] = useState(1);
+  const [paginacionUrc, setPaginacionUrc] = useState({ totalUsuarios: 0, totalPages: 1, pageSize: 10 });
+  const [recursosExistentes, setRecursosExistentes] = useState([]);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [contextoEditando, setContextoEditando] = useState(null);
   const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
@@ -124,7 +131,7 @@ export const MantenimientoPermisosNuevos = () => {
     cargarPermisos();
     cargarRoles();
     cargarPermisosRol();
-    cargarUsuariosRolContexto();
+    cargarRecursosExistentes();
     cargarUsuarios();
     cargarEmpresas();
   }, []);
@@ -186,19 +193,56 @@ export const MantenimientoPermisosNuevos = () => {
 
   // ==================== USUARIOS-ROL-CONTEXTO ====================
 
+  // Esperar a que la persona termine de escribir antes de consultar al backend.
+  const usuarioBuscado = useDebouncedValue(buscarUsuario.trim(), 450);
+  const permisoBuscado = useDebouncedValue(buscarPermiso.trim(), 450);
+
+  // Filtros/página vigentes: los usa la recarga que se hace tras crear/editar/eliminar.
+  const filtrosUrc = useRef({ page: 1, usuario: "", q: "" });
+  // Evita que una respuesta lenta y vieja pise a una más reciente.
+  const ultimaPeticionUrc = useRef(0);
+
   const cargarUsuariosRolContexto = async () => {
+    const peticion = ++ultimaPeticionUrc.current;
     setCargandoUsuariosRolContexto(true);
     try {
-      const res = await ListarUsuariosRolContexto();
+      const { page, usuario, q } = filtrosUrc.current;
+      const res = await ListarUsuariosRolContexto({ page, usuario, q });
+      if (peticion !== ultimaPeticionUrc.current) return;
       if (res.success) {
         setUsuariosRolContexto(res.data || []);
+        if (res.pagination) {
+          setPaginacionUrc(res.pagination);
+          // El backend ajusta la página si quedó fuera de rango (p. ej. se eliminó el último de la página).
+          if (res.pagination.page !== page) {
+            filtrosUrc.current.page = res.pagination.page;
+            setPaginaUrc(res.pagination.page);
+          }
+        }
+      } else {
+        toast.error(res.message || "No se pudo recargar la lista de usuario-rol-contexto");
       }
     } catch (error) {
       console.error("Error al cargar usuarios-rol-contexto:", error);
     } finally {
-      setCargandoUsuariosRolContexto(false);
+      if (peticion === ultimaPeticionUrc.current) setCargandoUsuariosRolContexto(false);
     }
   };
+
+  const cargarRecursosExistentes = async () => {
+    const res = await ListarRecursosUsuarioRolContexto();
+    if (res.success) setRecursosExistentes(res.data || []);
+  };
+
+  // Al cambiar un filtro (ya con debounce) se vuelve a la primera página.
+  useEffect(() => {
+    setPaginaUrc(1);
+  }, [usuarioBuscado, permisoBuscado]);
+
+  useEffect(() => {
+    filtrosUrc.current = { page: paginaUrc, usuario: usuarioBuscado, q: permisoBuscado };
+    cargarUsuariosRolContexto();
+  }, [paginaUrc, usuarioBuscado, permisoBuscado]);
 
   const cargarUsuarios = async () => {
     try {
@@ -294,10 +338,18 @@ export const MantenimientoPermisosNuevos = () => {
             empresas={empresas}
             cargandoUsuariosRolContexto={cargandoUsuariosRolContexto}
             cargarUsuariosRolContexto={cargarUsuariosRolContexto}
+            setUsuariosRolContexto={setUsuariosRolContexto}
             usuariosExpandidos={usuariosExpandidos}
             setUsuariosExpandidos={setUsuariosExpandidos}
             buscarUsuario={buscarUsuario}
             setBuscarUsuario={setBuscarUsuario}
+            buscarPermiso={buscarPermiso}
+            setBuscarPermiso={setBuscarPermiso}
+            paginaUrc={paginaUrc}
+            setPaginaUrc={setPaginaUrc}
+            paginacionUrc={paginacionUrc}
+            recursosExistentes={recursosExistentes}
+            cargarRecursosExistentes={cargarRecursosExistentes}
             mostrarFormulario={mostrarFormulario}
             setMostrarFormulario={setMostrarFormulario}
             contextoEditando={contextoEditando}

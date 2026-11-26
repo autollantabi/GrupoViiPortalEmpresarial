@@ -330,22 +330,44 @@ export const EliminarPermisoRol = async ({ id }) => {
 
 // ----------------------  USUARIOS-ROL-CONTEXTO ---------------------
 
-export const ListarUsuariosRolContexto = async () => {
+export const ListarUsuariosRolContexto = async ({
+  page = 1,
+  pageSize = 10,
+  usuario = "",
+  q = "",
+} = {}) => {
   try {
-    const resp = await axiosInstanceNew.get(`/usuarios-rol-contexto`);
+    // Paginado por usuario y con los filtros resueltos en el backend. Sin caché: tras
+    // crear/editar/eliminar se vuelve a listar y tiene que traer lo recién guardado.
+    const resp = await axiosInstanceNew.get(`/usuarios-rol-contexto`, {
+      params: { page, pageSize, usuario, q, _t: Date.now() },
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    });
     if (resp.status === 200) {
       return {
         success: true,
-        data: resp.data.data || resp.data,
+        data: resp.data.data || [],
+        pagination: resp.data.pagination || null,
       };
     }
-    return { success: false, data: [] };
+    return { success: false, data: [], pagination: null };
   } catch (error) {
     return {
       success: false,
       data: [],
+      pagination: null,
       message: error.response?.data?.message || "Error al listar usuarios-rol-contexto",
     };
+  }
+};
+
+// Recursos distintos ya usados (alimenta el selector de recurso del formulario).
+export const ListarRecursosUsuarioRolContexto = async () => {
+  try {
+    const resp = await axiosInstanceNew.get(`/usuarios-rol-contexto/recursos`);
+    return { success: true, data: resp.data.data || [] };
+  } catch (error) {
+    return { success: false, data: [] };
   }
 };
 

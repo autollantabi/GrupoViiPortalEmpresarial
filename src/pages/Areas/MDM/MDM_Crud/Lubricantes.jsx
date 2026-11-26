@@ -207,6 +207,7 @@ const OPTIONS_ORIGEN_LUB = [
     { value: "Alemania", label: "Alemania" },
     { value: "Turquía", label: "Turquía" },
     { value: "Perú", label: "Perú" },
+    { value: "Singapur", label: "Singapur" },
 ];
 
 const OPTIONS_MEDIDA_LUB = [
@@ -275,6 +276,7 @@ const CODIGO_ORIGEN_LUB = {
     "ALEMANIA": "D236",
     "TURQUIA": "T124",
     "PERU": "E225",
+    "SINGAPUR": "S842",
 };
 
 /* Solo los ítems de origen Perú llevan este texto al final del nombre. */
@@ -334,7 +336,7 @@ const esItemNuevo = (item) =>
    acto al editar cualquiera de ellos. */
 const getNombreSistema = (item) =>
     construirNombreSistema(
-        item?.nombreSistemaBase || item?.descripcionRol5 || item?.nombreLub || item?.descripcion || "",
+        item?.descripcionRol5 || item?.nombreLub || item?.descripcion || "",
         { nuevo: esItemNuevo(item), origen: item?.origen }
     );
 
@@ -547,7 +549,6 @@ function Lubricantes() {
     const [items, setItems] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef(null);
-    const debounceTimeouts = useRef({});
     // Resultado de verificar si el diseño (MARCA + NOMBRE, clave local del front — no existe
     // campo DISEÑO en Lubricantes) ya tiene imagen en storage, indexado por esa clave, para no
     // pedirle al coordinador (rol 4) que la vuelva a subir.
@@ -561,10 +562,16 @@ function Lubricantes() {
     // { webp: bool, png: bool } indica si hay una subida en curso para ese tipo de imagen.
     const [subiendoImagenDetalle, setSubiendoImagenDetalle] = useState({ webp: false, png: false });
 
+    /* Columnas del Excel de importación (mismas que la tabla de creación de Compras). */
+    const COLUMNAS_EXCEL_LUB = [
+        "Nombre", "Nombre Extranjero", "Cód. Proveedor", "Código de Barras", "Proveedor", "Marca",
+        "Estrategia", "Origen", "Empaque", "Unidades", "Medida", "OUM (Litros)", "Nuevo", "Visible EasySales",
+    ];
+
     const handleDownloadTemplate = () => {
         if (!lineaSeleccionada) return;
-        const headers = ["NOMBRE", "CODIGO_PROVEEDOR", "CODIGO_SHELL", "MARCA", "NOMBRE_FORANEO", "ESTRATEGIA", "ORIGEN", "EMPAQUE", "UNIDADES", "MEDIDA"];
-        const ws = XLSX.utils.aoa_to_sheet([headers]);
+        const ws = XLSX.utils.aoa_to_sheet([COLUMNAS_EXCEL_LUB]);
+        ws["!cols"] = COLUMNAS_EXCEL_LUB.map(c => ({ wch: Math.max(14, c.length + 2) }));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
         const fileName = `plantilla_importacion_${lineaSeleccionada.label.toLowerCase().replace(/\s+/g, '_')}.xlsx`;
@@ -578,6 +585,16 @@ function Lubricantes() {
         }
         const file = e.target.files[0];
         if (!file) return;
+
+        // Clave de columna sin tildes, espacios ni signos: "Cód. Proveedor" -> "CODPROVEEDOR"
+        const claveColumna = (texto) => normalizarTexto(texto).replace(/[^A-Z0-9]/g, "");
+        const parseSiNo = (valor, porDefecto) => {
+            const v = claveColumna(valor);
+            if (v === "") return porDefecto;
+            if (["SI", "S", "YES", "Y", "TRUE", "1", "X"].includes(v)) return true;
+            if (["NO", "N", "FALSE", "0"].includes(v)) return false;
+            return porDefecto;
+        };
 
         const reader = new FileReader();
         reader.onload = async (evt) => {
@@ -593,66 +610,75 @@ function Lubricantes() {
                     return;
                 }
 
-                const baseItems = data.map(row => {
-                    let estrategia = String(row.ESTRATEGIA || "").trim().toUpperCase();
+                let proveedoresSinMatch = 0;
+
+                const newItems = data.map(rawRow => {
+                    // Se aceptan los encabezados de la plantilla y los de versiones anteriores (NOMBRE_FORANEO, CODIGO_PROVEEDOR, etc.)
+                    const row = {};
+                    Object.entries(rawRow).forEach(([k, v]) => { row[claveColumna(k)] = v; });
+                    const leer = (...claves) => {
+                        const clave = claves.find(c => row[c] !== undefined && String(row[c]).trim() !== "");
+                        return clave ? String(row[clave]).trim() : "";
+                    };
+
+                    let estrategia = leer("ESTRATEGIA").toUpperCase();
                     if (!OPTIONS_ESTRATEGIA_LUB.some(o => o.value.toUpperCase() === estrategia)) estrategia = "";
 
-                    let origen = String(row.ORIGEN || "").trim();
-                    const origenMatch = OPTIONS_ORIGEN_LUB.find(o => o.value.toUpperCase() === origen.toUpperCase() || (origen.toUpperCase() === "TURKIA" && o.value === "Turquía"));
-                    origen = origenMatch ? origenMatch.value : "";
+                    const origenTexto = normalizarTexto(leer("ORIGEN"));
+                    const origenMatch = OPTIONS_ORIGEN_LUB.find(o => normalizarTexto(o.value) === origenTexto || (origenTexto === "TURKIA" && o.value === "Turquía"));
+                    const origen = origenMatch ? origenMatch.value : "";
 
-                    let medida = String(row.MEDIDA || "").trim().toUpperCase();
+                    let medida = leer("MEDIDA").toUpperCase();
                     if (!OPTIONS_MEDIDA_LUB.some(o => o.value.toUpperCase() === medida)) medida = "";
 
-                    let empaque = parseInt(row.EMPAQUE);
+                    let empaque = parseInt(leer("EMPAQUE"));
                     if (isNaN(empaque)) empaque = "";
 
-                    let unidades = parseInt(row.UNIDADES);
+                    let unidades = parseInt(leer("UNIDADES"));
                     if (isNaN(unidades)) unidades = "";
+
+                    // Proveedor: se acepta el código o el nombre tal como aparece en la lista
+                    const proveedorTexto = normalizarTexto(leer("PROVEEDOR"));
+                    let proveedor = "";
+                    if (proveedorTexto) {
+                        const prov = opcionesProveedores.find(o =>
+                            normalizarTexto(o.value) === proveedorTexto || normalizarTexto(o.label) === proveedorTexto
+                        );
+                        if (prov) proveedor = prov.value;
+                        else proveedoresSinMatch += 1;
+                    }
+
+                    const nombre = leer("NOMBRE").toUpperCase();
+                    const oum = handleDecimalInput(leer("OUMLITROS", "OUM").replace(",", "."));
+                    const visibleEasySales = parseSiNo(leer("VISIBLEEASYSALES"), true);
 
                     return {
                         id: Date.now() + Math.random(),
                         linea: lineaSeleccionada.value,
-                        nombreLub: String(row.NOMBRE || "").trim().toUpperCase(),
-                        codigoProveedor: construirCodigoProveedor(String(row.CODIGO_PROVEEDOR || "").trim().toUpperCase(), origen),
-                        codigoShell: String(row.CODIGO_SHELL || "").trim().toUpperCase(),
-                        marca: String(row.MARCA || "").trim().toUpperCase(),
-                        nombreExtranjero: String(row.NOMBRE_FORANEO || "").trim().toUpperCase(),
-                        estrategia: estrategia,
-                        origen: origen,
-                        empaque: empaque,
-                        unidades: unidades,
-                        medida: medida,
+                        descripcionRol5: nombre,
+                        nombreExtranjero: leer("NOMBREEXTRANJERO", "NOMBREFORANEO").toUpperCase(),
+                        // El código de proveedor ya queda con el código del país de origen
+                        codigoProveedor: construirCodigoProveedor(leer("CODPROVEEDOR", "CODIGOPROVEEDOR").toUpperCase(), origen),
+                        // El código de barras se arma solo a partir del código de proveedor + _X_VALIDAR (se ignora el del Excel)
+                        proveedor,
+                        marca: leer("MARCA").toUpperCase(),
+                        estrategia,
+                        origen,
+                        empaque,
+                        unidades,
+                        medida,
+                        oum,
+                        esNuevo: parseSiNo(leer("NUEVO"), true),
+                        visibleEasySales,
                         comentarios: ""
                     };
                 });
 
-                // Ejecutar parseLlantas para los ítems importados
-                const descripciones = baseItems.map(it => it.nombreLub || "");
-                let parsedResults = [];
-                if (descripciones.length > 0) {
-                    try {
-                        parsedResults = await parseLlantas(descripciones, lineaSeleccionada.value);
-                    } catch (err) {
-                        console.error("Error parsing lubricantes on import:", err);
-                    }
-                }
-
-                const newItems = baseItems.map((it, index) => {
-                    const parsed = parsedResults[index] || {};
-                    const baseName = parsed["Posible Descripcion"] || it.nombreLub || "";
-                    const itemWithParsed = {
-                        ...it,
-                        nombreSistemaBase: baseName,
-                        esNuevo: true,
-                        nombreSistema: construirNombreSistema(baseName, { nuevo: true, origen: it.origen }),
-                        parsedData: parsed
-                    };
-                    return itemWithParsed;
-                });
-
                 setItems(prev => [...prev, ...newItems]);
                 toast.success(`${newItems.length} ítems importados correctamente.`);
+                if (proveedoresSinMatch > 0) {
+                    toast.warning(`${proveedoresSinMatch} ítem(s) con un proveedor que no coincide con la lista; selecciónelo manualmente.`);
+                }
             } catch (error) {
                 console.error("Error importando Excel:", error);
                 toast.error("Error al leer el archivo Excel.");
@@ -852,19 +878,8 @@ function Lubricantes() {
                             it.FASES?.some(f => f.FASE === 1 && f.RECHAZO)
                         );
 
-                        const descripciones = filtered.map(it => it.NOMBRE || it.DESCRIPCION || "");
-                        let parsedResults = [];
-                        if (descripciones.length > 0) {
-                            try {
-                                parsedResults = await parseLlantas(descripciones, lineaSeleccionada.value);
-                            } catch (err) {
-                                console.error("Error parsing llantas (Rol 5):", err);
-                            }
-                        }
-
-                        processedItems = filtered.map((it, index) => {
+                        processedItems = filtered.map((it) => {
                             const fase1 = it.FASES?.find(f => f.FASE === 1);
-                            const parsed = parsedResults[index] || {};
 
                             let empaqueVal = "";
                             let unidadesVal = "";
@@ -882,7 +897,6 @@ function Lubricantes() {
 
                             const nombreGuardado = it.NOMBRE || it.DESCRIPCION || "";
                             const esNuevo = /^\s*NEW\s/i.test(nombreGuardado);
-                            const nombreBase = parsed["Posible Descripcion"] || nombreGuardado;
 
                             const itemWithBase = {
                                 ...it,
@@ -893,10 +907,8 @@ function Lubricantes() {
                                 visibleEasySales: it.VISIBLE_EASYSALES !== undefined && it.VISIBLE_EASYSALES !== null ? Boolean(it.VISIBLE_EASYSALES) : undefined,
                                 descripcionRol5: it.NOMBRE || it.DESCRIPCION || "",
                                 descripcion: it.NOMBRE || it.DESCRIPCION || "",
-                                parsedData: parsed,
                                 esNuevo,
-                                nombreSistemaBase: nombreBase,
-                                nombreSistema: construirNombreSistema(nombreBase, { nuevo: esNuevo, origen: it.ORIGEN }),
+                                nombreSistema: construirNombreSistema(nombreGuardado, { nuevo: esNuevo, origen: it.ORIGEN }),
                                 codigoProveedor: it.CODIGO_PROVEEDOR || "",
                                 proveedor: it.ID_PROVEEDOR || "",
                                 codigoShell: it.CODIGO_SHELL || "",
@@ -1528,39 +1540,6 @@ function Lubricantes() {
             }));
             return;
         }
-
-        if (idRolPrincipal === 5 && (campo === "descripcionRol5" || campo === "nombreLub")) {
-            setItems(prev => prev.map(it => it.id === id ? { ...it, [campo]: val } : it));
-            if (debounceTimeouts.current[id]) clearTimeout(debounceTimeouts.current[id]);
-            debounceTimeouts.current[id] = setTimeout(async () => {
-                if (!val) return;
-                try {
-                    const result = await parseLlantas([val], lineaSeleccionada.value);
-                    if (result && result[0]) {
-                        const parsed = result[0];
-                        const parsedName = parsed["Posible Descripcion"] || val;
-                        setItems(prev => prev.map(it => {
-                            if (it.id === id) {
-                                const baseItem = {
-                                    ...it,
-                                    parsedData: parsed,
-                                    nombreSistemaBase: parsedName,
-                                    nombreSistema: construirNombreSistema(parsedName, { nuevo: esItemNuevo(it), origen: it.origen })
-                                };
-                                return baseItem;
-                            }
-                            return it;
-                        }));
-                    }
-                } catch (error) {
-                    console.error("Error updating dynamically:", error);
-                }
-                delete debounceTimeouts.current[id];
-            }, 800);
-            return;
-        }
-
-
 
         setItems(prev => prev.map(it => it.id === id ? { ...it, [campo]: val } : it));
     };

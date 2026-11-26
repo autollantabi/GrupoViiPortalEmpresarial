@@ -47,14 +47,14 @@ const REPORTES = [
     linea: "LUBRICANTES",
     empresa: "MAXXIMUNDO"
   },
-  // {
-  //   id: 6,
-  //   url: "https://app.powerbi.com/view?r=eyJrIjoiNDJkNDI3ZTEtODU5Ni00ZmM1LWJhNDctN2E5MjM4NGUyNjBlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
-  //   titulo: "Flash de Ventas - Grupo VII (Coordinador)",
-  //   rol: "coordinadora",
-  //   linea: "HERRAMIENTAS",
-  //   empresa: "IKONIX"
-  // },
+  {
+    id: 6,
+    url: "https://app.powerbi.com/view?r=eyJrIjoiNDJkNDI3ZTEtODU5Ni00ZmM1LWJhNDctN2E5MjM4NGUyNjBlIiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9",
+    titulo: "Flash de Ventas - Grupo VII (Coordinador)",
+    rol: "coordinadora",
+    linea: "HERRAMIENTAS",
+    empresa: "IKONIX"
+  },
   {
     id: 7,
     url: "https://app.powerbi.com/view?r=eyJrIjoiZjQ5NTZjZDQtMGU3NC00ZmViLTkwMDItYjQ1OWQxMWZmM2E4IiwidCI6IjI0ODVhZjVjLWEzZTEtNGE4NS05MTBiLTc5NTIzOTQwYTk3MSJ9&pageName=5582e3f268a223001c30",

@@ -118,6 +118,7 @@ const leerCabecera = (filas, errores) => {
     fecha_liquidacion: null,
     numero_pi: null,
     dai: null,
+    almacen: null,
   };
   const reglas = [
     ["numero_importacion", "liquidaciondecostosdeimportacionnro"],
@@ -125,6 +126,7 @@ const leerCabecera = (filas, errores) => {
     ["fecha_liquidacion", "fechadeliquidacion"],
     ["numero_pi", "pi"],
     ["dai", "dai"],
+    ["almacen", "almacen"],
   ];
 
   // La cabecera está en las primeras filas; el detalle empieza más abajo
@@ -293,6 +295,7 @@ export const leerExcelsLiquidacion = async (archivos) => {
         numero_pi: r.cabecera.numero_pi,
         fecha_liquidacion: r.cabecera.fecha_liquidacion,
         dai: r.cabecera.dai,
+        almacen: r.cabecera.almacen,
         detalle: r.detalle.map(({ _fila, ...a }) => a),
         costos: r.costos,
       });
