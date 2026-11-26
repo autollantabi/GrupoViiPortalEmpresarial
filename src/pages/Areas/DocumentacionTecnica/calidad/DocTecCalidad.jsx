@@ -25,7 +25,7 @@ const ETIQUETAS = {
   empresa: "Empresa",
   proveedor: "Proveedor principal",
   marca: "Marca",
-  grupo: "Grupo",
+  grupo: "Línea de Negocio",
   tipo: "Tipo de producto",
 };
 const SIN_FILTROS = { empresa: [], proveedor: [], marca: [], grupo: [], tipo: [] };
@@ -137,6 +137,80 @@ const Estilos = styled.div`
   .boton.activo {
     background: var(--acento-boton);
     color: var(--sobre-acento);
+  }
+  .vg {
+    overflow-x: auto;
+  }
+  .vg-fila {
+    display: grid;
+    grid-template-columns: 8rem minmax(60px, 1fr) 3.6rem 4.4rem 6rem 5rem;
+    gap: 14px;
+    align-items: center;
+    min-width: 560px;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--borde);
+  }
+  .vg-fila.cab {
+    padding-top: 0;
+    border-bottom: 2px solid var(--marca);
+    font-size: 0.8rem;
+    color: var(--suave);
+  }
+  .vg-fila.total {
+    font-weight: 700;
+    border-bottom: 0;
+  }
+  .vg-pista {
+    display: block;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--borde);
+    overflow: hidden;
+  }
+  .vg-pista i {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+  }
+  .vg-pct {
+    text-align: right;
+    font: 700 1.1rem var(--fuente-titulo);
+    font-variant-numeric: tabular-nums;
+  }
+  .vg-fila > span:nth-child(4),
+  .vg-fila > span:nth-child(5),
+  .vg-n {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .vg-n {
+    color: var(--suave);
+  }
+  .vg-na {
+    color: var(--suave);
+    font-size: 0.85rem;
+  }
+  button.vg-empresa {
+    border: 0;
+    background: none;
+    padding: 2px 0;
+    font: inherit;
+    color: var(--texto);
+    cursor: pointer;
+    text-align: left;
+  }
+  button.vg-empresa:hover {
+    color: var(--acento-texto);
+    text-decoration: underline;
+  }
+  button.vg-linea {
+    border: 0;
+    background: none;
+    padding: 2px 4px;
+    font: inherit;
+    color: var(--acento-texto);
+    text-decoration: underline;
+    cursor: pointer;
   }
   .attr {
     display: grid;
@@ -805,6 +879,79 @@ function BuscadorProducto({ aplicados, texto, onTexto, onAplicar }) {
   );
 }
 
+/** Pantalla principal: calidad de cada empresa con las dos líneas de negocio. */
+function VistaGeneral({ vista, fecha, onElegir }) {
+  const { filas, total, lineas } = vista;
+  const cifra = (empresa, linea, dato) =>
+    dato.indice === null ? (
+      <span className="vg-linea vg-na">N/A</span>
+    ) : (
+      <button
+        type="button"
+        className="vg-linea"
+        onClick={() => onElegir(empresa, linea)}
+        title={`Ver el detalle de ${linea === "llantas" ? "llantas" : "lubricantes"} (${miles(dato.n)} SKU)`}
+      >
+        {coma(dato.indice, 1)}
+      </button>
+    );
+  const fila = (x, empresa) => (
+    <div className={`vg-fila${empresa ? "" : " total"}`} role="row" key={x.empresa}>
+      <span role="cell">
+        {empresa ? (
+          // El nombre deja la vista general solo con esa empresa; el detalle se abre con las cifras de cada línea
+          <button
+            type="button"
+            className="vg-empresa"
+            onClick={() => onElegir(empresa)}
+            title={`Ver solo ${empresa}`}
+          >
+            {x.empresa} <span aria-hidden="true">›</span>
+          </button>
+        ) : (
+          x.empresa
+        )}
+      </span>
+      <span role="cell" className="vg-pista">
+        <i className={`s-${x.semaforo}`} style={{ width: `${x.indice ?? 0}%` }} />
+      </span>
+      <span role="cell" className="vg-pct">{x.indice === null ? "N/A" : coma(x.indice, 1)}</span>
+      <span role="cell">{cifra(empresa, "llantas", x.llantas)}</span>
+      <span role="cell">{cifra(empresa, "lubricantes", x.lubricantes)}</span>
+      <span role="cell" className="vg-n">{miles(x.n)}</span>
+    </div>
+  );
+  return (
+    <section className="resumen" aria-labelledby="t-resumen">
+      <div className="resumen-general">
+        <h2 id="t-resumen">Índice general</h2>
+        <p className="cifra">
+          {total.indice === null ? "n/d" : coma(total.indice, 1)}
+          <span> / 100</span>
+        </p>
+        <p className="expl">Qué tan bien está registrado cada producto, en promedio.</p>
+        <p className="fuente">
+          {miles(total.n)} SKU · {lineas} {lineas === 1 ? "línea" : "líneas"} de negocio · {filas.length} {filas.length === 1 ? "empresa" : "empresas"}
+          <br />
+          Actualizado el {fecha}
+        </p>
+      </div>
+      <div className="vg" role="table" aria-label="Calidad por empresa, de peor a mejor">
+        <div className="vg-fila cab" role="row">
+          <span role="columnheader">Empresa</span>
+          <span role="columnheader">Calidad</span>
+          <span role="columnheader" />
+          <span role="columnheader">Llantas</span>
+          <span role="columnheader">Lubricantes</span>
+          <span role="columnheader" className="vg-n">SKU</span>
+        </div>
+        {filas.map((x) => fila(x, x.empresa))}
+        {filas.length > 1 && fila(total, "")}
+      </div>
+    </section>
+  );
+}
+
 function FilaAtributo({ a, activa, onElegir }) {
   return (
     <li>
@@ -1176,6 +1323,19 @@ export const DocTecCalidad = () => {
   const res = r.resumen;
   const filtrosVisibles = Object.keys(ETIQUETAS).filter((n) => n !== "proveedor" || r.con_proveedor);
   const sinFilas = !tabla.cargando && tabla.filas.length === 0;
+  const general = r.vista_general;
+  // Desde la vista general. Sin línea (clic en la empresa) se queda en la general, solo con esa empresa;
+  // con línea (clic en una cifra) se abre el detalle de siempre
+  const verLinea = (empresa, linea) => {
+    if (!linea) {
+      setFiltros((f) => ({ ...f, empresa: [empresa], grupo: [] }));
+      return;
+    }
+    const grupo = linea === "llantas" ? ["LLANTAS", "LLANTAS MOTO"] : ["LUBRICANTES"];
+    setFiltros((f) => ({ ...f, empresa: empresa ? [empresa] : f.empresa, grupo }));
+    setAtributo("GENERAL");
+    setEstado([]);
+  };
   const filasVista = tabla.filas.filter((x) => (tabla.general ? x.celdas : x.estado));
 
   return (
@@ -1226,7 +1386,9 @@ export const DocTecCalidad = () => {
 
         <div id="resultados" className={cargando ? "cargando" : ""} aria-busy={cargando}>
           {error && <p className="aviso">{error}</p>}
-          {res.n === 0 ? (
+          {general ? (
+            <VistaGeneral vista={general} fecha={fechaHora(r.corrida.fecha_hora)} onElegir={verLinea} />
+          ) : res.n === 0 ? (
             <p className="aviso">Ningún producto cumple los filtros. Prueba quitando alguno.</p>
           ) : (
             <section className="resumen" aria-labelledby="t-resumen">
@@ -1261,17 +1423,22 @@ export const DocTecCalidad = () => {
                   <span className="rev">Por revisar</span>
                 </div>
                 <ul className="atributos" aria-label="Atributos, de menos a más correcto">
-                  {res.en_indice.map((a) => (
-                    <FilaAtributo key={a.clave} a={a} activa={a.clave === atributo} onElegir={elegirAtributo} />
-                  ))}
+                  {/* Cód. Proveedor va con los atributos de arriba, en el mismo orden de menos a más correcto */}
+                  {[...res.en_indice, ...res.aparte.filter((a) => a.clave === "COD_PROVEEDOR")]
+                    .sort((a, b) => a.ancho - b.ancho)
+                    .map((a) => (
+                      <FilaAtributo key={a.clave} a={a} activa={a.clave === atributo} onElegir={elegirAtributo} />
+                    ))}
                 </ul>
-                {res.aparte.length > 0 && (
+                {res.aparte.some((a) => a.clave !== "COD_PROVEEDOR") && (
                   <>
                     <p className="aparte-titulo">Unidades de Medida</p>
                     <ul className="atributos">
-                      {res.aparte.map((a) => (
-                        <FilaAtributo key={a.clave} a={a} activa={a.clave === atributo} onElegir={elegirAtributo} />
-                      ))}
+                      {res.aparte
+                        .filter((a) => a.clave !== "COD_PROVEEDOR")
+                        .map((a) => (
+                          <FilaAtributo key={a.clave} a={a} activa={a.clave === atributo} onElegir={elegirAtributo} />
+                        ))}
                     </ul>
                   </>
                 )}
@@ -1279,6 +1446,7 @@ export const DocTecCalidad = () => {
             </section>
           )}
 
+          {!general && (
           <section className="detalle" ref={detalleRef} aria-labelledby="t-detalle">
             <h2 id="t-detalle">Detalle: {r.nombre_atributo}</h2>
 
@@ -1510,10 +1678,11 @@ export const DocTecCalidad = () => {
               </>
             )}
           </section>
+          )}
         </div>
 
         <section className="evolucion" ref={evoRef} aria-labelledby="t-evo">
-          <h2 id="t-evo">Evolución semanal</h2>
+          <h2 id="t-evo">Evolución semanal de llantas</h2>
           <Evolucion evo={evo} ant={ant} act={act} setAnt={setAnt} setAct={setAct} />
         </section>
       </Estilos>

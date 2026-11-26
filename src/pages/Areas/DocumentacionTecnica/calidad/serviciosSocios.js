@@ -29,22 +29,22 @@ export async function DocTec_ActualizarSocios() {
   return res.data.data;
 }
 
-/** Identificaciones con variantes, de 100 en 100: { total, siguiente, filas[] }. */
-export async function DocTec_ObtenerSociosIdentificaciones(filtros, { q, cantidad, tipoIdentificacion, pagina }) {
+/** Identificaciones comparables (en más de una empresa), de 100 en 100: { total, siguiente, filas[] }. */
+export async function DocTec_ObtenerSociosIdentificaciones(filtros, { q, cantidad, tipoIdentificacion, estado, atributo, pagina }) {
   const res = await axiosInstanceNew.get(`${BASE}/identificaciones`, {
-    params: parametros(filtros, { q, cantidad, tipo_identificacion: tipoIdentificacion, pagina }),
+    params: parametros(filtros, { q, cantidad, tipo_identificacion: tipoIdentificacion, estado, atributo, pagina }),
   });
   return res.data.data;
 }
 
 /** Descarga el CSV de las identificaciones con variantes (con Axios, para que viaje la cabecera de sesión). */
-export async function DocTec_DescargarSociosCsv(filtros) {
-  const res = await axiosInstanceNew.get(`${BASE}/exportar`, { params: parametros(filtros), responseType: "blob" });
+export async function DocTec_DescargarSociosCsv(filtros, atributo) {
+  const res = await axiosInstanceNew.get(`${BASE}/exportar`, { params: parametros(filtros, { atributo }), responseType: "blob" });
   const url = URL.createObjectURL(res.data);
   const sello = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "").replace(/^(\d{8})(\d{4})$/, "$1_$2");
   const a = document.createElement("a");
   a.href = url;
-  a.download = `socios_con_variantes_${sello}.csv`;
+  a.download = `socios_${atributo || "nombre"}_con_variantes_${sello}.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
