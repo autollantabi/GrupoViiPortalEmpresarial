@@ -890,7 +890,7 @@ function VistaGeneral({ vista, fecha, onElegir }) {
         type="button"
         className="vg-linea"
         onClick={() => onElegir(empresa, linea)}
-        title={`Ver el detalle de ${linea === "llantas" ? "llantas" : "lubricantes"} (${miles(dato.n)} productos)`}
+        title={`Ver el detalle de ${linea === "llantas" ? "llantas" : "lubricantes"} (${miles(dato.n)} SKU)`}
       >
         {coma(dato.indice, 1)}
       </button>
@@ -899,12 +899,12 @@ function VistaGeneral({ vista, fecha, onElegir }) {
     <div className={`vg-fila${empresa ? "" : " total"}`} role="row" key={x.empresa}>
       <span role="cell">
         {empresa ? (
-          // El nombre abre el detalle de su línea principal: llantas, o lubricantes si no tiene llantas
+          // El nombre deja la vista general solo con esa empresa; el detalle se abre con las cifras de cada línea
           <button
             type="button"
             className="vg-empresa"
-            onClick={() => onElegir(empresa, x.llantas.n ? "llantas" : "lubricantes")}
-            title={`Ver el detalle de ${x.llantas.n ? "llantas" : "lubricantes"} de ${empresa}`}
+            onClick={() => onElegir(empresa)}
+            title={`Ver solo ${empresa}`}
           >
             {x.empresa} <span aria-hidden="true">›</span>
           </button>
@@ -931,7 +931,7 @@ function VistaGeneral({ vista, fecha, onElegir }) {
         </p>
         <p className="expl">Qué tan bien está registrado cada producto, en promedio.</p>
         <p className="fuente">
-          {miles(total.n)} productos · {lineas} líneas de negocio · {filas.length} {filas.length === 1 ? "empresa" : "empresas"}
+          {miles(total.n)} SKU · {lineas} {lineas === 1 ? "línea" : "líneas"} de negocio · {filas.length} {filas.length === 1 ? "empresa" : "empresas"}
           <br />
           Actualizado el {fecha}
         </p>
@@ -943,7 +943,7 @@ function VistaGeneral({ vista, fecha, onElegir }) {
           <span role="columnheader" />
           <span role="columnheader">Llantas</span>
           <span role="columnheader">Lubricantes</span>
-          <span role="columnheader" className="vg-n">Productos</span>
+          <span role="columnheader" className="vg-n">SKU</span>
         </div>
         {filas.map((x) => fila(x, x.empresa))}
         {filas.length > 1 && fila(total, "")}
@@ -1324,8 +1324,13 @@ export const DocTecCalidad = () => {
   const filtrosVisibles = Object.keys(ETIQUETAS).filter((n) => n !== "proveedor" || r.con_proveedor);
   const sinFilas = !tabla.cargando && tabla.filas.length === 0;
   const general = r.vista_general;
-  // Desde la vista general: acota a la empresa (si la hay) y a la línea, y se abre el detalle de siempre
+  // Desde la vista general. Sin línea (clic en la empresa) se queda en la general, solo con esa empresa;
+  // con línea (clic en una cifra) se abre el detalle de siempre
   const verLinea = (empresa, linea) => {
+    if (!linea) {
+      setFiltros((f) => ({ ...f, empresa: [empresa], grupo: [] }));
+      return;
+    }
     const grupo = linea === "llantas" ? ["LLANTAS", "LLANTAS MOTO"] : ["LUBRICANTES"];
     setFiltros((f) => ({ ...f, empresa: empresa ? [empresa] : f.empresa, grupo }));
     setAtributo("GENERAL");

@@ -123,7 +123,7 @@ reglas (formato de cédula/RUC, nombres en minúsculas).
 `calidad/DocTecCalidad.jsx`. Atributos, estados y cifras llegan del backend (ver su guía).
 
 - **Vista general** (`VistaGeneral`): aparece cuando el resumen trae `vista_general` (sin filtros o solo Empresa). Tabla por
-  empresa con Calidad, Llantas, Lubricantes y Productos; «N/A» si no hay productos. El nombre de la empresa abre el detalle de
+  empresa con Calidad, Llantas, Lubricantes y SKU; «N/A» si no hay productos. El nombre de la empresa abre el detalle de
   llantas (o lubricantes si no tiene llantas) y cada cifra abre esa empresa y línea.
 - El filtro `grupo` se muestra como **Línea de Negocio**.
 - En el resumen, «Cód. Proveedor» va con los atributos de arriba, no en «Unidades de Medida».
@@ -202,3 +202,21 @@ guarda de verdad.
 - No dejar lógica de negocio o consultas a bases de datos en el frontend.
 - No usar colores o fuentes fijos en las pantallas (ver §3b).
 - No copiar en el frontend las reglas de validación del negocio: viven en el backend y la pantalla solo muestra su resultado.
+
+## Calidad › Socios con el formato de Productos (26-nov-2026)
+
+Reemplaza las tarjetas y barras anteriores: filtros generales, índice (consistencia sobre comparables), lista de atributos (hoy solo
+Nombre: % correcto y por revisar; sin tabla por empresa) y «Detalle: Nombre» (estado Correcto/Inconsistente, gráfico de 2, 3 y 4 o más
+variantes, tabla de comparables con estado). Las identificaciones de una sola empresa no se usan. No se muestran otros datos
+personales. La tabla admite `estado=CORRECTO|INCONSISTENTE`; el CSV sigue siendo solo de las que tienen variantes.
+Respaldo del diseño anterior: `proyectos/_respaldos/socios_2026-11-26_antes_formato_productos`.
+
+## Calidad › Socios: atributo Identificación (26-nov-2026)
+
+La regla al revés: un mismo nombre (texto exacto) en más de una empresa debe tener una sola identificación; la cédula y
+su RUC (cédula + `001`) cuentan como una (`evaluarPorNombre` en `sociosCalidadCalculo.ts`). El índice general de Socios es
+el promedio simple de Nombre e Identificación. La API admite `atributo=identificacion` en `identificaciones` y `exportar`.
+Medido: Nombre 78,5 % (735 de 3.426), Identificación 99,5 % (16 de 3.015), índice 89,0.
+
+Cambio posterior (26-nov): Identificación cuenta también los nombres repetidos dentro de una misma empresa; su universo es
+nombres en más de una empresa o con más de una identificación. Nombre no cambia.
