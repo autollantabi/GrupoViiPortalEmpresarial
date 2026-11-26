@@ -518,7 +518,7 @@ export const ColTablero = () => {
                     <DetalleAtencion $tono="aviso">
                       {checklistVencidos > 0
                         ? `${checklistVencidos} con plazo de IESS/Ministerio vencido`
-                        : "IESS, Ministerio, SAP/Excel, Nómina o Archivado"}
+                        : "IESS, Ministerio, Formulario 107, SAP/Excel, Nómina o Archivado"}
                     </DetalleAtencion>
                   </CuerpoAtencion>
                   <FlechaAtencion $tono="aviso">Revisar ›</FlechaAtencion>
@@ -747,6 +747,7 @@ export const ColTablero = () => {
                     const pendientes = [
                       !fila.legalizadoIessEn && "IESS",
                       !fila.legalizadoMinisterioEn && "Ministerio",
+                      !fila.formulario107En && "Formulario 107",
                       !fila.creadoSapExcelEn && "SAP/Excel",
                       !fila.creadoNominaEn && "Nómina",
                       !fila.archivadoIngresoEn && "Archivado",

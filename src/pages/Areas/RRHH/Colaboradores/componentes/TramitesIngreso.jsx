@@ -17,6 +17,11 @@ export const GRUPOS_TRAMITES = [
         claveFecha: "legalizadoMinisterioEn",
         etiqueta: "Legalizado Ministerio",
       },
+      {
+        clave: "formulario107",
+        claveFecha: "formulario107En",
+        etiqueta: "Formulario 107",
+      },
     ],
   },
   {

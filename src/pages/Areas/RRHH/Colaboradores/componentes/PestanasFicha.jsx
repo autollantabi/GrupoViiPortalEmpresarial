@@ -99,15 +99,24 @@ export const PestanasFicha = ({
 }) => {
   const { soloDotacion } = usePermisosColaboradores();
 
-  // Con el permiso "dotacion" (sin "editar") no hay nada más que mostrar: ni
-  // el resto de pestañas tiene ruta accesible (Colaboradores.jsx las bloquea),
-  // ni tendría sentido ofrecerlas como si lo fueran.
+  // Con el permiso "dotacion" (sin "editar") solo se agregan Vacaciones y
+  // Permisos además de Dotación: esas dos rutas también aceptan ese permiso
+  // (Colaboradores.jsx las abre con soloDotacionOGestion). El resto de
+  // pestañas sigue sin ruta accesible, así que no tendría sentido ofrecerlas.
   if (soloDotacion) {
     return (
       <Barra aria-label="Secciones de la ficha">
         <Pestana to={RUTA_DOTACION(id)}>
           Dotación
           {pendientesDotacion > 0 && <Contador title="Artículos pendientes">{pendientesDotacion}</Contador>}
+        </Pestana>
+        <Pestana to={RUTA_VACACIONES(id)}>
+          Vacaciones
+          {pendientesVacaciones > 0 && <Contador title="Solicitudes pendientes">{pendientesVacaciones}</Contador>}
+        </Pestana>
+        <Pestana to={RUTA_PERMISOS(id)}>
+          Permisos
+          {pendientesPermisos > 0 && <Contador title="Solicitudes pendientes">{pendientesPermisos}</Contador>}
         </Pestana>
       </Barra>
     );

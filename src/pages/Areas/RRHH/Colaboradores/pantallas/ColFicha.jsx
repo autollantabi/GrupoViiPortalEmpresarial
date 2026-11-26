@@ -366,11 +366,12 @@ export const ColFicha = () => {
       : 100;
 
   // Checklist de ingreso: visible solo para quien gestiona (ver usePermisos.js).
-  // IESS/Ministerio tienen plazo; SAP/Excel, Nómina y Archivado no, solo
-  // importa si ya están hechos.
+  // IESS/Ministerio tienen plazo; Formulario 107, SAP/Excel, Nómina y
+  // Archivado no, solo importa si ya están hechos.
   const checklistCompletados = [
     ficha.legalizadoIessEn,
     ficha.legalizadoMinisterioEn,
+    ficha.formulario107En,
     ficha.creadoSapExcelEn,
     ficha.creadoNominaEn,
     ficha.archivadoIngresoEn,
@@ -490,11 +491,11 @@ export const ColFicha = () => {
         {activo && puedeGestionar && (
           <Tarjeta>
             <TituloAtencion>Checklist de ingreso</TituloAtencion>
-            <ValorResumen>{checklistCompletados} de 5 completados</ValorResumen>
+            <ValorResumen>{checklistCompletados} de 6 completados</ValorResumen>
             <PistaProgreso>
               <RellenoProgreso
-                $tono={checklistCompletados === 5 ? "exito" : checklistVencido ? "peligro" : "aviso"}
-                $porcentaje={(checklistCompletados / 5) * 100}
+                $tono={checklistCompletados === 6 ? "exito" : checklistVencido ? "peligro" : "aviso"}
+                $porcentaje={(checklistCompletados / 6) * 100}
               />
             </PistaProgreso>
           </Tarjeta>
@@ -573,6 +574,9 @@ export const ColFicha = () => {
           </Dato>
           <Dato etiqueta="Legalizado Ministerio">
             {ficha.legalizadoMinisterioEn ? formatearMomento(ficha.legalizadoMinisterioEn) : "Pendiente"}
+          </Dato>
+          <Dato etiqueta="Formulario 107">
+            {ficha.formulario107En ? formatearMomento(ficha.formulario107En) : "Pendiente"}
           </Dato>
           <Dato etiqueta="Creado SAP/Excel">
             {ficha.creadoSapExcelEn ? formatearMomento(ficha.creadoSapExcelEn) : "Pendiente"}

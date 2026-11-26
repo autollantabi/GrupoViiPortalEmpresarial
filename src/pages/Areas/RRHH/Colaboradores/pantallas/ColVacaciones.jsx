@@ -20,6 +20,7 @@ import { ModalVerActa } from "../componentes/ModalVerActa";
 import { PestanasFicha } from "../componentes/PestanasFicha";
 import { TablaVacaciones } from "../componentes/TablaVacaciones";
 import { useConsulta } from "../hooks/useConsulta";
+import { usePermisosColaboradores } from "../hooks/usePermisos";
 import {
   Acciones,
   AreaTexto,
@@ -90,6 +91,7 @@ export const ColVacaciones = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { puedeGestionar } = usePermisosColaboradores();
 
   const [aDecidir, setADecidir] = useState(null);
   const [urlPdf, setUrlPdf] = useState(null);
@@ -215,6 +217,7 @@ export const ColVacaciones = () => {
             onDecidir={setADecidir}
             onRegistrar={registrar}
             onEliminar={eliminar}
+            permiteRegistrar={puedeGestionar}
           />
         )}
       </Tarjeta>

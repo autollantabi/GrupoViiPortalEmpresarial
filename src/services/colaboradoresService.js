@@ -30,6 +30,7 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {string|null} fechaSalida   Formato AAAA-MM-DD
  * @property {string|null} legalizadoIessEn
  * @property {string|null} legalizadoMinisterioEn
+ * @property {string|null} formulario107En
  * @property {string|null} creadoSapExcelEn
  * @property {string|null} creadoNominaEn
  * @property {string|null} archivadoIngresoEn
@@ -89,6 +90,7 @@ import { soloFecha } from "pages/Areas/RRHH/Colaboradores/utils/fechas";
  * @property {string|null} observacion
  * @property {string|null} legalizadoIessEn
  * @property {string|null} legalizadoMinisterioEn
+ * @property {string|null} formulario107En
  * @property {string|null} creadoSapExcelEn
  * @property {string|null} creadoNominaEn
  * @property {string|null} archivadoIngresoEn
