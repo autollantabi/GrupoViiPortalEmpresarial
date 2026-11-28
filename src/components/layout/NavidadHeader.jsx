@@ -64,7 +64,7 @@ const Copo = styled.span`
   }
 `;
 
-const TOTAL_COPOS = 48;
+const TOTAL_COPOS = 32;
 
 export const NieveHeader = () => {
   const copos = useMemo(
