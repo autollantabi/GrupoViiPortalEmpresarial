@@ -14,6 +14,7 @@ import {
 import {
   AvisoObservaciones,
   PantallaCarga,
+  ConfirmarActualizarSap,
   CabeceraColumnas,
   Campo,
   CampoFijo,
@@ -118,6 +119,7 @@ function CopiarPrecios() {
   );
 
   const [sincronizando, setSincronizando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   /* PVP sin IVA de cada fila con precio calculado (es lo que se envía a SAP) */
   /* LLANTAS MOTO con regla (descuento + incremento): el PVP usa la fórmula fija. Que el incremento se pueda
@@ -196,6 +198,14 @@ function CopiarPrecios() {
       style={{ padding: 0, overflow: "hidden" }}
     >
       <PantallaCarga visible={sincronizando} />
+      <ConfirmarActualizarSap
+        abierto={confirmando}
+        onCerrar={() => setConfirmando(false)}
+        onConfirmar={() => {
+          setConfirmando(false);
+          sincronizar();
+        }}
+      />
       <Contenedor theme={theme}>
         <Encabezado>
           <ButtonUI
@@ -210,9 +220,9 @@ function CopiarPrecios() {
 
           <AccionesEncabezado>
             <ButtonUI
-              text="Sincronizar precios"
+              text="Actualizar precios sap"
               iconLeft="FaArrowsRotate"
-              onClick={sincronizar}
+              onClick={() => setConfirmando(true)}
               disabled={sincronizando || lista == null || !preciosCalculados.length}
               title={
                 lista == null

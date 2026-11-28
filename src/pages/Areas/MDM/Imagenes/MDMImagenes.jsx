@@ -351,7 +351,9 @@ function MDMImagenes() {
       );
       const otros = (resultado.ArticulosCompartiendoArchivo || 1) - 1;
       toast.success(
-        otros > 0
+        resultado.RutaCambio
+          ? `Imagen ${TIPOS[tipo].titulo} guardada como archivo propio del artículo (${ruta})`
+          : otros > 0
           ? `Imagen ${TIPOS[tipo].titulo} actualizada (también la usan ${otros} artículo${otros === 1 ? "" : "s"} más)`
           : `Imagen ${TIPOS[tipo].titulo} actualizada`
       );

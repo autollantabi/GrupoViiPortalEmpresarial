@@ -19,6 +19,7 @@ import {
   AccionesEncabezado,
   AvisoObservaciones,
   PantallaCarga,
+  ConfirmarActualizarSap,
   CabeceraColumnas,
   Campo,
   Contenedor,
@@ -125,6 +126,7 @@ function ActualizarPreciosArchivo() {
   filasRef.current = filas;
   const [procesando, setProcesando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   const puedeEditar = useMemo(() => puedeEditarRecurso(user, RECURSO_ADMIN_PRODUCTOS), [user]);
   const empresasConFormato = useMemo(
@@ -290,6 +292,14 @@ function ActualizarPreciosArchivo() {
       style={{ padding: 0, overflow: "hidden" }}
     >
       <PantallaCarga visible={sincronizando} />
+      <ConfirmarActualizarSap
+        abierto={confirmando}
+        onCerrar={() => setConfirmando(false)}
+        onConfirmar={() => {
+          setConfirmando(false);
+          sincronizar();
+        }}
+      />
       <Contenedor theme={theme}>
         <Encabezado>
           <ButtonUI
@@ -304,9 +314,9 @@ function ActualizarPreciosArchivo() {
 
           <AccionesEncabezado>
             <ButtonUI
-              text="Sincronizar precios"
+              text="Actualizar precios sap"
               iconLeft="FaArrowsRotate"
-              onClick={sincronizar}
+              onClick={() => setConfirmando(true)}
               disabled={!puedeEditar || sincronizando || lista == null || !enviables.length}
               title={
                 !puedeEditar

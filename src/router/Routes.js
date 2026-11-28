@@ -90,6 +90,7 @@ import ImportarProductos, { ImportarPrecios } from "pages/Areas/MDM/Administraci
 import CopiarDesdeFactura, { CopiarPreciosDesdeFactura } from "pages/Areas/MDM/AdministracionProductos/CopiarDesdeFactura";
 import CopiarPrecios from "pages/Areas/MDM/AdministracionProductos/CopiarPrecios";
 import ActualizarPreciosArchivo from "pages/Areas/MDM/AdministracionProductos/ActualizarPreciosArchivo";
+import ActualizarPrecios from "pages/Areas/MDM/AdministracionProductos/ActualizarPrecios";
 import AS_HabShellForm from "pages/Areas/AppShell/AS_HabShellForm/AS_HabShellForm";
 import AS_PuntosExtras from "pages/Areas/AppShell/AS_PuntosExtras/AS_PuntosExtras";
 import { VisitasAsignar } from "pages/Areas/Visitas/Asignar/VisitasAsignar";
@@ -486,6 +487,13 @@ export const RoutesConfig = [
     component: ImportarPrecios,
     recurso: "mdm.administracionproductos",
     path: "/mdm/administracionproductos/precios/importar",
+    hideInSidebar: true,
+  },
+  {
+    title: "Actualizar precios",
+    component: ActualizarPrecios,
+    recurso: "mdm.administracionproductos",
+    path: "/mdm/administracionproductos/actualizar-precios/seleccion",
     hideInSidebar: true,
   },
   {

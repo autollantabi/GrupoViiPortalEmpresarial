@@ -147,6 +147,20 @@ export const getDetallePreciosMDM = async ({ empresaOrigen, empresaDestino, prod
   return [];
 };
 
+/** Reglas de incremento (por línea/marca y lista) de los artículos seleccionados para actualizar precios */
+export const getDetalleActualizacionPreciosMDM = async ({ empresa, productos, listaPrecio = null }) => {
+  const response = await axiosInstanceNew.post("/mdm/productos/precios/actualizar/detalle", {
+    empresa,
+    productos,
+    listaPrecio,
+  });
+
+  if (response.data && response.data.status === "Ok!") {
+    return response.data.data || [];
+  }
+  return [];
+};
+
 /** Filas de la plantilla de precios (código de proveedor + PVP sin IVA) resueltas contra core.dim_item */
 export const resolverPlantillaPreciosMDM = async ({ empresa, filas, listaPrecio = null }) => {
   const response = await axiosInstanceNew.post("/mdm/productos/precios/plantilla", { empresa, filas, listaPrecio });

@@ -1,4 +1,6 @@
 import styled, { keyframes } from "styled-components";
+import { ModalUI } from "components/UI/Components/ModalUI";
+import { TextUI } from "components/UI/Components/TextUI";
 
 /**
  * Constantes y estilos compartidos por las pantallas de Administración de
@@ -43,6 +45,23 @@ export const PantallaCarga = ({ visible, mensaje = "Procesando..." }) =>
     </CapaCarga>
   ) : null;
 
+/* Confirmación previa a enviar precios a SAP (botón "Actualizar precios sap") */
+export const ConfirmarActualizarSap = ({ abierto, onCerrar, onConfirmar }) => (
+  <ModalUI
+    isOpen={abierto}
+    onClose={onCerrar}
+    title="Actualizar precios en SAP"
+    maxWidth="460px"
+    width="90%"
+    saveText="Sí"
+    cancelText="Cancelar"
+    onSave={onConfirmar}
+    isAsync={false}
+  >
+    <TextUI>¿Está seguro que desea actualizar los precios en SAP?</TextUI>
+  </ModalUI>
+);
+
 export const RECURSO_ADMIN_PRODUCTOS = "mdm.administracionproductos";
 export const RUTA_ADMIN_PRODUCTOS = "/mdm/administracionproductos";
 export const RUTA_COPIAR_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/copiar`;
@@ -51,6 +70,7 @@ export const RUTA_FACTURA_PRODUCTOS = `${RUTA_ADMIN_PRODUCTOS}/factura`;
 export const RUTA_FACTURA_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/factura`;
 export const RUTA_IMPORTAR_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/importar`;
 export const RUTA_ACTUALIZAR_PRECIOS_ARCHIVO = `${RUTA_ADMIN_PRODUCTOS}/actualizar-precios/archivo`;
+export const RUTA_ACTUALIZAR_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/actualizar-precios/seleccion`;
 export const RUTA_COPIAR_PRECIOS = `${RUTA_ADMIN_PRODUCTOS}/precios/copiar`;
 
 /* Compañías con las que trabaja el MDM */

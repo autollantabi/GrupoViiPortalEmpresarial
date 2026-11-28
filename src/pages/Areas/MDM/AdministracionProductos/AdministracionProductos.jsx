@@ -37,6 +37,7 @@ import {
   claveProducto,
   estiloCheckboxTabla,
   RUTA_FACTURA_PRECIOS,
+  RUTA_ACTUALIZAR_PRECIOS,
   RUTA_ACTUALIZAR_PRECIOS_ARCHIVO,
   RUTA_IMPORTAR_PRECIOS,
   RUTA_FACTURA_PRODUCTOS,
@@ -274,6 +275,14 @@ function AdministracionProductos() {
   const abrirPreciosArchivo = () => {
     setMenuAbierto(false);
     navigate(RUTA_IMPORTAR_PRECIOS);
+  };
+
+  const abrirActualizarPrecios = () => {
+    setMenuAbierto(false);
+    /* Los productos viajan en el estado de la navegación, igual que en copiar */
+    navigate(`${RUTA_ACTUALIZAR_PRECIOS}?${new URLSearchParams({ empresa }).toString()}`, {
+      state: { productos: Object.values(seleccion), volverA: searchParams.toString() },
+    });
   };
 
   const abrirActualizarPreciosArchivo = () => {
@@ -618,6 +627,21 @@ function AdministracionProductos() {
                   >
                     <IconUI name="FaFileArrowUp" size={14} color={theme.colors.primary} />
                     Cargar desde archivo
+                  </MenuOpcion>
+                  <MenuOpcion
+                    theme={theme}
+                    onClick={abrirActualizarPrecios}
+                    disabled={!puedeEditar || cantidadSeleccionada === 0}
+                    title={
+                      !puedeEditar
+                        ? "Requiere el permiso de edición sobre Administración de productos"
+                        : cantidadSeleccionada === 0
+                          ? "Seleccione uno o más productos para actualizar sus precios"
+                          : "Actualizar los precios de los productos seleccionados"
+                    }
+                  >
+                    <IconUI name="FaCoins" size={14} color={theme.colors.primary} />
+                    Actualizar precios
                   </MenuOpcion>
                 </MenuLista>
               )}
