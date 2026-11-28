@@ -11,6 +11,7 @@ import { MOBILE_MEDIA_QUERY } from "hooks/useIsMobile";
 import { useAuthContext } from "context/authContext";
 import IconUI from "components/UI/Components/IconsUI";
 import { postgresService } from "services/postgresService";
+import { NieveHeader, ArbolNavidad, esTemporadaNavidena } from "./NavidadHeader";
 
 // 🎨 Estilos Comunes
 const flexRowCenter = `
@@ -61,6 +62,8 @@ const EstructuraHeader = styled.div.withConfig({
 `;
 
 const ContenedorHeader = styled.div`
+  position: relative;
+  z-index: 1; /* por encima de la capa de nieve decorativa */
   display: flex;
   align-items: center;
   width: 100%;
@@ -211,6 +214,7 @@ const Header = () => {
   };
 
   const userInitials = getInitials(nombreUsuario);
+  const navideno = esTemporadaNavidena();
 
   if (!isAuthenticated || !correoUsuario) {
     return null;
@@ -218,9 +222,11 @@ const Header = () => {
 
   return (
     <EstructuraHeader $sidebarExpanded={isExpanded} $rightSidebarExpanded={isRightExpanded}>
+      {navideno && <NieveHeader />}
       <ContenedorHeader>
         <ContenedorLogo>
           <Reloj />
+          {navideno && <ArbolNavidad />}
         </ContenedorLogo>
         <ContenedorCentro>
           {mensajeCompleto && (
